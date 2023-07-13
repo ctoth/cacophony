@@ -1,0 +1,21 @@
+{
+  "name": "cacophony",
+  "version": "0.1.0",
+  "description": "Typescript audio library with caching",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "audio",
+    "webaudio"
+  ],
+  "author": "Christopher Toth",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.1.6"
+  },
+  "dependencies": {
+    "sounts": "^0.8.1"
+  }
+}
