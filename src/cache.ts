@@ -1,40 +1,63 @@
+import { IAudioContext } from "standardized-audio-context";
 
 export class CacheManager {
-    static pendingRequests = new Map<string, Promise<AudioBuffer>>();
+    private static pendingRequests = new Map<string, Promise<AudioBuffer>>();
 
-    static async getAudioBuffer(url: string, context: AudioContext): Promise<AudioBuffer> {
-        const cache = await this.safeOperation(() => caches.open('audio-cache'), 'Failed to open cache');
-
-        const response = await this.safeOperation(() => cache.match(url), 'Failed to match cache');
-
-        if (response) {
-            const arrayBuffer = await this.safeOperation(() => response.arrayBuffer(), 'Failed to convert response to ArrayBuffer');
-            const audioBuffer = await this.safeOperation(() => context.decodeAudioData(arrayBuffer), 'Failed to decode audio data');
-            return audioBuffer;
+    private static async openCache(): Promise<Cache> {
+        try {
+            return await caches.open('audio-cache');
+        } catch (error) {
+            console.error('Failed to open cache:', error);
+            throw error;
         }
+    }
 
+    private static async getAudioBufferFromCache(url: string, cache: Cache, context: IAudioContext): Promise<AudioBuffer | null> {
+        try {
+            const response = await cache.match(url);
+            if (response) {
+                const arrayBuffer = await response.arrayBuffer();
+                return context.decodeAudioData(arrayBuffer);
+            }
+            return null;
+        } catch (error) {
+            console.error('Failed to get audio data from cache:', error);
+            throw error;
+        }
+    }
+
+    private static async fetchAndCacheAudioBuffer(url: string, cache: Cache, context: IAudioContext): Promise<AudioBuffer> {
+        try {
+            const fetchResponse = await fetch(url);
+            const responseClone = fetchResponse.clone();
+            cache.put(url, responseClone);
+            const arrayBuffer = await fetchResponse.arrayBuffer();
+            return context.decodeAudioData(arrayBuffer);
+        } catch (error) {
+            console.error('Failed to fetch and cache audio data:', error);
+            throw error;
+        }
+    }
+
+    public static async getAudioBuffer(url: string, context: IAudioContext): Promise<AudioBuffer> {
+        const cache = await this.openCache();
+
+        // First, check if there's a pending request.
         let pendingRequest = this.pendingRequests.get(url);
-        if (!pendingRequest) {
-            const fetchResponse = await this.safeOperation(() => fetch(url), 'Failed to fetch request');
-            cache.put(url, fetchResponse.clone());
-            const arrayBuffer = await this.safeOperation(() => fetchResponse.arrayBuffer(), 'Failed to convert response to ArrayBuffer');
-            pendingRequest = context.decodeAudioData(arrayBuffer);
-            this.pendingRequests.set(url, pendingRequest);
+        if (pendingRequest) {
+            return pendingRequest;
         }
+
+        // Try getting the buffer from cache.
+        const bufferFromCache = await this.getAudioBufferFromCache(url, cache, context);
+        if (bufferFromCache) {
+            return bufferFromCache;
+        }
+
+        // If it's not in the cache, fetch and cache it.
+        pendingRequest = this.fetchAndCacheAudioBuffer(url, cache, context);
+        this.pendingRequests.set(url, pendingRequest);
 
         return pendingRequest;
     }
-
-    static async safeOperation<T>(operation: () => Promise<T>, errorMessage: string): Promise<T> {
-        try {
-            return await operation();
-        } catch (error) {
-            if (error instanceof Error) {
-                throw new Error(`${errorMessage}: ${error.message}`);
-            }
-            throw error; // Re-throw if it's not an Error, we don't know how to handle it.
-        }
-    }
 }
-
-
