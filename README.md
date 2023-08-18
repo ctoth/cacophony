@@ -1,4 +1,4 @@
-Cacophony is a highly robust and versatile audio library for Typescript leveraging the WebAudio API, crafted to simplifying audio management in complex applications. The core concept of Cacophony revolves around the creation and manipulation of three key elements: `Sound`, `Playback`, and `Group`.
+Cacophony is a highly robust and versatile audio library for Typescript leveraging the WebAudio API, crafted to simplify audio management in complex applications. The core concept of Cacophony revolves around the creation and manipulation of three key elements: `Sound`, `Playback`, and `Group`.
 
 - A `Sound` represents a distinct audio source, derived from an `AudioBuffer` or a URL string pointing to an audio file.
 - A `Playback` refers to the act of playing a `Sound` and carries additional properties such as its position in a 3D audio scene, gain-node for volume control, and more.
