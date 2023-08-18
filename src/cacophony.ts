@@ -1,4 +1,4 @@
-import { SoundSource, SoundSourceOptions, createAudioContext, createSoundListener } from "sounts";
+import { SoundSource as BaseSoundSource, SoundSourceOptions, createAudioContext, createSoundListener } from "sounts";
 import { CacheManager } from "./cache";
 
 export enum FadeType {
@@ -21,7 +21,7 @@ export abstract class AudioNodeWrapper {
     protected filters: NodeWrapper[] = [];
     protected effectsChain: NodeWrapper[] = [];
 
-    constructor(public soundSource: SoundSource, public context: AudioContext) { }
+    constructor(public soundSource: BaseSoundSource, public context: AudioContext) { }
 
     get volume() {
         return this.soundSource.gainNode!.gain.value;
@@ -40,11 +40,9 @@ export abstract class AudioNodeWrapper {
         this.soundSource.setPosition(position.x!, position.y!, position.z!);
     }
 
-
     fade(duration: number, fadeType: FadeType = FadeType.EXPONENTIAL, fadeDirection: 'in' | 'out') {
         const target = this.context.currentTime + duration;
         const value = fadeDirection === 'in' ? 1 : 0.00001;
-
         switch (fadeType) {
             case FadeType.EXPONENTIAL:
                 this.soundSource.gainNode!.gain.exponentialRampToValueAtTime(value, target);
@@ -222,7 +220,7 @@ export class AudioSource extends AudioNodeWrapper {
     private group: string;
 
     constructor(url: string, group: string, context: AudioContext, soundSourceOptions: SoundSourceOptions, public loop: boolean = false, public channel: string = "default") {
-        super(new SoundSource(context.destination, soundSourceOptions), context);
+        super(new BaseSoundSource(context.destination, soundSourceOptions), context);
         this.url = url;
         this.group = group;
     }
