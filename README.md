@@ -4,7 +4,7 @@ Cacophony is a highly robust and versatile audio library for Typescript leveragi
 - A `Playback` refers to the act of playing a `Sound` and carries additional properties such as its position in a 3D audio scene, gain-node for volume control, and more.
 - A `Group` encapsulates multiple `Sound` instances to handle them as one entity, permitting the grouped sounds to be played, paused, or stopped synchronously.
 
-## Packed Features
+## Features
 
 - Multiple Audio Sources: Handle buffers, URLs, groups of sounds, and playbacks seamlessly.
 - Comprehensive Audio Control: Play, stop, pause, resume, infinite or finite loops, and volume adjustments.

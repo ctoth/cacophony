@@ -5,6 +5,12 @@ import { CacheManager } from './cache';
 type GainNode = IGainNode<AudioContext>;
 type BiquadFilterNode = IBiquadFilterNode<AudioContext>;
 
+type AudioBufferSourceNode = IAudioBufferSourceNode<AudioContext>;
+type PannerNode = IPannerNode<AudioContext>;
+
+type LoopCount = number | 'infinite';
+
+export type FadeType = 'linear' | 'exponential'
 
 export interface BaseSound {
     // the stuff you should be able to do with anything that makes sound including groups, sounds, and playbacks.
@@ -17,7 +23,7 @@ export interface BaseSound {
     moveTo(x: number, y: number, z: number): void;
     volume: number;
 
-
+    loop(loopCount?: LoopCount): LoopCount;
 }
 
 export class Cacophony {
@@ -33,20 +39,35 @@ export class Cacophony {
         this.globalGainNode.connect(this.context.destination);
     }
 
-    getListener(): IAudioListener {
-        return this.listener;
-    }
+    async createSound(buffer: AudioBuffer): Promise<Sound>
 
-    createSound(buffer: AudioBuffer): Sound
+    async createSound(url: string): Promise<Sound>
 
-    createSound(url: string): Promise<Sound>
-
-    createSound(bufferOrUrl: AudioBuffer | string): Sound | Promise<Sound> {
+    async createSound(bufferOrUrl: AudioBuffer | string): Promise<Sound> {
         if (bufferOrUrl instanceof AudioBuffer) {
-            return new Sound(bufferOrUrl, this.context, this.globalGainNode);
+            return Promise.resolve(new Sound(bufferOrUrl, this.context, this.globalGainNode));
         }
         const url = bufferOrUrl;
         return CacheManager.getAudioBuffer(url, this.context).then(buffer => new Sound(buffer, this.context, this.globalGainNode));
+    }
+
+    async createGroup(sounds: Sound[]): Promise<Group> {
+        const group = new Group();
+        sounds.forEach(sound => group.addSound(sound));
+        return group;
+    }
+
+    async createGroupFromUrls(urls: string[]): Promise<Group> {
+        const group = new Group();
+        const sounds = await Promise.all(urls.map(url => this.createSound(url)));
+        sounds.forEach(sound => group.addSound(sound));
+        return group;
+    }
+
+    createBiquadFilter(type: BiquadFilterType): BiquadFilterNode {
+        const filter = this.context.createBiquadFilter();
+        filter.type = type;
+        return filter;
     }
 
     pause() {
@@ -91,7 +112,7 @@ export class Cacophony {
 }
 
 
-export class FilterManager {
+class FilterManager {
     protected filters: BiquadFilterNode[] = [];
 
     addFilter(filter: BiquadFilterNode): void {
@@ -103,21 +124,22 @@ export class FilterManager {
     }
 
     applyFilters(connection: any): any {
-        this.filters.forEach(filter => {
-            connection.disconnect();
-            connection = connection.connect(filter);
-        });
-        return connection;
+        this.filters.reduce((prevConnection, filter) => {
+            prevConnection.connect(filter);
+            return filter;
+        }, connection);
+        return this.filters.length > 0 ? this.filters[this.filters.length - 1] : connection;
     }
 }
 
 
-class Sound extends FilterManager implements BaseSound {
+export class Sound extends FilterManager implements BaseSound {
     buffer: IAudioBuffer;
     context: AudioContext;
     playbacks: Playback[] = [];
     globalGainNode: GainNode;
     position: number[] = [0, 0, 0];
+    loopCount: LoopCount = 0;
 
     constructor(buffer: AudioBuffer, context: AudioContext, globalGainNode: IGainNode<AudioContext>) {
         super();
@@ -132,7 +154,7 @@ class Sound extends FilterManager implements BaseSound {
         const gainNode = this.context.createGain();
         source.connect(gainNode);
         gainNode.connect(this.globalGainNode);
-        const playback = new Playback(source, gainNode, this.context);
+        const playback = new Playback(source, gainNode, this.context, this.loopCount);
         this.filters.forEach(filter => playback.addFilter(filter));
         playback.moveTo(this.position[0], this.position[1], this.position[2]);
         this.playbacks.push(playback);
@@ -166,6 +188,15 @@ class Sound extends FilterManager implements BaseSound {
         this.playbacks.forEach(p => p.moveTo(x, y, z));
     }
 
+    loop(loopCount?: LoopCount): LoopCount {
+        if (loopCount === undefined) {
+            return this.loopCount;
+        }
+        this.loopCount = loopCount;
+        this.playbacks.forEach(p => p.source.loop = true);
+        return this.loopCount;
+    }
+
     addFilter(filter: BiquadFilterNode): void {
         super.addFilter(filter);
         this.playbacks.forEach(p => p.addFilter(filter));
@@ -186,23 +217,36 @@ class Sound extends FilterManager implements BaseSound {
     }
 }
 
-type AudioBufferSourceNode = IAudioBufferSourceNode<AudioContext>;
-type PannerNode = IPannerNode<AudioContext>;
-
 class Playback extends FilterManager implements BaseSound {
     context: AudioContext;
     source: AudioBufferSourceNode;
     gainNode: GainNode;
     panner: PannerNode;
+    loopCount: LoopCount = 0;
+    currentLoop: number = 0;
+    buffer: IAudioBuffer | null = null;
 
-    constructor(source: AudioBufferSourceNode, gainNode: GainNode, context: AudioContext) {
+    constructor(source: AudioBufferSourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0) {
         super();
+        this.loopCount = loopCount;
         this.source = source;
+        this.buffer = source.buffer;
+        this.source.onended = this.handleLoop.bind(this);
         this.gainNode = gainNode;
         this.context = context;
         this.panner = context.createPanner();
         source.connect(this.panner).connect(this.gainNode);
+        this.refreshFilters();
         source.start();
+    }
+
+    handleLoop(): void {
+        if (this.loopCount === 'infinite' || this.currentLoop < this.loopCount) {
+            this.currentLoop++;
+            this.source = this.context.createBufferSource();
+            this.source.buffer = this.buffer;
+            this.play();
+        }
     }
 
     play() {
@@ -218,7 +262,7 @@ class Playback extends FilterManager implements BaseSound {
         this.gainNode.gain.value = v;
     }
 
-    fadeIn(time: number): Promise<void> {
+    fadeIn(time: number, FfadeType: FadeType = 'linear'): Promise<void> {
         return new Promise(resolve => {
             let volume = 0;
             const increment = this.gainNode.gain.value / (time * 60); // Assuming time is in seconds
@@ -233,19 +277,33 @@ class Playback extends FilterManager implements BaseSound {
         });
     }
 
-    fadeOut(time: number): Promise<void> {
+    fadeOut(time: number, fadeType: FadeType = 'linear'): Promise<void> {
         return new Promise(resolve => {
-            let volume = this.gainNode.gain.value;
-            const decrement = this.gainNode.gain.value / (time * 60);
-            const interval = setInterval(() => {
-                volume -= decrement;
-                this.gainNode.gain.value = volume;
-                if (volume <= 0) {
-                    clearInterval(interval);
-                    resolve();
-                }
-            }, 1000 / 60);
+            // Storing the current gain value
+            const initialVolume = this.gainNode.gain.value;
+            switch (fadeType) {
+                case 'exponential':
+                    // Scheduling an exponential fade down
+                    this.gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + time);
+                    break;
+                case 'linear':
+
+                    // Scheduling a linear ramp to 0 over the given duration
+                    this.gainNode.gain.linearRampToValueAtTime(0, this.context.currentTime + time);
+            }
+            // Resolving the Promise after the fade-out time
+            setTimeout(() => resolve(), time * 1000);
         });
+    }
+
+    loop(loopCount?: LoopCount): LoopCount {
+        if (loopCount === undefined) {
+            return this.source.loop === true ? 'infinite' : 0;
+        }
+        this.source.loop = true;
+        this.source.loopEnd = this.source.buffer?.duration || 0;
+        this.source.loopStart = 0;
+        return this.source.loop === true ? 'infinite' : 0;
     }
 
     stop(): void {
@@ -256,8 +314,8 @@ class Playback extends FilterManager implements BaseSound {
         if ('suspend' in this.source.context) {
             this.source.context.suspend();
         }
-
     }
+
     resume(): void {
         if ('resume' in this.source.context) {
             this.source.context.resume();
@@ -282,26 +340,34 @@ class Playback extends FilterManager implements BaseSound {
 
     private refreshFilters(): void {
         let connection = this.source;
+        this.source.disconnect();
         connection = this.applyFilters(connection);
+        connection.connect(this.gainNode);
     }
 }
 
 
-
-
-class Group implements BaseSound {
+export class Group implements BaseSound {
     sounds: Sound[] = [];
+    position: number[] = [0, 0, 0];
+    loopCount: LoopCount = 0;
 
     addSound(sound: Sound): void {
         this.sounds.push(sound);
     }
 
     preplay(): Playback[] {
-        return this.sounds.reduce<Playback[]>((playbacks, sound) => playbacks.concat(sound.preplay()), []);
+        return this.sounds.reduce<Playback[]>((playbacks, sound) => {
+            sound.loop(this.loopCount);
+            return playbacks.concat(sound.preplay());
+        }, []);
     }
 
     play(): Playback[] {
-        return this.sounds.reduce<Playback[]>((playbacks, sound) => playbacks.concat(sound.play()), []);
+        return this.preplay().map(playback => {
+            playback.play();
+            return playback;
+        });
     }
 
     stop(): void {
@@ -320,6 +386,15 @@ class Group implements BaseSound {
         });
     }
 
+    loop(loopCount?: LoopCount): LoopCount {
+        if (loopCount === undefined) {
+            return this.loopCount;
+        }
+        this.loopCount = loopCount;
+        this.sounds.forEach(sound => sound.loop(loopCount));
+        return this.loopCount;
+    }
+
     addFilter(filter: BiquadFilterNode): void {
         this.sounds.forEach(sound => sound.addFilter(filter));
     }
@@ -329,6 +404,7 @@ class Group implements BaseSound {
     }
 
     moveTo(x: number, y: number, z: number): void {
+        this.position = [x, y, z];
         this.sounds.forEach(sound => sound.moveTo(x, y, z));
     }
 
@@ -341,3 +417,4 @@ class Group implements BaseSound {
     }
 
 }
+
