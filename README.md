@@ -17,7 +17,7 @@ Cacophony is a highly robust and versatile audio library for Typescript leveragi
 Cacophony is provided as a regular NPM module. Install it using:
 
 ```bash
-$ npm install cacophony-ts
+$ npm install cacophony
 ```
 
 ## Straightforward Usage
@@ -50,7 +50,7 @@ Crafts a `Sound` instance using either an `AudioBuffer` or a URL string leading 
 
 #### Method: `async createGroup(sounds: Sound[]): Promise<Group>`
 
-Fabricates a `Group` entity from an array of `Sound` instances.
+Creates a `Group` entity from an array of `Sound` instances.
 
 #### Method: `async createGroupFromUrls(urls: string[]): Promise<Group>`
 
