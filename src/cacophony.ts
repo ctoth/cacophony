@@ -1,4 +1,6 @@
 import { AudioContext, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IPannerNode } from 'standardized-audio-context';
+
+export type Position = [number, number, number];
 import { CacheManager } from './cache';
 
 
@@ -21,7 +23,7 @@ export interface BaseSound {
     addFilter(filter: BiquadFilterNode): void;
     removeFilter(filter: BiquadFilterNode): void;
     volume: number;
-    position: [number, number, number]; // Added position property with getter and setter.
+    position: Position; // Added position property with getter and setter.
 
     loop(loopCount?: LoopCount): LoopCount;
 }
@@ -138,7 +140,7 @@ export class Sound extends FilterManager implements BaseSound {
     context: AudioContext;
     playbacks: Playback[] = [];
     globalGainNode: GainNode;
-    position: number[] = [0, 0, 0];
+    private _position: Position = [0, 0, 0];
     loopCount: LoopCount = 0;
 
     constructor(buffer: AudioBuffer, context: AudioContext, globalGainNode: IGainNode<AudioContext>) {
@@ -146,6 +148,7 @@ export class Sound extends FilterManager implements BaseSound {
         this.buffer = buffer;
         this.context = context;
         this.globalGainNode = globalGainNode;
+        this._position = [0, 0, 0];
     }
 
     preplay(): Playback[] {
@@ -183,12 +186,12 @@ export class Sound extends FilterManager implements BaseSound {
         }
     }
 
-    set position(position: [number, number, number]) {
+    set position(position: Position) {
         this._position = position;
-        this.playbacks.forEach(p => p.position = position);
+        this.playbacks.forEach(p => p.position = this._position);
     }
 
-    get position(): [number, number, number] {
+    get position(): Position {
         return this._position;
     }
 
@@ -393,7 +396,7 @@ class Playback extends FilterManager implements BaseSound {
         this.refreshFilters();
     }
 
-    set position(position: [number, number, number]) {
+    set position(position: Position) {
         if (!this.panner) {
             throw new Error('Cannot move a sound that has been cleaned up');
         }
@@ -403,7 +406,7 @@ class Playback extends FilterManager implements BaseSound {
         this.panner.positionZ.value = z;
     }
 
-    get position(): [number, number, number] {
+    get position(): Position {
         if (!this.panner) {
             throw new Error('Cannot get position of a sound that has been cleaned up');
         }
@@ -424,7 +427,7 @@ class Playback extends FilterManager implements BaseSound {
 
 export class Group implements BaseSound {
     sounds: Sound[] = [];
-    position: number[] = [0, 0, 0];
+    private _position: Position = [0, 0, 0];
     loopCount: LoopCount = 0;
 
     addSound(sound: Sound): void {
@@ -480,7 +483,7 @@ export class Group implements BaseSound {
 
     set position(position: [number, number, number]) {
         this._position = position;
-        this.sounds.forEach(sound => sound.position = position);
+        this.sounds.forEach(sound => sound.position = this._position);
     }
 
     get position(): [number, number, number] {

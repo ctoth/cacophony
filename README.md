@@ -32,7 +32,7 @@ async function playSampleSound() {
   const sound = await cacophony.createSound('path/to/your/audio/file.mp3');
 
   sound.play();
-  sound.moveTo(1, 1, 1); // Position the sound in 3D space
+  sound.position = [1, 1, 1]; // Position the sound in 3D space
 }
 
 playSampleSound();
@@ -94,7 +94,7 @@ All classes representing sound sources (`Sound`, `Playback`, `Group`) offer the 
 - `resume()`
 - `addFilter(filter: BiquadFilterNode)`
 - `removeFilter(filter: BiquadFilterNode)`
-- `moveTo(x: number, y: number, z: number)`
+- `position`: A tuple `[x: number, y: number, z: number]` representing the position of the sound in 3D space, with both getter and setter.
 - `loop(loopCount?: LoopCount)`: `LoopCount` can be a finite number or 'infinite'.
 
 ## License
