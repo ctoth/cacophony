@@ -163,7 +163,7 @@ export class Sound extends FilterManager implements BaseSound {
 
     play(): Playback[] {
         const playback = this.preplay();
-        playback.forEach(p => p.source.start());
+        playback.forEach(p => p.source!.start());
         return playback;
     }
 
@@ -193,7 +193,7 @@ export class Sound extends FilterManager implements BaseSound {
             return this.loopCount;
         }
         this.loopCount = loopCount;
-        this.playbacks.forEach(p => p.source.loop = true);
+        this.playbacks.forEach(p => p.source!.loop = true);
         return this.loopCount;
     }
 
@@ -219,9 +219,9 @@ export class Sound extends FilterManager implements BaseSound {
 
 class Playback extends FilterManager implements BaseSound {
     context: AudioContext;
-    source: AudioBufferSourceNode;
-    gainNode: GainNode;
-    panner: PannerNode;
+    source?: AudioBufferSourceNode;
+    gainNode?: GainNode;
+    panner?: PannerNode;
     loopCount: LoopCount = 0;
     currentLoop: number = 0;
     buffer: IAudioBuffer | null = null;
@@ -250,36 +250,68 @@ class Playback extends FilterManager implements BaseSound {
     }
 
     play() {
+        if (!this.source) {
+            throw new Error('Cannot play a sound that has been cleaned up');
+        }
         this.source.start();
         return [this];
     }
 
     get volume(): number {
+        if (!this.gainNode) {
+            throw new Error('Cannot get volume of a sound that has been cleaned up');
+        }
         return this.gainNode.gain.value;
     }
 
     set volume(v: number) {
+        if (!this.gainNode) {
+            throw new Error('Cannot set volume of a sound that has been cleaned up');
+        }
         this.gainNode.gain.value = v;
     }
 
-    fadeIn(time: number, FfadeType: FadeType = 'linear'): Promise<void> {
+    fadeIn(time: number, fadeType: FadeType = 'linear'): Promise<void> {
         return new Promise(resolve => {
-            let volume = 0;
-            const increment = this.gainNode.gain.value / (time * 60); // Assuming time is in seconds
-            const interval = setInterval(() => {
-                volume += increment;
-                this.gainNode.gain.value = volume;
-                if (volume >= this.gainNode.gain.value) {
-                    clearInterval(interval);
-                    resolve();
+            if (!this.gainNode) {
+                throw new Error('Cannot fade in a sound that has been cleaned up');
+            }
+
+            const initialVolume = this.gainNode.gain.value;
+            const targetVolume = 1; // Assuming the target volume after fade-in is 1 (full volume)
+
+            // Reset volume to 0 to start the fade-in process
+            this.gainNode.gain.value = 0;
+
+            switch (fadeType) {
+                case 'exponential':
+                    // Start at a low value (0.01) because exponentialRampToValueAtTime cannot ramp from 0
+                    this.gainNode.gain.setValueAtTime(0.01, this.context.currentTime);
+                    this.gainNode.gain.exponentialRampToValueAtTime(targetVolume, this.context.currentTime + time);
+                    break;
+                case 'linear':
+                    this.gainNode.gain.linearRampToValueAtTime(targetVolume, this.context.currentTime + time);
+                    break;
+            }
+
+            // Resolve the Promise after the fade-in time
+            setTimeout(() => {
+                // Ensure the final volume is set to the target volume
+                if (!this.gainNode) {
+                    throw new Error('Cannot fade in a sound that has been cleaned up');
                 }
-            }, 1000 / 60); // 60 times per second
+                this.gainNode.gain.value = targetVolume;
+                resolve();
+            }, time * 1000);
         });
     }
 
     fadeOut(time: number, fadeType: FadeType = 'linear'): Promise<void> {
         return new Promise(resolve => {
             // Storing the current gain value
+            if (!this.gainNode) {
+                throw new Error('Cannot fade out a sound that has been cleaned up');
+            }
             const initialVolume = this.gainNode.gain.value;
             switch (fadeType) {
                 case 'exponential':
@@ -296,7 +328,23 @@ class Playback extends FilterManager implements BaseSound {
         });
     }
 
+    cleanup(): void {
+        if (this.source) {
+            this.source.disconnect();
+            this.source = undefined;
+        }
+        if (this.gainNode) {
+            this.gainNode.disconnect();
+            this.gainNode = undefined;
+        }
+        this.filters.forEach(filter => filter.disconnect());
+        this.filters = [];
+    }
+
     loop(loopCount?: LoopCount): LoopCount {
+        if (!this.source) {
+            throw new Error('Cannot loop a sound that has been cleaned up');
+        }
         if (loopCount === undefined) {
             return this.source.loop === true ? 'infinite' : 0;
         }
@@ -307,16 +355,25 @@ class Playback extends FilterManager implements BaseSound {
     }
 
     stop(): void {
+        if (!this.source) {
+            throw new Error('Cannot stop a sound that has been cleaned up');
+        }
         this.source.stop();
     }
 
     pause(): void {
+        if (!this.source) {
+            throw new Error('Cannot pause a sound that has been cleaned up');
+        }
         if ('suspend' in this.source.context) {
             this.source.context.suspend();
         }
     }
 
     resume(): void {
+        if (!this.source) {
+            throw new Error('Cannot resume a sound that has been cleaned up');
+        }
         if ('resume' in this.source.context) {
             this.source.context.resume();
         }
@@ -333,12 +390,18 @@ class Playback extends FilterManager implements BaseSound {
     }
 
     moveTo(x: number, y: number, z: number): void {
+        if (!this.panner) {
+            throw new Error('Cannot move a sound that has been cleaned up');
+        }
         this.panner.positionX.value = x;
         this.panner.positionY.value = y;
         this.panner.positionZ.value = z;
     }
 
     private refreshFilters(): void {
+        if (!this.source || !this.gainNode) {
+            throw new Error('Cannot update filters on a sound that has been cleaned up');
+        }
         let connection = this.source;
         this.source.disconnect();
         connection = this.applyFilters(connection);
