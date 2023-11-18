@@ -15,7 +15,11 @@ export interface BaseSound {
     addFilter(filter: BiquadFilterNode): void;
     removeFilter(filter: BiquadFilterNode): void;
     moveTo(x: number, y: number, z: number): void;
+    volume: number;
+
+
 }
+
 export class Cacophony {
     context: AudioContext;
     globalGainNode: GainNode;
@@ -65,6 +69,14 @@ export class Cacophony {
 
     setGlobalVolume(volume: number) {
         this.globalGainNode.gain.value = volume;
+    }
+
+    get volume(): number {
+        return this.globalGainNode.gain.value;
+    }
+
+    set volume(volume: number) {
+        this.setGlobalVolume(volume);
     }
 
     mute() {
@@ -163,8 +175,16 @@ class Sound extends FilterManager implements BaseSound {
         super.removeFilter(filter);
         this.playbacks.forEach(p => p.removeFilter(filter));
     }
-}
 
+    get volume(): number {
+        return this.globalGainNode.gain.value;
+    }
+
+    set volume(volume: number) {
+        this.globalGainNode.gain.value = volume;
+        this.playbacks.forEach(p => p.volume = volume);
+    }
+}
 
 type AudioBufferSourceNode = IAudioBufferSourceNode<AudioContext>;
 type PannerNode = IPannerNode<AudioContext>;
@@ -190,6 +210,10 @@ class Playback extends FilterManager implements BaseSound {
         return [this];
     }
 
+    get volume(): number {
+        return this.gainNode.gain.value;
+    }
+
     set volume(v: number) {
         this.gainNode.gain.value = v;
     }
@@ -208,6 +232,7 @@ class Playback extends FilterManager implements BaseSound {
             }, 1000 / 60); // 60 times per second
         });
     }
+
     fadeOut(time: number): Promise<void> {
         return new Promise(resolve => {
             let volume = this.gainNode.gain.value;
@@ -222,7 +247,6 @@ class Playback extends FilterManager implements BaseSound {
             }, 1000 / 60);
         });
     }
-
 
     stop(): void {
         this.source.stop();
@@ -307,4 +331,13 @@ class Group implements BaseSound {
     moveTo(x: number, y: number, z: number): void {
         this.sounds.forEach(sound => sound.moveTo(x, y, z));
     }
+
+    get volume(): number {
+        return this.sounds[0].volume;
+    }
+
+    set volume(volume: number) {
+        this.sounds.forEach(sound => sound.volume = volume);
+    }
+
 }
