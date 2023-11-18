@@ -1,6 +1,4 @@
 import { AudioContext, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IPannerNode } from 'standardized-audio-context';
-
-export type Position = [number, number, number];
 import { CacheManager } from './cache';
 
 
@@ -10,7 +8,9 @@ type BiquadFilterNode = IBiquadFilterNode<AudioContext>;
 type AudioBufferSourceNode = IAudioBufferSourceNode<AudioContext>;
 type PannerNode = IPannerNode<AudioContext>;
 
-type LoopCount = number | 'infinite';
+export type Position = [number, number, number];
+
+export type LoopCount = number | 'infinite';
 
 export type FadeType = 'linear' | 'exponential'
 
@@ -23,8 +23,7 @@ export interface BaseSound {
     addFilter(filter: BiquadFilterNode): void;
     removeFilter(filter: BiquadFilterNode): void;
     volume: number;
-    position: Position; // Added position property with getter and setter.
-
+    position: Position;
     loop(loopCount?: LoopCount): LoopCount;
 }
 
@@ -497,6 +496,5 @@ export class Group implements BaseSound {
     set volume(volume: number) {
         this.sounds.forEach(sound => sound.volume = volume);
     }
-
 }
 
