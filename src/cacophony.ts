@@ -20,8 +20,8 @@ export interface BaseSound {
     resume(): void;
     addFilter(filter: BiquadFilterNode): void;
     removeFilter(filter: BiquadFilterNode): void;
-    moveTo(x: number, y: number, z: number): void;
     volume: number;
+    position: [number, number, number]; // Added position property with getter and setter.
 
     loop(loopCount?: LoopCount): LoopCount;
 }
@@ -156,7 +156,7 @@ export class Sound extends FilterManager implements BaseSound {
         gainNode.connect(this.globalGainNode);
         const playback = new Playback(source, gainNode, this.context, this.loopCount);
         this.filters.forEach(filter => playback.addFilter(filter));
-        playback.moveTo(this.position[0], this.position[1], this.position[2]);
+        playback.position = this.position;
         this.playbacks.push(playback);
         return [playback];
     }
@@ -183,9 +183,13 @@ export class Sound extends FilterManager implements BaseSound {
         }
     }
 
-    moveTo(x: number, y: number, z: number): void {
-        this.position = [x, y, z];
-        this.playbacks.forEach(p => p.moveTo(x, y, z));
+    set position(position: [number, number, number]) {
+        this._position = position;
+        this.playbacks.forEach(p => p.position = position);
+    }
+
+    get position(): [number, number, number] {
+        return this._position;
     }
 
     loop(loopCount?: LoopCount): LoopCount {
@@ -389,13 +393,21 @@ class Playback extends FilterManager implements BaseSound {
         this.refreshFilters();
     }
 
-    moveTo(x: number, y: number, z: number): void {
+    set position(position: [number, number, number]) {
         if (!this.panner) {
             throw new Error('Cannot move a sound that has been cleaned up');
         }
+        const [x, y, z] = position;
         this.panner.positionX.value = x;
         this.panner.positionY.value = y;
         this.panner.positionZ.value = z;
+    }
+
+    get position(): [number, number, number] {
+        if (!this.panner) {
+            throw new Error('Cannot get position of a sound that has been cleaned up');
+        }
+        return [this.panner.positionX.value, this.panner.positionY.value, this.panner.positionZ.value];
     }
 
     private refreshFilters(): void {
@@ -466,9 +478,13 @@ export class Group implements BaseSound {
         this.sounds.forEach(sound => sound.removeFilter(filter));
     }
 
-    moveTo(x: number, y: number, z: number): void {
-        this.position = [x, y, z];
-        this.sounds.forEach(sound => sound.moveTo(x, y, z));
+    set position(position: [number, number, number]) {
+        this._position = position;
+        this.sounds.forEach(sound => sound.position = position);
+    }
+
+    get position(): [number, number, number] {
+        return this._position;
     }
 
     get volume(): number {
