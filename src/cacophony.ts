@@ -20,6 +20,7 @@ export interface BaseSound {
     stop(): void;
     pause(): void;
     resume(): void;
+    seek(time: number): void; // Add seek method to the interface
     addFilter(filter: BiquadFilterNode): void;
     removeFilter(filter: BiquadFilterNode): void;
     volume: number;
