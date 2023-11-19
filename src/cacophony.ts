@@ -1,4 +1,4 @@
-import { AudioContext, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IPannerNode } from 'standardized-audio-context';
+import { AudioContext, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IMediaStreamAudioSourceNode, IPannerNode } from 'standardized-audio-context';
 import { CacheManager } from './cache';
 
 
@@ -7,6 +7,7 @@ type BiquadFilterNode = IBiquadFilterNode<AudioContext>;
 
 type AudioBufferSourceNode = IAudioBufferSourceNode<AudioContext>;
 type PannerNode = IPannerNode<AudioContext>;
+type MediaStreamAudioSourceNode = IMediaStreamAudioSourceNode<AudioContext>;
 
 export type Position = [number, number, number];
 
@@ -541,6 +542,9 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
     loopCount: LoopCount = 0;
     private prevVolume: number = 1;
     private microphoneGainNode: GainNode;
+    private playback?: Playback;
+    private stream: MediaStream | undefined;
+    private streamSource?: MediaStreamAudioSourceNode;
 
     constructor(context: AudioContext) {
         super();
@@ -548,21 +552,21 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
         this.microphoneGainNode = this.context.createGain();
     }
 
-    private streamSource?: MediaStreamAudioSourceNode;
-    private stream?: MediaStream;
 
-    play(): void {
+    play(): Playback[] {
         if (!this.stream) {
             navigator.mediaDevices.getUserMedia({ audio: true })
                 .then(stream => {
                     this.stream = stream;
                     this.streamSource = this.context.createMediaStreamSource(this.stream);
-                    this.streamSource.connect(this.microphoneGainNode).connect(this.globalGainNode);
+                    this.playback = new Playback(this.streamSource, this.microphoneGainNode, this.context);
+                    this.playback.play();
                 })
                 .catch(err => {
                     console.error('Error initializing microphone stream:', err);
                 });
         }
+        return this.playback ? [this.playback] : [];
     }
 
     seek(time: number): void {
@@ -570,47 +574,44 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
     }
 
     stop(): void {
-        if (this.stream) {
-            this.stream.getTracks().forEach(track => track.stop());
-            this.stream = undefined;
-            if (this.streamSource) {
-                this.streamSource.disconnect();
-                this.streamSource = undefined;
-            }
+        if (this.playback) {
+            this.playback.stop();
+            this.playback = undefined;
         }
     }
 
     pause(): void {
-        this.prevVolume = this.microphoneGainNode.gain.value;
-        this.microphoneGainNode.gain.value = 0;
+        if (this.playback) {
+            this.playback.pause();
+        }
     }
 
     resume(): void {
-        this.microphoneGainNode.gain.value = this.prevVolume;
+        if (this.playback) {
+            this.playback.resume();
+        }
     }
 
     addFilter(filter: BiquadFilterNode): void {
-        this.filters.push(filter);
-        if (this.streamSource) {
-            this.streamSource.disconnect();
-            this.applyFilters(this.streamSource).connect(this.microphoneGainNode);
+        if (this.playback) {
+            this.playback.addFilter(filter);
         }
     }
 
     removeFilter(filter: BiquadFilterNode): void {
-        this.filters = this.filters.filter(f => f !== filter);
-        if (this.streamSource) {
-            this.streamSource.disconnect();
-            this.applyFilters(this.streamSource).connect(this.microphoneGainNode);
+        if (this.playback) {
+            this.playback.removeFilter(filter);
         }
     }
 
     get volume(): number {
-        return this.microphoneGainNode.gain.value;
+        return this.playback ? this.playback.volume : 0;
     }
 
     set volume(volume: number) {
-        this.microphoneGainNode.gain.value = volume;
+        if (this.playback) {
+            this.playback.volume = volume;
+        }
     }
 
     get position(): Position {
