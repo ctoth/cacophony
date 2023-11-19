@@ -287,7 +287,6 @@ export class Playback extends FilterManager implements BaseSound {
         this.source = source;
         if ('buffer' in source && source.buffer) {
             this.buffer = source.buffer;
-
         }
         if ('mediaElement' in source && source.mediaElement) {
             source.mediaElement.onended = this.handleLoop.bind(this);
@@ -302,16 +301,15 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     handleLoop() {
+        if (this.buffer) {
+            this.source = this.context.createBufferSource();
+            this.source.buffer = this.buffer;
+        } else {
+            this.seek(0);
+        }
         if (this.loopCount === 'infinite' || this.currentLoop < this.loopCount) {
             this.currentLoop++;
-            if (this.buffer) {
-                this.source = this.context.createBufferSource();
-                this.source.buffer = this.buffer;
-                this.play();
-            } else {
-                this.stop();
-                this.play();
-            }
+            this.play();
         }
     }
 
