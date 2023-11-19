@@ -533,51 +533,76 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
         this.globalGainNode = globalGainNode;
     }
 
-    play(): Playback[] {
-        // Implementation for starting the microphone stream
+    private streamSource?: MediaStreamAudioSourceNode;
+    private stream?: MediaStream;
+
+    async play(): Promise<Playback[]> {
+        if (!this.stream) {
+            this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            this.streamSource = this.context.createMediaStreamSource(this.stream);
+            this.streamSource.connect(this.globalGainNode);
+        }
+        return [];
     }
 
     seek(time: number): void {
-        // Implementation for seeking in the microphone stream
+        // Seeking is not applicable for live microphone stream
     }
 
     stop(): void {
-        // Implementation for stopping the microphone stream
+        if (this.stream) {
+            this.stream.getTracks().forEach(track => track.stop());
+            this.stream = undefined;
+            if (this.streamSource) {
+                this.streamSource.disconnect();
+                this.streamSource = undefined;
+            }
+        }
     }
 
     pause(): void {
-        // Implementation for pausing the microphone stream
+        // Pausing is not applicable for live microphone stream
     }
 
     resume(): void {
-        // Implementation for resuming the microphone stream
+        // Resuming is not applicable for live microphone stream
     }
 
     addFilter(filter: BiquadFilterNode): void {
-        // Implementation for adding a filter to the microphone stream
+        this.filters.push(filter);
+        if (this.streamSource) {
+            this.streamSource.disconnect();
+            this.applyFilters(this.streamSource).connect(this.globalGainNode);
+        }
     }
 
     removeFilter(filter: BiquadFilterNode): void {
-        // Implementation for removing a filter from the microphone stream
+        this.filters = this.filters.filter(f => f !== filter);
+        if (this.streamSource) {
+            this.streamSource.disconnect();
+            this.applyFilters(this.streamSource).connect(this.globalGainNode);
+        }
     }
 
     get volume(): number {
-        // Implementation for getting the volume of the microphone stream
+        return this.globalGainNode.gain.value;
     }
 
     set volume(volume: number) {
-        // Implementation for setting the volume of the microphone stream
+        this.globalGainNode.gain.value = volume;
     }
 
     get position(): Position {
-        // Implementation for getting the position of the microphone stream
+        // Position is not applicable for live microphone stream
+        return [0, 0, 0];
     }
 
     set position(position: Position) {
-        // Implementation for setting the position of the microphone stream
+        // Position is not applicable for live microphone stream
     }
 
     loop(loopCount?: LoopCount): LoopCount {
-        // Implementation for looping the microphone stream
+        // Looping is not applicable for live microphone stream
+        return 0;
     }
 }
