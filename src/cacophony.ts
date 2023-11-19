@@ -521,3 +521,63 @@ export class Group implements BaseSound {
     }
 }
 
+export class MicrophoneStream extends FilterManager implements BaseSound {
+    context: AudioContext;
+    globalGainNode: GainNode;
+    private _position: Position = [0, 0, 0];
+    loopCount: LoopCount = 0;
+
+    constructor(context: AudioContext, globalGainNode: GainNode) {
+        super();
+        this.context = context;
+        this.globalGainNode = globalGainNode;
+    }
+
+    play(): Playback[] {
+        // Implementation for starting the microphone stream
+    }
+
+    seek(time: number): void {
+        // Implementation for seeking in the microphone stream
+    }
+
+    stop(): void {
+        // Implementation for stopping the microphone stream
+    }
+
+    pause(): void {
+        // Implementation for pausing the microphone stream
+    }
+
+    resume(): void {
+        // Implementation for resuming the microphone stream
+    }
+
+    addFilter(filter: BiquadFilterNode): void {
+        // Implementation for adding a filter to the microphone stream
+    }
+
+    removeFilter(filter: BiquadFilterNode): void {
+        // Implementation for removing a filter from the microphone stream
+    }
+
+    get volume(): number {
+        // Implementation for getting the volume of the microphone stream
+    }
+
+    set volume(volume: number) {
+        // Implementation for setting the volume of the microphone stream
+    }
+
+    get position(): Position {
+        // Implementation for getting the position of the microphone stream
+    }
+
+    set position(position: Position) {
+        // Implementation for setting the position of the microphone stream
+    }
+
+    loop(loopCount?: LoopCount): LoopCount {
+        // Implementation for looping the microphone stream
+    }
+}
