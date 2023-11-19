@@ -1,4 +1,4 @@
-import { Cacophony } from './cacophony';
+import { Cacophony, Sound } from './cacophony';
 import { AudioContext } from 'standardized-audio-context-mock';
 
 let cacophony: Cacophony;
@@ -18,6 +18,6 @@ test('Cacophony is created with the correct context', () => {
 });
 test('createSound creates a sound with the correct buffer', async () => {
     const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    const sound = await cacophony.createSound(buffer);
+    const sound = await cacophony.createSound(buffer) as Sound;
     expect(sound.buffer).toBe(buffer);
 });
