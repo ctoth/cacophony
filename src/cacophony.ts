@@ -144,6 +144,10 @@ export class Sound extends FilterManager implements BaseSound {
     private _position: Position = [0, 0, 0];
     loopCount: LoopCount = 0;
 
+    seek(time: number): void {
+        this.playbacks.forEach(playback => playback.seek(time));
+    }
+
     constructor(buffer: AudioBuffer, context: AudioContext, globalGainNode: IGainNode<AudioContext>) {
         super();
         this.buffer = buffer;
@@ -233,6 +237,20 @@ class Playback extends FilterManager implements BaseSound {
     loopCount: LoopCount = 0;
     currentLoop: number = 0;
     buffer: IAudioBuffer | null = null;
+
+    seek(time: number): void {
+        if (!this.source || !this.buffer) {
+            throw new Error('Cannot seek a sound that has been cleaned up');
+        }
+        // Stop the current playback
+        this.source.stop();
+        // Create a new source to start from the desired time
+        this.source = this.context.createBufferSource();
+        this.source.buffer = this.buffer;
+        this.refreshFilters();
+        this.source.connect(this.panner).connect(this.gainNode);
+        this.source.start(0, time);
+    }
 
     constructor(source: AudioBufferSourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0) {
         super();
