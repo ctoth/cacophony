@@ -16,6 +16,10 @@
   ],
   "author": "Christopher Toth",
   "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ctoth/cacophony.git"
+  },
   "devDependencies": {
     "standardized-audio-context-mock": "^9.6.29",
     "typescript": "^5.1.6"
