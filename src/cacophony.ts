@@ -74,7 +74,7 @@ export class Cacophony {
         return group;
     }
 
-    async createStream(url: string): Promise<Playback[]> {
+    async createStream(url: string): Promise<Playback> {
         const audio = new Audio(url);
         audio.crossOrigin = 'anonymous';
         audio.load();
@@ -84,7 +84,7 @@ export class Cacophony {
         source.connect(gainNode);
         gainNode.connect(this.globalGainNode);
         const playback = new Playback(source, gainNode, this.context);
-        return [playback];
+        return playback;
     }
 
 
