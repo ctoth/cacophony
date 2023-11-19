@@ -1,4 +1,4 @@
-import { AudioContext, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IMediaStreamAudioSourceNode, IPannerNode } from 'standardized-audio-context';
+import { AudioContext, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
 import { CacheManager } from './cache';
 
 
@@ -28,8 +28,7 @@ export interface BaseSound {
     position: Position;
     loop?(loopCount?: LoopCount): LoopCount;
     // Getter and setter for threeDOptions representing PannerNode attributes
-    get threeDOptions(): PannerAttributes;
-    set threeDOptions(options: PannerAttributes): void;
+    threeDOptions?: IPannerOptions;
 }
 
 export class Cacophony {
@@ -161,10 +160,6 @@ export class Sound extends FilterManager implements BaseSound {
     private _position: Position = [0, 0, 0];
     loopCount: LoopCount = 0;
 
-    seek(time: number): void {
-        this.playbacks.forEach(playback => playback.seek(time));
-    }
-
     constructor(buffer: AudioBuffer, context: AudioContext, globalGainNode: IGainNode<AudioContext>) {
         super();
         this.buffer = buffer;
@@ -208,6 +203,11 @@ export class Sound extends FilterManager implements BaseSound {
         }
     }
 
+
+    seek(time: number): void {
+        this.playbacks.forEach(playback => playback.seek(time));
+    }
+
     set position(position: Position) {
         this._position = position;
         this.playbacks.forEach(p => p.position = this._position);
@@ -244,6 +244,12 @@ export class Sound extends FilterManager implements BaseSound {
         this.globalGainNode.gain.value = volume;
         this.playbacks.forEach(p => p.volume = volume);
     }
+
+
+    isPlaying(): boolean {
+        return this.playbacks.some(p => p.isPlaying());
+    }
+
 }
 
 class Playback extends FilterManager implements BaseSound {
@@ -255,19 +261,6 @@ class Playback extends FilterManager implements BaseSound {
     currentLoop: number = 0;
     private buffer: IAudioBuffer | null = null;
 
-    seek(time: number): void {
-        if (!this.source || !this.buffer || !this.gainNode || !this.panner) {
-            throw new Error('Cannot seek a sound that has been cleaned up');
-        }
-        // Stop the current playback
-        this.source.stop();
-        // Create a new source to start from the desired time
-        this.source = this.context.createBufferSource();
-        this.source.buffer = this.buffer;
-        this.refreshFilters();
-        this.source.connect(this.panner).connect(this.gainNode);
-        this.source.start(0, time);
-    }
 
     constructor(source: AudioBufferSourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0) {
         super();
@@ -298,6 +291,55 @@ class Playback extends FilterManager implements BaseSound {
         }
         this.source.start();
         return [this];
+    }
+
+    get threeDOptions(): IPannerOptions {
+        if (!this.panner) {
+            throw new Error('Cannot get 3D options of a sound that has been cleaned up');
+        }
+        return {
+            coneInnerAngle: this.panner.coneInnerAngle,
+            coneOuterAngle: this.panner.coneOuterAngle,
+            coneOuterGain: this.panner.coneOuterGain,
+            distanceModel: this.panner.distanceModel,
+            maxDistance: this.panner.maxDistance,
+            channelCount: this.panner.channelCount,
+            channelCountMode: this.panner.channelCountMode,
+            channelInterpretation: this.panner.channelInterpretation,
+            panningModel: this.panner.panningModel,
+            refDistance: this.panner.refDistance,
+            rolloffFactor: this.panner.rolloffFactor,
+            positionX: this.panner.positionX.value,
+            positionY: this.panner.positionY.value,
+            positionZ: this.panner.positionZ.value,
+            orientationX: this.panner.orientationX.value,
+            orientationY: this.panner.orientationY.value,
+            orientationZ: this.panner.orientationZ.value
+        }
+    }
+
+    set threeDOptions(options: Partial<IPannerOptions>) {
+        if (!this.panner) {
+            throw new Error('Cannot set 3D options of a sound that has been cleaned up');
+        }
+        Object.entries(options).forEach(([key, value]) => {
+            Object.assign(this.panner!, { [key]: value });
+        });
+    }
+
+
+    seek(time: number): void {
+        if (!this.source || !this.buffer || !this.gainNode || !this.panner) {
+            throw new Error('Cannot seek a sound that has been cleaned up');
+        }
+        // Stop the current playback
+        this.source.stop();
+        // Create a new source to start from the desired time
+        this.source = this.context.createBufferSource();
+        this.source.buffer = this.buffer;
+        this.refreshFilters();
+        this.source.connect(this.panner).connect(this.gainNode);
+        this.source.start(0, time);
     }
 
     get volume(): number {
@@ -376,6 +418,10 @@ class Playback extends FilterManager implements BaseSound {
             // Resolving the Promise after the fade-out time
             setTimeout(() => resolve(), time * 1000);
         });
+    }
+
+    isPlaying(): boolean {
+        return this.source?.context.state === 'running';
     }
 
     cleanup(): void {
