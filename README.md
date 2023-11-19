@@ -96,6 +96,7 @@ All classes representing sound sources (`Sound`, `Playback`, `Group`) offer the 
 - `removeFilter(filter: BiquadFilterNode)`
 - `position`: A tuple `[x: number, y: number, z: number]` representing the position of the sound in 3D space, with both getter and setter.
 - `loop(loopCount?: LoopCount)`: `LoopCount` can be a finite number or 'infinite'.
+- `seek(time: number)`: Seeks the current playback to the specified time in seconds.
 
 ## License
 
