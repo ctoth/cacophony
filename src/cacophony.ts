@@ -49,11 +49,11 @@ export class Cacophony {
         this.globalGainNode.connect(this.context.destination);
     }
 
-    async createSound(buffer: AudioBuffer): Promise<Sound>
+    async createSound(buffer: AudioBuffer): Promise<BaseSound>
 
-    async createSound(url: string): Promise<Sound>
+    async createSound(url: string): Promise<BaseSound>
 
-    async createSound(bufferOrUrl: AudioBuffer | string): Promise<Sound> {
+    async createSound(bufferOrUrl: AudioBuffer | string): Promise<BaseSound> {
         if (bufferOrUrl instanceof AudioBuffer) {
             return Promise.resolve(new Sound(bufferOrUrl, this.context, this.globalGainNode));
         }
@@ -575,21 +575,21 @@ export class Playback extends FilterManager implements BaseSound {
 
 
 export class Group implements BaseSound {
-    sounds: Sound[] = [];
+    sounds: BaseSound[] = [];
     private _position: Position = [0, 0, 0];
     loopCount: LoopCount = 0;
 
     seek(time: number): void {
-        this.sounds.forEach(sound => sound.seek(time));
+        this.sounds.forEach(sound => sound.seek && sound.seek(time));
     }
 
-    addSound(sound: Sound): void {
+    addSound(sound: BaseSound): void {
         this.sounds.push(sound);
     }
 
     preplay(): Playback[] {
-        return this.sounds.reduce<Playback[]>((playbacks, sound) => {
-            sound.loop(this.loopCount);
+        return (this.sounds as Sound[]).reduce<Playback[]>((playbacks, sound) => {
+            sound.loop && sound.loop(this.loopCount);
             return playbacks.concat(sound.preplay());
         }, []);
     }
@@ -610,11 +610,7 @@ export class Group implements BaseSound {
     }
 
     resume(): void {
-        this.sounds.forEach(sound => {
-            if ('resume' in sound.context) {
-                sound.context.resume();
-            }
-        });
+        this.sounds.forEach(sound => sound.resume());
     }
 
     loop(loopCount?: LoopCount): LoopCount {
@@ -622,7 +618,7 @@ export class Group implements BaseSound {
             return this.loopCount;
         }
         this.loopCount = loopCount;
-        this.sounds.forEach(sound => sound.loop(loopCount));
+        this.sounds.forEach(sound => sound.loop && sound.loop(loopCount));
         return this.loopCount;
     }
 
