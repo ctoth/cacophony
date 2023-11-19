@@ -27,6 +27,9 @@ export interface BaseSound {
     volume: number;
     position: Position;
     loop?(loopCount?: LoopCount): LoopCount;
+    // Getter and setter for threeDOptions representing PannerNode attributes
+    get threeDOptions(): PannerAttributes;
+    set threeDOptions(options: PannerAttributes): void;
 }
 
 export class Cacophony {
