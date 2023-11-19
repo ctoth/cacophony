@@ -449,6 +449,10 @@ export class Group implements BaseSound {
     private _position: Position = [0, 0, 0];
     loopCount: LoopCount = 0;
 
+    seek(time: number): void {
+        this.sounds.forEach(sound => sound.seek(time));
+    }
+
     addSound(sound: Sound): void {
         this.sounds.push(sound);
     }
