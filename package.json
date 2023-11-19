@@ -1,9 +1,13 @@
 {
   "name": "cacophony",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Typescript audio library with caching",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "scripts": {
     "build": "npm run clean && tsc --build",
     "clean": "tsc --build --clean",
