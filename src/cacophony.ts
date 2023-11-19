@@ -271,7 +271,7 @@ export class Sound extends FilterManager implements BaseSound {
 
 }
 
-class Playback extends FilterManager implements BaseSound {
+export class Playback extends FilterManager implements BaseSound {
     private context: AudioContext;
     private source?: SourceNode;
     private gainNode?: GainNode;
