@@ -17,6 +17,7 @@ export type FadeType = 'linear' | 'exponential'
 export interface BaseSound {
     // the stuff you should be able to do with anything that makes sound including groups, sounds, and playbacks.
     play(): Playback[];
+    seek(time: number): void;
     stop(): void;
     pause(): void;
     resume(): void;
