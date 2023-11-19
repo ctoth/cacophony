@@ -22,6 +22,7 @@ export type FadeType = 'linear' | 'exponential'
 
 export interface BaseSound {
     // the stuff you should be able to do with anything that makes sound including groups, sounds, and playbacks.
+    isPlaying(): boolean;
     play(): BaseSound[];
     seek?(time: number): void;
     stop(): void;
@@ -280,7 +281,6 @@ export class Playback extends FilterManager implements BaseSound {
     currentLoop: number = 0;
     private buffer?: IAudioBuffer;
 
-
     constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0) {
         super();
         this.loopCount = loopCount;
@@ -301,7 +301,7 @@ export class Playback extends FilterManager implements BaseSound {
         this.refreshFilters();
     }
 
-    handleLoop(): void {
+    handleLoop() {
         if (this.loopCount === 'infinite' || this.currentLoop < this.loopCount) {
             this.currentLoop++;
             if (this.buffer) {
@@ -315,7 +315,7 @@ export class Playback extends FilterManager implements BaseSound {
         }
     }
 
-    play() {
+    play(): [this] {
         if (!this.source) {
             throw new Error('Cannot play a sound that has been cleaned up');
         }
@@ -601,6 +601,10 @@ export class Group implements BaseSound {
         });
     }
 
+    isPlaying(): boolean {
+        return this.sounds.some(sound => sound.isPlaying());
+    }
+
     stop(): void {
         this.sounds.forEach(sound => sound.stop());
     }
@@ -653,12 +657,9 @@ export class MicrophonePlayback extends FilterManager implements BaseSound {
     private source?: MediaStreamAudioSourceNode;
     private gainNode?: GainNode;
     private panner?: PannerNode;
-    loopCount: LoopCount = 0;
-    currentLoop: number = 0;
 
     constructor(source: MediaStreamAudioSourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0) {
         super();
-        this.loopCount = loopCount;
         this.source = source;
         this.gainNode = gainNode;
         this.context = context;
@@ -672,6 +673,10 @@ export class MicrophonePlayback extends FilterManager implements BaseSound {
             throw new Error('Cannot play a sound that has been cleaned up');
         }
         return [this];
+    }
+
+    isPlaying() {
+        return Boolean(this.source);
     }
 
     get volume(): number {
@@ -763,7 +768,6 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
         this.microphoneGainNode = this.context.createGain();
     }
 
-
     play(): MicrophonePlayback[] {
         if (!this.stream) {
             navigator.mediaDevices.getUserMedia({ audio: true })
@@ -784,20 +788,24 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
         // Seeking is not applicable for live microphone stream
     }
 
-    stop(): void {
+    isPlaying(): boolean {
+        return Boolean(this.streamPlayback);
+    }
+
+    stop() {
         if (this.streamPlayback) {
             this.streamPlayback.stop();
             this.streamPlayback = undefined;
         }
     }
 
-    pause(): void {
+    pause() {
         if (this.streamPlayback) {
             this.streamPlayback.pause();
         }
     }
 
-    resume(): void {
+    resume() {
         if (this.streamPlayback) {
             this.streamPlayback.resume();
         }
