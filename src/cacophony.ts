@@ -1,4 +1,4 @@
-import { AudioContext, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
+import { AudioContext, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IMediaElementAudioSourceNode, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
 import { CacheManager } from './cache';
 
 
@@ -6,8 +6,13 @@ type GainNode = IGainNode<AudioContext>;
 type BiquadFilterNode = IBiquadFilterNode<AudioContext>;
 
 type AudioBufferSourceNode = IAudioBufferSourceNode<AudioContext>;
+type MediaElementSourceNode = IMediaElementAudioSourceNode<AudioContext>;
+
+type SourceNode = AudioBufferSourceNode | MediaElementSourceNode;
+
 type PannerNode = IPannerNode<AudioContext>;
 type MediaStreamAudioSourceNode = IMediaStreamAudioSourceNode<AudioContext>;
+
 
 export type Position = [number, number, number];
 
@@ -68,6 +73,20 @@ export class Cacophony {
         sounds.forEach(sound => group.addSound(sound));
         return group;
     }
+
+    async createStream(url: string): Promise<Playback> {
+        const audio = new Audio(url);
+        audio.crossOrigin = 'anonymous';
+        audio.load();
+        // we have the audio, let's make a buffer source node out of it
+        const source = this.context.createMediaElementSource(audio);
+        const gainNode = this.context.createGain();
+        source.connect(gainNode);
+        gainNode.connect(this.globalGainNode);
+        const playback = new Playback(source, gainNode, this.context);
+        return playback;
+    }
+
 
     createBiquadFilter(type: BiquadFilterType): BiquadFilterNode {
         const filter = this.context.createBiquadFilter();
@@ -254,34 +273,45 @@ export class Sound extends FilterManager implements BaseSound {
 
 class Playback extends FilterManager implements BaseSound {
     private context: AudioContext;
-    private source?: AudioBufferSourceNode;
+    private source?: SourceNode;
     private gainNode?: GainNode;
     private panner?: PannerNode;
     loopCount: LoopCount = 0;
     currentLoop: number = 0;
-    private buffer: IAudioBuffer | null = null;
+    private buffer?: IAudioBuffer;
 
 
-    constructor(source: AudioBufferSourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0) {
+    constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0) {
         super();
         this.loopCount = loopCount;
         this.source = source;
-        this.buffer = source.buffer;
-        this.source.onended = this.handleLoop.bind(this);
+        if ('buffer' in source && source.buffer) {
+            this.buffer = source.buffer;
+
+        }
+        if ('mediaElement' in source && source.mediaElement) {
+            source.mediaElement.onended = this.handleLoop.bind(this);
+        } else if ('onended' in source) {
+            source.onended = this.handleLoop.bind(this);
+        }
         this.gainNode = gainNode;
         this.context = context;
         this.panner = context.createPanner();
         source.connect(this.panner).connect(this.gainNode);
         this.refreshFilters();
-        source.start();
     }
 
     handleLoop(): void {
         if (this.loopCount === 'infinite' || this.currentLoop < this.loopCount) {
             this.currentLoop++;
-            this.source = this.context.createBufferSource();
-            this.source.buffer = this.buffer;
-            this.play();
+            if (this.buffer) {
+                this.source = this.context.createBufferSource();
+                this.source.buffer = this.buffer;
+                this.play();
+            } else {
+                this.stop();
+                this.play();
+            }
         }
     }
 
@@ -289,7 +319,11 @@ class Playback extends FilterManager implements BaseSound {
         if (!this.source) {
             throw new Error('Cannot play a sound that has been cleaned up');
         }
-        this.source.start();
+        if ('mediaElement' in this.source && this.source.mediaElement) {
+            this.source.mediaElement.play();
+        } else if ('start' in this.source && this.source.start) {
+            this.source.start();
+        }
         return [this];
     }
 
@@ -327,14 +361,12 @@ class Playback extends FilterManager implements BaseSound {
         });
     }
 
-
     seek(time: number): void {
         if (!this.source || !this.buffer || !this.gainNode || !this.panner) {
             throw new Error('Cannot seek a sound that has been cleaned up');
         }
         // Stop the current playback
-        this.source.stop();
-        // Create a new source to start from the desired time
+        this.stop();        // Create a new source to start from the desired time
         this.source = this.context.createBufferSource();
         this.source.buffer = this.buffer;
         this.refreshFilters();
@@ -360,7 +392,12 @@ class Playback extends FilterManager implements BaseSound {
         if (!this.source) {
             throw new Error('Cannot set loop on a sound that has been cleaned up');
         }
-        this.source.loop = loop;
+        if ('loop' in this.source) {
+            this.source.loop = loop;
+        }
+        if ("mediaElement" in this.source && this.source.mediaElement) {
+            this.source.mediaElement.loop = loop;
+        }
     }
 
     fadeIn(time: number, fadeType: FadeType = 'linear'): Promise<void> {
@@ -441,20 +478,43 @@ class Playback extends FilterManager implements BaseSound {
         if (!this.source) {
             throw new Error('Cannot loop a sound that has been cleaned up');
         }
-        if (loopCount === undefined) {
+
+        // Check if the source is an AudioBufferSourceNode
+        if (this.source instanceof AudioBufferSourceNode) {
+            if (loopCount === undefined) {
+                return this.source.loop === true ? 'infinite' : 0;
+            }
+            this.source.loop = true;
+            this.source.loopEnd = this.source.buffer?.duration || 0;
+            this.source.loopStart = 0;
             return this.source.loop === true ? 'infinite' : 0;
         }
-        this.source.loop = true;
-        this.source.loopEnd = this.source.buffer?.duration || 0;
-        this.source.loopStart = 0;
-        return this.source.loop === true ? 'infinite' : 0;
+
+        // Check if the source is a MediaElementSourceNode
+        if ("mediaElement" in this.source && this.source.mediaElement) {
+            const mediaElement = this.source.mediaElement;
+            if (loopCount === undefined) {
+                return mediaElement.loop === true ? 'infinite' : 0;
+            }
+            mediaElement.loop = true;
+            // Looping for HTMLMediaElement is controlled by the 'loop' attribute, no need for loopStart or loopEnd
+            return mediaElement.loop === true ? 'infinite' : 0;
+        }
+
+        throw new Error('Unsupported source type');
     }
 
     stop(): void {
         if (!this.source) {
             throw new Error('Cannot stop a sound that has been cleaned up');
         }
-        this.source.stop();
+        if ('stop' in this.source) {
+            this.source.stop();
+        }
+        if ("mediaElement" in this.source && this.source.mediaElement) {
+            this.source.mediaElement.pause();
+            this.source.mediaElement.currentTime = 0;
+        }
     }
 
     pause(): void {
@@ -592,7 +652,7 @@ export class Group implements BaseSound {
     }
 }
 
-export class StreamPlayback extends FilterManager implements BaseSound {
+export class MicrophonePlayback extends FilterManager implements BaseSound {
     private context: AudioContext;
     private source?: MediaStreamAudioSourceNode;
     private gainNode?: GainNode;
@@ -697,7 +757,7 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
     loopCount: LoopCount = 0;
     private prevVolume: number = 1;
     private microphoneGainNode: GainNode;
-    private streamPlayback?: StreamPlayback;
+    private streamPlayback?: MicrophonePlayback;
     private stream: MediaStream | undefined;
     private streamSource?: MediaStreamAudioSourceNode;
 
@@ -708,13 +768,13 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
     }
 
 
-    play(): StreamPlayback[] {
+    play(): MicrophonePlayback[] {
         if (!this.stream) {
             navigator.mediaDevices.getUserMedia({ audio: true })
                 .then(stream => {
                     this.stream = stream;
                     this.streamSource = this.context.createMediaStreamSource(this.stream);
-                    this.streamPlayback = new StreamPlayback(this.streamSource, this.microphoneGainNode, this.context);
+                    this.streamPlayback = new MicrophonePlayback(this.streamSource, this.microphoneGainNode, this.context);
                     this.streamPlayback.play();
                 })
                 .catch(err => {
