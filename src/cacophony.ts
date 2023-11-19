@@ -17,8 +17,8 @@ export type FadeType = 'linear' | 'exponential'
 
 export interface BaseSound {
     // the stuff you should be able to do with anything that makes sound including groups, sounds, and playbacks.
-    play(): Playback[];
-    seek(time: number): void;
+    play(): BaseSound[];
+    seek?(time: number): void;
     stop(): void;
     pause(): void;
     resume(): void;
@@ -26,7 +26,7 @@ export interface BaseSound {
     removeFilter(filter: BiquadFilterNode): void;
     volume: number;
     position: Position;
-    loop(loopCount?: LoopCount): LoopCount;
+    loop?(loopCount?: LoopCount): LoopCount;
 }
 
 export class Cacophony {
@@ -154,7 +154,7 @@ export class Sound extends FilterManager implements BaseSound {
     buffer: IAudioBuffer;
     context: AudioContext;
     playbacks: Playback[] = [];
-    globalGainNode: GainNode;
+    private globalGainNode: GainNode;
     private _position: Position = [0, 0, 0];
     loopCount: LoopCount = 0;
 
@@ -185,7 +185,7 @@ export class Sound extends FilterManager implements BaseSound {
 
     play(): Playback[] {
         const playback = this.preplay();
-        playback.forEach(p => p.source!.start());
+        playback.forEach(p => p.play());
         return playback;
     }
 
@@ -244,13 +244,13 @@ export class Sound extends FilterManager implements BaseSound {
 }
 
 class Playback extends FilterManager implements BaseSound {
-    context: AudioContext;
-    source?: AudioBufferSourceNode;
-    gainNode?: GainNode;
-    panner?: PannerNode;
+    private context: AudioContext;
+    private source?: AudioBufferSourceNode;
+    private gainNode?: GainNode;
+    private panner?: PannerNode;
     loopCount: LoopCount = 0;
     currentLoop: number = 0;
-    buffer: IAudioBuffer | null = null;
+    private buffer: IAudioBuffer | null = null;
 
     seek(time: number): void {
         if (!this.source || !this.buffer || !this.gainNode || !this.panner) {
@@ -537,10 +537,10 @@ export class Group implements BaseSound {
 }
 
 export class StreamPlayback extends FilterManager implements BaseSound {
-    context: AudioContext;
-    source?: MediaStreamAudioSourceNode;
-    gainNode?: GainNode;
-    panner?: PannerNode;
+    private context: AudioContext;
+    private source?: MediaStreamAudioSourceNode;
+    private gainNode?: GainNode;
+    private panner?: PannerNode;
     loopCount: LoopCount = 0;
     currentLoop: number = 0;
 
