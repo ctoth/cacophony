@@ -219,7 +219,7 @@ export class Sound extends FilterManager implements BaseSound {
             return this.loopCount;
         }
         this.loopCount = loopCount;
-        this.playbacks.forEach(p => p.source!.loop = true);
+        this.playbacks.forEach(p => p.sourceLoop = true);
         return this.loopCount;
     }
 
@@ -309,6 +309,13 @@ class Playback extends FilterManager implements BaseSound {
             throw new Error('Cannot set volume of a sound that has been cleaned up');
         }
         this.gainNode.gain.value = v;
+    }
+
+    set sourceLoop(loop: boolean) {
+        if (!this.source) {
+            throw new Error('Cannot set loop on a sound that has been cleaned up');
+        }
+        this.source.loop = loop;
     }
 
     fadeIn(time: number, fadeType: FadeType = 'linear'): Promise<void> {
