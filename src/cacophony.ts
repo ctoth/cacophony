@@ -21,7 +21,6 @@ export interface BaseSound {
     stop(): void;
     pause(): void;
     resume(): void;
-    seek(time: number): void; // Add seek method to the interface
     addFilter(filter: BiquadFilterNode): void;
     removeFilter(filter: BiquadFilterNode): void;
     volume: number;
@@ -239,7 +238,7 @@ class Playback extends FilterManager implements BaseSound {
     buffer: IAudioBuffer | null = null;
 
     seek(time: number): void {
-        if (!this.source || !this.buffer) {
+        if (!this.source || !this.buffer || !this.gainNode || !this.panner) {
             throw new Error('Cannot seek a sound that has been cleaned up');
         }
         // Stop the current playback
