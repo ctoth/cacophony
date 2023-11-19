@@ -111,6 +111,20 @@ export class Cacophony {
         this.setGlobalVolume(this.prevVolume);
     }
 
+    getMicrophoneStream(): Promise<MicrophoneStream> {
+        return new Promise((resolve, reject) => {
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    const microphoneStream = new MicrophoneStream(this.context);
+                    microphoneStream.play();
+                    resolve(microphoneStream);
+                })
+                .catch(err => {
+                    reject(err);
+                });
+        });
+    }
+
 }
 
 
@@ -523,26 +537,32 @@ export class Group implements BaseSound {
 
 export class MicrophoneStream extends FilterManager implements BaseSound {
     context: AudioContext;
-    globalGainNode: GainNode;
     private _position: Position = [0, 0, 0];
     loopCount: LoopCount = 0;
+    private prevVolume: number = 1;
+    private microphoneGainNode: GainNode;
 
-    constructor(context: AudioContext, globalGainNode: GainNode) {
+    constructor(context: AudioContext) {
         super();
         this.context = context;
-        this.globalGainNode = globalGainNode;
+        this.microphoneGainNode = this.context.createGain();
     }
 
     private streamSource?: MediaStreamAudioSourceNode;
     private stream?: MediaStream;
 
-    async play(): Promise<Playback[]> {
+    play(): void {
         if (!this.stream) {
-            this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            this.streamSource = this.context.createMediaStreamSource(this.stream);
-            this.streamSource.connect(this.globalGainNode);
+            navigator.mediaDevices.getUserMedia({ audio: true })
+                .then(stream => {
+                    this.stream = stream;
+                    this.streamSource = this.context.createMediaStreamSource(this.stream);
+                    this.streamSource.connect(this.microphoneGainNode).connect(this.globalGainNode);
+                })
+                .catch(err => {
+                    console.error('Error initializing microphone stream:', err);
+                });
         }
-        return [];
     }
 
     seek(time: number): void {
@@ -561,18 +581,19 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
     }
 
     pause(): void {
-        // Pausing is not applicable for live microphone stream
+        this.prevVolume = this.microphoneGainNode.gain.value;
+        this.microphoneGainNode.gain.value = 0;
     }
 
     resume(): void {
-        // Resuming is not applicable for live microphone stream
+        this.microphoneGainNode.gain.value = this.prevVolume;
     }
 
     addFilter(filter: BiquadFilterNode): void {
         this.filters.push(filter);
         if (this.streamSource) {
             this.streamSource.disconnect();
-            this.applyFilters(this.streamSource).connect(this.globalGainNode);
+            this.applyFilters(this.streamSource).connect(this.microphoneGainNode);
         }
     }
 
@@ -580,16 +601,16 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
         this.filters = this.filters.filter(f => f !== filter);
         if (this.streamSource) {
             this.streamSource.disconnect();
-            this.applyFilters(this.streamSource).connect(this.globalGainNode);
+            this.applyFilters(this.streamSource).connect(this.microphoneGainNode);
         }
     }
 
     get volume(): number {
-        return this.globalGainNode.gain.value;
+        return this.microphoneGainNode.gain.value;
     }
 
     set volume(volume: number) {
-        this.globalGainNode.gain.value = volume;
+        this.microphoneGainNode.gain.value = volume;
     }
 
     get position(): Position {
