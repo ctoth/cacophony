@@ -50,13 +50,13 @@ export class Cacophony {
         this.globalGainNode.connect(this.context.destination);
     }
 
-    async createSound(buffer: AudioBuffer): Promise<BaseSound>
+    async createSound(buffer: AudioBuffer): Promise<Sound>
 
-    async createSound(url: string): Promise<BaseSound>
+    async createSound(url: string): Promise<Sound>
 
     async createSound(bufferOrUrl: AudioBuffer | string): Promise<BaseSound> {
         if (bufferOrUrl instanceof AudioBuffer) {
-            return Promise.resolve(new Sound("", bufferOrUrl, this.context, this.globalGainNode));
+            return Promise.resolve(new Sound("", bufferOrUrl, this.context, this.globalGainNode, false));
         }
         const url = bufferOrUrl;
         return CacheManager.getAudioBuffer(url, this.context).then(buffer => new Sound(url, buffer, this.context, this.globalGainNode));
@@ -75,18 +75,9 @@ export class Cacophony {
         return group;
     }
 
-    async createStream(url: string): Promise<Playback> {
-        const audio = new Audio();
-        audio.src = url;
-        audio.preload = "auto"
-        audio.load();
-        // we have the audio, let's make a buffer source node out of it
-        const source = this.context.createMediaElementSource(audio);
-        const gainNode = this.context.createGain();
-        source.connect(gainNode);
-        gainNode.connect(this.globalGainNode);
-        const playback = new Playback(source, gainNode, this.context);
-        return playback;
+    async createStream(url: string): Promise<Sound> {
+        const sound = new Sound(url, undefined, this.context, this.globalGainNode, true);
+        return sound
     }
 
 
@@ -155,11 +146,11 @@ export class Cacophony {
 class FilterManager {
     protected filters: BiquadFilterNode[] = [];
 
-    addFilter(filter: BiquadFilterNode): void {
+    addFilter(filter: BiquadFilterNode) {
         this.filters.push(filter);
     }
 
-    removeFilter(filter: BiquadFilterNode): void {
+    removeFilter(filter: BiquadFilterNode) {
         this.filters = this.filters.filter(f => f !== filter);
     }
 
@@ -174,14 +165,14 @@ class FilterManager {
 
 
 export class Sound extends FilterManager implements BaseSound {
-    buffer: IAudioBuffer;
+    buffer?: IAudioBuffer;
     context: AudioContext;
     playbacks: Playback[] = [];
     private globalGainNode: GainNode;
     private _position: Position = [0, 0, 0];
     loopCount: LoopCount = 0;
 
-    constructor(public url: string, buffer: AudioBuffer, context: AudioContext, globalGainNode: IGainNode<AudioContext>) {
+    constructor(public url: string, buffer: AudioBuffer | undefined, context: AudioContext, globalGainNode: GainNode, public html: boolean = false) {
         super();
         this.buffer = buffer;
         this.context = context;
@@ -190,8 +181,18 @@ export class Sound extends FilterManager implements BaseSound {
     }
 
     preplay(): Playback[] {
-        const source = this.context.createBufferSource();
-        source.buffer = this.buffer;
+        let source: SourceNode;
+        if (this.buffer) {
+            source = this.context.createBufferSource();
+            source.buffer = this.buffer;
+        } else {
+            const audio = new Audio();
+            audio.src = this.url;
+            audio.preload = "auto"
+            audio.load();
+            // we have the audio, let's make a buffer source node out of it
+            source = this.context.createMediaElementSource(audio);
+        }
         const gainNode = this.context.createGain();
         source.connect(gainNode);
         gainNode.connect(this.globalGainNode);
@@ -208,11 +209,11 @@ export class Sound extends FilterManager implements BaseSound {
         return playback;
     }
 
-    stop(): void {
+    stop() {
         this.playbacks.forEach(p => p.stop());
     }
 
-    pause(): void {
+    pause() {
         if ('suspend' in this.context) {
             this.context.suspend();
         }
@@ -223,7 +224,6 @@ export class Sound extends FilterManager implements BaseSound {
             this.context.resume();
         }
     }
-
 
     seek(time: number): void {
         this.playbacks.forEach(playback => playback.seek(time));
@@ -799,7 +799,7 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
         return this.streamPlayback ? [this.streamPlayback] : [];
     }
 
-    seek(time: number): void {
+    seek(time: number) {
         // Seeking is not applicable for live microphone stream
     }
 
