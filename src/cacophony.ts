@@ -56,10 +56,10 @@ export class Cacophony {
 
     async createSound(bufferOrUrl: AudioBuffer | string): Promise<BaseSound> {
         if (bufferOrUrl instanceof AudioBuffer) {
-            return Promise.resolve(new Sound(bufferOrUrl, this.context, this.globalGainNode));
+            return Promise.resolve(new Sound("", bufferOrUrl, this.context, this.globalGainNode));
         }
         const url = bufferOrUrl;
-        return CacheManager.getAudioBuffer(url, this.context).then(buffer => new Sound(buffer, this.context, this.globalGainNode));
+        return CacheManager.getAudioBuffer(url, this.context).then(buffer => new Sound(url, buffer, this.context, this.globalGainNode));
     }
 
     async createGroup(sounds: Sound[]): Promise<Group> {
@@ -76,8 +76,9 @@ export class Cacophony {
     }
 
     async createStream(url: string): Promise<Playback> {
-        const audio = new Audio(url);
-        audio.crossOrigin = 'anonymous';
+        const audio = new Audio();
+        audio.src = url;
+        audio.preload = "auto"
         audio.load();
         // we have the audio, let's make a buffer source node out of it
         const source = this.context.createMediaElementSource(audio);
@@ -180,7 +181,7 @@ export class Sound extends FilterManager implements BaseSound {
     private _position: Position = [0, 0, 0];
     loopCount: LoopCount = 0;
 
-    constructor(buffer: AudioBuffer, context: AudioContext, globalGainNode: IGainNode<AudioContext>) {
+    constructor(public url: string, buffer: AudioBuffer, context: AudioContext, globalGainNode: IGainNode<AudioContext>) {
         super();
         this.buffer = buffer;
         this.context = context;
@@ -280,6 +281,7 @@ export class Playback extends FilterManager implements BaseSound {
     loopCount: LoopCount = 0;
     currentLoop: number = 0;
     private buffer?: IAudioBuffer;
+    playing: boolean = false;
 
     constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0) {
         super();
@@ -309,7 +311,11 @@ export class Playback extends FilterManager implements BaseSound {
         }
         if (this.loopCount === 'infinite' || this.currentLoop < this.loopCount) {
             this.currentLoop++;
-            this.play();
+            if (this.playing) {
+                this.play();
+            }
+        } else {
+            this.playing = false;
         }
     }
 
@@ -322,6 +328,7 @@ export class Playback extends FilterManager implements BaseSound {
         } else if ('start' in this.source && this.source.start) {
             this.source.start();
         }
+        this.playing = true;
         return [this];
     }
 
@@ -363,13 +370,16 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.source || !this.buffer || !this.gainNode || !this.panner) {
             throw new Error('Cannot seek a sound that has been cleaned up');
         }
+        const playing = this.isPlaying();
         // Stop the current playback
         this.stop();        // Create a new source to start from the desired time
         this.source = this.context.createBufferSource();
         this.source.buffer = this.buffer;
         this.refreshFilters();
         this.source.connect(this.panner).connect(this.gainNode);
-        this.source.start(0, time);
+        if (playing) {
+            this.source.start(0, time);
+        }
     }
 
     get volume(): number {
@@ -456,7 +466,10 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     isPlaying(): boolean {
-        return this.source?.context.state === 'running';
+        if (!this.source) {
+            throw new Error('Cannot check if a sound is playing that has been cleaned up');
+        }
+        return this.playing;
     }
 
     cleanup(): void {
@@ -506,6 +519,9 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.source) {
             throw new Error('Cannot stop a sound that has been cleaned up');
         }
+        if (!this.isPlaying()) {
+            return;
+        }
         if ('stop' in this.source) {
             this.source.stop();
         }
@@ -513,6 +529,7 @@ export class Playback extends FilterManager implements BaseSound {
             this.source.mediaElement.pause();
             this.source.mediaElement.currentTime = 0;
         }
+        this.playing = false;
     }
 
     pause(): void {
