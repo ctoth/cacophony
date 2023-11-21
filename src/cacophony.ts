@@ -42,6 +42,18 @@ export class Cacophony {
     globalGainNode: GainNode;
     listener: IAudioListener;
     private prevVolume: number = 1;
+    private finalizationRegistry: FinalizationRegistry<Playback>;
+
+    constructor(context?: AudioContext) {
+        this.context = context || new AudioContext();
+        this.listener = this.context.listener;
+        this.globalGainNode = this.context.createGain();
+        this.globalGainNode.connect(this.context.destination);
+        this.finalizationRegistry = new FinalizationRegistry((heldValue) => {
+            // Cleanup callback for Playbacks
+            heldValue.cleanup();
+        });
+    }
 
     constructor(context?: AudioContext) {
         this.context = context || new AudioContext();
@@ -218,6 +230,7 @@ export class Sound extends FilterManager implements BaseSound {
         source.connect(gainNode);
         gainNode.connect(this.globalGainNode);
         const playback = new Playback(source, gainNode, this.context, this.loopCount);
+        this.finalizationRegistry.register(playback, playback);
         this.filters.forEach(filter => playback.addFilter(filter));
         playback.position = this.position;
         this.playbacks.push(playback);
@@ -494,6 +507,7 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     cleanup(): void {
+        // Ensure cleanup is idempotent
         if (this.source) {
             this.source.disconnect();
             this.source = undefined;
@@ -502,8 +516,13 @@ export class Playback extends FilterManager implements BaseSound {
             this.gainNode.disconnect();
             this.gainNode = undefined;
         }
-        this.filters.forEach(filter => filter.disconnect());
+        this.filters.forEach(filter => {
+            if (filter) {
+                filter.disconnect();
+            }
+        });
         this.filters = [];
+        // Additional cleanup logic if needed
     }
 
     loop(loopCount?: LoopCount): LoopCount {
