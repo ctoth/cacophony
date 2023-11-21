@@ -80,7 +80,6 @@ export class Cacophony {
         return sound
     }
 
-
     createBiquadFilter(type: BiquadFilterType): BiquadFilterNode {
         const filter = this.context.createBiquadFilter();
         filter.type = type;
@@ -124,6 +123,18 @@ export class Cacophony {
 
     unmute() {
         this.setGlobalVolume(this.prevVolume);
+    }
+
+    get muted(): boolean {
+        return this.globalGainNode.gain.value === 0;
+    }
+
+    set muted(muted: boolean) {
+        if (muted) {
+            this.mute();
+        } else {
+            this.unmute();
+        }
     }
 
     getMicrophoneStream(): Promise<MicrophoneStream> {
