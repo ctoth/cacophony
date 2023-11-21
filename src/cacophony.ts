@@ -115,6 +115,7 @@ export class Cacophony {
     set volume(volume: number) {
         if (this.muted) {
             this.prevVolume = volume;
+            return;
         }
         this.setGlobalVolume(volume);
     }
