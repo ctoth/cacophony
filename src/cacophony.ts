@@ -117,12 +117,16 @@ export class Cacophony {
     }
 
     mute() {
-        this.prevVolume = this.globalGainNode.gain.value;
-        this.setGlobalVolume(0);
+        if (!this.muted) {
+            this.prevVolume = this.globalGainNode.gain.value;
+            this.setGlobalVolume(0);
+        }
     }
 
     unmute() {
-        this.setGlobalVolume(this.prevVolume);
+        if (this.muted) {
+            this.setGlobalVolume(this.prevVolume);
+        }
     }
 
     get muted(): boolean {
@@ -130,10 +134,12 @@ export class Cacophony {
     }
 
     set muted(muted: boolean) {
-        if (muted) {
-            this.mute();
-        } else {
-            this.unmute();
+        if (muted !== this.muted) {
+            if (muted) {
+                this.mute();
+            } else {
+                this.unmute();
+            }
         }
     }
 
