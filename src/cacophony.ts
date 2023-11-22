@@ -55,13 +55,6 @@ export class Cacophony {
         });
     }
 
-    constructor(context?: AudioContext) {
-        this.context = context || new AudioContext();
-        this.listener = this.context.listener;
-        this.globalGainNode = this.context.createGain();
-        this.globalGainNode.connect(this.context.destination);
-    }
-
     async createSound(buffer: AudioBuffer): Promise<Sound>
 
     async createSound(url: string): Promise<Sound>
@@ -204,6 +197,7 @@ export class Sound extends FilterManager implements BaseSound {
     private globalGainNode: GainNode;
     private _position: Position = [0, 0, 0];
     loopCount: LoopCount = 0;
+    private _volume: number = 1;
 
     constructor(public url: string, buffer: AudioBuffer | undefined, context: AudioContext, globalGainNode: GainNode, public html: boolean = false) {
         super();
@@ -230,7 +224,8 @@ export class Sound extends FilterManager implements BaseSound {
         source.connect(gainNode);
         gainNode.connect(this.globalGainNode);
         const playback = new Playback(source, gainNode, this.context, this.loopCount);
-        this.finalizationRegistry.register(playback, playback);
+        // this.finalizationRegistry.register(playback, playback);
+        playback.volume = this.volume;
         this.filters.forEach(filter => playback.addFilter(filter));
         playback.position = this.position;
         this.playbacks.push(playback);
@@ -292,11 +287,11 @@ export class Sound extends FilterManager implements BaseSound {
     }
 
     get volume(): number {
-        return this.globalGainNode.gain.value;
+        return this._volume;
     }
 
     set volume(volume: number) {
-        this.globalGainNode.gain.value = volume;
+        this._volume = volume;
         this.playbacks.forEach(p => p.volume = volume);
     }
 
@@ -315,7 +310,7 @@ export class Playback extends FilterManager implements BaseSound {
     loopCount: LoopCount = 0;
     currentLoop: number = 0;
     private buffer?: IAudioBuffer;
-    playing: boolean = false;
+    private playing: boolean = false;
 
     constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0) {
         super();
