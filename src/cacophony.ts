@@ -4,7 +4,7 @@ import { CacheManager } from './cache';
 export enum SoundType {
     HTML = 'HTML',
     Streaming = 'Streaming',
-    Cached = 'Cached'
+    Buffer = 'Buffer'
 }
 
 
@@ -67,10 +67,10 @@ export class Cacophony {
 
     async createSound(bufferOrUrl: AudioBuffer | string): Promise<BaseSound> {
         if (bufferOrUrl instanceof AudioBuffer) {
-            return Promise.resolve(new Sound("", bufferOrUrl, this.context, this.globalGainNode, false));
+            return Promise.resolve(new Sound("", bufferOrUrl, this.context, this.globalGainNode, SoundType.Buffer));
         }
         const url = bufferOrUrl;
-        return CacheManager.getAudioBuffer(url, this.context).then(buffer => new Sound(url, buffer, this.context, this.globalGainNode));
+        return CacheManager.getAudioBuffer(url, this.context).then(buffer => new Sound(url, buffer, this.context, this.globalGainNode, SoundType.Buffer));
     }
 
     async createGroup(sounds: Sound[]): Promise<Group> {
@@ -206,7 +206,7 @@ export class Sound extends FilterManager implements BaseSound {
     loopCount: LoopCount = 0;
     private _volume: number = 1;
 
-    constructor(public url: string, buffer: AudioBuffer | undefined, context: AudioContext, globalGainNode: GainNode, public type: SoundType = SoundType.Cached) {
+    constructor(public url: string, buffer: AudioBuffer | undefined, context: AudioContext, globalGainNode: GainNode, public type: SoundType = SoundType.Buffer) {
         super();
         this.buffer = buffer;
         this.context = context;
@@ -905,65 +905,65 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
     }
 }
 function appendBuffer(buffer1: ArrayBuffer, buffer2: ArrayBuffer): ArrayBuffer {
-  var tmp = new Uint8Array(buffer1.byteLength + buffer2.byteLength);
-  tmp.set(new Uint8Array(buffer1), 0);
-  tmp.set(new Uint8Array(buffer2), buffer1.byteLength);
-  return tmp.buffer;
+    var tmp = new Uint8Array(buffer1.byteLength + buffer2.byteLength);
+    tmp.set(new Uint8Array(buffer1), 0);
+    tmp.set(new Uint8Array(buffer2), buffer1.byteLength);
+    return tmp.buffer;
 }
 
 function play(url: string, context: AudioContext): void {
-  var audioStack: AudioBuffer[] = [];
-  var nextTime = 0;
+    var audioStack: IAudioBuffer[] = [];
+    var nextTime = 0;
 
-  fetch(url).then(function(response) {
-    var reader = response.body.getReader();
-    var header: ArrayBuffer | null = null; // first 44 bytes
+    fetch(url).then(function (response) {
+        var reader = response.body.getReader();
+        var header: ArrayBuffer | null = null; // first 44 bytes
 
-    function read() {
-      return reader.read().then(({ value, done }) => {
-        if (!value) {
-          return;
+        function read() {
+            return reader.read().then(({ value, done }) => {
+                if (!value) {
+                    return;
+                }
+
+                var audioBuffer = null;
+                if (header == null) {
+                    // copy first 44 bytes (wav header)
+                    header = value.buffer.slice(0, 44);
+                    audioBuffer = value.buffer;
+                } else {
+                    audioBuffer = appendBuffer(header, value.buffer);
+                }
+
+                context.decodeAudioData(audioBuffer, function (buffer) {
+                    audioStack.push(buffer);
+                    if (audioStack.length) {
+                        scheduleBuffers();
+                    }
+                }, function (err) {
+                    console.log("err(decodeAudioData): " + err);
+                });
+
+                if (done) {
+                    console.log('done');
+                    return;
+                }
+                // read next buffer
+                read();
+            });
         }
-
-        var audioBuffer = null;
-        if (header == null) {
-          // copy first 44 bytes (wav header)
-          header = value.buffer.slice(0, 44);
-          audioBuffer = value.buffer;
-        } else {
-          audioBuffer = appendBuffer(header, value.buffer);
-        }
-
-        context.decodeAudioData(audioBuffer, function(buffer) {
-          audioStack.push(buffer);
-          if (audioStack.length) {
-            scheduleBuffers();
-          }
-        }, function(err) {
-          console.log("err(decodeAudioData): " + err);
-        });
-
-        if (done) {
-          console.log('done');
-          return;
-        }
-        // read next buffer
         read();
-      });
-    }
-    read();
-  })
+    })
 
-  function scheduleBuffers() {
-    while (audioStack.length) {
-      var buffer = audioStack.shift();
-      var source = context.createBufferSource();
-      source.buffer = buffer;
-      source.connect(context.destination);
-      if (nextTime == 0)
-        nextTime = context.currentTime + 0.02; // add latency to work well across systems - tune this if you like
-      source.start(nextTime);
-      nextTime += source.buffer.duration; // Make the next buffer wait the length of the last buffer before being played
+    function scheduleBuffers() {
+        while (audioStack.length) {
+            var buffer = audioStack.shift();
+            var source = context.createBufferSource();
+            source.buffer = buffer;
+            source.connect(context.destination);
+            if (nextTime == 0)
+                nextTime = context.currentTime + 0.02; // add latency to work well across systems - tune this if you like
+            source.start(nextTime);
+            nextTime += source.buffer.duration; // Make the next buffer wait the length of the last buffer before being played
+        }
     }
-  }
 }
