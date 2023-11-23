@@ -87,8 +87,9 @@ export class Cacophony {
     }
 
     async createStream(url: string): Promise<Sound> {
+        play(url, this.context);
         const sound = new Sound(url, undefined, this.context, this.globalGainNode, SoundType.Streaming);
-        return sound
+        return sound;
     }
 
     createBiquadFilter(type: BiquadFilterType): BiquadFilterNode {
@@ -902,4 +903,67 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
         // Looping is not applicable for live microphone stream
         return 0;
     }
+}
+function appendBuffer(buffer1: ArrayBuffer, buffer2: ArrayBuffer): ArrayBuffer {
+  var tmp = new Uint8Array(buffer1.byteLength + buffer2.byteLength);
+  tmp.set(new Uint8Array(buffer1), 0);
+  tmp.set(new Uint8Array(buffer2), buffer1.byteLength);
+  return tmp.buffer;
+}
+
+function play(url: string, context: AudioContext): void {
+  var audioStack: AudioBuffer[] = [];
+  var nextTime = 0;
+
+  fetch(url).then(function(response) {
+    var reader = response.body.getReader();
+    var header: ArrayBuffer | null = null; // first 44 bytes
+
+    function read() {
+      return reader.read().then(({ value, done }) => {
+        if (!value) {
+          return;
+        }
+
+        var audioBuffer = null;
+        if (header == null) {
+          // copy first 44 bytes (wav header)
+          header = value.buffer.slice(0, 44);
+          audioBuffer = value.buffer;
+        } else {
+          audioBuffer = appendBuffer(header, value.buffer);
+        }
+
+        context.decodeAudioData(audioBuffer, function(buffer) {
+          audioStack.push(buffer);
+          if (audioStack.length) {
+            scheduleBuffers();
+          }
+        }, function(err) {
+          console.log("err(decodeAudioData): " + err);
+        });
+
+        if (done) {
+          console.log('done');
+          return;
+        }
+        // read next buffer
+        read();
+      });
+    }
+    read();
+  })
+
+  function scheduleBuffers() {
+    while (audioStack.length) {
+      var buffer = audioStack.shift();
+      var source = context.createBufferSource();
+      source.buffer = buffer;
+      source.connect(context.destination);
+      if (nextTime == 0)
+        nextTime = context.currentTime + 0.02; // add latency to work well across systems - tune this if you like
+      source.start(nextTime);
+      nextTime += source.buffer.duration; // Make the next buffer wait the length of the last buffer before being played
+    }
+  }
 }
