@@ -1,6 +1,12 @@
 import { AudioContext, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IMediaElementAudioSourceNode, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
 import { CacheManager } from './cache';
 
+export enum SoundType {
+    HTML = 'HTML',
+    Streaming = 'Streaming',
+    Cached = 'Cached'
+}
+
 
 type GainNode = IGainNode<AudioContext>;
 type BiquadFilterNode = IBiquadFilterNode<AudioContext>;
@@ -81,7 +87,7 @@ export class Cacophony {
     }
 
     async createStream(url: string): Promise<Sound> {
-        const sound = new Sound(url, undefined, this.context, this.globalGainNode, true);
+        const sound = new Sound(url, undefined, this.context, this.globalGainNode, SoundType.Streaming);
         return sound
     }
 
@@ -199,7 +205,7 @@ export class Sound extends FilterManager implements BaseSound {
     loopCount: LoopCount = 0;
     private _volume: number = 1;
 
-    constructor(public url: string, buffer: AudioBuffer | undefined, context: AudioContext, globalGainNode: GainNode, public html: boolean = false) {
+    constructor(public url: string, buffer: AudioBuffer | undefined, context: AudioContext, globalGainNode: GainNode, public type: SoundType = SoundType.Cached) {
         super();
         this.buffer = buffer;
         this.context = context;
