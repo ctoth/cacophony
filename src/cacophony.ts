@@ -912,12 +912,19 @@ function appendBuffer(buffer1: ArrayBuffer, buffer2: ArrayBuffer): ArrayBuffer {
 }
 
 function play(url: string, context: AudioContext): void {
-    var audioStack: IAudioBuffer[] = [];
-    var nextTime = 0;
+    const audioStack: IAudioBuffer[] = [];
+    let nextTime = 0;
 
     fetch(url).then(function (response) {
-        var reader = response.body.getReader();
-        var header: ArrayBuffer | null = null; // first 44 bytes
+        if (!response.ok) {
+            throw new Error("HTTP error " + response.status);
+        }
+        if (!response.body) {
+            throw new Error("No body");
+        }
+
+        const reader = response.body.getReader();
+        let header: ArrayBuffer | null = null; // first 44 bytes
 
         function read() {
             return reader.read().then(({ value, done }) => {
@@ -925,8 +932,8 @@ function play(url: string, context: AudioContext): void {
                     return;
                 }
 
-                var audioBuffer = null;
-                if (header == null) {
+                let audioBuffer = null;
+                if (header === null) {
                     // copy first 44 bytes (wav header)
                     header = value.buffer.slice(0, 44);
                     audioBuffer = value.buffer;
@@ -956,11 +963,14 @@ function play(url: string, context: AudioContext): void {
 
     function scheduleBuffers() {
         while (audioStack.length) {
-            var buffer = audioStack.shift();
-            var source = context.createBufferSource();
+            const buffer = audioStack.shift();
+            if (!buffer) {
+                continue;
+            }
+            const source = context.createBufferSource();
             source.buffer = buffer;
             source.connect(context.destination);
-            if (nextTime == 0)
+            if (nextTime === 0)
                 nextTime = context.currentTime + 0.02; // add latency to work well across systems - tune this if you like
             source.start(nextTime);
             nextTime += source.buffer.duration; // Make the next buffer wait the length of the last buffer before being played
