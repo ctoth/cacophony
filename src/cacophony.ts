@@ -61,13 +61,13 @@ export class Cacophony {
         });
     }
 
-    async createSound(buffer: AudioBuffer): Promise<Sound>
+    async createSound(buffer: AudioBuffer, type?: SoundType): Promise<Sound>
 
-    async createSound(url: string): Promise<Sound>
+    async createSound(url: string, type?: SoundType): Promise<Sound>
 
-    async createSound(bufferOrUrl: AudioBuffer | string): Promise<BaseSound> {
+    async createSound(bufferOrUrl: AudioBuffer | string, type: SoundType = SoundType.Buffer): Promise<BaseSound> {
         if (bufferOrUrl instanceof AudioBuffer) {
-            return Promise.resolve(new Sound("", bufferOrUrl, this.context, this.globalGainNode, SoundType.Buffer));
+            return Promise.resolve(new Sound("", bufferOrUrl, this.context, this.globalGainNode, type));
         }
         const url = bufferOrUrl;
         return CacheManager.getAudioBuffer(url, this.context).then(buffer => new Sound(url, buffer, this.context, this.globalGainNode, SoundType.Buffer));
