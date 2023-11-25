@@ -67,10 +67,17 @@ export class Cacophony {
 
     async createSound(bufferOrUrl: AudioBuffer | string, type: SoundType = SoundType.Buffer): Promise<BaseSound> {
         if (bufferOrUrl instanceof AudioBuffer) {
-            return Promise.resolve(new Sound("", bufferOrUrl, this.context, this.globalGainNode, type));
+            return Promise.resolve(new Sound("", bufferOrUrl, this.context, this.globalGainNode, SoundType.Buffer));
         }
         const url = bufferOrUrl;
-        return CacheManager.getAudioBuffer(url, this.context).then(buffer => new Sound(url, buffer, this.context, this.globalGainNode, SoundType.Buffer));
+        if (type === SoundType.HTML) {
+            const audio = new Audio();
+            audio.src = url;
+            audio.preload = "auto"
+            audio.load();
+            return new Sound(url, undefined, this.context, this.globalGainNode, SoundType.HTML);
+        }
+        return CacheManager.getAudioBuffer(url, this.context).then(buffer => new Sound(url, buffer, this.context, this.globalGainNode, type));
     }
 
     async createGroup(sounds: Sound[]): Promise<Group> {
@@ -87,7 +94,7 @@ export class Cacophony {
     }
 
     async createStream(url: string): Promise<Sound> {
-        createStream(url, this.context);
+        const stream = await createStream(url, this.context);
         const sound = new Sound(url, undefined, this.context, this.globalGainNode, SoundType.Streaming);
         return sound;
     }
