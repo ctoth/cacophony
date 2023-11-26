@@ -229,9 +229,9 @@ export class Sound extends FilterManager implements BaseSound {
             source.buffer = this.buffer;
         } else {
             const audio = new Audio();
+            audio.crossOrigin = 'anonymous';
             audio.src = this.url;
             audio.preload = "auto"
-            audio.load();
             // we have the audio, let's make a buffer source node out of it
             source = this.context.createMediaElementSource(audio);
         }
