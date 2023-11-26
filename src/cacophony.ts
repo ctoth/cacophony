@@ -74,7 +74,6 @@ export class Cacophony {
             const audio = new Audio();
             audio.src = url;
             audio.crossOrigin = 'anonymous';
-            audio.preload = "auto"
             return new Sound(url, undefined, this.context, this.globalGainNode, SoundType.HTML);
         }
         return CacheManager.getAudioBuffer(url, this.context).then(buffer => new Sound(url, buffer, this.context, this.globalGainNode, type));
