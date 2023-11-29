@@ -211,6 +211,25 @@ export class Sound extends FilterManager implements BaseSound {
     playbacks: Playback[] = [];
     private globalGainNode: GainNode;
     private _position: Position = [0, 0, 0];
+    private _threeDOptions: IPannerOptions = {
+        coneInnerAngle: 360,
+        coneOuterAngle: 0,
+        coneOuterGain: 0,
+        distanceModel: 'inverse',
+        maxDistance: 10000,
+        channelCount: 2,
+        channelCountMode: 'clamped-max',
+        channelInterpretation: 'speakers',
+        panningModel: 'HRTF',
+        refDistance: 1,
+        rolloffFactor: 1,
+        positionX: 0,
+        positionY: 0,
+        positionZ: 0,
+        orientationX: 0,
+        orientationY: 0,
+        orientationZ: 0
+    };
     loopCount: LoopCount = 0;
     private _volume: number = 1;
 
@@ -274,12 +293,23 @@ export class Sound extends FilterManager implements BaseSound {
     }
 
     set position(position: Position) {
-        this._position = position;
-        this.playbacks.forEach(p => p.position = this._position);
+        this._threeDOptions.positionX = position[0];
+        this._threeDOptions.positionY = position[1];
+        this._threeDOptions.positionZ = position[2];
+        this.playbacks.forEach(p => p.position = position);
     }
 
     get position(): Position {
-        return this._position;
+        return [this._threeDOptions.positionX, this._threeDOptions.positionY, this._threeDOptions.positionZ]
+    }
+
+    get threeDOptions(): IPannerOptions {
+        return this._threeDOptions;
+    }
+
+    set threeDOptions(options: Partial<IPannerOptions>) {
+        this._threeDOptions = { ...this._threeDOptions, ...options };
+        this.playbacks.forEach(p => p.threeDOptions = this._threeDOptions);
     }
 
     loop(loopCount?: LoopCount): LoopCount {
