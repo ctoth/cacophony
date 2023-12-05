@@ -435,9 +435,24 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.panner) {
             throw new Error('Cannot set 3D options of a sound that has been cleaned up');
         }
-        Object.entries(options).forEach(([key, value]) => {
-            Object.assign(this.panner!, { [key]: value });
-        });
+        this.panner.coneInnerAngle = options.coneInnerAngle || this.panner.coneInnerAngle;
+        this.panner.coneOuterAngle = options.coneOuterAngle || this.panner.coneOuterAngle;
+        this.panner.coneOuterGain = options.coneOuterGain || this.panner.coneOuterGain;
+        this.panner.distanceModel = options.distanceModel || this.panner.distanceModel;
+        this.panner.maxDistance = options.maxDistance || this.panner.maxDistance;
+        this.panner.channelCount = options.channelCount || this.panner.channelCount;
+        this.panner.channelCountMode = options.channelCountMode || this.panner.channelCountMode;
+        this.panner.channelInterpretation = options.channelInterpretation || this.panner.channelInterpretation;
+        this.panner.panningModel = options.panningModel || this.panner.panningModel;
+        this.panner.refDistance = options.refDistance || this.panner.refDistance;
+        this.panner.rolloffFactor = options.rolloffFactor || this.panner.rolloffFactor;
+        this.panner.positionX.value = options.positionX || this.panner.positionX.value;
+        this.panner.positionY.value = options.positionY || this.panner.positionY.value;
+        this.panner.positionZ.value = options.positionZ || this.panner.positionZ.value;
+        this.panner.orientationX.value = options.orientationX || this.panner.orientationX.value;
+        this.panner.orientationY.value = options.orientationY || this.panner.orientationY.value;
+        this.panner.orientationZ.value = options.orientationZ || this.panner.orientationZ.value;
+
     }
 
     seek(time: number): void {
