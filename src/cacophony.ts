@@ -255,12 +255,12 @@ export class Sound extends FilterManager implements BaseSound {
             source = this.context.createMediaElementSource(audio);
         }
         const gainNode = this.context.createGain();
-        source.connect(gainNode);
         gainNode.connect(this.globalGainNode);
         const playback = new Playback(source, gainNode, this.context, this.loopCount);
         // this.finalizationRegistry.register(playback, playback);
         playback.volume = this.volume;
         this.filters.forEach(filter => playback.addFilter(filter));
+        playback.threeDOptions = this.threeDOptions;
         playback.position = this.position;
         this.playbacks.push(playback);
         return [playback];
@@ -452,7 +452,6 @@ export class Playback extends FilterManager implements BaseSound {
         this.panner.orientationX.value = options.orientationX || this.panner.orientationX.value;
         this.panner.orientationY.value = options.orientationY || this.panner.orientationY.value;
         this.panner.orientationZ.value = options.orientationZ || this.panner.orientationZ.value;
-
     }
 
     seek(time: number): void {
