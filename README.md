@@ -3,7 +3,7 @@ Cacophony is a comprehensive and versatile audio library for TypeScript, utilizi
 - A `Sound` represents a distinct audio source, derived from an `AudioBuffer` or a URL string pointing to an audio file, with advanced filter management.
 - A `Playback` refers to the act of playing a `Sound`, with additional properties such as position in a 3D audio scene, gain-node for volume control, and methods for fading audio in and out.
 - A `Group` encapsulates multiple `Sound` instances to handle them as one entity, allowing for synchronous control of playback.
-- A `MicrophoneStream` captures live audio input from the user's microphone, providing real-time audio streaming capabilities.
+- A `MicrophoneStream` captures live audio input from the user's microphone, providing real-time audio streaming capabilities. Use `getMicrophoneStream` to access this feature.
 
 ## Key Features
 
@@ -55,7 +55,7 @@ Creates a `Group` entity from an array of `Sound` instances.
 
 #### Method: `createGroupFromUrls(urls: string[]): Promise<Group>`
 
-Forms a `Group` instance from an array of URLs directing to the desired audio files.
+Forms a `Group` instance from an array of URLs directing to the desired audio files. This method does not require a `type` parameter as `createSound` does.
 
 #### Method: `createBiquadFilter(type: BiquadFilterType): BiquadFilterNode`
 
@@ -100,8 +100,12 @@ All classes representing sound sources (`Sound`, `Playback`, `Group`, `Microphon
 - `loop(loopCount?: LoopCount)`: Sets the loop count for the sound, which can be a finite number or 'infinite'.
 - `fadeIn(time: number, fadeType?: FadeType)`: Gradually increases the volume of the sound over the specified time.
 - `fadeOut(time: number, fadeType?: FadeType)`: Gradually decreases the volume of the sound over the specified time.
-- `cleanup()`: Cleans up resources associated with the sound (applicable to `Playback`).
+- `cleanup()`: Cleans up resources associated with the sound, removing any associated filters and disconnecting audio nodes (applicable to `Playback` and `MicrophonePlayback`).
 
 ## License
 
 Cacophony is freely available for incorporation into your projects under the [MIT License](LICENSE.txt).
+## Additional Features
+
+- Streaming Audio: Create a stream from a URL to play live audio with `createStream`.
+- Dynamic Volume Control: Use `fadeIn` and `fadeOut` methods for smooth transitions in volume.
