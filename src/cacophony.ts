@@ -659,9 +659,9 @@ export class Playback extends FilterManager implements BaseSound {
             throw new Error('Cannot move a sound that has been cleaned up');
         }
         const [x, y, z] = position;
-        this.panner.positionX.value = x;
-        this.panner.positionY.value = y;
-        this.panner.positionZ.value = z;
+        this.panner.positionX.setValueAtTime(x, this.context.currentTime);
+        this.panner.positionY.setValueAtTime(y, this.context.currentTime);
+        this.panner.positionZ.setValueAtTime(z, this.context.currentTime);
     }
 
     get position(): Position {
