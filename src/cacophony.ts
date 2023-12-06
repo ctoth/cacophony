@@ -213,7 +213,7 @@ export class Sound extends FilterManager implements BaseSound {
     private _position: Position = [0, 0, 0];
     private _threeDOptions: IPannerOptions = {
         coneInnerAngle: 360,
-        coneOuterAngle: 0,
+        coneOuterAngle: 360,
         coneOuterGain: 0,
         distanceModel: 'inverse',
         maxDistance: 10000,

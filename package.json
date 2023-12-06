@@ -26,17 +26,17 @@
     "url": "git+https://github.com/ctoth/cacophony.git"
   },
   "devDependencies": {
-    "@types/jest": "^29.5.8",
+    "@types/jest": "^29.5.11",
     "jest": "^29.7.0",
-    "standardized-audio-context-mock": "^9.6.29",
+    "standardized-audio-context-mock": "^9.6.31",
     "ts-jest": "^29.1.1",
-    "typescript": "^5.1.6"
+    "typescript": "^5.3.2"
   },
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node"
   },
   "dependencies": {
-    "standardized-audio-context": "^25.3.55"
+    "standardized-audio-context": "^25.3.60"
   }
 }
