@@ -184,7 +184,7 @@ export class Cacophony {
 }
 
 
-class FilterManager {
+abstract class FilterManager {
     protected filters: BiquadFilterNode[] = [];
 
     addFilter(filter: BiquadFilterNode) {
@@ -372,7 +372,8 @@ export class Playback extends FilterManager implements BaseSound {
         this.gainNode = gainNode;
         this.context = context;
         this.panner = context.createPanner();
-        source.connect(this.panner).connect(this.gainNode);
+        source.connect(this.panner);
+        this.panner.connect(this.gainNode);
         this.refreshFilters();
     }
 
@@ -672,11 +673,11 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     private refreshFilters(): void {
-        if (!this.source || !this.gainNode) {
+        if (!this.panner || !this.gainNode) {
             throw new Error('Cannot update filters on a sound that has been cleaned up');
         }
-        let connection = this.source;
-        this.source.disconnect();
+        let connection = this.panner;
+        connection.disconnect();
         connection = this.applyFilters(connection);
         connection.connect(this.gainNode);
     }
