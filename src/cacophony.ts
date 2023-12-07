@@ -98,8 +98,6 @@ export class Cacophony {
         return sound;
     }
 
-
-
     createBiquadFilter(type: BiquadFilterType): BiquadFilterNode {
         const filter = this.context.createBiquadFilter();
         filter.type = type;
@@ -179,6 +177,29 @@ export class Cacophony {
                     reject(err);
                 });
         });
+    }
+
+    get listenerOrientation(): Position {
+        return [this.listener.forwardX.value, this.listener.forwardY.value, this.listener.forwardZ.value];
+    }
+
+    set listenerOrientation(orientation: Position) {
+        const [x, y, z] = orientation;
+        this.listener.forwardX.setValueAtTime(x, this.context.currentTime);
+        this.listener.forwardY.setValueAtTime(y, this.context.currentTime);
+        this.listener.forwardZ.setValueAtTime(z, this.context.currentTime);
+    }
+
+
+    get listenerPosition(): Position {
+        return [this.listener.positionX.value, this.listener.positionY.value, this.listener.positionZ.value];
+    }
+
+    set listenerPosition(position: Position) {
+        const [x, y, z] = position;
+        this.listener.positionX.setValueAtTime(x, this.context.currentTime);
+        this.listener.positionY.setValueAtTime(y, this.context.currentTime);
+        this.listener.positionZ.setValueAtTime(z, this.context.currentTime);
     }
 
 }
