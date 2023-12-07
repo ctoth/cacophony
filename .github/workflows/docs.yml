@@ -1,5 +1,6 @@
 name: Deploy Docs
-
+permissions:
+  contents: write
 on:
   push:
     branches:
@@ -23,7 +24,7 @@ jobs:
       run: npm run docs
 
     - name: Deploy
-      uses: JamesIves/github-pages-deploy-action
+      uses: JamesIves/github-pages-deploy-action@v4
       with:
         branch: gh-pages
         folder: docs
