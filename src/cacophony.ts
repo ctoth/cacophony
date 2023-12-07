@@ -22,6 +22,12 @@ type MediaStreamAudioSourceNode = IMediaStreamAudioSourceNode<AudioContext>;
 
 export type Position = [number, number, number];
 
+export type Orientation = {
+    forward: Position;
+    up: Position;
+}
+
+
 export type LoopCount = number | 'infinite';
 
 export type FadeType = 'linear' | 'exponential'
@@ -179,17 +185,46 @@ export class Cacophony {
         });
     }
 
-    get listenerOrientation(): Position {
+    get listenerOrientation(): Orientation {
+        return {
+            forward: [this.listener.forwardX.value, this.listener.forwardY.value, this.listener.forwardZ.value],
+            up: [this.listener.upX.value, this.listener.upY.value, this.listener.upZ.value]
+        };
+    }
+
+    set listenerOrientation(orientation: Orientation) {
+        const { forward, up } = orientation;
+        const [forwardX, forwardY, forwardZ] = forward;
+        const [upX, upY, upZ] = up;
+        this.listener.forwardX.setValueAtTime(forwardX, this.context.currentTime);
+        this.listener.forwardY.setValueAtTime(forwardY, this.context.currentTime);
+        this.listener.forwardZ.setValueAtTime(forwardZ, this.context.currentTime);
+        this.listener.upX.setValueAtTime(upX, this.context.currentTime);
+        this.listener.upY.setValueAtTime(upY, this.context.currentTime);
+        this.listener.upZ.setValueAtTime(upZ, this.context.currentTime);
+    }
+
+    get listenerUpOrientation(): Position {
+        return [this.listener.upX.value, this.listener.upY.value, this.listener.upZ.value];
+    }
+
+    set listenerUpOrientation(up: Position) {
+        const [x, y, z] = up;
+        this.listener.upX.setValueAtTime(x, this.context.currentTime);
+        this.listener.upY.setValueAtTime(y, this.context.currentTime);
+        this.listener.upZ.setValueAtTime(z, this.context.currentTime);
+    }
+
+    get listenerForwardOrientation(): Position {
         return [this.listener.forwardX.value, this.listener.forwardY.value, this.listener.forwardZ.value];
     }
 
-    set listenerOrientation(orientation: Position) {
-        const [x, y, z] = orientation;
+    set listenerForwardOrientation(forward: Position) {
+        const [x, y, z] = forward;
         this.listener.forwardX.setValueAtTime(x, this.context.currentTime);
         this.listener.forwardY.setValueAtTime(y, this.context.currentTime);
         this.listener.forwardZ.setValueAtTime(z, this.context.currentTime);
     }
-
 
     get listenerPosition(): Position {
         return [this.listener.positionX.value, this.listener.positionY.value, this.listener.positionZ.value];
