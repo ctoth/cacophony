@@ -122,12 +122,6 @@ export class Cacophony {
         }
     }
 
-    stopAll() {
-        if ('close' in this.context) {
-            this.context.close();
-        }
-    }
-
     setGlobalVolume(volume: number) {
         this.globalGainNode.gain.value = volume;
     }
