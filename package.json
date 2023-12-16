@@ -6,10 +6,11 @@
   "types": "dist/index.d.ts",
   "files": [
     "dist",
+    "docs",
     "README.md"
   ],
   "scripts": {
-    "build": "npm run clean && tsc --build",
+    "build": "npm run clean && tsc --build && npm run docs",
     "docs": "typedoc --out docs src",
     "clean": "tsc --build --clean",
     "prepublishOnly": "npm run build",

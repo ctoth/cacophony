@@ -43,6 +43,7 @@ export interface BaseSound {
     addFilter(filter: BiquadFilterNode): void;
     removeFilter(filter: BiquadFilterNode): void;
     volume: number;
+    playbackRate: number;
     position: Position;
     loop?(loopCount?: LoopCount): LoopCount;
     // Getter and setter for threeDOptions representing PannerNode attributes
@@ -281,6 +282,7 @@ export class Sound extends FilterManager implements BaseSound {
         orientationZ: 0
     };
     loopCount: LoopCount = 0;
+    private _playbackRate: number = 1;
     private _volume: number = 1;
 
     constructor(public url: string, buffer: AudioBuffer | undefined, context: AudioContext, globalGainNode: GainNode, public type: SoundType = SoundType.Buffer) {
@@ -309,6 +311,7 @@ export class Sound extends FilterManager implements BaseSound {
         const playback = new Playback(source, gainNode, this.context, this.loopCount);
         // this.finalizationRegistry.register(playback, playback);
         playback.volume = this.volume;
+        playback.playbackRate = this.playbackRate;
         this.filters.forEach(filter => playback.addFilter(filter));
         playback.threeDOptions = this.threeDOptions;
         playback.position = this.position;
@@ -390,9 +393,17 @@ export class Sound extends FilterManager implements BaseSound {
         this.playbacks.forEach(p => p.volume = volume);
     }
 
-
     isPlaying(): boolean {
         return this.playbacks.some(p => p.isPlaying());
+    }
+
+    get playbackRate(): number {
+        return this._playbackRate;
+    }
+
+    set playbackRate(rate: number) {
+        this._playbackRate = rate;
+        this.playbacks.forEach(p => p.playbackRate = rate);
     }
 
 }
@@ -427,6 +438,30 @@ export class Playback extends FilterManager implements BaseSound {
         this.refreshFilters();
     }
 
+    get playbackRate() {
+        if (!this.source) {
+            throw new Error('Cannot get playback rate of a sound that has been cleaned up');
+        }
+        if ('playbackRate' in this.source) {
+            return this.source.playbackRate.value;
+        }
+        if ('mediaElement' in this.source && this.source.mediaElement) {
+            return this.source.mediaElement.playbackRate;
+        }
+        throw new Error('Unsupported source type');
+    }
+    set playbackRate(rate: number) {
+        if (!this.source) {
+            throw new Error('Cannot set playback rate of a sound that has been cleaned up');
+        }
+        if ('playbackRate' in this.source) {
+            this.source.playbackRate.value = rate;
+        }
+        if ('mediaElement' in this.source && this.source.mediaElement) {
+            this.source.mediaElement.playbackRate = rate;
+        }
+    }
+
     handleLoop() {
         if (this.buffer) {
             this.source = this.context.createBufferSource();
@@ -443,6 +478,7 @@ export class Playback extends FilterManager implements BaseSound {
             this.playing = false;
         }
     }
+
 
     play(): [this] {
         if (!this.source) {
@@ -810,9 +846,22 @@ export class Group implements BaseSound {
     set volume(volume: number) {
         this.sounds.forEach(sound => sound.volume = volume);
     }
+
+    get playbackRate(): number {
+        if (this.sounds.length === 0) {
+            return 1;
+        }
+        return this.sounds[0].playbackRate
+    }
+
+    set playbackRate(rate: number) {
+        this.sounds.forEach(sound => sound.playbackRate = rate);
+    }
+
+
 }
 
-export class MicrophonePlayback extends FilterManager implements BaseSound {
+export class MicrophonePlayback extends FilterManager {
     private context: AudioContext;
     private source?: MediaStreamAudioSourceNode;
     private gainNode?: GainNode;
@@ -910,6 +959,17 @@ export class MicrophonePlayback extends FilterManager implements BaseSound {
         connection = this.applyFilters(connection);
         connection.connect(this.gainNode);
     }
+
+    get playbackRate(): number {
+        // Playback rate is not applicable for live microphone stream
+        return 1;
+    }
+
+    set playbackRate(rate: number) {
+    }
+
+
+
 }
 
 export class MicrophoneStream extends FilterManager implements BaseSound {
@@ -1006,6 +1066,16 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
         // Looping is not applicable for live microphone stream
         return 0;
     }
+
+
+    get playbackRate(): number {
+        // Playback rate is not applicable for live microphone stream
+        return 1;
+    }
+
+    set playbackRate(rate: number) {
+    }
+
 }
 
 

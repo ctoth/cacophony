@@ -35,7 +35,7 @@ playSampleSound();
 
 ## Detailed API Documentation
 
-For a complete overview of all functionalities, classes, and methods, please refer to our [detailed documentation](https://[your-username].github.io/[your-repo-name]/).
+For a complete overview of all functionality, classes, and methods, please refer to our [detailed documentation](https://cacophony.js.org).
 
 ## Additional Highlights
 
