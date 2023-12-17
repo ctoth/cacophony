@@ -2,17 +2,20 @@
   "name": "cacophony",
   "version": "0.2.0",
   "description": "Typescript audio library with caching",
-  "main": "dist/index.js",
+  "main": "dist/cacophony.mjs",
   "types": "dist/index.d.ts",
   "files": [
     "dist",
     "docs",
+    "src",
     "README.md"
   ],
   "scripts": {
-    "build": "npm run clean && tsc --build && npm run docs",
-    "docs": "typedoc --out docs src",
-    "clean": "tsc --build --clean",
+    "build": "npm run clean&&vite build&&npm run docs",
+    "dev": "vite",
+    "serve": "vite preview",
+    "docs": "typedoc --out docs --exclude *.test.ts src",
+    "clean": "rimraf build",
     "prepublishOnly": "npm run build",
     "test": "jest",
     "ci:test": "jest --no-color --ci"
@@ -30,10 +33,13 @@
   "devDependencies": {
     "@types/jest": "^29.5.11",
     "jest": "^29.7.0",
+    "rimraf": "^5.0.5",
     "standardized-audio-context-mock": "^9.6.31",
     "ts-jest": "^29.1.1",
     "typedoc": "^0.25.4",
-    "typescript": "^5.3.2"
+    "typescript": "^5.3.2",
+    "vite": "^5.0.10",
+    "vite-plugin-dts": "^3.6.4"
   },
   "jest": {
     "preset": "ts-jest",
