@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cacophony Test Page</title>
+    <script type="module">
+        import { Cacophony, SoundType } from '/src/cacophony.ts';
+
+        window.onload = () => {
+            const cacophony = new Cacophony();
+            let sound;
+
+            document.getElementById('playSound').addEventListener('click', async () => {
+                const soundUrl = document.getElementById('soundUrl').value;
+                sound = await cacophony.createSound(soundUrl, SoundType.Buffer);
+                sound.play();
+            });
+
+            document.getElementById('stopSound').addEventListener('click', () => {
+                if (sound) sound.stop();
+            });
+
+            document.getElementById('volume').addEventListener('input', (event) => {
+                const volume = parseFloat(event.target.value);
+                if (sound) sound.volume = volume;
+            });
+
+            document.getElementById('positionX').addEventListener('input', (event) => {
+                const x = parseFloat(event.target.value);
+                if (sound) sound.position = [x, sound.position[1], sound.position[2]];
+            });
+
+            // Additional controls can be added as needed
+        };
+    </script>
+</head>
+
+<body>
+    <h1>Cacophony Test Page</h1>
+    <input type="text" id="soundUrl" placeholder="Enter sound URL">
+    <button id="playSound">Play Sound</button>
+    <button id="stopSound">Stop Sound</button>
+    <br>
+    <label for="volume">Volume:</label>
+    <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
+    <br>
+    <label for="positionX">Position X:</label>
+    <input type="range" id="positionX" min="-10" max="10" step="0.1" value="0">
+    <!-- Additional UI elements for testing other features can be added here -->
+</body>
+
+</html>
