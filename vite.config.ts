@@ -10,7 +10,7 @@ export default defineConfig({
             entry: resolve(__dirname, 'src/index.ts'),
             name: 'cacophony',
             formats: ["es", "cjs", "umd", "iife",],
-            fileName: (format) => `index.${format}.js`,
+            fileName: (format) => `cacophony.${format}.js`,
 
         },
         rollupOptions: {
@@ -21,8 +21,8 @@ export default defineConfig({
         },
         target: 'esnext', // transpile as little as possible
     },
-        plugins: [
-            dts()
-        ],
-    }
+    plugins: [
+        dts()
+    ],
+}
 );
