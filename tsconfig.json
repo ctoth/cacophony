@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
     "baseUrl": "./src",
     "rootDir": "./src",
     "target": "ESNext",
@@ -16,12 +17,10 @@
     ],
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
-    "useDefineForClassFields": true,
     "strict": true,
     "skipLibCheck": false,
     "sourceMap": true,
     "resolveJsonModule": true,
-    "isolatedModules": true,
     "esModuleInterop": true,
     "noEmit": true,
     "noUnusedLocals": false,
