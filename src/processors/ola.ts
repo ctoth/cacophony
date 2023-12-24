@@ -10,11 +10,11 @@ export default abstract class OLAProcessor extends AudioWorkletProcessor {
     blockSize: number;
     hopSize: number;
     nbOverlaps: number;
-    inputBuffers: Float32Array[][];
-    inputBuffersHead: Float32Array[][];
-    inputBuffersToSend: Float32Array[][];
-    outputBuffers: Float32Array[][];
-    outputBuffersToRetrieve: Float32Array[][];
+    inputBuffers: Float32Array[][] = [];
+    inputBuffersHead: Float32Array[][] = [];
+    inputBuffersToSend: Float32Array[][] = [];
+    outputBuffers: Float32Array[][] = [];
+    outputBuffersToRetrieve: Float32Array[][] = [];
 
     constructor(options: AudioWorkletNodeOptions) {
         super(options);

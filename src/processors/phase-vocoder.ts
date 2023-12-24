@@ -24,9 +24,9 @@ export default class PhaseVocoderProcessor extends OLAProcessor {
     timeCursor: number;
     hannWindow: Float32Array;
     fft: FFT;
-    freqComplexBuffer: Float32Array;
-    freqComplexBufferShifted: Float32Array;
-    timeComplexBuffer: Float32Array;
+    freqComplexBuffer: any;
+    freqComplexBufferShifted: any;
+    timeComplexBuffer: any;
     magnitudes: Float32Array;
     peakIndexes: Int32Array;
     nbPeaks: number;
@@ -51,16 +51,17 @@ export default class PhaseVocoderProcessor extends OLAProcessor {
 
         // prepare FFT and pre-allocate buffers
         this.fft = new FFT(this.fftSize);
-        this.freqComplexBuffer = this.fft.createComplexArray();
-        this.freqComplexBufferShifted = this.fft.createComplexArray();
+        this.freqComplexBuffer = this.fft.createComplexArray() as Float32Array[];
+        this.freqComplexBufferShifted = this.fft.createComplexArray() as Float32Array[];
         this.timeComplexBuffer = this.fft.createComplexArray();
         this.magnitudes = new Float32Array(this.fftSize / 2 + 1);
         this.peakIndexes = new Int32Array(this.magnitudes.length);
         this.nbPeaks = 0;
     }
 
-    processOLA(inputs: Float32Array[][], outputs: Float32Array[][], parameters: { pitchFactor: Float32Array }) {
-        const pitchFactor = parameters.pitchFactor[parameters.pitchFactor.length - 1];
+    processOLA(inputs: Float32Array[][], outputs: Float32Array[][], parameters: AudioParamMap) {
+        //@ts-ignore
+        const pitchFactor = parameters.get('pitchFactor')[parameters.get("pitchFactor").length - 1];
 
         for (let i = 0; i < this.nbInputs; i++) {
             for (let j = 0; j < inputs[i].length; j++) {
@@ -157,4 +158,5 @@ export default class PhaseVocoderProcessor extends OLAProcessor {
     }
 }
 
+// @ts-ignore
 registerProcessor("phase-vocoder-processor", PhaseVocoderProcessor);

@@ -4,13 +4,21 @@ interface AudioWorkletProcessor {
   process(
     inputs: Float32Array[][],
     outputs: Float32Array[][],
-    parameters: Record<string, Float32Array>
+    parameters: AudioParamMap
   ): boolean;
+}
+
+interface AudioParamDescriptor {
+  name: string;
+  defaultValue: number;
+  minValue?: number;
+  maxValue?: number;
+  automationRate?: AutomationRate;
 }
 
 declare var AudioWorkletProcessor: {
   prototype: AudioWorkletProcessor;
-  new (options?: AudioWorkletNodeOptions): AudioWorkletProcessor;
+  new(options?: AudioWorkletNodeOptions): AudioWorkletProcessor;
 };
 
 declare function registerProcessor(
