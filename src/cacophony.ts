@@ -1,5 +1,7 @@
-import { AudioContext, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IMediaElementAudioSourceNode, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
+import { AudioContext, AudioWorkletNode, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IMediaElementAudioSourceNode, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
 import { CacheManager } from './cache';
+import { createStream } from './stream';
+import PhaseVocoderProcessorUrl from './worklets/phase-vocoder?url';
 
 export enum SoundType {
     HTML = 'HTML',
@@ -62,10 +64,20 @@ export class Cacophony {
         this.listener = this.context.listener;
         this.globalGainNode = this.context.createGain();
         this.globalGainNode.connect(this.context.destination);
+
         this.finalizationRegistry = new FinalizationRegistry((heldValue) => {
             // Cleanup callback for Playbacks
             heldValue.cleanup();
         });
+    }
+
+    async loadWorklets() {
+        if (this.context.audioWorklet) {
+            await createWorkletNode(this.context, 'phase-vocoder', PhaseVocoderProcessorUrl);
+        }
+        else {
+            console.warn('AudioWorklet not supported');
+        }
     }
 
     async createSound(buffer: AudioBuffer, type?: SoundType): Promise<Sound>
@@ -1078,79 +1090,21 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
 
 }
 
+async function createWorkletNode(
+    context: AudioContext,
+    name: string,
+    url: string
+) {
+    // ensure audioWorklet has been loaded
+    if (!context.audioWorklet) {
+        throw new Error('AudioWorklet not supported');
+    }
 
-const appendBuffer = (buffer1: ArrayBuffer, buffer2: ArrayBuffer): ArrayBuffer => {
-    var tmp = new Uint8Array(buffer1.byteLength + buffer2.byteLength);
-    tmp.set(new Uint8Array(buffer1), 0);
-    tmp.set(new Uint8Array(buffer2), buffer1.byteLength);
-    return tmp.buffer;
-}
-
-
-function createStream(url: string, context: AudioContext) {
-    const audioStack: IAudioBuffer[] = [];
-    let nextTime = 0;
-
-    fetch(url).then(function (response) {
-        if (!response.ok) {
-            throw new Error('HTTP error, status = ' + response.status);
-        }
-        if (!response.body) {
-            throw new Error('Missing body');
-        }
-
-        var reader = response.body.getReader();
-        let header = new ArrayBuffer(0);//first 44bytes
-
-        function read() {
-            return reader.read().then(({ value, done }) => {
-                let audioBuffer = null;
-                if (!value) {
-                    return;
-                }
-
-                if (!header.byteLength) {
-                    //copy first 44 bytes (wav header)
-                    header = value.buffer.slice(0, 44);
-                    audioBuffer = value.buffer;
-                } else {
-                    audioBuffer = appendBuffer(header, value.buffer);
-                }
-
-                context.decodeAudioData(audioBuffer, function (buffer) {
-
-                    audioStack.push(buffer);
-                    if (audioStack.length) {
-                        scheduleBuffers();
-                    }
-                }, function (err) {
-                    console.log("err(decodeAudioData): " + err);
-                });
-                if (done) {
-                    console.log('done');
-                    return;
-                }
-                //read next buffer
-                read();
-            });
-        }
-        read();
-    })
-
-    function scheduleBuffers() {
-        while (audioStack.length) {
-            let buffer = audioStack.shift();
-            const source = context.createBufferSource();
-            if (!buffer) {
-                return;
-            }
-            source.buffer = buffer;
-            source.connect(context.destination);
-            if (nextTime == 0)
-                nextTime = context.currentTime + 0.02;  /// add 50ms latency to work well across systems - tune this if you like
-            source.start(nextTime);
-            nextTime += source.buffer.duration; // Make the next buffer wait the length of the last buffer before being played
-        };
+    try {
+        return new AudioWorkletNode!(context, name);
+    } catch (err) {
+        await context.audioWorklet.addModule(url);
+        return new AudioWorkletNode!(context, name);
     }
 }
 

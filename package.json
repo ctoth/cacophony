@@ -48,6 +48,7 @@
     "testEnvironment": "node"
   },
   "dependencies": {
+    "fft.js": "^4.0.4",
     "standardized-audio-context": "^25.3.60"
   }
 }
