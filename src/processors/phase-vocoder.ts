@@ -17,7 +17,7 @@ interface PhaseVocoderNodeOptions extends AudioWorkletNodeOptions {
     };
 }
 
-export default class PhaseVocoderProcessor extends OLAProcessor {
+class PhaseVocoderProcessor extends OLAProcessor {
     fftSize: number;
     timeCursor: number;
     hannWindow: Float32Array;
