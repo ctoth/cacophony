@@ -1,7 +1,7 @@
 import { AudioContext, AudioWorkletNode, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IMediaElementAudioSourceNode, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
 import { CacheManager } from './cache';
 import { createStream } from './stream';
-import PhaseVocoderProcessorUrl from './processors/phase-vocoder.ts?worker&url';
+import phaseVocoderProcessorUrl from './processors/phase-vocoder.ts?worker&url';
 
 export enum SoundType {
     HTML = 'HTML',
@@ -73,7 +73,7 @@ export class Cacophony {
 
     async loadWorklets() {
         if (this.context.audioWorklet) {
-            await createWorkletNode(this.context, 'phase-vocoder', PhaseVocoderProcessorUrl);
+            await createWorkletNode(this.context, 'phase-vocoder', phaseVocoderProcessorUrl);
         }
         else {
             console.warn('AudioWorklet not supported');
@@ -1099,10 +1099,10 @@ async function createWorkletNode(
     if (!context.audioWorklet) {
         throw new Error('AudioWorklet not supported');
     }
-
     try {
         return new AudioWorkletNode!(context, name);
     } catch (err) {
+        console.log("Loading worklet from url", url);
         await context.audioWorklet.addModule(url);
         return new AudioWorkletNode!(context, name);
     }
