@@ -1,7 +1,7 @@
 import { AudioContext, AudioWorkletNode, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IMediaElementAudioSourceNode, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
 import { CacheManager } from './cache';
 import { createStream } from './stream';
-import PhaseVocoderProcessorUrl from './processors/phase-vocoder.ts?url';
+import PhaseVocoderProcessorUrl from './processors/phase-vocoder.ts?worker&url';
 
 export enum SoundType {
     HTML = 'HTML',
