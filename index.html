@@ -10,6 +10,7 @@
 
         window.onload = () => {
             const cacophony = new Cacophony();
+            window.cacophony = cacophony;
             let sound;
 
             document.getElementById('playSound').addEventListener('click', async () => {
