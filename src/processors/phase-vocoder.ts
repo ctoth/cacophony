@@ -1,6 +1,4 @@
-"use strict";
-
-import OLAProcessor from './ola';
+import OLAProcessor from './ola.ts';
 import FFT from 'fft.js';
 
 const BUFFERED_BLOCK_SIZE = 2048;

@@ -1,5 +1,3 @@
-"use strict";
-
 const WEBAUDIO_BLOCK_SIZE = 128;
 const DEFAULT_BLOCK_SIZE = 1024; // Default block size if not provided in options
 
