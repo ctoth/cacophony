@@ -2,7 +2,6 @@ import { resolve } from 'path';
 import { defineConfig } from 'vite';
 import dts from 'vite-plugin-dts';
 import pkg from './package.json' assert { type: 'json' }
-
 export default defineConfig({
     build: {
         sourcemap: true,
@@ -22,11 +21,8 @@ export default defineConfig({
         target: "esnext",
     },
     worker: {
-        format: "iife",
         rollupOptions: {
-            output: {
-                inlineDynamicImports: true
-            }
+            external: []
         }
     },
     plugins: [
