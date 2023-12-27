@@ -895,6 +895,7 @@ export class MicrophonePlayback extends FilterManager {
     private gainNode?: GainNode;
     private panner?: PannerNode;
 
+
     constructor(source: MediaStreamAudioSourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0) {
         super();
         this.source = source;
@@ -903,6 +904,10 @@ export class MicrophonePlayback extends FilterManager {
         this.panner = context.createPanner();
         source.connect(this.panner).connect(this.gainNode);
         this.refreshFilters();
+    }
+
+    get duration() {
+        return 0;
     }
 
     play() {
