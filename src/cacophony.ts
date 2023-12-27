@@ -1,7 +1,7 @@
 import { AudioContext, AudioWorkletNode, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IMediaElementAudioSourceNode, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
 import { CacheManager } from './cache';
 import { createStream } from './stream';
-import phaseVocoderProcessorWorklet from './processors/phase-vocoder?worker&url';
+import phaseVocoderProcessorWorkletUrl from './processors/phase-vocoder?url';
 
 export enum SoundType {
     HTML = 'HTML',
@@ -48,6 +48,7 @@ export interface BaseSound {
     playbackRate: number;
     position: Position;
     loop?(loopCount?: LoopCount): LoopCount;
+    duration: number;
     // Getter and setter for threeDOptions representing PannerNode attributes
     threeDOptions?: IPannerOptions;
 }
@@ -73,7 +74,7 @@ export class Cacophony {
 
     async loadWorklets() {
         if (this.context.audioWorklet) {
-            await createWorkletNode(this.context, 'phase-vocoder', phaseVocoderProcessorWorklet);
+            await createWorkletNode(this.context, 'phase-vocoder', phaseVocoderProcessorWorkletUrl);
         }
         else {
             console.warn('AudioWorklet not supported');
@@ -357,6 +358,10 @@ export class Sound extends FilterManager implements BaseSound {
         this.playbacks.forEach(playback => playback.seek(time));
     }
 
+    get duration() {
+        return this.buffer?.duration || 0;
+    }
+
     set position(position: Position) {
         this._threeDOptions.positionX = position[0];
         this._threeDOptions.positionY = position[1];
@@ -448,6 +453,13 @@ export class Playback extends FilterManager implements BaseSound {
         source.connect(this.panner);
         this.panner.connect(this.gainNode);
         this.refreshFilters();
+    }
+
+    get duration() {
+        if (!this.buffer) {
+            throw new Error('Cannot get duration of a sound that has been cleaned up');
+        }
+        return this.buffer.duration;
     }
 
     get playbackRate() {
@@ -787,6 +799,10 @@ export class Group implements BaseSound {
     private _position: Position = [0, 0, 0];
     loopCount: LoopCount = 0;
 
+    get duration() {
+        return this.sounds.map(sound => sound.duration).reduce((a, b) => Math.max(a, b), 0);
+    }
+
     seek(time: number): void {
         this.sounds.forEach(sound => sound.seek && sound.seek(time));
     }
@@ -1016,6 +1032,11 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
         return this.streamPlayback ? [this.streamPlayback] : [];
     }
 
+    get duration() {
+        return 0;
+    }
+
+
     seek(time: number) {
         // Seeking is not applicable for live microphone stream
     }
@@ -1102,6 +1123,7 @@ async function createWorkletNode(
     try {
         return new AudioWorkletNode!(context, name);
     } catch (err) {
+        console.log("Loading worklet from url", url);
         console.log("Loading worklet from url", url);
         await context.audioWorklet.addModule(url);
         return new AudioWorkletNode!(context, name);
