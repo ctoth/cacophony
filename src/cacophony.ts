@@ -81,6 +81,15 @@ export class Cacophony {
         }
     }
 
+    createOscillator = ({ frequency, type, periodicWave }: OscillatorOptions) => {
+        const oscillator = this.context.createOscillator();
+        oscillator.type = type || 'sine';
+        oscillator.setPeriodicWave(periodicWave!);
+        oscillator.frequency.value = frequency!;
+        oscillator.connect(this.globalGainNode);
+        return oscillator
+    }
+
     async createSound(buffer: AudioBuffer, type?: SoundType): Promise<Sound>
 
     async createSound(url: string, type?: SoundType): Promise<Sound>
