@@ -127,10 +127,35 @@ export class Cacophony {
         return sound;
     }
 
-    createBiquadFilter(type: BiquadFilterType): BiquadFilterNode {
+    createBiquadFilter({ type, frequency, gain, Q }: BiquadFilterOptions): BiquadFilterNode {
         const filter = this.context.createBiquadFilter();
-        filter.type = type;
+        filter.type = type || 'lowpass';
+        filter.frequency.value = frequency || 350;
+        filter.gain.value = gain || 0;
+        filter.Q.value = Q || 1;
         return filter;
+    }
+
+    createPanner({ coneInnerAngle, coneOuterAngle, coneOuterGain, distanceModel, maxDistance, channelCount, channelCountMode, channelInterpretation, panningModel, refDistance, rolloffFactor, positionX, positionY, positionZ, orientationX, orientationY, orientationZ }: Partial<IPannerOptions>): PannerNode {
+        const panner = this.context.createPanner();
+        panner.coneInnerAngle = coneInnerAngle || 360;
+        panner.coneOuterAngle = coneOuterAngle || 360;
+        panner.coneOuterGain = coneOuterGain || 0;
+        panner.distanceModel = distanceModel || 'inverse';
+        panner.maxDistance = maxDistance || 10000;
+        panner.channelCount = channelCount || 2;
+        panner.channelCountMode = channelCountMode || 'clamped-max';
+        panner.channelInterpretation = channelInterpretation || 'speakers';
+        panner.panningModel = panningModel || 'HRTF';
+        panner.refDistance = refDistance || 1;
+        panner.rolloffFactor = rolloffFactor || 1;
+        panner.positionX.value = positionX || 0;
+        panner.positionY.value = positionY || 0;
+        panner.positionZ.value = positionZ || 0;
+        panner.orientationX.value = orientationX || 0;
+        panner.orientationY.value = orientationY || 0;
+        panner.orientationZ.value = orientationZ || 0;
+        return panner;
     }
 
     pause() {
