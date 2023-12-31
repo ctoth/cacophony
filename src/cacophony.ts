@@ -1,7 +1,7 @@
 import { AudioContext, AudioWorkletNode, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IMediaElementAudioSourceNode, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
 import { CacheManager } from './cache';
 import { createStream } from './stream';
-import phaseVocoderProcessorWorkletUrl from './processors/phase-vocoder?url';
+import phaseVocoderProcessorWorkletUrl from './bundles/phase-vocoder-bundle.js?url';
 
 export enum SoundType {
     HTML = 'HTML',
@@ -1162,7 +1162,6 @@ async function createWorkletNode(
     try {
         return new AudioWorkletNode!(context, name);
     } catch (err) {
-        console.log("Loading worklet from url", url);
         console.log("Loading worklet from url", url);
         await context.audioWorklet.addModule(url);
         return new AudioWorkletNode!(context, name);

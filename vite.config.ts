@@ -20,11 +20,6 @@ export default defineConfig({
         },
         target: "esnext",
     },
-    worker: {
-        rollupOptions: {
-            external: []
-        }
-    },
     plugins: [
         dts()
     ],
