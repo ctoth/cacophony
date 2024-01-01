@@ -1,6 +1,7 @@
 import { AudioContext, AudioWorkletNode, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IMediaElementAudioSourceNode, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
 import { CacheManager } from './cache';
 import { createStream } from './stream';
+
 import phaseVocoderProcessorWorkletUrl from './bundles/phase-vocoder-bundle.js?url';
 
 export enum SoundType {
@@ -74,10 +75,35 @@ export class Cacophony {
 
     async loadWorklets() {
         if (this.context.audioWorklet) {
-            await createWorkletNode(this.context, 'phase-vocoder', phaseVocoderProcessorWorkletUrl);
+            await this.createWorkletNode('phase-vocoder', phaseVocoderProcessorWorkletUrl);
         }
         else {
             console.warn('AudioWorklet not supported');
+        }
+    }
+
+
+    async createWorkletNode(
+        name: string,
+        url: string
+    ) {
+        // ensure audioWorklet has been loaded
+        if (!this.context.audioWorklet) {
+            throw new Error('AudioWorklet not supported');
+        }
+        try {
+            return new AudioWorkletNode!(this.context, name);
+        } catch (err) {
+            console.error(err)
+            console.log("Loading worklet from url", url);
+            try {
+                await this.context.audioWorklet.addModule(url);
+            } catch (err) {
+                console.error(err);
+                throw new Error(`Could not load worklet from url ${url}`);
+            }
+
+            return new AudioWorkletNode!(this.context, name);
         }
     }
 
@@ -126,6 +152,9 @@ export class Cacophony {
         const sound = new Sound(url, undefined, this.context, this.globalGainNode, SoundType.Streaming);
         return sound;
     }
+
+
+
 
     createBiquadFilter({ type, frequency, gain, Q }: BiquadFilterOptions): BiquadFilterNode {
         const filter = this.context.createBiquadFilter();
@@ -1149,22 +1178,3 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
     }
 
 }
-
-async function createWorkletNode(
-    context: AudioContext,
-    name: string,
-    url: string
-) {
-    // ensure audioWorklet has been loaded
-    if (!context.audioWorklet) {
-        throw new Error('AudioWorklet not supported');
-    }
-    try {
-        return new AudioWorkletNode!(context, name);
-    } catch (err) {
-        console.log("Loading worklet from url", url);
-        await context.audioWorklet.addModule(url);
-        return new AudioWorkletNode!(context, name);
-    }
-}
-
