@@ -58,8 +58,8 @@ export class PhaseVocoderProcessor extends OLAProcessor {
     }
 
     processOLA(inputs: Float32Array[][], outputs: Float32Array[][], parameters: AudioParamMap) {
-        //@ts-ignore
-        const pitchFactor = parameters.get('pitchFactor')[parameters.get("pitchFactor").length - 1];
+        // @ts-ignore
+        const pitchFactor = parameters.pitchFactor[parameters.pitchFactor.length - 1];
 
         for (let i = 0; i < this.nbInputs; i++) {
             for (let j = 0; j < inputs[i].length; j++) {

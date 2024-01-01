@@ -29,3 +29,7 @@ declare function registerProcessor(
     parameterDescriptors?: AudioParamDescriptor[];
   }
 ): void;
+
+interface AudioParamMap {
+  forEach(callbackfn: (value: AudioParam, key: string, parent: AudioParamMap) => void, thisArg?: any): void;
+}
