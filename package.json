@@ -13,10 +13,11 @@
     "README.md"
   ],
   "scripts": {
-    "build": "npm run clean&&vite build&&npm run docs",
+    "build": "npm run clean&&npm run build:worklets&&vite build&&npm run docs",
     "dev": "vite",
     "serve": "vite preview",
     "docs": "typedoc --out docs --exclude *.test.ts src",
+    "build:worklets": "rollup -c",
     "clean": "rimraf build",
     "prepublishOnly": "npm run build",
     "test": "jest",
@@ -24,6 +25,7 @@
   },
   "keywords": [
     "audio",
+    "audio worklets",
     "webaudio"
   ],
   "author": "Christopher Toth",
@@ -36,6 +38,7 @@
     "@rollup/plugin-commonjs": "^25.0.7",
     "@rollup/plugin-node-resolve": "^15.2.3",
     "@rollup/plugin-replace": "^5.0.5",
+    "@rollup/plugin-typescript": "^11.1.5",
     "@types/jest": "^29.5.11",
     "jest": "^29.7.0",
     "rimraf": "^5.0.5",
@@ -52,7 +55,6 @@
     "testEnvironment": "node"
   },
   "dependencies": {
-    "@rollup/plugin-typescript": "^11.1.5",
     "fft.js": "^4.0.4",
     "standardized-audio-context": "^25.3.60"
   }
