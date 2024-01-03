@@ -153,9 +153,6 @@ export class Cacophony {
         return sound;
     }
 
-
-
-
     createBiquadFilter({ type, frequency, gain, Q }: BiquadFilterOptions): BiquadFilterNode {
         const filter = this.context.createBiquadFilter();
         filter.type = type || 'lowpass';
@@ -367,6 +364,17 @@ export class Sound extends FilterManager implements BaseSound {
         this.context = context;
         this.globalGainNode = globalGainNode;
         this._position = [0, 0, 0];
+    }
+
+    clone(): Sound {
+        const clone = new Sound(this.url, this.buffer, this.context, this.globalGainNode, this.type);
+        clone.loopCount = this.loopCount;
+        clone._playbackRate = this._playbackRate;
+        clone._volume = this._volume;
+        clone._position = this._position;
+        clone._threeDOptions = this._threeDOptions;
+        clone.filters = this.filters;
+        return clone;
     }
 
     preplay(): Playback[] {
