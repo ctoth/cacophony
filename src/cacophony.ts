@@ -54,6 +54,44 @@ export interface BaseSound {
     threeDOptions?: IPannerOptions;
 }
 
+type SoundEvents = {
+    play: () => void;
+    stop: () => void;
+    pause: () => void;
+    resume: () => void;
+    seek: (time: number) => void;
+    volumeChange: (volume: number) => void;
+    playbackRateChange: (rate: number) => void;
+    loopChange: (loopCount: LoopCount) => void;
+    positionChange: (position: Position) => void;
+};
+
+
+type PlaybackEvents = {
+    start: () => void;
+    end: () => void;
+    pause: () => void;
+    resume: () => void;
+    seek: (time: number) => void;
+    volumeChange: (volume: number) => void;
+    playbackRateChange: (rate: number) => void;
+    loopChange: (loopCount: LoopCount) => void;
+    fadeIn: (time: number) => void;
+    fadeOut: (time: number) => void;
+    cleanup: () => void;
+};
+
+type GroupEvents = {
+    play: () => void;
+    stop: () => void;
+    pause: () => void;
+    resume: () => void;
+    seek: (time: number) => void;
+    volumeChange: (volume: number) => void;
+    playbackRateChange: (rate: number) => void;
+    loopChange: (loopCount: LoopCount) => void;
+};
+
 export class Cacophony {
     context: AudioContext;
     globalGainNode: GainNode;
@@ -529,6 +567,7 @@ export class Playback extends FilterManager implements BaseSound {
     get duration() {
         if (!this.buffer) {
             throw new Error('Cannot get duration of a sound that has been cleaned up');
+            throw new Error('Cannot get duration of a sound that has been cleaned up');
         }
         return this.buffer.duration;
     }
@@ -545,6 +584,7 @@ export class Playback extends FilterManager implements BaseSound {
         }
         throw new Error('Unsupported source type');
     }
+
     set playbackRate(rate: number) {
         if (!this.source) {
             throw new Error('Cannot set playback rate of a sound that has been cleaned up');
