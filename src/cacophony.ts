@@ -1,7 +1,7 @@
 import { AudioContext, AudioWorkletNode, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IMediaElementAudioSourceNode, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
 import { CacheManager } from './cache';
 import { createStream } from './stream';
-
+import { WithEvents } from './events';
 import phaseVocoderProcessorWorkletUrl from './bundles/phase-vocoder-bundle.js?url';
 
 export enum SoundType {
@@ -9,7 +9,6 @@ export enum SoundType {
     Streaming = 'Streaming',
     Buffer = 'Buffer'
 }
-
 
 type GainNode = IGainNode<AudioContext>;
 type BiquadFilterNode = IBiquadFilterNode<AudioContext>;
@@ -366,7 +365,7 @@ abstract class FilterManager {
     }
 }
 
-
+@WithEvents<SoundEvents>()
 export class Sound extends FilterManager implements BaseSound {
     buffer?: IAudioBuffer;
     context: AudioContext;
@@ -444,6 +443,7 @@ export class Sound extends FilterManager implements BaseSound {
     play(): Playback[] {
         const playback = this.preplay();
         playback.forEach(p => p.play());
+        this.emit("play")
         return playback;
     }
 
