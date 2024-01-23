@@ -908,6 +908,7 @@ export class Group implements BaseSound {
     sounds: BaseSound[] = [];
     private _position: Position = [0, 0, 0];
     loopCount: LoopCount = 0;
+    private playIndex: number = 0;
 
     playRandom(): Playback {
         if (this.sounds.length === 0) {
@@ -917,6 +918,24 @@ export class Group implements BaseSound {
         const randomSound = this.sounds[randomIndex] as Sound;
         const playback = randomSound.preplay();
         playback.forEach(p => p.play());
+        return playback[0];
+    }
+
+    playOrdered(shouldLoop: boolean = true): Playback {
+        if (this.sounds.length === 0) {
+            throw new Error('Cannot play an ordered sound from an empty group');
+        }
+        const sound = this.sounds[this.playIndex] as Sound;
+        const playback = sound.preplay();
+        playback.forEach(p => p.play());
+        this.playIndex++;
+        if (this.playIndex >= this.sounds.length) {
+            if (shouldLoop) {
+                this.playIndex = 0;
+            } else {
+                this.playIndex = this.sounds.length; // Set to length to indicate end of list
+            }
+        }
         return playback[0];
     }
 
