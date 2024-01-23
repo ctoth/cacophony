@@ -644,7 +644,6 @@ export class Playback extends FilterManager implements BaseSound {
     get duration() {
         if (!this.buffer) {
             throw new Error('Cannot get duration of a sound that has been cleaned up');
-            throw new Error('Cannot get duration of a sound that has been cleaned up');
         }
         return this.buffer.duration;
     }
