@@ -515,6 +515,13 @@ export class Sound extends FilterManager implements BaseSound {
         this.playbacks.forEach(p => p.threeDOptions = this._threeDOptions);
     }
 
+     * Sets or retrieves the loop behavior for the sound.
+     * If loopCount is provided, the sound will loop the specified number of times.
+     * If loopCount is 'infinite', the sound will loop indefinitely until stopped.
+     * If no argument is provided, the method returns the current loop count setting.
+     * @param {LoopCount} [loopCount] - The number of times to loop or 'infinite' for indefinite looping.
+     * @returns {LoopCount} The current loop count setting if no argument is provided.
+     */
     loop(loopCount?: LoopCount): LoopCount {
         if (loopCount === undefined) {
             return this.loopCount;
@@ -524,11 +531,19 @@ export class Sound extends FilterManager implements BaseSound {
         return this.loopCount;
     }
 
+     * Adds a BiquadFilterNode to the sound's filter chain.
+     * Filters are applied in the order they are added.
+     * @param {BiquadFilterNode} filter - The filter to add to the chain.
+     */
     addFilter(filter: BiquadFilterNode): void {
         super.addFilter(filter);
         this.playbacks.forEach(p => p.addFilter(filter));
     }
 
+     * Removes a BiquadFilterNode from the sound's filter chain.
+     * If the filter is not part of the chain, the method has no effect.
+     * @param {BiquadFilterNode} filter - The filter to remove from the chain.
+     */
     removeFilter(filter: BiquadFilterNode): void {
         super.removeFilter(filter);
         this.playbacks.forEach(p => p.removeFilter(filter));
