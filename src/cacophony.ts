@@ -396,6 +396,11 @@ export class Sound extends FilterManager implements BaseSound {
     constructor(public url: string, buffer: AudioBuffer | undefined, context: AudioContext, globalGainNode: GainNode, public type: SoundType = SoundType.Buffer) {
         super();
         this.buffer = buffer;
+        /**
+         * Creates a deep copy of the current Sound instance, including all its properties and filters.
+         * The cloned sound can be played and manipulated independently of the original.
+         * @returns {Sound} A new Sound instance that is a clone of the current sound.
+         */
         this.context = context;
         this.globalGainNode = globalGainNode;
         this._position = [0, 0, 0];
@@ -409,12 +414,23 @@ export class Sound extends FilterManager implements BaseSound {
         clone._position = this._position;
         clone._threeDOptions = this._threeDOptions;
         clone.filters = this.filters;
+        /**
+         * Generates a Playback instance for the sound without starting playback.
+         * This allows for pre-configuration of playback properties such as volume and position before the sound is actually played.
+         * @returns {Playback[]} An array of Playback instances that are ready to be played.
+         */
         return clone;
     }
 
     preplay(): Playback[] {
         let source: SourceNode;
         if (this.buffer) {
+            /**
+             * Starts playback of the sound and returns a Playback instance representing this particular playback.
+             * Multiple Playback instances can be created by calling this method multiple times,
+             * allowing for the same sound to be played concurrently with different settings.
+             * @returns {Playback[]} An array containing the Playback instances that have been started.
+             */
             source = this.context.createBufferSource();
             source.buffer = this.buffer;
         } else {
@@ -424,6 +440,9 @@ export class Sound extends FilterManager implements BaseSound {
             audio.preload = "auto"
             // we have the audio, let's make a buffer source node out of it
             source = this.context.createMediaElementSource(audio);
+            /**
+             * Stops all current playbacks of the sound immediately. This will halt the sound regardless of how many times it has been played.
+             */
         }
         const gainNode = this.context.createGain();
         gainNode.connect(this.globalGainNode);
