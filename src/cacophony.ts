@@ -220,13 +220,10 @@ export class Cacophony {
         return panner;
     }
 
-     * Suspends the playback of the sound if it is currently playing.
-     * This is a temporary halt, and the playback can be resumed from the same point using the `resume()` method.
+     * Pauses all current playbacks of the sound.
      */
-    pause() {
-        if ('suspend' in this.context) {
-            this.context.suspend();
-        }
+    pause(): void {
+        this.playbacks.forEach(playback => playback.pause());
     }
 
     resume() {
@@ -474,22 +471,16 @@ export class Sound extends FilterManager implements BaseSound {
         this.playbacks.forEach(p => p.stop());
     }
 
-     * Suspends the playback of the sound if it is currently playing.
-     * This is a temporary halt, and the playback can be resumed from the same point using the `resume()` method.
+     * Pauses all current playbacks of the sound.
      */
-    pause() {
-        if ('suspend' in this.context) {
-            this.context.suspend();
-        }
+    pause(): void {
+        this.playbacks.forEach(playback => playback.pause());
     }
 
-     * Resumes the playback of the sound if it has been previously suspended using the `pause()` method.
-     * It continues playback from the point at which it was paused.
+     * Resumes all current playbacks of the sound that were previously paused.
      */
     resume(): void {
-        if ('resume' in this.context) {
-            this.context.resume();
-        }
+        this.playbacks.forEach(playback => playback.resume());
     }
 
      * Seeks to a specific time within the sound's playback.
