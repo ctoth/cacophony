@@ -910,6 +910,17 @@ export class Group implements BaseSound {
     private _position: Position = [0, 0, 0];
     loopCount: LoopCount = 0;
 
+    playRandom(): Playback {
+        if (this.sounds.length === 0) {
+            throw new Error('Cannot play a random sound from an empty group');
+        }
+        const randomIndex = Math.floor(Math.random() * this.sounds.length);
+        const randomSound = this.sounds[randomIndex] as Sound;
+        const playback = randomSound.preplay();
+        playback.forEach(p => p.play());
+        return playback[0];
+    }
+
     get duration() {
         return this.sounds.map(sound => sound.duration).reduce((a, b) => Math.max(a, b), 0);
     }
