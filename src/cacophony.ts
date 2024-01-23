@@ -491,10 +491,20 @@ export class Sound extends FilterManager implements BaseSound {
         this.playbacks.forEach(playback => playback.seek(time));
     }
 
+     * Retrieves the duration of the sound in seconds.
+     * If the sound is based on an AudioBuffer, it returns the duration of the buffer.
+     * Otherwise, it returns 0, indicating that the duration is unknown or not applicable.
+     * @returns {number} The duration of the sound in seconds.
+     */
     get duration() {
         return this.buffer?.duration || 0;
     }
 
+     * Sets the 3D spatial position of the sound in the audio context.
+     * The position is an array of three values [x, y, z].
+     * This method updates the position of all active playbacks of the sound.
+     * @param {Position} position - The new position of the sound.
+     */
     set position(position: Position) {
         this._threeDOptions.positionX = position[0];
         this._threeDOptions.positionY = position[1];
@@ -502,6 +512,10 @@ export class Sound extends FilterManager implements BaseSound {
         this.playbacks.forEach(p => p.position = position);
     }
 
+     * Retrieves the current 3D spatial position of the sound in the audio context.
+     * The position is returned as an array of three values [x, y, z].
+     * @returns {Position} The current position of the sound.
+     */
     get position(): Position {
         return [this._threeDOptions.positionX, this._threeDOptions.positionY, this._threeDOptions.positionZ]
     }
