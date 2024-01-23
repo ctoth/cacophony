@@ -443,7 +443,6 @@ export class Sound extends FilterManager implements BaseSound {
     play(): Playback[] {
         const playback = this.preplay();
         playback.forEach(p => p.play());
-        this.emit("play")
         return playback;
     }
 
