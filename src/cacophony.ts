@@ -592,6 +592,10 @@ export class Sound extends FilterManager implements BaseSound {
         this.playbacks.forEach(p => p.volume = volume);
     }
 
+    /**
+     * Returns a boolean indicating whether the sound is currently playing.
+     * @returns {boolean} True if the sound is playing, false otherwise.
+     */
     isPlaying(): boolean {
         return this.playbacks.some(p => p.isPlaying());
     }
@@ -791,6 +795,12 @@ export class Playback extends FilterManager implements BaseSound {
         }
     }
 
+    /**
+     * Gradually increases the volume of the sound from silence to its current volume level over the specified duration.
+     * @param {number} time - The duration in seconds over which the volume will increase.
+     * @param {FadeType} fadeType - The type of fade curve to apply, either 'linear' or 'exponential'.
+     * @returns {Promise<void>} A promise that resolves when the fade-in effect is complete.
+     */
     fadeIn(time: number, fadeType: FadeType = 'linear'): Promise<void> {
         return new Promise(resolve => {
             if (!this.gainNode) {
@@ -826,6 +836,12 @@ export class Playback extends FilterManager implements BaseSound {
         });
     }
 
+    /**
+     * Gradually decreases the volume of the sound from its current volume level to silence over the specified duration.
+     * @param {number} time - The duration in seconds over which the volume will decrease.
+     * @param {FadeType} fadeType - The type of fade curve to apply, either 'linear' or 'exponential'.
+     * @returns {Promise<void>} A promise that resolves when the fade-out effect is complete.
+     */
     fadeOut(time: number, fadeType: FadeType = 'linear'): Promise<void> {
         return new Promise(resolve => {
             // Storing the current gain value
@@ -848,6 +864,10 @@ export class Playback extends FilterManager implements BaseSound {
         });
     }
 
+    /**
+     * Returns a boolean indicating whether the sound is currently playing.
+     * @returns {boolean} True if the sound is playing, false otherwise.
+     */
     isPlaying(): boolean {
         if (!this.source) {
             throw new Error('Cannot check if a sound is playing that has been cleaned up');
@@ -1039,6 +1059,10 @@ export class Group implements BaseSound {
         });
     }
 
+    /**
+     * Returns a boolean indicating whether the sound is currently playing.
+     * @returns {boolean} True if the sound is playing, false otherwise.
+     */
     isPlaying(): boolean {
         return this.sounds.some(sound => sound.isPlaying());
     }
@@ -1260,6 +1284,10 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
         // Seeking is not applicable for live microphone stream
     }
 
+    /**
+     * Returns a boolean indicating whether the sound is currently playing.
+     * @returns {boolean} True if the sound is playing, false otherwise.
+     */
     isPlaying(): boolean {
         return Boolean(this.streamPlayback);
     }
