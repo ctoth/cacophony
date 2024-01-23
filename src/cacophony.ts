@@ -1,7 +1,6 @@
 import { AudioContext, AudioWorkletNode, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IMediaElementAudioSourceNode, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
 import { CacheManager } from './cache';
 import { createStream } from './stream';
-import { WithEvents } from './events';
 import phaseVocoderProcessorWorkletUrl from './bundles/phase-vocoder-bundle.js?url';
 
 export enum SoundType {
@@ -365,7 +364,6 @@ abstract class FilterManager {
     }
 }
 
-@WithEvents<SoundEvents>()
 export class Sound extends FilterManager implements BaseSound {
     buffer?: IAudioBuffer;
     context: AudioContext;
