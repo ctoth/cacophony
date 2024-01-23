@@ -220,12 +220,20 @@ export class Cacophony {
         return panner;
     }
 
-     * Pauses all current playbacks of the sound.
-     */
+    /**
+        * Suspends the audio context.
+        */
     pause(): void {
-        this.playbacks.forEach(playback => playback.pause());
+        if ('suspend' in this.context) {
+            this.context.suspend();
+        }
     }
 
+    /**
+     * Resumes the audio context.
+     * This method is required to resume the audio context on mobile devices.
+     * On desktop, the audio context will automatically resume when a sound is played.
+     */
     resume() {
         if ('resume' in this.context) {
             this.context.resume();
@@ -471,39 +479,46 @@ export class Sound extends FilterManager implements BaseSound {
         this.playbacks.forEach(p => p.stop());
     }
 
-     * Pauses all current playbacks of the sound.
-     */
+    /**
+    * Pauses all current playbacks of the sound.
+    */
     pause(): void {
         this.playbacks.forEach(playback => playback.pause());
     }
 
-     * Resumes all current playbacks of the sound that were previously paused.
-     */
+    /**
+    * Resumes all current playbacks of the sound that were previously paused.
+    */
+
     resume(): void {
         this.playbacks.forEach(playback => playback.resume());
     }
 
-     * Seeks to a specific time within the sound's playback.
-     * @param {number} time - The time in seconds to seek to.
+    /**
+    * Seeks to a specific time within the sound's playback.
+    * @param { number } time - The time in seconds to seek to.
      * This method iterates through all active `Playback` instances and calls their `seek()` method with the specified time.
      */
     seek(time: number): void {
         this.playbacks.forEach(playback => playback.seek(time));
     }
 
-     * Retrieves the duration of the sound in seconds.
+    /**
+    * Retrieves the duration of the sound in seconds.
      * If the sound is based on an AudioBuffer, it returns the duration of the buffer.
      * Otherwise, it returns 0, indicating that the duration is unknown or not applicable.
-     * @returns {number} The duration of the sound in seconds.
+     * @returns { number } The duration of the sound in seconds.
      */
+
     get duration() {
         return this.buffer?.duration || 0;
     }
 
+    /**
      * Sets the 3D spatial position of the sound in the audio context.
-     * The position is an array of three values [x, y, z].
+     * The position is an array of three values[x, y, z].
      * This method updates the position of all active playbacks of the sound.
-     * @param {Position} position - The new position of the sound.
+     * @param { Position } position - The new position of the sound.
      */
     set position(position: Position) {
         this._threeDOptions.positionX = position[0];
@@ -512,9 +527,10 @@ export class Sound extends FilterManager implements BaseSound {
         this.playbacks.forEach(p => p.position = position);
     }
 
+    /**
      * Retrieves the current 3D spatial position of the sound in the audio context.
-     * The position is returned as an array of three values [x, y, z].
-     * @returns {Position} The current position of the sound.
+     * The position is returned as an array of three values[x, y, z].
+     * @returns { Position } The current position of the sound.
      */
     get position(): Position {
         return [this._threeDOptions.positionX, this._threeDOptions.positionY, this._threeDOptions.positionZ]
@@ -529,12 +545,13 @@ export class Sound extends FilterManager implements BaseSound {
         this.playbacks.forEach(p => p.threeDOptions = this._threeDOptions);
     }
 
-     * Sets or retrieves the loop behavior for the sound.
+    /**
+    * Sets or retrieves the loop behavior for the sound.
      * If loopCount is provided, the sound will loop the specified number of times.
      * If loopCount is 'infinite', the sound will loop indefinitely until stopped.
      * If no argument is provided, the method returns the current loop count setting.
-     * @param {LoopCount} [loopCount] - The number of times to loop or 'infinite' for indefinite looping.
-     * @returns {LoopCount} The current loop count setting if no argument is provided.
+     * @param { LoopCount } [loopCount] - The number of times to loop or 'infinite' for indefinite looping.
+     * @returns { LoopCount } The current loop count setting if no argument is provided.
      */
     loop(loopCount?: LoopCount): LoopCount {
         if (loopCount === undefined) {
@@ -545,19 +562,22 @@ export class Sound extends FilterManager implements BaseSound {
         return this.loopCount;
     }
 
-     * Adds a BiquadFilterNode to the sound's filter chain.
-     * Filters are applied in the order they are added.
-     * @param {BiquadFilterNode} filter - The filter to add to the chain.
+    /**
+        * Adds a BiquadFilterNode to the sound's filter chain.
+            * Filters are applied in the order they are added.
+     * @param { BiquadFilterNode } filter - The filter to add to the chain.
      */
     addFilter(filter: BiquadFilterNode): void {
         super.addFilter(filter);
         this.playbacks.forEach(p => p.addFilter(filter));
     }
 
-     * Removes a BiquadFilterNode from the sound's filter chain.
-     * If the filter is not part of the chain, the method has no effect.
-     * @param {BiquadFilterNode} filter - The filter to remove from the chain.
-     */
+    /**
+    * Removes a BiquadFilterNode from the sound's filter chain.
+        * If the filter is not part of the chain, the method has no effect.
+            * @param { BiquadFilterNode } filter - The filter to remove from the chain.
+ */
+
     removeFilter(filter: BiquadFilterNode): void {
         super.removeFilter(filter);
         this.playbacks.forEach(p => p.removeFilter(filter));
