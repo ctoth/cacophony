@@ -1,4 +1,4 @@
-import { AudioContext, AudioWorkletNode, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IMediaElementAudioSourceNode, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
+import { AudioContext, AudioWorkletNode, IAudioBuffer, IAudioBufferSourceNode, IAudioListener, IBiquadFilterNode, IGainNode, IMediaElementAudioSourceNode, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions, IStereoPannerNode } from 'standardized-audio-context';
 import { CacheManager } from './cache';
 import { createStream } from './stream';
 import phaseVocoderProcessorWorkletUrl from './bundles/phase-vocoder-bundle.js?url';
@@ -18,6 +18,7 @@ type MediaElementSourceNode = IMediaElementAudioSourceNode<AudioContext>;
 type SourceNode = AudioBufferSourceNode | MediaElementSourceNode;
 
 type PannerNode = IPannerNode<AudioContext>;
+type StereoPannerNode = IStereoPannerNode<AudioContext>;
 type MediaStreamAudioSourceNode = IMediaStreamAudioSourceNode<AudioContext>;
 
 
@@ -615,13 +616,13 @@ export class Playback extends FilterManager implements BaseSound {
     private context: AudioContext;
     private source?: SourceNode;
     private gainNode?: GainNode;
-    private panner?: PannerNode;
+    private panner?: PannerNode | StereoPannerNode;
     loopCount: LoopCount = 0;
     currentLoop: number = 0;
     private buffer?: IAudioBuffer;
     private playing: boolean = false;
 
-    constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0) {
+    constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0, public hrtf: boolean = true) {
         super();
         this.loopCount = loopCount;
         this.source = source;
@@ -635,7 +636,11 @@ export class Playback extends FilterManager implements BaseSound {
         }
         this.gainNode = gainNode;
         this.context = context;
-        this.panner = context.createPanner();
+        if (hrtf) {
+            this.panner = context.createPanner();
+        } else {
+            this.panner = context.createStereoPanner();
+        }
         source.connect(this.panner);
         this.panner.connect(this.gainNode);
         this.refreshFilters();
@@ -708,24 +713,29 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.panner) {
             throw new Error('Cannot get 3D options of a sound that has been cleaned up');
         }
+        if (!this.hrtf) {
+            throw new Error('Cannot get 3D options of a sound that is not using HRTF');
+        }
+
+        const panner = this.panner as PannerNode;
         return {
-            coneInnerAngle: this.panner.coneInnerAngle,
-            coneOuterAngle: this.panner.coneOuterAngle,
-            coneOuterGain: this.panner.coneOuterGain,
-            distanceModel: this.panner.distanceModel,
-            maxDistance: this.panner.maxDistance,
+            coneInnerAngle: panner.coneInnerAngle,
+            coneOuterAngle: panner.coneOuterAngle,
+            coneOuterGain: panner.coneOuterGain,
+            distanceModel: panner.distanceModel,
+            maxDistance: panner.maxDistance,
             channelCount: this.panner.channelCount,
-            channelCountMode: this.panner.channelCountMode,
-            channelInterpretation: this.panner.channelInterpretation,
-            panningModel: this.panner.panningModel,
-            refDistance: this.panner.refDistance,
-            rolloffFactor: this.panner.rolloffFactor,
-            positionX: this.panner.positionX.value,
-            positionY: this.panner.positionY.value,
-            positionZ: this.panner.positionZ.value,
-            orientationX: this.panner.orientationX.value,
-            orientationY: this.panner.orientationY.value,
-            orientationZ: this.panner.orientationZ.value
+            channelCountMode: panner.channelCountMode,
+            channelInterpretation: panner.channelInterpretation,
+            panningModel: panner.panningModel,
+            refDistance: panner.refDistance,
+            rolloffFactor: panner.rolloffFactor,
+            positionX: panner.positionX.value,
+            positionY: panner.positionY.value,
+            positionZ: panner.positionZ.value,
+            orientationX: panner.orientationX.value,
+            orientationY: panner.orientationY.value,
+            orientationZ: panner.orientationZ.value
         }
     }
 
@@ -733,23 +743,27 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.panner) {
             throw new Error('Cannot set 3D options of a sound that has been cleaned up');
         }
-        this.panner.coneInnerAngle = options.coneInnerAngle || this.panner.coneInnerAngle;
-        this.panner.coneOuterAngle = options.coneOuterAngle || this.panner.coneOuterAngle;
-        this.panner.coneOuterGain = options.coneOuterGain || this.panner.coneOuterGain;
-        this.panner.distanceModel = options.distanceModel || this.panner.distanceModel;
-        this.panner.maxDistance = options.maxDistance || this.panner.maxDistance;
-        this.panner.channelCount = options.channelCount || this.panner.channelCount;
-        this.panner.channelCountMode = options.channelCountMode || this.panner.channelCountMode;
-        this.panner.channelInterpretation = options.channelInterpretation || this.panner.channelInterpretation;
-        this.panner.panningModel = options.panningModel || this.panner.panningModel;
-        this.panner.refDistance = options.refDistance || this.panner.refDistance;
-        this.panner.rolloffFactor = options.rolloffFactor || this.panner.rolloffFactor;
-        this.panner.positionX.value = options.positionX || this.panner.positionX.value;
-        this.panner.positionY.value = options.positionY || this.panner.positionY.value;
-        this.panner.positionZ.value = options.positionZ || this.panner.positionZ.value;
-        this.panner.orientationX.value = options.orientationX || this.panner.orientationX.value;
-        this.panner.orientationY.value = options.orientationY || this.panner.orientationY.value;
-        this.panner.orientationZ.value = options.orientationZ || this.panner.orientationZ.value;
+        if (!this.hrtf) {
+            throw new Error('Cannot set 3D options of a sound that is not using HRTF');
+        }
+        const panner = this.panner as PannerNode;
+        panner.coneInnerAngle = options.coneInnerAngle || panner.coneInnerAngle;
+        panner.coneOuterAngle = options.coneOuterAngle || panner.coneOuterAngle;
+        panner.coneOuterGain = options.coneOuterGain || panner.coneOuterGain;
+        panner.distanceModel = options.distanceModel || panner.distanceModel;
+        panner.maxDistance = options.maxDistance || panner.maxDistance;
+        panner.channelCount = options.channelCount || panner.channelCount;
+        panner.channelCountMode = options.channelCountMode || panner.channelCountMode;
+        panner.channelInterpretation = options.channelInterpretation || panner.channelInterpretation;
+        panner.panningModel = options.panningModel || panner.panningModel;
+        panner.refDistance = options.refDistance || panner.refDistance;
+        panner.rolloffFactor = options.rolloffFactor || panner.rolloffFactor;
+        panner.positionX.value = options.positionX || panner.positionX.value;
+        panner.positionY.value = options.positionY || panner.positionY.value;
+        panner.positionZ.value = options.positionZ || panner.positionZ.value;
+        panner.orientationX.value = options.orientationX || panner.orientationX.value;
+        panner.orientationY.value = options.orientationY || panner.orientationY.value;
+        panner.orientationZ.value = options.orientationZ || panner.orientationZ.value;
     }
 
     seek(time: number): void {
@@ -972,17 +986,25 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.panner) {
             throw new Error('Cannot move a sound that has been cleaned up');
         }
+        if (!this.hrtf) {
+            throw new Error('Cannot move a sound that is not using HRTF');
+        }
         const [x, y, z] = position;
-        this.panner.positionX.setValueAtTime(x, this.context.currentTime);
-        this.panner.positionY.setValueAtTime(y, this.context.currentTime);
-        this.panner.positionZ.setValueAtTime(z, this.context.currentTime);
+        const panner = this.panner as PannerNode;
+        panner.positionX.setValueAtTime(x, this.context.currentTime);
+        panner.positionY.setValueAtTime(y, this.context.currentTime);
+        panner.positionZ.setValueAtTime(z, this.context.currentTime);
     }
 
     get position(): Position {
         if (!this.panner) {
             throw new Error('Cannot get position of a sound that has been cleaned up');
         }
-        return [this.panner.positionX.value, this.panner.positionY.value, this.panner.positionZ.value];
+        if (!this.hrtf) {
+            throw new Error('Cannot get position of a sound that is not using HRTF');
+        }
+        const panner = this.panner as PannerNode;
+        return [panner.positionX.value, panner.positionY.value, panner.positionZ.value];
     }
 
     private refreshFilters(): void {
