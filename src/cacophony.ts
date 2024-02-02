@@ -646,6 +646,23 @@ export class Playback extends FilterManager implements BaseSound {
         this.refreshFilters();
     }
 
+    get stereoPan(): number | null {
+        if (!this.hrtf && this.panner instanceof StereoPannerNode) {
+            return this.panner.pan.value;
+        }
+        return null;
+    }
+
+    set stereoPan(value: number) {
+        if (this.hrtf || !(this.panner instanceof StereoPannerNode)) {
+            throw new Error('Stereo panning is not available when using HRTF.');
+        }
+        if (value < -1 || value > 1) {
+            throw new Error('Stereo pan value must be between -1 and 1.');
+        }
+        this.panner.pan.value = value;
+    }
+
     get duration() {
         if (!this.buffer) {
             throw new Error('Cannot get duration of a sound that has been cleaned up');
