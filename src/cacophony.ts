@@ -199,6 +199,21 @@ export class Cacophony {
         return filter;
     }
 
+    /**
+     * Creates a PannerNode with the specified options.
+     * @param {IPannerOptions} options - An object containing the options to use when creating the PannerNode.
+     * @returns {PannerNode} A new PannerNode instance with the specified options.
+     * @example
+     * const panner = audio.createPanner({
+     *  positionX: 0,
+     * positionY: 0,
+     * positionZ: 0,
+     * orientationX: 0,
+     * orientationY: 0,
+     * orientationZ: 0,
+     * });
+    */
+
     createPanner({ coneInnerAngle, coneOuterAngle, coneOuterGain, distanceModel, maxDistance, channelCount, channelCountMode, channelInterpretation, panningModel, refDistance, rolloffFactor, positionX, positionY, positionZ, orientationX, orientationY, orientationZ }: Partial<IPannerOptions>): PannerNode {
         const panner = this.context.createPanner();
         panner.coneInnerAngle = coneInnerAngle || 360;
@@ -379,6 +394,7 @@ export class Sound extends FilterManager implements BaseSound {
     playbacks: Playback[] = [];
     private globalGainNode: GainNode;
     private _position: Position = [0, 0, 0];
+    private _stereoPan: number = 0;
     private _threeDOptions: IPannerOptions = {
         coneInnerAngle: 360,
         coneOuterAngle: 360,
@@ -473,9 +489,8 @@ export class Sound extends FilterManager implements BaseSound {
     }
 
     /**
- * Stops all current playbacks of the sound immediately. This will halt the sound regardless of how many times it has been played.
- */
-
+        * Stops all current playbacks of the sound immediately. This will halt the sound regardless of how many times it has been played.
+        */
     stop() {
         this.playbacks.forEach(p => p.stop());
     }
@@ -544,6 +559,15 @@ export class Sound extends FilterManager implements BaseSound {
     set threeDOptions(options: Partial<IPannerOptions>) {
         this._threeDOptions = { ...this._threeDOptions, ...options };
         this.playbacks.forEach(p => p.threeDOptions = this._threeDOptions);
+    }
+
+    get stereoPan(): number | null {
+        return this._stereoPan;
+    }
+
+    set stereoPan(value: number) {
+        this._stereoPan = value;
+        this.playbacks.forEach(p => p.stereoPan = value);
     }
 
     /**
