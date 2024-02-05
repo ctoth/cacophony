@@ -29,7 +29,6 @@ export type Orientation = {
     up: Position;
 }
 
-
 export type LoopCount = number | 'infinite';
 
 export type FadeType = 'linear' | 'exponential'
@@ -118,13 +117,13 @@ export class Cacophony {
         return oscillator
     }
 
-    async createSound(buffer: AudioBuffer, type?: SoundType): Promise<Sound>
+    async createSound(buffer: AudioBuffer, type?: SoundType, panType?: PanType): Promise<Sound>
 
-    async createSound(url: string, type?: SoundType): Promise<Sound>
+    async createSound(url: string, type?: SoundType, panType?: PanType): Promise<Sound>
 
-    async createSound(bufferOrUrl: AudioBuffer | string, type: SoundType = SoundType.Buffer): Promise<Sound> {
+    async createSound(bufferOrUrl: AudioBuffer | string, type: SoundType = SoundType.Buffer, panType: PanType = 'HRTF'): Promise<Sound> {
         if (bufferOrUrl instanceof AudioBuffer) {
-            return Promise.resolve(new Sound("", bufferOrUrl, this.context, this.globalGainNode, SoundType.Buffer));
+            return Promise.resolve(new Sound("", bufferOrUrl, this.context, this.globalGainNode, SoundType.Buffer, panType));
         }
         const url = bufferOrUrl;
         if (type === SoundType.HTML) {
@@ -133,7 +132,7 @@ export class Cacophony {
             audio.crossOrigin = 'anonymous';
             return new Sound(url, undefined, this.context, this.globalGainNode, SoundType.HTML);
         }
-        return CacheManager.getAudioBuffer(url, this.context).then(buffer => new Sound(url, buffer, this.context, this.globalGainNode, type));
+        return CacheManager.getAudioBuffer(url, this.context).then(buffer => new Sound(url, buffer, this.context, this.globalGainNode, type, panType));
     }
 
     async createGroup(sounds: Sound[]): Promise<Group> {
