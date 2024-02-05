@@ -392,13 +392,14 @@ export class Sound extends FilterManager implements BaseSound {
         this.context = context;
         this.globalGainNode = globalGainNode;
         this._position = [0, 0, 0];
+        this.panType = panType;
     }
 
     /**
- * Creates a deep copy of the current Sound instance, including all its properties and filters.
- * The cloned sound can be played and manipulated independently of the original.
- * @returns {Sound} A new Sound instance that is a clone of the current sound.
- */
+    * Creates a deep copy of the current Sound instance, including all its properties and filters.
+    * The cloned sound can be played and manipulated independently of the original.
+    * @returns {Sound} A new Sound instance that is a clone of the current sound.
+    */
 
     clone(): Sound {
         const clone = new Sound(this.url, this.buffer, this.context, this.globalGainNode, this.type);
@@ -414,10 +415,10 @@ export class Sound extends FilterManager implements BaseSound {
     }
 
     /**
- * Generates a Playback instance for the sound without starting playback.
- * This allows for pre-configuration of playback properties such as volume and position before the sound is actually played.
- * @returns {Playback[]} An array of Playback instances that are ready to be played.
- */
+    * Generates a Playback instance for the sound without starting playback.
+    * This allows for pre-configuration of playback properties such as volume and position before the sound is actually played.
+    * @returns {Playback[]} An array of Playback instances that are ready to be played.
+    */
 
     preplay(): Playback[] {
         let source: SourceNode;
