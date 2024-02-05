@@ -391,7 +391,6 @@ export class Sound extends FilterManager implements BaseSound {
         this.buffer = buffer;
         this.context = context;
         this.globalGainNode = globalGainNode;
-        this._position = [0, 0, 0];
         this.panType = panType;
     }
 
@@ -626,6 +625,7 @@ export class Playback extends FilterManager implements BaseSound {
     constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0, public panType: PanType = 'HRTF') {
         super();
         this.loopCount = loopCount;
+        this.panType = panType;
         this.source = source;
         if ('buffer' in source && source.buffer) {
             this.buffer = source.buffer;
