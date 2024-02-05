@@ -36,7 +36,7 @@ export type FadeType = 'linear' | 'exponential'
 
 export type PanType = 'HRTF' | 'stereo';
 
-interface BaseBaseSound {
+interface BaseSound {
     // the stuff you should be able to do with anything that makes sound including groups, sounds, and playbacks.
     isPlaying(): boolean;
     play(): BaseSound[];
@@ -52,19 +52,8 @@ interface BaseBaseSound {
     duration: number;
 }
 
-interface HRTFSound {
-    panType: 'HRTF';
-    // Getter and setter for threeDOptions representing PannerNode attributes
-    threeDOptions?: IPannerOptions;
-    position: Position;
-}
 
-interface StereoSound {
-    panType: 'stereo';
-    stereoPan: number;
-}
 
-export type BaseSound = BaseBaseSound & (HRTFSound | StereoSound);
 
 
 export class Cacophony {
@@ -452,7 +441,7 @@ export class Sound extends FilterManager implements BaseSound {
             playback.threeDOptions = this.threeDOptions;
             playback.position = this.position;
         } else if (this.panType === 'stereo') {
-            playback.stereoPan = this.stereoPan;
+            playback.stereoPan = this.stereoPan as number;
         }
         this.playbacks.push(playback);
         return [playback];
@@ -1024,7 +1013,7 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.panner) {
             throw new Error('Cannot get position of a sound that has been cleaned up');
         }
-        if (!this.hrtf) {
+        if (this.panType !== 'HRTF') {
             throw new Error('Cannot get position of a sound that is not using HRTF');
         }
         const panner = this.panner as PannerNode;
@@ -1044,7 +1033,7 @@ export class Playback extends FilterManager implements BaseSound {
 
 
 export class Group implements BaseSound {
-    sounds: BaseSound[] = [];
+    sounds: Sound[] = [];
     private _position: Position = [0, 0, 0];
     loopCount: LoopCount = 0;
     private playIndex: number = 0;
@@ -1086,7 +1075,7 @@ export class Group implements BaseSound {
         this.sounds.forEach(sound => sound.seek && sound.seek(time));
     }
 
-    addSound(sound: BaseSound): void {
+    addSound(sound: Sound): void {
         this.sounds.push(sound);
     }
 
