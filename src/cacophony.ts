@@ -443,13 +443,17 @@ export class Sound extends FilterManager implements BaseSound {
         }
         const gainNode = this.context.createGain();
         gainNode.connect(this.globalGainNode);
-        const playback = new Playback(source, gainNode, this.context, this.loopCount);
+        const playback = new Playback(source, gainNode, this.context, this.loopCount, this.panType);
         // this.finalizationRegistry.register(playback, playback);
         playback.volume = this.volume;
         playback.playbackRate = this.playbackRate;
         this.filters.forEach(filter => playback.addFilter(filter));
-        playback.threeDOptions = this.threeDOptions;
-        playback.position = this.position;
+        if (this.panType === 'HRTF') {
+            playback.threeDOptions = this.threeDOptions;
+            playback.position = this.position;
+        } else if (this.panType === 'stereo') {
+            playback.stereoPan = this.stereoPan;
+        }
         this.playbacks.push(playback);
         return [playback];
     }
