@@ -40,6 +40,14 @@ export class CacheManager {
     }
 
     public static async getAudioBuffer(url: string, context: IAudioContext): Promise<AudioBuffer> {
+        // handle data: urls
+        if (url.startsWith('data:')) {
+            // Extract the base64-encoded audio data from the url.
+            const base64Data = url.split(',')[1];
+            const buffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0));
+            return context.decodeAudioData(buffer.buffer);
+        }
+
         const cache = await this.openCache();
 
         // First, check if there's a pending request.
