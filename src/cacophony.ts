@@ -111,28 +111,31 @@ export class Cacophony {
     createOscillator = ({ frequency, type, periodicWave }: OscillatorOptions) => {
         const oscillator = this.context.createOscillator();
         oscillator.type = type || 'sine';
-        oscillator.setPeriodicWave(periodicWave!);
+        if (periodicWave) {
+            oscillator.setPeriodicWave(periodicWave);
+        }
         oscillator.frequency.value = frequency!;
         oscillator.connect(this.globalGainNode);
         return oscillator
     }
 
-    async createSound(buffer: AudioBuffer, type?: SoundType, panType?: PanType): Promise<Sound>
 
-    async createSound(url: string, type?: SoundType, panType?: PanType): Promise<Sound>
+    async createSound(buffer: AudioBuffer, soundType?: SoundType, panType?: PanType): Promise<Sound>
 
-    async createSound(bufferOrUrl: AudioBuffer | string, type: SoundType = SoundType.Buffer, panType: PanType = 'HRTF'): Promise<Sound> {
+    async createSound(url: string, soundType?: SoundType, panType?: PanType): Promise<Sound>
+
+    async createSound(bufferOrUrl: AudioBuffer | string, soundType: SoundType = SoundType.Buffer, panType: PanType = 'HRTF'): Promise<Sound> {
         if (bufferOrUrl instanceof AudioBuffer) {
             return Promise.resolve(new Sound("", bufferOrUrl, this.context, this.globalGainNode, SoundType.Buffer, panType));
         }
         const url = bufferOrUrl;
-        if (type === SoundType.HTML) {
+        if (soundType === SoundType.HTML) {
             const audio = new Audio();
             audio.src = url;
             audio.crossOrigin = 'anonymous';
             return new Sound(url, undefined, this.context, this.globalGainNode, SoundType.HTML);
         }
-        return CacheManager.getAudioBuffer(url, this.context).then(buffer => new Sound(url, buffer, this.context, this.globalGainNode, type, panType));
+        return CacheManager.getAudioBuffer(url, this.context).then(buffer => new Sound(url, buffer, this.context, this.globalGainNode, soundType, panType));
     }
 
     async createGroup(sounds: Sound[]): Promise<Group> {
