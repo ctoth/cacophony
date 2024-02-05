@@ -34,7 +34,9 @@ export type LoopCount = number | 'infinite';
 
 export type FadeType = 'linear' | 'exponential'
 
-export interface BaseSound {
+export type PanType = 'HRTF' | 'stereo';
+
+interface BaseBaseSound {
     // the stuff you should be able to do with anything that makes sound including groups, sounds, and playbacks.
     isPlaying(): boolean;
     play(): BaseSound[];
@@ -46,50 +48,24 @@ export interface BaseSound {
     removeFilter(filter: BiquadFilterNode): void;
     volume: number;
     playbackRate: number;
-    position: Position;
     loop?(loopCount?: LoopCount): LoopCount;
     duration: number;
-    // Getter and setter for threeDOptions representing PannerNode attributes
-    threeDOptions?: IPannerOptions;
 }
 
-type SoundEvents = {
-    play: () => void;
-    stop: () => void;
-    pause: () => void;
-    resume: () => void;
-    seek: (time: number) => void;
-    volumeChange: (volume: number) => void;
-    playbackRateChange: (rate: number) => void;
-    loopChange: (loopCount: LoopCount) => void;
-    positionChange: (position: Position) => void;
-};
+interface HRTFSound {
+    panType: 'HRTF';
+    // Getter and setter for threeDOptions representing PannerNode attributes
+    threeDOptions?: IPannerOptions;
+    position: Position;
+}
 
+interface StereoSound {
+    panType: 'stereo';
+    stereoPan: number;
+}
 
-type PlaybackEvents = {
-    start: () => void;
-    end: () => void;
-    pause: () => void;
-    resume: () => void;
-    seek: (time: number) => void;
-    volumeChange: (volume: number) => void;
-    playbackRateChange: (rate: number) => void;
-    loopChange: (loopCount: LoopCount) => void;
-    fadeIn: (time: number) => void;
-    fadeOut: (time: number) => void;
-    cleanup: () => void;
-};
+export type BaseSound = BaseBaseSound & (HRTFSound | StereoSound);
 
-type GroupEvents = {
-    play: () => void;
-    stop: () => void;
-    pause: () => void;
-    resume: () => void;
-    seek: (time: number) => void;
-    volumeChange: (volume: number) => void;
-    playbackRateChange: (rate: number) => void;
-    loopChange: (loopCount: LoopCount) => void;
-};
 
 export class Cacophony {
     context: AudioContext;
@@ -157,7 +133,7 @@ export class Cacophony {
 
     async createSound(url: string, type?: SoundType): Promise<Sound>
 
-    async createSound(bufferOrUrl: AudioBuffer | string, type: SoundType = SoundType.Buffer): Promise<BaseSound> {
+    async createSound(bufferOrUrl: AudioBuffer | string, type: SoundType = SoundType.Buffer): Promise<Sound> {
         if (bufferOrUrl instanceof AudioBuffer) {
             return Promise.resolve(new Sound("", bufferOrUrl, this.context, this.globalGainNode, SoundType.Buffer));
         }
@@ -418,7 +394,8 @@ export class Sound extends FilterManager implements BaseSound {
     private _playbackRate: number = 1;
     private _volume: number = 1;
 
-    constructor(public url: string, buffer: AudioBuffer | undefined, context: AudioContext, globalGainNode: GainNode, public type: SoundType = SoundType.Buffer) {
+    constructor(public url: string, buffer: AudioBuffer | undefined, context: AudioContext, globalGainNode: GainNode, public type: SoundType = SoundType.Buffer, public panType: PanType = 'HRTF'
+    ) {
         super();
         this.buffer = buffer;
         this.context = context;
@@ -440,6 +417,8 @@ export class Sound extends FilterManager implements BaseSound {
         clone._position = this._position;
         clone._threeDOptions = this._threeDOptions;
         clone.filters = this.filters;
+        clone.panType = this.panType;
+        clone._stereoPan = this._stereoPan;
         return clone;
     }
 
@@ -476,11 +455,11 @@ export class Sound extends FilterManager implements BaseSound {
     }
 
     /**
- * Starts playback of the sound and returns a Playback instance representing this particular playback.
- * Multiple Playback instances can be created by calling this method multiple times,
- * allowing for the same sound to be played concurrently with different settings.
- * @returns {Playback[]} An array containing the Playback instances that have been started.
- */
+    * Starts playback of the sound and returns a Playback instance representing this particular playback.
+    * Multiple Playback instances can be created by calling this method multiple times,
+    * allowing for the same sound to be played concurrently with different settings.
+    * @returns {Playback[]} An array containing the Playback instances that have been started.
+    */
 
     play(): Playback[] {
         const playback = this.preplay();
@@ -515,16 +494,17 @@ export class Sound extends FilterManager implements BaseSound {
     * @param { number } time - The time in seconds to seek to.
      * This method iterates through all active `Playback` instances and calls their `seek()` method with the specified time.
      */
+
     seek(time: number): void {
         this.playbacks.forEach(playback => playback.seek(time));
     }
 
     /**
     * Retrieves the duration of the sound in seconds.
-     * If the sound is based on an AudioBuffer, it returns the duration of the buffer.
-     * Otherwise, it returns 0, indicating that the duration is unknown or not applicable.
-     * @returns { number } The duration of the sound in seconds.
-     */
+    * If the sound is based on an AudioBuffer, it returns the duration of the buffer.
+    * Otherwise, it returns 0, indicating that the duration is unknown or not applicable.
+    * @returns { number } The duration of the sound in seconds.
+    */
 
     get duration() {
         return this.buffer?.duration || 0;
@@ -544,10 +524,11 @@ export class Sound extends FilterManager implements BaseSound {
     }
 
     /**
-     * Retrieves the current 3D spatial position of the sound in the audio context.
-     * The position is returned as an array of three values[x, y, z].
-     * @returns { Position } The current position of the sound.
-     */
+    * Retrieves the current 3D spatial position of the sound in the audio context.
+    * The position is returned as an array of three values[x, y, z].
+    * @returns { Position } The current position of the sound.
+    */
+
     get position(): Position {
         return [this._threeDOptions.positionX, this._threeDOptions.positionY, this._threeDOptions.positionZ]
     }
@@ -646,7 +627,7 @@ export class Playback extends FilterManager implements BaseSound {
     private buffer?: IAudioBuffer;
     private playing: boolean = false;
 
-    constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0, public hrtf: boolean = true) {
+    constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0, public panType: PanType = 'HRTF') {
         super();
         this.loopCount = loopCount;
         this.source = source;
@@ -660,7 +641,7 @@ export class Playback extends FilterManager implements BaseSound {
         }
         this.gainNode = gainNode;
         this.context = context;
-        if (hrtf) {
+        if (this.panType === 'HRTF') {
             this.panner = context.createPanner();
         } else {
             this.panner = context.createStereoPanner();
@@ -671,20 +652,20 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     get stereoPan(): number | null {
-        if (!this.hrtf && this.panner instanceof StereoPannerNode) {
+        if (this.panType === 'stereo' && this.panner instanceof StereoPannerNode) {
             return this.panner.pan.value;
         }
         return null;
     }
 
     set stereoPan(value: number) {
-        if (this.hrtf || !(this.panner instanceof StereoPannerNode)) {
+        if (this.panType !== 'stereo' || !(this.panner instanceof StereoPannerNode)) {
             throw new Error('Stereo panning is not available when using HRTF.');
         }
         if (value < -1 || value > 1) {
             throw new Error('Stereo pan value must be between -1 and 1.');
         }
-        this.panner.pan.value = value;
+        this.panner.pan.setValueAtTime(value, this.context.currentTime);
     }
 
     get duration() {
@@ -736,7 +717,6 @@ export class Playback extends FilterManager implements BaseSound {
         }
     }
 
-
     play(): [this] {
         if (!this.source) {
             throw new Error('Cannot play a sound that has been cleaned up');
@@ -754,10 +734,9 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.panner) {
             throw new Error('Cannot get 3D options of a sound that has been cleaned up');
         }
-        if (!this.hrtf) {
+        if (this.panType !== 'HRTF') {
             throw new Error('Cannot get 3D options of a sound that is not using HRTF');
         }
-
         const panner = this.panner as PannerNode;
         return {
             coneInnerAngle: panner.coneInnerAngle,
@@ -784,7 +763,7 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.panner) {
             throw new Error('Cannot set 3D options of a sound that has been cleaned up');
         }
-        if (!this.hrtf) {
+        if (this.panType !== 'HRTF') {
             throw new Error('Cannot set 3D options of a sound that is not using HRTF');
         }
         const panner = this.panner as PannerNode;
@@ -1027,7 +1006,7 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.panner) {
             throw new Error('Cannot move a sound that has been cleaned up');
         }
-        if (!this.hrtf) {
+        if (this.panType !== 'HRTF') {
             throw new Error('Cannot move a sound that is not using HRTF');
         }
         const [x, y, z] = position;
