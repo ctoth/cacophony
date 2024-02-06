@@ -111,12 +111,15 @@ export class Cacophony {
     }
 
     createOscillator = ({ frequency, type, periodicWave }: OscillatorOptions) => {
+        if (frequency === undefined) {
+            frequency = 440;
+        }
         const oscillator = this.context.createOscillator();
         oscillator.type = type || 'sine';
         if (periodicWave) {
             oscillator.setPeriodicWave(periodicWave);
         }
-        oscillator.frequency.setValueAtTime(frequency || 440, this.context.currentTime);
+        oscillator.frequency.setValueAtTime(frequency, this.context.currentTime);
         oscillator.connect(this.globalGainNode);
         return oscillator
     }
@@ -159,10 +162,13 @@ export class Cacophony {
         return sound;
     }
 
-    createBiquadFilter({ type, frequency, gain, Q }: BiquadFilterOptions): BiquadFilterNode {
+    createBiquadFilter = ({ type, frequency, gain, Q }: BiquadFilterOptions): BiquadFilterNode => {
+        if (frequency === undefined) {
+            frequency = 350;
+        }
         const filter = this.context.createBiquadFilter();
         filter.type = type || 'lowpass';
-        filter.frequency.value = frequency || 350;
+        filter.frequency.value = frequency;
         filter.gain.value = gain || 0;
         filter.Q.value = Q || 1;
         return filter;
