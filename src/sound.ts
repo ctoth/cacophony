@@ -66,7 +66,6 @@ export class Sound extends FilterManager implements BaseSound {
         this.buffer = buffer;
         this.context = context;
         this.globalGainNode = globalGainNode;
-        this.panType = panType;
     }
 
     /**

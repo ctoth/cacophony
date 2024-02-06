@@ -17,12 +17,14 @@
  * including buffer sources and media elements. It also provides detailed control over the audio's
  * spatial characteristics when using 3D audio.
  */
-import { AudioContext, IAudioBuffer, IGainNode, IPannerNode, IPannerOptions, IStereoPannerNode } from "standardized-audio-context";
+
+
+import { AudioContext, IAudioBuffer, IPannerNode, IPannerOptions, IStereoPannerNode } from "standardized-audio-context";
 import { BaseSound, FadeType, LoopCount, PanType, Position } from "./cacophony";
-import { BiquadFilterNode, SourceNode } from "./context";
+import { BiquadFilterNode, GainNode, SourceNode } from "./context";
 import { FilterManager } from "./filters";
 
-type GainNode = IGainNode<AudioContext>;
+
 type PannerNode = IPannerNode<AudioContext>;
 type StereoPannerNode = IStereoPannerNode<AudioContext>;
 
@@ -65,20 +67,20 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     get stereoPan(): number | null {
-        if (this.panType === 'stereo' && this.panner instanceof StereoPannerNode) {
-            return this.panner.pan.value;
+        if (this.panType === 'stereo') {
+            return (this.panner as StereoPannerNode).pan.value;
         }
         return null;
     }
 
     set stereoPan(value: number) {
-        if (this.panType !== 'stereo' || !(this.panner instanceof StereoPannerNode)) {
+        if (this.panType !== 'stereo') {
             throw new Error('Stereo panning is not available when using HRTF.');
         }
         if (value < -1 || value > 1) {
             throw new Error('Stereo pan value must be between -1 and 1.');
         }
-        this.panner.pan.setValueAtTime(value, this.context.currentTime);
+        (this.panner as StereoPannerNode).pan.setValueAtTime(value, this.context.currentTime);
     }
 
     get duration() {
