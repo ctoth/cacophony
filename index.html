@@ -15,7 +15,7 @@
 
             document.getElementById('playSound').addEventListener('click', async () => {
                 const soundUrl = document.getElementById('soundUrl').value;
-                sound = await cacophony.createSound(soundUrl, SoundType.Buffer);
+                sound = await cacophony.createSound(soundUrl, SoundType.Buffer, panType);
                 sound.play();
             });
 
@@ -39,7 +39,7 @@
                 });
             });
 
-           document.getElementById('positionX').addEventListener('input', (event) => {
+            document.getElementById('positionX').addEventListener('input', (event) => {
                 const x = parseFloat(event.target.value);
                 if (sound) sound.position = [x, sound.position[1], sound.position[2]];
             });
