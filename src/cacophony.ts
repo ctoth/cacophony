@@ -116,7 +116,7 @@ export class Cacophony {
         if (periodicWave) {
             oscillator.setPeriodicWave(periodicWave);
         }
-        oscillator.frequency.value = frequency!;
+        oscillator.frequency.setValueAtTime(frequency || 440, this.context.currentTime);
         oscillator.connect(this.globalGainNode);
         return oscillator
     }

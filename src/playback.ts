@@ -77,10 +77,10 @@ export class Playback extends FilterManager implements BaseSound {
         if (this.panType !== 'stereo') {
             throw new Error('Stereo panning is not available when using HRTF.');
         }
-        if (value < -1 || value > 1) {
-            throw new Error('Stereo pan value must be between -1 and 1.');
+        if (!this.panner) {
+            throw new Error('Cannot set stereo pan of a sound that has been cleaned up');
         }
-        (this.panner as StereoPannerNode).pan.setValueAtTime(value, this.context.currentTime);
+        (this.panner as StereoPannerNode).pan.setValueAtTime(clamp(value, -1, 1), this.context.currentTime);
     }
 
     get duration() {
@@ -453,3 +453,6 @@ export class Playback extends FilterManager implements BaseSound {
     }
 }
 
+function clamp(value: number, min: number, max: number): number {
+    return Math.min(Math.max(value, min), max);
+}
