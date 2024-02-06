@@ -639,8 +639,10 @@ export class Playback extends FilterManager implements BaseSound {
         this.context = context;
         if (this.panType === 'HRTF') {
             this.panner = context.createPanner();
-        } else {
+        } else if (this.panType === 'stereo') {
             this.panner = context.createStereoPanner();
+        } else {
+            throw new Error('Invalid pan type');
         }
         source.connect(this.panner);
         this.panner.connect(this.gainNode);
