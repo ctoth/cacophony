@@ -1,6 +1,6 @@
 {
   "name": "cacophony",
-  "version": "0.4.6",
+  "version": "0.5.0",
   "description": "Typescript audio library with caching",
   "type": "module",
   "main": "dist/cacophony.cjs.js",
