@@ -44,6 +44,28 @@
                 if (sound) sound.position = [x, sound.position[1], sound.position[2]];
             });
 
+            document.getElementById('stereoPan').addEventListener('input', (event) => {
+                const pan = parseFloat(event.target.value);
+                if (sound && sound.panType === 'HRTF') sound.stereoPan = pan;
+            });
+
+            const updateStereoPanVisibility = () => {
+                const stereoPanSlider = document.getElementById('stereoPanContainer');
+                if (panType === 'HRTF') {
+                    stereoPanSlider.style.display = 'block';
+                } else {
+                    stereoPanSlider.style.display = 'none';
+                }
+            };
+
+            panTypeRadios.forEach(radio => {
+                radio.addEventListener('change', () => {
+                    updateStereoPanVisibility();
+                });
+            });
+
+            updateStereoPanVisibility();
+
             // Additional controls can be added as needed
         };
     </script>
@@ -66,6 +88,10 @@
     <label for="panTypeHRTF">HRTF</label>
     <input type="radio" id="panTypeStereo" name="panType" value="stereo">
     <label for="panTypeStereo">Stereo</label>
+    <div id="stereoPanContainer" style="display: none;">
+        <label for="stereoPan">Stereo Pan:</label>
+        <input type="range" id="stereoPan" min="-1" max="1" step="0.01" value="0">
+    </div>
     <!-- Additional UI elements for testing other features can be added here -->
 </body>
 
