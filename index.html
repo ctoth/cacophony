@@ -45,13 +45,15 @@
             });
 
             document.getElementById('stereoPan').addEventListener('input', (event) => {
-                const pan = parseFloat(event.target.value);
-                if (sound && sound.panType === 'HRTF') sound.stereoPan = pan;
+                if (sound && sound.panType === 'stereo') {
+                    const pan = parseFloat(event.target.value);
+                    sound.stereoPan = pan;
+                }
             });
 
             const updateStereoPanVisibility = () => {
                 const stereoPanSlider = document.getElementById('stereoPanContainer');
-                if (panType === 'HRTF') {
+                if (panType === 'stereo') {
                     stereoPanSlider.style.display = 'block';
                 } else {
                     stereoPanSlider.style.display = 'none';
