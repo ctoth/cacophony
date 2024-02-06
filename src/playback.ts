@@ -1,3 +1,22 @@
+/**
+ * The Playback class encapsulates the functionality for playing audio in a web application.
+ * It integrates with the standardized-audio-context library to provide a cross-browser way to handle audio.
+ * This class allows for the manipulation of audio playback through various features such as:
+ * - Playing and stopping audio
+ * - Looping audio a specific number of times or infinitely
+ * - Adjusting volume and playback rate
+ * - Applying stereo or 3D (HRTF) panning
+ * - Adding and removing filters to modify the audio output
+ * - Handling audio looping with custom logic
+ * - Fading audio in and out linearly or exponentially
+ * - Seeking to specific points in the audio
+ * - Checking if the audio is currently playing
+ * - Cleaning up resources when the audio is no longer needed
+ * 
+ * The class is designed to be flexible and can be used with different types of audio sources,
+ * including buffer sources and media elements. It also provides detailed control over the audio's
+ * spatial characteristics when using 3D audio.
+ */
 import { AudioContext, IAudioBuffer, IGainNode, IPannerNode, IPannerOptions, IStereoPannerNode } from "standardized-audio-context";
 import { BaseSound, FadeType, LoopCount, PanType, Position } from "./cacophony";
 import { BiquadFilterNode, SourceNode } from "./context";
