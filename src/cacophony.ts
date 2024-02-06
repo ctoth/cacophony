@@ -149,9 +149,9 @@ export class Cacophony {
         return group;
     }
 
-    async createGroupFromUrls(urls: string[]): Promise<Group> {
+    async createGroupFromUrls(urls: string[], soundType: SoundType = SoundType.Buffer, panType: PanType = 'HRTF'): Promise<Group> {
         const group = new Group();
-        const sounds = await Promise.all(urls.map(url => this.createSound(url)));
+        const sounds = await Promise.all(urls.map(url => this.createSound(url, soundType, panType)));
         sounds.forEach(sound => group.addSound(sound));
         return group;
     }
