@@ -1,3 +1,25 @@
+/**
+ * The Sound class represents an audio asset within a web application, providing a high-level interface
+ * for loading, manipulating, and playing audio. It supports both buffer-based and media element-based audio,
+ * allowing for efficient playback and manipulation of sound resources.
+ *
+ * A Sound instance can manage multiple Playback instances, which represent individual playbacks of the sound.
+ * This allows for the same sound to be played multiple times simultaneously or with different settings (e.g., volume,
+ * playback rate, spatial positioning). The Sound class provides methods to control these playbacks collectively or individually.
+ *
+ * Key features include:
+ * - Loading audio from a URL or using a pre-loaded buffer.
+ * - Playing, pausing, resuming, and stopping audio playback.
+ * - Looping audio a specific number of times or infinitely.
+ * - Adjusting volume, playback rate, and spatial positioning (for 3D audio).
+ * - Applying audio filters for effects like reverb, equalization, etc.
+ * - Cloning the Sound instance for independent manipulation and playback.
+ *
+ * The relationship between Sound and Playback is central to the design of the audio system. A Sound object acts as a container
+ * and manager for one or more Playback objects. Each Playback object represents a single instance of the sound being played,
+ * and can be controlled individually. This architecture allows for complex audio behaviors, such as playing multiple overlapping
+ * instances of a sound with different settings, without requiring the user to manually manage each playback instance.
+ */
 import { BaseSound, LoopCount, PanType, Position, SoundType } from "./cacophony";
 import { BiquadFilterNode, GainNode, SourceNode, } from './context';
 import { FilterManager } from "./filters";
