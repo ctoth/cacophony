@@ -28,7 +28,18 @@
                 if (sound) sound.volume = volume;
             });
 
-            document.getElementById('positionX').addEventListener('input', (event) => {
+            const panTypeRadios = document.getElementsByName('panType');
+            let panType = 'HRTF';
+            panTypeRadios.forEach(radio => {
+                radio.addEventListener('change', (event) => {
+                    if (event.target.checked) {
+                        panType = event.target.value;
+                        if (sound) sound.panType = panType;
+                    }
+                });
+            });
+
+           document.getElementById('positionX').addEventListener('input', (event) => {
                 const x = parseFloat(event.target.value);
                 if (sound) sound.position = [x, sound.position[1], sound.position[2]];
             });
@@ -49,6 +60,12 @@
     <br>
     <label for="positionX">Position X:</label>
     <input type="range" id="positionX" min="-10" max="10" step="0.1" value="0">
+    <br>
+    <label>Pan Type:</label>
+    <input type="radio" id="panTypeHRTF" name="panType" value="HRTF" checked>
+    <label for="panTypeHRTF">HRTF</label>
+    <input type="radio" id="panTypeStereo" name="panType" value="stereo">
+    <label for="panTypeStereo">Stereo</label>
     <!-- Additional UI elements for testing other features can be added here -->
 </body>
 
