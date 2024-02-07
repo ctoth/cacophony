@@ -27,9 +27,6 @@ import { Playback } from "./playback";
 import { AudioContext, IAudioBuffer, IPannerOptions } from "standardized-audio-context";
 
 
-
-
-
 export class Sound extends FilterManager implements BaseSound {
     buffer?: IAudioBuffer;
     context: AudioContext;
@@ -137,8 +134,9 @@ export class Sound extends FilterManager implements BaseSound {
     }
 
     /**
-        * Stops all current playbacks of the sound immediately. This will halt the sound regardless of how many times it has been played.
-        */
+    * Stops all current playbacks of the sound immediately. This will halt the sound regardless of how many times it has been played.
+    */
+
     stop() {
         this.playbacks.forEach(p => p.stop());
     }
@@ -146,6 +144,7 @@ export class Sound extends FilterManager implements BaseSound {
     /**
     * Pauses all current playbacks of the sound.
     */
+
     pause(): void {
         this.playbacks.forEach(playback => playback.pause());
     }
@@ -161,8 +160,8 @@ export class Sound extends FilterManager implements BaseSound {
     /**
     * Seeks to a specific time within the sound's playback.
     * @param { number } time - The time in seconds to seek to.
-     * This method iterates through all active `Playback` instances and calls their `seek()` method with the specified time.
-     */
+    * This method iterates through all active `Playback` instances and calls their `seek()` method with the specified time.
+    */
 
     seek(time: number): void {
         this.playbacks.forEach(playback => playback.seek(time));
@@ -180,19 +179,6 @@ export class Sound extends FilterManager implements BaseSound {
     }
 
     /**
-     * Sets the 3D spatial position of the sound in the audio context.
-     * The position is an array of three values[x, y, z].
-     * This method updates the position of all active playbacks of the sound.
-     * @param { Position } position - The new position of the sound.
-     */
-    set position(position: Position) {
-        this._threeDOptions.positionX = position[0];
-        this._threeDOptions.positionY = position[1];
-        this._threeDOptions.positionZ = position[2];
-        this.playbacks.forEach(p => p.position = position);
-    }
-
-    /**
     * Retrieves the current 3D spatial position of the sound in the audio context.
     * The position is returned as an array of three values[x, y, z].
     * @returns { Position } The current position of the sound.
@@ -201,6 +187,21 @@ export class Sound extends FilterManager implements BaseSound {
     get position(): Position {
         return [this._threeDOptions.positionX, this._threeDOptions.positionY, this._threeDOptions.positionZ]
     }
+
+    /**
+    * Sets the 3D spatial position of the sound in the audio context.
+    * The position is an array of three values[x, y, z].
+    * This method updates the position of all active playbacks of the sound.
+    * @param { Position } position - The new position of the sound.
+    */
+
+    set position(position: Position) {
+        this._threeDOptions.positionX = position[0];
+        this._threeDOptions.positionY = position[1];
+        this._threeDOptions.positionZ = position[2];
+        this.playbacks.forEach(p => p.position = position);
+    }
+
 
     get threeDOptions(): IPannerOptions {
         return this._threeDOptions;
@@ -222,12 +223,13 @@ export class Sound extends FilterManager implements BaseSound {
 
     /**
     * Sets or retrieves the loop behavior for the sound.
-     * If loopCount is provided, the sound will loop the specified number of times.
-     * If loopCount is 'infinite', the sound will loop indefinitely until stopped.
-     * If no argument is provided, the method returns the current loop count setting.
-     * @param { LoopCount } [loopCount] - The number of times to loop or 'infinite' for indefinite looping.
-     * @returns { LoopCount } The current loop count setting if no argument is provided.
-     */
+    * If loopCount is provided, the sound will loop the specified number of times.
+    * If loopCount is 'infinite', the sound will loop indefinitely until stopped.
+    * If no argument is provided, the method returns the current loop count setting.
+    * @param { LoopCount } [loopCount] - The number of times to loop or 'infinite' for indefinite looping.
+    * @returns { LoopCount } The current loop count setting if no argument is provided.
+    */
+
     loop(loopCount?: LoopCount): LoopCount {
         if (loopCount === undefined) {
             return this.loopCount;
@@ -238,10 +240,11 @@ export class Sound extends FilterManager implements BaseSound {
     }
 
     /**
-        * Adds a BiquadFilterNode to the sound's filter chain.
-            * Filters are applied in the order they are added.
-     * @param { BiquadFilterNode } filter - The filter to add to the chain.
-     */
+    * Adds a BiquadFilterNode to the sound's filter chain.
+    * Filters are applied in the order they are added.
+    * @param { BiquadFilterNode } filter - The filter to add to the chain.
+    */
+
     addFilter(filter: BiquadFilterNode): void {
         super.addFilter(filter);
         this.playbacks.forEach(p => p.addFilter(filter));
@@ -249,9 +252,9 @@ export class Sound extends FilterManager implements BaseSound {
 
     /**
     * Removes a BiquadFilterNode from the sound's filter chain.
-        * If the filter is not part of the chain, the method has no effect.
-            * @param { BiquadFilterNode } filter - The filter to remove from the chain.
- */
+    * If the filter is not part of the chain, the method has no effect.
+    * @param { BiquadFilterNode } filter - The filter to remove from the chain.
+    */
 
     removeFilter(filter: BiquadFilterNode): void {
         super.removeFilter(filter);
@@ -268,9 +271,9 @@ export class Sound extends FilterManager implements BaseSound {
     }
 
     /**
-     * Returns a boolean indicating whether the sound is currently playing.
-     * @returns {boolean} True if the sound is playing, false otherwise.
-     */
+    * Returns a boolean indicating whether the sound is currently playing.
+    * @returns {boolean} True if the sound is playing, false otherwise.
+    */
     isPlaying(): boolean {
         return this.playbacks.some(p => p.isPlaying());
     }
