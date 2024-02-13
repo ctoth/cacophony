@@ -45,7 +45,7 @@ export class Playback extends FilterManager implements BaseSound {
  * @param {PanType} panType - The type of panning to use ('HRTF' for 3D audio or 'stereo' for stereo panning).
  * @throws {Error} Throws an error if an invalid pan type is provided.
  */
-constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0, public panType: PanType = 'HRTF') {
+    constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0, public panType: PanType = 'HRTF') {
         super();
         this.loopCount = loopCount;
         this.panType = panType;
@@ -77,7 +77,7 @@ constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopC
  * @returns {number | null} The current stereo pan value, or null if stereo panning is not applicable.
  * @throws {Error} Throws an error if stereo panning is not available or if the sound has been cleaned up.
  */
-get stereoPan(): number | null {
+    get stereoPan(): number | null {
         if (this.panType === 'stereo') {
             return (this.panner as StereoPannerNode).pan.value;
         }
@@ -89,7 +89,7 @@ get stereoPan(): number | null {
  * @param {number} value - The stereo pan value to set, between -1 (left) and 1 (right).
  * @throws {Error} Throws an error if stereo panning is not available, if the sound has been cleaned up, or if the value is out of bounds.
  */
-set stereoPan(value: number) {
+    set stereoPan(value: number) {
         if (this.panType !== 'stereo') {
             throw new Error('Stereo panning is not available when using HRTF.');
         }
@@ -104,7 +104,7 @@ set stereoPan(value: number) {
  * @returns {number} The duration of the audio.
  * @throws {Error} Throws an error if the sound has been cleaned up.
  */
-get duration() {
+    get duration() {
         if (!this.buffer) {
             throw new Error('Cannot get duration of a sound that has been cleaned up');
         }
@@ -116,7 +116,7 @@ get duration() {
  * @returns {number} The current playback rate.
  * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
  */
-get playbackRate() {
+    get playbackRate() {
         if (!this.source) {
             throw new Error('Cannot get playback rate of a sound that has been cleaned up');
         }
@@ -134,7 +134,7 @@ get playbackRate() {
  * @param {number} rate - The playback rate to set.
  * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
  */
-set playbackRate(rate: number) {
+    set playbackRate(rate: number) {
         if (!this.source) {
             throw new Error('Cannot set playback rate of a sound that has been cleaned up');
         }
@@ -151,7 +151,7 @@ set playbackRate(rate: number) {
  * This method is bound to the 'onended' event of the audio source.
  * It manages looping logic and restarts playback if necessary.
  */
-handleLoop = () => {
+    handleLoop = () => {
         if (this.buffer) {
             this.source = this.context.createBufferSource();
             this.source.buffer = this.buffer;
@@ -173,7 +173,7 @@ handleLoop = () => {
  * @returns {[this]} Returns the instance of the Playback class for chaining.
  * @throws {Error} Throws an error if the sound has been cleaned up.
  */
-play(): [this] {
+    play(): [this] {
         if (!this.source) {
             throw new Error('Cannot play a sound that has been cleaned up');
         }
@@ -191,7 +191,7 @@ play(): [this] {
  * @returns {IPannerOptions} The current 3D audio options.
  * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
  */
-get threeDOptions(): IPannerOptions {
+    get threeDOptions(): IPannerOptions {
         if (!this.panner) {
             throw new Error('Cannot get 3D options of a sound that has been cleaned up');
         }
@@ -225,7 +225,7 @@ get threeDOptions(): IPannerOptions {
  * @param {Partial<IPannerOptions>} options - The 3D audio options to set.
  * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
  */
-set threeDOptions(options: Partial<IPannerOptions>) {
+    set threeDOptions(options: Partial<IPannerOptions>) {
         if (!this.panner) {
             throw new Error('Cannot set 3D options of a sound that has been cleaned up');
         }
@@ -257,7 +257,7 @@ set threeDOptions(options: Partial<IPannerOptions>) {
  * @param {number} time - The time in seconds to seek to.
  * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
  */
-seek(time: number): void {
+    seek(time: number): void {
         if (!this.source || !this.gainNode || !this.panner) {
             throw new Error('Cannot seek a sound that has been cleaned up');
         }
@@ -287,7 +287,7 @@ seek(time: number): void {
  * @returns {number} The current volume.
  * @throws {Error} Throws an error if the sound has been cleaned up.
  */
-get volume(): number {
+    get volume(): number {
         if (!this.gainNode) {
             throw new Error('Cannot get volume of a sound that has been cleaned up');
         }
@@ -299,7 +299,7 @@ get volume(): number {
  * @param {number} v - The volume to set.
  * @throws {Error} Throws an error if the sound has been cleaned up.
  */
-set volume(v: number) {
+    set volume(v: number) {
         if (!this.gainNode) {
             throw new Error('Cannot set volume of a sound that has been cleaned up');
         }
@@ -311,7 +311,7 @@ set volume(v: number) {
  * @param {boolean} loop - Whether the audio should loop.
  * @throws {Error} Throws an error if the sound has been cleaned up.
  */
-set sourceLoop(loop: boolean) {
+    set sourceLoop(loop: boolean) {
         if (!this.source) {
             throw new Error('Cannot set loop on a sound that has been cleaned up');
         }
@@ -336,7 +336,7 @@ set sourceLoop(loop: boolean) {
  * @returns {Promise<void>} A promise that resolves when the fade-in is complete.
  * @throws {Error} Throws an error if the sound has been cleaned up.
  */
-fadeIn(time: number, fadeType: FadeType = 'linear'): Promise<void> {
+    fadeIn(time: number, fadeType: FadeType = 'linear'): Promise<void> {
         return new Promise(resolve => {
             if (!this.gainNode) {
                 throw new Error('Cannot fade in a sound that has been cleaned up');
@@ -384,7 +384,7 @@ fadeIn(time: number, fadeType: FadeType = 'linear'): Promise<void> {
  * @returns {Promise<void>} A promise that resolves when the fade-out is complete.
  * @throws {Error} Throws an error if the sound has been cleaned up.
  */
-fadeOut(time: number, fadeType: FadeType = 'linear'): Promise<void> {
+    fadeOut(time: number, fadeType: FadeType = 'linear'): Promise<void> {
         return new Promise(resolve => {
             // Storing the current gain value
             if (!this.gainNode) {
@@ -415,7 +415,7 @@ fadeOut(time: number, fadeType: FadeType = 'linear'): Promise<void> {
  * @returns {boolean} True if the audio is playing, false otherwise.
  * @throws {Error} Throws an error if the sound has been cleaned up.
  */
-isPlaying(): boolean {
+    isPlaying(): boolean {
         if (!this.source) {
             throw new Error('Cannot check if a sound is playing that has been cleaned up');
         }
@@ -426,7 +426,7 @@ isPlaying(): boolean {
  * Cleans up resources used by the Playback instance.
  * This method should be called when the audio is no longer needed to free up resources.
  */
-cleanup(): void {
+    cleanup(): void {
         // Ensure cleanup is idempotent
         if (this.source) {
             this.source.disconnect();
@@ -451,7 +451,7 @@ cleanup(): void {
  * @returns {LoopCount} The loop count if no parameter is provided.
  * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
  */
-loop(loopCount?: LoopCount): LoopCount {
+    loop(loopCount?: LoopCount): LoopCount {
         if (!this.source) {
             throw new Error('Cannot loop a sound that has been cleaned up');
         }
@@ -484,7 +484,7 @@ loop(loopCount?: LoopCount): LoopCount {
  * Stops the audio playback immediately.
  * @throws {Error} Throws an error if the sound has been cleaned up.
  */
-stop(): void {
+    stop(): void {
         if (!this.source) {
             throw new Error('Cannot stop a sound that has been cleaned up');
         }
@@ -505,7 +505,7 @@ stop(): void {
  * Pauses the audio playback.
  * @throws {Error} Throws an error if the sound has been cleaned up.
  */
-pause(): void {
+    pause(): void {
         if (!this.source) {
             throw new Error('Cannot pause a sound that has been cleaned up');
         }
@@ -518,7 +518,7 @@ pause(): void {
  * Resumes the audio playback if it was previously paused.
  * @throws {Error} Throws an error if the sound has been cleaned up.
  */
-resume(): void {
+    resume(): void {
         if (!this.source) {
             throw new Error('Cannot resume a sound that has been cleaned up');
         }
@@ -531,7 +531,7 @@ resume(): void {
  * Adds a filter to the audio signal chain.
  * @param {BiquadFilterNode} filter - The filter to add.
  */
-addFilter(filter: BiquadFilterNode): void {
+    addFilter(filter: BiquadFilterNode): void {
         super.addFilter(filter);
         this.refreshFilters();
     }
@@ -540,7 +540,7 @@ addFilter(filter: BiquadFilterNode): void {
  * Removes a filter from the audio signal chain.
  * @param {BiquadFilterNode} filter - The filter to remove.
  */
-removeFilter(filter: BiquadFilterNode): void {
+    removeFilter(filter: BiquadFilterNode): void {
         super.removeFilter(filter);
         this.refreshFilters();
     }
@@ -550,7 +550,7 @@ removeFilter(filter: BiquadFilterNode): void {
  * @param {Position} position - The [x, y, z] coordinates of the audio source.
  * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
  */
-set position(position: Position) {
+    set position(position: Position) {
         if (!this.panner) {
             throw new Error('Cannot move a sound that has been cleaned up');
         }
@@ -569,7 +569,7 @@ set position(position: Position) {
  * @returns {Position} The [x, y, z] coordinates of the audio source.
  * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
  */
-get position(): Position {
+    get position(): Position {
         if (!this.panner) {
             throw new Error('Cannot get position of a sound that has been cleaned up');
         }
@@ -585,7 +585,7 @@ get position(): Position {
  * This method is called internally whenever filters are added or removed.
  * @throws {Error} Throws an error if the sound has been cleaned up.
  */
-private refreshFilters(): void {
+    private refreshFilters(): void {
         if (!this.panner || !this.gainNode) {
             throw new Error('Cannot update filters on a sound that has been cleaned up');
         }
