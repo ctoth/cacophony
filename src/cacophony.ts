@@ -24,21 +24,46 @@ type PannerNode = IPannerNode<AudioContext>;
 type MediaStreamAudioSourceNode = IMediaStreamAudioSourceNode<AudioContext>;
 
 
-export type Position = [number, number, number];
+/**
+ * Represents a 3D position in space.
+ * @typedef {Array<number>} Position - An array of three numbers representing the x, y, and z coordinates.
+ */
+export type Position = [x: number, y: number, z: number];
 
+/**
+ * Represents the orientation of an object in 3D space.
+ * @typedef {Object} Orientation - An object containing two positions: forward and up.
+ * @property {Position} forward - The forward direction of the object.
+ * @property {Position} up - The up direction of the object.
+ */
 export type Orientation = {
     forward: Position;
     up: Position;
 }
 
+/**
+ * Represents the number of times a sound should loop.
+ * @typedef {number | 'infinite'} LoopCount - The number of loops, or 'infinite' for endless looping.
+ */
 export type LoopCount = number | 'infinite';
 
-export type FadeType = 'linear' | 'exponential'
+/**
+ * Represents the type of fade effect to apply.
+ * @typedef {'linear' | 'exponential'} FadeType - The fade type, either 'linear' or 'exponential'.
+ */
+export type FadeType = 'linear' | 'exponential';
 
+/**
+ * Represents the type of panning effect to apply.
+ * @typedef {'HRTF' | 'stereo'} PanType - The pan type, either 'HRTF' for 3D audio or 'stereo' for traditional stereo panning.
+ */
 export type PanType = 'HRTF' | 'stereo';
 
+/**
+ * The base interface for any sound-producing entity, including individual sounds, groups, and playbacks.
+ * @interface BaseSound
+ */
 export interface BaseSound {
-    // the stuff you should be able to do with anything that makes sound including groups, sounds, and playbacks.
     isPlaying(): boolean;
     play(): BaseSound[];
     seek?(time: number): void;
