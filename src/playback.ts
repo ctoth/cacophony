@@ -199,18 +199,27 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     seek(time: number): void {
-        if (!this.source || !this.buffer || !this.gainNode || !this.panner) {
+        if (!this.source || !this.gainNode || !this.panner) {
             throw new Error('Cannot seek a sound that has been cleaned up');
         }
         const playing = this.isPlaying();
-        // Stop the current playback
-        this.stop();        // Create a new source to start from the desired time
-        this.source = this.context.createBufferSource();
-        this.source.buffer = this.buffer;
-        this.refreshFilters();
-        this.source.connect(this.panner).connect(this.gainNode);
-        if (playing) {
-            this.source.start(0, time);
+        this.stop();
+        if ('mediaElement' in this.source && this.source.mediaElement) {
+            this.source.mediaElement.currentTime = time;
+            if (playing) {
+                this.source.mediaElement.play();
+            }
+        } else if (this.buffer) {
+            // Create a new source to start from the desired time
+            this.source = this.context.createBufferSource();
+            this.source.buffer = this.buffer;
+            this.refreshFilters();
+            this.source.connect(this.panner).connect(this.gainNode);
+            if (playing) {
+                this.source.start(0, time);
+            }
+        } else {
+            throw new Error('Unsupported source type for seeking');
         }
     }
 
