@@ -20,7 +20,7 @@
 
 
 import { BaseSound, FadeType, LoopCount, PanType, Position } from "./cacophony";
-import { AudioContext, BiquadFilterNode, GainNode, PannerNode, SourceNode, AudioBuffer, StereoPannerNode, AudioBufferSourceNode, IAudioBuffer, IPannerOptions } from "./context";
+import { AudioBuffer, AudioContext, BiquadFilterNode, GainNode, IPannerOptions, PannerNode, SourceNode, StereoPannerNode } from "./context";
 import { FilterManager } from "./filters";
 
 
@@ -33,7 +33,7 @@ export class Playback extends FilterManager implements BaseSound {
     private panner?: PannerNode | StereoPannerNode;
     loopCount: LoopCount = 0;
     currentLoop: number = 0;
-    private buffer?: IAudioBuffer;
+    private buffer?: AudioBuffer;
     private playing: boolean = false;
 
     constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0, public panType: PanType = 'HRTF') {
