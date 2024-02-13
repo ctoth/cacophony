@@ -36,7 +36,16 @@ export class Playback extends FilterManager implements BaseSound {
     private buffer?: AudioBuffer;
     private playing: boolean = false;
 
-    constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0, public panType: PanType = 'HRTF') {
+    /**
+ * Creates an instance of the Playback class.
+ * @param {SourceNode} source - The audio source node.
+ * @param {GainNode} gainNode - The gain node for controlling volume.
+ * @param {AudioContext} context - The audio context.
+ * @param {LoopCount} loopCount - The number of times the audio should loop. 'infinite' for endless looping.
+ * @param {PanType} panType - The type of panning to use ('HRTF' for 3D audio or 'stereo' for stereo panning).
+ * @throws {Error} Throws an error if an invalid pan type is provided.
+ */
+constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0, public panType: PanType = 'HRTF') {
         super();
         this.loopCount = loopCount;
         this.panType = panType;
@@ -63,14 +72,24 @@ export class Playback extends FilterManager implements BaseSound {
         this.refreshFilters();
     }
 
-    get stereoPan(): number | null {
+    /**
+ * Gets the stereo panning value.
+ * @returns {number | null} The current stereo pan value, or null if stereo panning is not applicable.
+ * @throws {Error} Throws an error if stereo panning is not available or if the sound has been cleaned up.
+ */
+get stereoPan(): number | null {
         if (this.panType === 'stereo') {
             return (this.panner as StereoPannerNode).pan.value;
         }
         return null;
     }
 
-    set stereoPan(value: number) {
+    /**
+ * Sets the stereo panning value.
+ * @param {number} value - The stereo pan value to set, between -1 (left) and 1 (right).
+ * @throws {Error} Throws an error if stereo panning is not available, if the sound has been cleaned up, or if the value is out of bounds.
+ */
+set stereoPan(value: number) {
         if (this.panType !== 'stereo') {
             throw new Error('Stereo panning is not available when using HRTF.');
         }
@@ -80,14 +99,24 @@ export class Playback extends FilterManager implements BaseSound {
         (this.panner as StereoPannerNode).pan.setValueAtTime(clamp(value, -1, 1), this.context.currentTime);
     }
 
-    get duration() {
+    /**
+ * Gets the duration of the audio in seconds.
+ * @returns {number} The duration of the audio.
+ * @throws {Error} Throws an error if the sound has been cleaned up.
+ */
+get duration() {
         if (!this.buffer) {
             throw new Error('Cannot get duration of a sound that has been cleaned up');
         }
         return this.buffer.duration;
     }
 
-    get playbackRate() {
+    /**
+ * Gets the current playback rate of the audio.
+ * @returns {number} The current playback rate.
+ * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
+ */
+get playbackRate() {
         if (!this.source) {
             throw new Error('Cannot get playback rate of a sound that has been cleaned up');
         }
@@ -100,7 +129,12 @@ export class Playback extends FilterManager implements BaseSound {
         throw new Error('Unsupported source type');
     }
 
-    set playbackRate(rate: number) {
+    /**
+ * Sets the playback rate of the audio.
+ * @param {number} rate - The playback rate to set.
+ * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
+ */
+set playbackRate(rate: number) {
         if (!this.source) {
             throw new Error('Cannot set playback rate of a sound that has been cleaned up');
         }
@@ -112,7 +146,12 @@ export class Playback extends FilterManager implements BaseSound {
         }
     }
 
-    handleLoop = () => {
+    /**
+ * Handles the loop event when the audio ends.
+ * This method is bound to the 'onended' event of the audio source.
+ * It manages looping logic and restarts playback if necessary.
+ */
+handleLoop = () => {
         if (this.buffer) {
             this.source = this.context.createBufferSource();
             this.source.buffer = this.buffer;
@@ -129,7 +168,12 @@ export class Playback extends FilterManager implements BaseSound {
         }
     }
 
-    play(): [this] {
+    /**
+ * Starts playing the audio.
+ * @returns {[this]} Returns the instance of the Playback class for chaining.
+ * @throws {Error} Throws an error if the sound has been cleaned up.
+ */
+play(): [this] {
         if (!this.source) {
             throw new Error('Cannot play a sound that has been cleaned up');
         }
@@ -142,7 +186,12 @@ export class Playback extends FilterManager implements BaseSound {
         return [this];
     }
 
-    get threeDOptions(): IPannerOptions {
+    /**
+ * Gets the 3D audio options if HRTF panning is used.
+ * @returns {IPannerOptions} The current 3D audio options.
+ * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
+ */
+get threeDOptions(): IPannerOptions {
         if (!this.panner) {
             throw new Error('Cannot get 3D options of a sound that has been cleaned up');
         }
@@ -171,7 +220,12 @@ export class Playback extends FilterManager implements BaseSound {
         }
     }
 
-    set threeDOptions(options: Partial<IPannerOptions>) {
+    /**
+ * Sets the 3D audio options for HRTF panning.
+ * @param {Partial<IPannerOptions>} options - The 3D audio options to set.
+ * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
+ */
+set threeDOptions(options: Partial<IPannerOptions>) {
         if (!this.panner) {
             throw new Error('Cannot set 3D options of a sound that has been cleaned up');
         }
@@ -198,7 +252,12 @@ export class Playback extends FilterManager implements BaseSound {
         panner.orientationZ.value = options.orientationZ || panner.orientationZ.value;
     }
 
-    seek(time: number): void {
+    /**
+ * Seeks to a specific time in the audio.
+ * @param {number} time - The time in seconds to seek to.
+ * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
+ */
+seek(time: number): void {
         if (!this.source || !this.gainNode || !this.panner) {
             throw new Error('Cannot seek a sound that has been cleaned up');
         }
@@ -223,21 +282,36 @@ export class Playback extends FilterManager implements BaseSound {
         }
     }
 
-    get volume(): number {
+    /**
+ * Gets the current volume of the audio.
+ * @returns {number} The current volume.
+ * @throws {Error} Throws an error if the sound has been cleaned up.
+ */
+get volume(): number {
         if (!this.gainNode) {
             throw new Error('Cannot get volume of a sound that has been cleaned up');
         }
         return this.gainNode.gain.value;
     }
 
-    set volume(v: number) {
+    /**
+ * Sets the volume of the audio.
+ * @param {number} v - The volume to set.
+ * @throws {Error} Throws an error if the sound has been cleaned up.
+ */
+set volume(v: number) {
         if (!this.gainNode) {
             throw new Error('Cannot set volume of a sound that has been cleaned up');
         }
         this.gainNode.gain.value = v;
     }
 
-    set sourceLoop(loop: boolean) {
+    /**
+ * Sets whether the audio source should loop.
+ * @param {boolean} loop - Whether the audio should loop.
+ * @throws {Error} Throws an error if the sound has been cleaned up.
+ */
+set sourceLoop(loop: boolean) {
         if (!this.source) {
             throw new Error('Cannot set loop on a sound that has been cleaned up');
         }
@@ -255,7 +329,14 @@ export class Playback extends FilterManager implements BaseSound {
      * @param {FadeType} fadeType - The type of fade curve to apply, either 'linear' or 'exponential'.
      * @returns {Promise<void>} A promise that resolves when the fade-in effect is complete.
      */
-    fadeIn(time: number, fadeType: FadeType = 'linear'): Promise<void> {
+    /**
+ * Fades in the audio from silence to its current volume level over a specified duration.
+ * @param {number} time - The duration in seconds for the fade-in.
+ * @param {FadeType} fadeType - The type of fade curve ('linear' or 'exponential').
+ * @returns {Promise<void>} A promise that resolves when the fade-in is complete.
+ * @throws {Error} Throws an error if the sound has been cleaned up.
+ */
+fadeIn(time: number, fadeType: FadeType = 'linear'): Promise<void> {
         return new Promise(resolve => {
             if (!this.gainNode) {
                 throw new Error('Cannot fade in a sound that has been cleaned up');
@@ -296,7 +377,14 @@ export class Playback extends FilterManager implements BaseSound {
      * @param {FadeType} fadeType - The type of fade curve to apply, either 'linear' or 'exponential'.
      * @returns {Promise<void>} A promise that resolves when the fade-out effect is complete.
      */
-    fadeOut(time: number, fadeType: FadeType = 'linear'): Promise<void> {
+    /**
+ * Fades out the audio to silence over a specified duration.
+ * @param {number} time - The duration in seconds for the fade-out.
+ * @param {FadeType} fadeType - The type of fade curve ('linear' or 'exponential').
+ * @returns {Promise<void>} A promise that resolves when the fade-out is complete.
+ * @throws {Error} Throws an error if the sound has been cleaned up.
+ */
+fadeOut(time: number, fadeType: FadeType = 'linear'): Promise<void> {
         return new Promise(resolve => {
             // Storing the current gain value
             if (!this.gainNode) {
@@ -322,14 +410,23 @@ export class Playback extends FilterManager implements BaseSound {
      * Returns a boolean indicating whether the sound is currently playing.
      * @returns {boolean} True if the sound is playing, false otherwise.
      */
-    isPlaying(): boolean {
+    /**
+ * Checks if the audio is currently playing.
+ * @returns {boolean} True if the audio is playing, false otherwise.
+ * @throws {Error} Throws an error if the sound has been cleaned up.
+ */
+isPlaying(): boolean {
         if (!this.source) {
             throw new Error('Cannot check if a sound is playing that has been cleaned up');
         }
         return this.playing;
     }
 
-    cleanup(): void {
+    /**
+ * Cleans up resources used by the Playback instance.
+ * This method should be called when the audio is no longer needed to free up resources.
+ */
+cleanup(): void {
         // Ensure cleanup is idempotent
         if (this.source) {
             this.source.disconnect();
@@ -348,7 +445,13 @@ export class Playback extends FilterManager implements BaseSound {
         // Additional cleanup logic if needed
     }
 
-    loop(loopCount?: LoopCount): LoopCount {
+    /**
+ * Sets or gets the loop count for the audio.
+ * @param {LoopCount} loopCount - The number of times the audio should loop. 'infinite' for endless looping.
+ * @returns {LoopCount} The loop count if no parameter is provided.
+ * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
+ */
+loop(loopCount?: LoopCount): LoopCount {
         if (!this.source) {
             throw new Error('Cannot loop a sound that has been cleaned up');
         }
@@ -377,7 +480,11 @@ export class Playback extends FilterManager implements BaseSound {
         throw new Error('Unsupported source type');
     }
 
-    stop(): void {
+    /**
+ * Stops the audio playback immediately.
+ * @throws {Error} Throws an error if the sound has been cleaned up.
+ */
+stop(): void {
         if (!this.source) {
             throw new Error('Cannot stop a sound that has been cleaned up');
         }
@@ -394,7 +501,11 @@ export class Playback extends FilterManager implements BaseSound {
         this.playing = false;
     }
 
-    pause(): void {
+    /**
+ * Pauses the audio playback.
+ * @throws {Error} Throws an error if the sound has been cleaned up.
+ */
+pause(): void {
         if (!this.source) {
             throw new Error('Cannot pause a sound that has been cleaned up');
         }
@@ -403,7 +514,11 @@ export class Playback extends FilterManager implements BaseSound {
         }
     }
 
-    resume(): void {
+    /**
+ * Resumes the audio playback if it was previously paused.
+ * @throws {Error} Throws an error if the sound has been cleaned up.
+ */
+resume(): void {
         if (!this.source) {
             throw new Error('Cannot resume a sound that has been cleaned up');
         }
@@ -412,17 +527,30 @@ export class Playback extends FilterManager implements BaseSound {
         }
     }
 
-    addFilter(filter: BiquadFilterNode): void {
+    /**
+ * Adds a filter to the audio signal chain.
+ * @param {BiquadFilterNode} filter - The filter to add.
+ */
+addFilter(filter: BiquadFilterNode): void {
         super.addFilter(filter);
         this.refreshFilters();
     }
 
-    removeFilter(filter: BiquadFilterNode): void {
+    /**
+ * Removes a filter from the audio signal chain.
+ * @param {BiquadFilterNode} filter - The filter to remove.
+ */
+removeFilter(filter: BiquadFilterNode): void {
         super.removeFilter(filter);
         this.refreshFilters();
     }
 
-    set position(position: Position) {
+    /**
+ * Sets the position of the audio source in 3D space (HRTF panning only).
+ * @param {Position} position - The [x, y, z] coordinates of the audio source.
+ * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
+ */
+set position(position: Position) {
         if (!this.panner) {
             throw new Error('Cannot move a sound that has been cleaned up');
         }
@@ -436,7 +564,12 @@ export class Playback extends FilterManager implements BaseSound {
         panner.positionZ.setValueAtTime(z, this.context.currentTime);
     }
 
-    get position(): Position {
+    /**
+ * Gets the position of the audio source in 3D space (HRTF panning only).
+ * @returns {Position} The [x, y, z] coordinates of the audio source.
+ * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
+ */
+get position(): Position {
         if (!this.panner) {
             throw new Error('Cannot get position of a sound that has been cleaned up');
         }
@@ -447,7 +580,12 @@ export class Playback extends FilterManager implements BaseSound {
         return [panner.positionX.value, panner.positionY.value, panner.positionZ.value];
     }
 
-    private refreshFilters(): void {
+    /**
+ * Refreshes the audio filters by re-applying them to the audio signal chain.
+ * This method is called internally whenever filters are added or removed.
+ * @throws {Error} Throws an error if the sound has been cleaned up.
+ */
+private refreshFilters(): void {
         if (!this.panner || !this.gainNode) {
             throw new Error('Cannot update filters on a sound that has been cleaned up');
         }
