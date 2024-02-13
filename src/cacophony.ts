@@ -324,13 +324,12 @@ export class Cacophony {
         const { forward, up } = orientation;
         const [forwardX, forwardY, forwardZ] = forward;
         const [upX, upY, upZ] = up;
-        const currentTime = this.context.currentTime;
-        this.listener.forwardX.setValueAtTime(forwardX, currentTime);
-        this.listener.forwardY.setValueAtTime(forwardY, currentTime);
-        this.listener.forwardZ.setValueAtTime(forwardZ, currentTime);
-        this.listener.upX.setValueAtTime(upX, currentTime);
-        this.listener.upY.setValueAtTime(upY, currentTime);
-        this.listener.upZ.setValueAtTime(upZ, currentTime);
+        this.listener.forwardX.value = forwardX;
+        this.listener.forwardY.value = forwardY;
+        this.listener.forwardZ.value = forwardZ;
+        this.listener.upX.value = upX;
+        this.listener.upY.value = upY;
+        this.listener.upZ.value = upZ;
     }
 
     get listenerUpOrientation(): Position {
@@ -339,10 +338,9 @@ export class Cacophony {
 
     set listenerUpOrientation(up: Position) {
         const [x, y, z] = up;
-        const currentTime = this.context.currentTime;
-        this.listener.upX.setValueAtTime(x, currentTime);
-        this.listener.upY.setValueAtTime(y, currentTime);
-        this.listener.upZ.setValueAtTime(z, currentTime);
+        this.listener.upX.value = x;
+        this.listener.upY.value = y;
+        this.listener.upZ.value = z;
     }
 
     get listenerForwardOrientation(): Position {
@@ -351,10 +349,9 @@ export class Cacophony {
 
     set listenerForwardOrientation(forward: Position) {
         const [x, y, z] = forward;
-        const currentTime = this.context.currentTime;
-        this.listener.forwardX.setValueAtTime(x, currentTime);
-        this.listener.forwardY.setValueAtTime(y, currentTime);
-        this.listener.forwardZ.setValueAtTime(z, currentTime);
+        this.listener.forwardX.value = x;
+        this.listener.forwardY.value = y;
+        this.listener.forwardZ.value = z;
     }
 
     get listenerPosition(): Position {

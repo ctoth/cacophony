@@ -546,10 +546,11 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
- * Sets the position of the audio source in 3D space (HRTF panning only).
- * @param {Position} position - The [x, y, z] coordinates of the audio source.
- * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
- */
+    * Sets the position of the audio source in 3D space (HRTF panning only).
+    * @param {Position} position - The [x, y, z] coordinates of the audio source.
+    * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
+    */
+
     set position(position: Position) {
         if (!this.panner) {
             throw new Error('Cannot move a sound that has been cleaned up');
@@ -559,16 +560,17 @@ export class Playback extends FilterManager implements BaseSound {
         }
         const [x, y, z] = position;
         const panner = this.panner as PannerNode;
-        panner.positionX.setValueAtTime(x, this.context.currentTime);
-        panner.positionY.setValueAtTime(y, this.context.currentTime);
-        panner.positionZ.setValueAtTime(z, this.context.currentTime);
+        panner.positionX.value = x;
+        panner.positionY.value = y;
+        panner.positionZ.value = z;
     }
 
     /**
- * Gets the position of the audio source in 3D space (HRTF panning only).
- * @returns {Position} The [x, y, z] coordinates of the audio source.
- * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
- */
+    * Gets the position of the audio source in 3D space (HRTF panning only).
+    * @returns {Position} The [x, y, z] coordinates of the audio source.
+    * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
+    */
+
     get position(): Position {
         if (!this.panner) {
             throw new Error('Cannot get position of a sound that has been cleaned up');
