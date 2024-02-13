@@ -19,14 +19,11 @@
  */
 
 
-import { AudioContext, IAudioBuffer, IPannerNode, IPannerOptions, IStereoPannerNode } from "standardized-audio-context";
 import { BaseSound, FadeType, LoopCount, PanType, Position } from "./cacophony";
-import { BiquadFilterNode, GainNode, SourceNode } from "./context";
+import { AudioContext, BiquadFilterNode, GainNode, PannerNode, SourceNode, AudioBuffer, StereoPannerNode, AudioBufferSourceNode, IAudioBuffer, IPannerOptions } from "./context";
 import { FilterManager } from "./filters";
 
 
-type PannerNode = IPannerNode<AudioContext>;
-type StereoPannerNode = IStereoPannerNode<AudioContext>;
 
 
 export class Playback extends FilterManager implements BaseSound {
@@ -115,7 +112,7 @@ export class Playback extends FilterManager implements BaseSound {
         }
     }
 
-    handleLoop() {
+    handleLoop = () => {
         if (this.buffer) {
             this.source = this.context.createBufferSource();
             this.source.buffer = this.buffer;
@@ -357,7 +354,6 @@ export class Playback extends FilterManager implements BaseSound {
             this.source.loopStart = 0;
             return this.source.loop === true ? 'infinite' : 0;
         }
-
         // Check if the source is a MediaElementSourceNode
         if ("mediaElement" in this.source && this.source.mediaElement) {
             const mediaElement = this.source.mediaElement;

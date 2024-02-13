@@ -299,12 +299,13 @@ export class Cacophony {
         const { forward, up } = orientation;
         const [forwardX, forwardY, forwardZ] = forward;
         const [upX, upY, upZ] = up;
-        this.listener.forwardX.setValueAtTime(forwardX, this.context.currentTime);
-        this.listener.forwardY.setValueAtTime(forwardY, this.context.currentTime);
-        this.listener.forwardZ.setValueAtTime(forwardZ, this.context.currentTime);
-        this.listener.upX.setValueAtTime(upX, this.context.currentTime);
-        this.listener.upY.setValueAtTime(upY, this.context.currentTime);
-        this.listener.upZ.setValueAtTime(upZ, this.context.currentTime);
+        const currentTime = this.context.currentTime;
+        this.listener.forwardX.setValueAtTime(forwardX, currentTime);
+        this.listener.forwardY.setValueAtTime(forwardY, currentTime);
+        this.listener.forwardZ.setValueAtTime(forwardZ, currentTime);
+        this.listener.upX.setValueAtTime(upX, currentTime);
+        this.listener.upY.setValueAtTime(upY, currentTime);
+        this.listener.upZ.setValueAtTime(upZ, currentTime);
     }
 
     get listenerUpOrientation(): Position {
@@ -313,9 +314,10 @@ export class Cacophony {
 
     set listenerUpOrientation(up: Position) {
         const [x, y, z] = up;
-        this.listener.upX.setValueAtTime(x, this.context.currentTime);
-        this.listener.upY.setValueAtTime(y, this.context.currentTime);
-        this.listener.upZ.setValueAtTime(z, this.context.currentTime);
+        const currentTime = this.context.currentTime;
+        this.listener.upX.setValueAtTime(x, currentTime);
+        this.listener.upY.setValueAtTime(y, currentTime);
+        this.listener.upZ.setValueAtTime(z, currentTime);
     }
 
     get listenerForwardOrientation(): Position {
@@ -324,9 +326,10 @@ export class Cacophony {
 
     set listenerForwardOrientation(forward: Position) {
         const [x, y, z] = forward;
-        this.listener.forwardX.setValueAtTime(x, this.context.currentTime);
-        this.listener.forwardY.setValueAtTime(y, this.context.currentTime);
-        this.listener.forwardZ.setValueAtTime(z, this.context.currentTime);
+        const currentTime = this.context.currentTime;
+        this.listener.forwardX.setValueAtTime(x, currentTime);
+        this.listener.forwardY.setValueAtTime(y, currentTime);
+        this.listener.forwardZ.setValueAtTime(z, currentTime);
     }
 
     get listenerPosition(): Position {
@@ -335,9 +338,10 @@ export class Cacophony {
 
     set listenerPosition(position: Position) {
         const [x, y, z] = position;
-        this.listener.positionX.setValueAtTime(x, this.context.currentTime);
-        this.listener.positionY.setValueAtTime(y, this.context.currentTime);
-        this.listener.positionZ.setValueAtTime(z, this.context.currentTime);
+        const currentTime = this.context.currentTime;
+        this.listener.positionX.setValueAtTime(x, currentTime);
+        this.listener.positionY.setValueAtTime(y, currentTime);
+        this.listener.positionZ.setValueAtTime(z, currentTime);
     }
 
 }

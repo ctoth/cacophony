@@ -235,7 +235,7 @@ export class Sound extends FilterManager implements BaseSound {
             return this.loopCount;
         }
         this.loopCount = loopCount;
-        this.playbacks.forEach(p => p.sourceLoop = true);
+        this.playbacks.forEach(p => p.loop(loopCount));
         return this.loopCount;
     }
 
