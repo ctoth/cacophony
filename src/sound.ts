@@ -261,12 +261,15 @@ export class Sound extends FilterManager implements BaseSound {
         this.playbacks.forEach(p => p.removeFilter(filter));
     }
 
-     * Gets or sets the volume of the sound. This volume level affects all current and future playbacks of this sound instance.
-     * The volume is specified as a linear value between 0 (silent) and 1 (full volume).
-     * 
-     * @returns {number} The current volume of the sound.
-     * @param {number} volume - The new volume level to set, must be between 0 and 1.
-     */
+
+    /*** 
+        * Gets or sets the volume of the sound. This volume level affects all current and future playbacks of this sound instance.
+        * The volume is specified as a linear value between 0 (silent) and 1 (full volume).
+        * 
+        * @returns {number} The current volume of the sound.
+        * @param {number} volume - The new volume level to set, must be between 0 and 1.
+        */
+
     get volume(): number {
         return this._volume;
     }

@@ -20,9 +20,8 @@
 
 
 import { BaseSound, FadeType, LoopCount, PanType, Position } from "./cacophony";
-import { AudioBuffer, AudioContext, BiquadFilterNode, GainNode, IPannerOptions, PannerNode, SourceNode, StereoPannerNode } from "./context";
+import type { AudioBuffer, AudioBufferSourceNode, AudioContext, BiquadFilterNode, GainNode, IPannerOptions, PannerNode, SourceNode, StereoPannerNode } from "./context";
 import { FilterManager } from "./filters";
-
 
 
 
@@ -455,8 +454,6 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.source) {
             throw new Error('Cannot loop a sound that has been cleaned up');
         }
-
-        // Check if the source is an AudioBufferSourceNode
         if (this.source instanceof AudioBufferSourceNode) {
             if (loopCount === undefined) {
                 return this.source.loop === true ? 'infinite' : 0;
