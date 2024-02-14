@@ -20,7 +20,7 @@
 
 
 import { BaseSound, FadeType, LoopCount, PanType, Position } from "./cacophony";
-import type { AudioBuffer, AudioBufferSourceNode, AudioContext, BiquadFilterNode, GainNode, IPannerOptions, PannerNode, SourceNode, StereoPannerNode } from "./context";
+import { AudioBuffer, AudioContext, BiquadFilterNode, GainNode, IPannerOptions, PannerNode, SourceNode, StereoPannerNode } from "./context";
 import { FilterManager } from "./filters";
 
 
@@ -36,7 +36,7 @@ export class Playback extends FilterManager implements BaseSound {
     private playing: boolean = false;
 
     /**
- * Creates an instance of the Playback class.
+ * Creates an instancef of the Playback class.
  * @param {SourceNode} source - The audio source node.
  * @param {GainNode} gainNode - The gain node for controlling volume.
  * @param {AudioContext} context - The audio context.
@@ -72,10 +72,11 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
- * Gets the stereo panning value.
- * @returns {number | null} The current stereo pan value, or null if stereo panning is not applicable.
- * @throws {Error} Throws an error if stereo panning is not available or if the sound has been cleaned up.
- */
+    * Gets the stereo panning value.
+    * @returns {number | null} The current stereo pan value, or null if stereo panning is not applicable.
+    * @throws {Error} Throws an error if stereo panning is not available or if the sound has been cleaned up.
+    */
+
     get stereoPan(): number | null {
         if (this.panType === 'stereo') {
             return (this.panner as StereoPannerNode).pan.value;
@@ -84,10 +85,11 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
- * Sets the stereo panning value.
- * @param {number} value - The stereo pan value to set, between -1 (left) and 1 (right).
- * @throws {Error} Throws an error if stereo panning is not available, if the sound has been cleaned up, or if the value is out of bounds.
- */
+    * Sets the stereo panning value.
+    * @param {number} value - The stereo pan value to set, between -1 (left) and 1 (right).
+    * @throws {Error} Throws an error if stereo panning is not available, if the sound has been cleaned up, or if the value is out of bounds.
+    */
+
     set stereoPan(value: number) {
         if (this.panType !== 'stereo') {
             throw new Error('Stereo panning is not available when using HRTF.');
@@ -99,10 +101,11 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
- * Gets the duration of the audio in seconds.
- * @returns {number} The duration of the audio.
- * @throws {Error} Throws an error if the sound has been cleaned up.
- */
+    * Gets the duration of the audio in seconds.
+    * @returns {number} The duration of the audio.
+    * @throws {Error} Throws an error if the sound has been cleaned up.
+    */
+
     get duration() {
         if (!this.buffer) {
             throw new Error('Cannot get duration of a sound that has been cleaned up');
@@ -146,10 +149,11 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
- * Handles the loop event when the audio ends.
- * This method is bound to the 'onended' event of the audio source.
- * It manages looping logic and restarts playback if necessary.
- */
+    * Handles the loop event when the audio ends.
+    * This method is bound to the 'onended' event of the audio source.
+    * It manages looping logic and restarts playback if necessary.
+    */
+
     handleLoop = () => {
         if (this.buffer) {
             this.source = this.context.createBufferSource();
@@ -445,26 +449,17 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
- * Sets or gets the loop count for the audio.
- * @param {LoopCount} loopCount - The number of times the audio should loop. 'infinite' for endless looping.
- * @returns {LoopCount} The loop count if no parameter is provided.
- * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
- */
+    * Sets or gets the loop count for the audio.
+    * @param {LoopCount} loopCount - The number of times the audio should loop. 'infinite' for endless looping.
+    * @returns {LoopCount} The loop count if no parameter is provided.
+    * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
+    */
+
     loop(loopCount?: LoopCount): LoopCount {
         if (!this.source) {
             throw new Error('Cannot loop a sound that has been cleaned up');
         }
-        if (this.source instanceof AudioBufferSourceNode) {
-            if (loopCount === undefined) {
-                return this.source.loop === true ? 'infinite' : 0;
-            }
-            this.source.loop = true;
-            this.source.loopEnd = this.source.buffer?.duration || 0;
-            this.source.loopStart = 0;
-            return this.source.loop === true ? 'infinite' : 0;
-        }
-        // Check if the source is a MediaElementSourceNode
-        if ("mediaElement" in this.source && this.source.mediaElement) {
+        if ('mediaElement' in this.source && this.source.mediaElement) {
             const mediaElement = this.source.mediaElement;
             if (loopCount === undefined) {
                 return mediaElement.loop === true ? 'infinite' : 0;
@@ -472,15 +467,26 @@ export class Playback extends FilterManager implements BaseSound {
             mediaElement.loop = true;
             // Looping for HTMLMediaElement is controlled by the 'loop' attribute, no need for loopStart or loopEnd
             return mediaElement.loop === true ? 'infinite' : 0;
+
+        } else if ('loop' in this.source) {
+            if (loopCount === undefined) {
+                return this.source.loop === true ? 'infinite' : 0;
+            }
+            this.source.loop = true;
+            this.source.loopEnd = this.source.buffer?.duration || 0;
+            this.source.loopStart = 0;
+            return this.source.loop === true ? 'infinite' : 0;
+
         }
 
         throw new Error('Unsupported source type');
     }
 
     /**
- * Stops the audio playback immediately.
- * @throws {Error} Throws an error if the sound has been cleaned up.
- */
+    * Stops the audio playback immediately.
+    * @throws {Error} Throws an error if the sound has been cleaned up.
+    */
+
     stop(): void {
         if (!this.source) {
             throw new Error('Cannot stop a sound that has been cleaned up');

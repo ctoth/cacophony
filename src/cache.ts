@@ -1,4 +1,4 @@
-import { IAudioContext } from "standardized-audio-context";
+import { AudioContext, AudioBuffer } from './context';
 
 export class CacheManager {
     private static pendingRequests = new Map<string, Promise<AudioBuffer>>();
@@ -12,7 +12,7 @@ export class CacheManager {
         }
     }
 
-    private static async getAudioBufferFromCache(url: string, cache: Cache, context: IAudioContext): Promise<AudioBuffer | null> {
+    private static async getAudioBufferFromCache(url: string, cache: Cache, context: AudioContext): Promise<AudioBuffer | null> {
         try {
             const response = await cache.match(url);
             if (response) {
@@ -26,7 +26,7 @@ export class CacheManager {
         }
     }
 
-    private static async fetchAndCacheAudioBuffer(url: string, cache: Cache, context: IAudioContext): Promise<AudioBuffer> {
+    private static async fetchAndCacheAudioBuffer(url: string, cache: Cache, context: AudioContext): Promise<AudioBuffer> {
         try {
             const fetchResponse = await fetch(url);
             const responseClone = fetchResponse.clone();
@@ -39,7 +39,7 @@ export class CacheManager {
         }
     }
 
-    public static async getAudioBuffer(url: string, context: IAudioContext): Promise<AudioBuffer> {
+    public static async getAudioBuffer(url: string, context: AudioContext): Promise<AudioBuffer> {
         // handle data: urls
         if (url.startsWith('data:')) {
             // Extract the base64-encoded audio data from the url.
