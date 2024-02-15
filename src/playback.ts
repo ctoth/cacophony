@@ -155,20 +155,27 @@ export class Playback extends FilterManager implements BaseSound {
     */
 
     handleLoop = () => {
+        console.log(`Loop callback called. Current loop: ${this.currentLoop}, Loop count: ${this.loopCount}`);
+        if (this.loopCount !== 'infinite' && this.currentLoop >= this.loopCount) {
+            console.log('Reached the maximum loop count.');
+            this.playing = false;
+            return;
+        }
+        if (this.loopCount !== 'infinite') {
+            this.currentLoop++;
+        }
+        console.log(`Starting loop ${this.currentLoop}`);
         if (this.buffer) {
             this.source = this.context.createBufferSource();
             this.source.buffer = this.buffer;
+            this.source.connect(this.panner);
+            this.source.connect(this.gainNode);
+            this.source.onended = this.handleLoop.bind(this);
+            this.source.start(0);
         } else {
             this.seek(0);
         }
-        if (this.loopCount === 'infinite' || this.currentLoop < this.loopCount) {
-            this.currentLoop++;
-            if (this.playing) {
-                this.play();
-            }
-        } else {
-            this.playing = false;
-        }
+        this.playing = true;
     }
 
     /**

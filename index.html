@@ -15,7 +15,10 @@
 
             document.getElementById('playSound').addEventListener('click', async () => {
                 const soundUrl = document.getElementById('soundUrl').value;
+                // Removed duplicate declaration of loopCheckbox
+                const loopCheckbox = document.getElementById('loopSound').checked;
                 sound = await cacophony.createSound(soundUrl, SoundType.Buffer, panType);
+                if (loopCheckbox) sound.loop('infinite');
                 sound.play();
             });
 
