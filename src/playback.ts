@@ -36,14 +36,15 @@ export class Playback extends FilterManager implements BaseSound {
     private playing: boolean = false;
 
     /**
- * Creates an instancef of the Playback class.
- * @param {SourceNode} source - The audio source node.
- * @param {GainNode} gainNode - The gain node for controlling volume.
- * @param {AudioContext} context - The audio context.
- * @param {LoopCount} loopCount - The number of times the audio should loop. 'infinite' for endless looping.
- * @param {PanType} panType - The type of panning to use ('HRTF' for 3D audio or 'stereo' for stereo panning).
- * @throws {Error} Throws an error if an invalid pan type is provided.
- */
+    * Creates an instance of the Playback class.
+    * @param {SourceNode} source - The audio source node.
+    * @param {GainNode} gainNode - The gain node for controlling volume.
+    * @param {AudioContext} context - The audio context.
+    * @param {LoopCount} loopCount - The number of times the audio should loop. 'infinite' for endless looping.
+    * @param {PanType} panType - The type of panning to use ('HRTF' for 3D audio or 'stereo' for stereo panning).
+    * @throws {Error} Throws an error if an invalid pan type is provided.
+    */
+
     constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0, public panType: PanType = 'HRTF') {
         super();
         this.loopCount = loopCount;
@@ -66,7 +67,7 @@ export class Playback extends FilterManager implements BaseSound {
         } else {
             throw new Error('Invalid pan type');
         }
-        source.connect(this.panner);
+        this.source.connect(this.panner);
         this.panner.connect(this.gainNode);
         this.refreshFilters();
     }
@@ -114,10 +115,11 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
- * Gets the current playback rate of the audio.
- * @returns {number} The current playback rate.
- * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
- */
+    * Gets the current playback rate of the audio.
+    * @returns {number} The current playback rate.
+    * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
+    */
+
     get playbackRate() {
         if (!this.source) {
             throw new Error('Cannot get playback rate of a sound that has been cleaned up');
@@ -132,10 +134,11 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
- * Sets the playback rate of the audio.
- * @param {number} rate - The playback rate to set.
- * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
- */
+    * Sets the playback rate of the audio.
+    * @param {number} rate - The playback rate to set.
+    * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
+    */
+
     set playbackRate(rate: number) {
         if (!this.source) {
             throw new Error('Cannot set playback rate of a sound that has been cleaned up');
@@ -155,6 +158,9 @@ export class Playback extends FilterManager implements BaseSound {
     */
 
     handleLoop = () => {
+        if (!this.source || !this.panner) {
+            return;
+        }
         console.log(`Loop callback called. Current loop: ${this.currentLoop}, Loop count: ${this.loopCount}`);
         if (this.loopCount !== 'infinite' && this.currentLoop >= this.loopCount) {
             console.log('Reached the maximum loop count.');
@@ -169,7 +175,6 @@ export class Playback extends FilterManager implements BaseSound {
             this.source = this.context.createBufferSource();
             this.source.buffer = this.buffer;
             this.source.connect(this.panner);
-            this.source.connect(this.gainNode);
             this.source.onended = this.handleLoop.bind(this);
             this.source.start(0);
         } else {
@@ -179,10 +184,11 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
- * Starts playing the audio.
- * @returns {[this]} Returns the instance of the Playback class for chaining.
- * @throws {Error} Throws an error if the sound has been cleaned up.
- */
+    * Starts playing the audio.
+    * @returns {[this]} Returns the instance of the Playback class for chaining.
+    * @throws {Error} Throws an error if the sound has been cleaned up.
+    */
+
     play(): [this] {
         if (!this.source) {
             throw new Error('Cannot play a sound that has been cleaned up');
@@ -197,10 +203,11 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
- * Gets the 3D audio options if HRTF panning is used.
- * @returns {IPannerOptions} The current 3D audio options.
- * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
- */
+    * Gets the 3D audio options if HRTF panning is used.
+    * @returns {IPannerOptions} The current 3D audio options.
+    * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
+    */
+
     get threeDOptions(): IPannerOptions {
         if (!this.panner) {
             throw new Error('Cannot get 3D options of a sound that has been cleaned up');

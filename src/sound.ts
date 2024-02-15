@@ -263,16 +263,22 @@ export class Sound extends FilterManager implements BaseSound {
 
 
     /*** 
-        * Gets or sets the volume of the sound. This volume level affects all current and future playbacks of this sound instance.
+        * Gets the volume of the sound. This volume level affects all current and future playbacks of this sound instance.
         * The volume is specified as a linear value between 0 (silent) and 1 (full volume).
         * 
         * @returns {number} The current volume of the sound.
-        * @param {number} volume - The new volume level to set, must be between 0 and 1.
         */
 
     get volume(): number {
         return this._volume;
     }
+
+    /***
+    * Sets the volume of the sound. This volume level affects all current and future playbacks of this sound instance.
+    * The volume is specified as a linear value between 0 (silent) and 1 (full volume).
+    * 
+    * @param {number} volume - The new volume level for the sound.
+    */
 
     set volume(volume: number) {
         this._volume = volume;
