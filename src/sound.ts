@@ -78,7 +78,7 @@ export class Sound extends FilterManager implements BaseSound {
         clone._volume = this._volume;
         clone._position = this._position;
         clone._threeDOptions = this._threeDOptions;
-        clone.filters = this.filters;
+        clone._filters = this._filters;
         clone.panType = this.panType;
         clone._stereoPan = this._stereoPan;
         return clone;
@@ -109,7 +109,7 @@ export class Sound extends FilterManager implements BaseSound {
         // this.finalizationRegistry.register(playback, playback);
         playback.volume = this.volume;
         playback.playbackRate = this.playbackRate;
-        this.filters.forEach(filter => playback.addFilter(filter));
+        this._filters.forEach(filter => playback.addFilter(filter));
         if (this.panType === 'HRTF') {
             playback.threeDOptions = this.threeDOptions;
             playback.position = this.position;

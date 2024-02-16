@@ -450,12 +450,12 @@ export class Playback extends FilterManager implements BaseSound {
             this.gainNode.disconnect();
             this.gainNode = undefined;
         }
-        this.filters.forEach(filter => {
+        this._filters.forEach(filter => {
             if (filter) {
                 filter.disconnect();
             }
         });
-        this.filters = [];
+        this._filters = [];
         // Additional cleanup logic if needed
     }
 
