@@ -23,5 +23,14 @@ export abstract class FilterManager {
         return this._filters;
     }
 
+    addFilters(filters: BiquadFilterNode[]) {
+        // todo: be more efficient
+        filters.forEach(filter => this.addFilter(filter));
+    }
+
+
+    removeFilters(filters: BiquadFilterNode[]) {
+        filters.forEach(filter => this.removeFilter(filter));
+    }
 }
 
