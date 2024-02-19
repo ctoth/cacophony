@@ -71,12 +71,14 @@ export class Sound extends FilterManager implements BaseSound {
     * @returns {Sound} A new Sound instance that is a clone of the current sound.
     */
 
-    clone(overrides?: Partial<Omit<Sound, 'clone' | 'play' | 'stop' | 'pause' | 'resume' | 'seek' | 'addFilter' | 'removeFilter' | 'isPlaying'>>): Sound {
+    clone(overrides?: Partial<Omit<Sound, 'clone' | 'play' | 'stop' | 'pause' | 'resume' | 'seek' | 'addFilter' | 'removeFilter' | 'isPlaying' | 'context' | 'globalGainNode'>>): Sound {
         const clone = new Sound(
             overrides?.url ?? this.url,
             overrides?.buffer ?? this.buffer,
             overrides?.context ?? this.context,
             overrides?.globalGainNode ?? this.globalGainNode,
+            this.context,
+            this.globalGainNode,
             overrides?.type ?? this.type,
             overrides?.panType ?? this.panType
         );
@@ -84,9 +86,21 @@ export class Sound extends FilterManager implements BaseSound {
         clone._playbackRate = overrides?._playbackRate ?? this._playbackRate;
         clone._volume = overrides?._volume ?? this._volume;
         clone._position = overrides?._position ?? this._position;
+        clone._threeDOptions = { ...this._threeDOptions, ...overrides?._threeDOptions };
+        clone._filters = overrides?._filters ?? [...this._filters];
         clone._threeDOptions = overrides?._threeDOptions ?? this._threeDOptions;
         clone._filters = overrides?._filters ?? this._filters.slice();
         clone._stereoPan = overrides?._stereoPan ?? this._stereoPan;
+        if (overrides?.panType) {
+            if (overrides.panType === 'HRTF') {
+                clone._threeDOptions = {
+                    ...clone._threeDOptions,
+                    panningModel: 'HRTF'
+                };
+            } else if (overrides.panType === 'stereo') {
+                clone._stereoPan = overrides._stereoPan ?? 0;
+            }
+        }
         return clone;
     }
 
