@@ -71,7 +71,7 @@ export class Sound extends FilterManager implements BaseSound {
     * @returns {Sound} A new Sound instance that is a clone of the current sound.
     */
 
-    clone(overrides?: Partial<Omit<Sound, 'clone' | 'play' | 'stop' | 'pause' | 'resume' | 'seek' | 'addFilter' | 'removeFilter' | 'isPlaying' | 'context' | 'globalGainNode'>>): Sound {
+    clone(overrides?: Partial<Omit<Sound, 'clone' | 'play' | 'stop' | 'pause' | 'resume' | 'seek' | 'addFilter' | 'removeFilter' | 'isPlaying' | 'context' | 'globalGainNode' | 'playbacks'>>): Sound {
         const clone = new Sound(
             overrides?.url ?? this.url,
             overrides?.buffer ?? this.buffer,
@@ -91,6 +91,7 @@ export class Sound extends FilterManager implements BaseSound {
         clone._threeDOptions = overrides?._threeDOptions ?? this._threeDOptions;
         clone._filters = overrides?._filters ?? this._filters.slice();
         clone._stereoPan = overrides?._stereoPan ?? this._stereoPan;
+        clone.playbacks = [];
         if (overrides?.panType) {
             if (overrides.panType === 'HRTF') {
                 clone._threeDOptions = {
