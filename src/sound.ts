@@ -71,16 +71,23 @@ export class Sound extends FilterManager implements BaseSound {
     * @returns {Sound} A new Sound instance that is a clone of the current sound.
     */
 
-    clone(): Sound {
-        const clone = new Sound(this.url, this.buffer, this.context, this.globalGainNode, this.type);
-        clone.loopCount = this.loopCount;
-        clone._playbackRate = this._playbackRate;
-        clone._volume = this._volume;
-        clone._position = this._position;
-        clone._threeDOptions = this._threeDOptions;
-        clone._filters = this._filters;
-        clone.panType = this.panType;
-        clone._stereoPan = this._stereoPan;
+    clone(overrides: Partial<Sound>): Sound {
+        const panType = overrides.panType || this.panType;
+        const stereoPan = overrides.stereoPan || this.stereoPan;
+        const threeDOptions = overrides.threeDOptions || this.threeDOptions;
+        const loopCount = overrides.loopCount || this.loopCount;
+        const playbackRate = overrides.playbackRate || this.playbackRate;
+        const volume = overrides.volume || this.volume;
+        const position = overrides.position || this.position;
+        const filters = overrides.filters || this.filters;
+
+        const clone = new Sound(this.url, this.buffer, this.context, this.globalGainNode, this.type, panType);
+        clone.loopCount = loopCount;
+        clone._playbackRate = playbackRate;
+        clone._volume = volume;
+        clone._position = position;
+        clone._threeDOptions = threeDOptions;
+        clone.addFilters(filters);
         return clone;
     }
 
