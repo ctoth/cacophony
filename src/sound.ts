@@ -90,7 +90,7 @@ export class Sound extends FilterManager implements BaseSound {
     * @returns {Sound} A new Sound instance that is a clone of the current sound.
     */
 
-    clone(overrides: SoundCloneOverrides): Sound {
+    clone(overrides: Partial<SoundCloneOverrides> = {}): Sound {
         const panType = overrides.panType || this.panType;
         const stereoPan = overrides.stereoPan || this.stereoPan;
         const threeDOptions = (overrides.threeDOptions || this.threeDOptions) as IPannerOptions;
