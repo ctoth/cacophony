@@ -27,6 +27,17 @@ import { Playback } from "./playback";
 import { AudioContext, IAudioBuffer, IPannerOptions } from "standardized-audio-context";
 
 
+type SoundCloneOverrides = {
+    panType?: PanType;
+    stereoPan?: number;
+    threeDOptions?: Partial<IPannerOptions>;
+    loopCount?: LoopCount;
+    playbackRate?: number;
+    volume?: number;
+    position?: Position;
+    filters?: BiquadFilterNode[];
+};
+
 export class Sound extends FilterManager implements BaseSound {
     buffer?: IAudioBuffer;
     context: AudioContext;
@@ -71,16 +82,7 @@ export class Sound extends FilterManager implements BaseSound {
     * @returns {Sound} A new Sound instance that is a clone of the current sound.
     */
 
-    clone(overrides: {
-        panType?: PanType;
-        stereoPan?: number;
-        threeDOptions?: Partial<IPannerOptions>;
-        loopCount?: LoopCount;
-        playbackRate?: number;
-        volume?: number;
-        position?: Position;
-        filters?: BiquadFilterNode[];
-    }): Sound {
+    clone(overrides: SoundCloneOverrides): Sound {
         const panType = overrides.panType || this.panType;
         const stereoPan = overrides.stereoPan || this.stereoPan;
         const threeDOptions = overrides.threeDOptions || this.threeDOptions;
