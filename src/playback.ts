@@ -33,7 +33,6 @@ export class Playback extends FilterManager implements BaseSound {
     loopCount: LoopCount = 0;
     currentLoop: number = 0;
     private buffer?: AudioBuffer;
-    private playing: boolean = false;
 
     /**
     * Creates an instance of the Playback class.
@@ -162,7 +161,7 @@ export class Playback extends FilterManager implements BaseSound {
             return;
         }
         if (this.loopCount !== 'infinite' && this.currentLoop > this.loopCount) {
-            this.playing = false;
+            this.stop();
             return;
         }
         if (this.loopCount !== 'infinite') {
@@ -179,7 +178,6 @@ export class Playback extends FilterManager implements BaseSound {
         } else {
             this.seek(0);
         }
-        this.playing = true;
     }
 
     /**
@@ -197,7 +195,6 @@ export class Playback extends FilterManager implements BaseSound {
         } else if ('start' in this.source && this.source.start) {
             this.source.start();
         }
-        this.playing = true;
         return [this];
     }
 
@@ -427,15 +424,22 @@ export class Playback extends FilterManager implements BaseSound {
      * @returns {boolean} True if the sound is playing, false otherwise.
      */
     /**
- * Checks if the audio is currently playing.
- * @returns {boolean} True if the audio is playing, false otherwise.
- * @throws {Error} Throws an error if the sound has been cleaned up.
- */
+    * Checks if the audio is currently playing.
+    * @returns {boolean} True if the audio is playing, false otherwise.
+    * @throws {Error} Throws an error if the sound has been cleaned up.
+    */
+
     isPlaying(): boolean {
         if (!this.source) {
             throw new Error('Cannot check if a sound is playing that has been cleaned up');
         }
-        return this.playing;
+        if ('mediaElement' in this.source && this.source.mediaElement) {
+            return !this.source.mediaElement.paused;
+        }
+        if ('playbackState' in this.source) {
+            return this.source.playbackState === 'running';
+        }
+        return false;
     }
 
     /**
@@ -514,7 +518,6 @@ export class Playback extends FilterManager implements BaseSound {
             this.source.mediaElement.pause();
             this.source.mediaElement.currentTime = 0;
         }
-        this.playing = false;
     }
 
     /**
