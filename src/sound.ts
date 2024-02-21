@@ -85,7 +85,7 @@ export class Sound extends FilterManager implements BaseSound {
     clone(overrides: SoundCloneOverrides): Sound {
         const panType = overrides.panType || this.panType;
         const stereoPan = overrides.stereoPan || this.stereoPan;
-        const threeDOptions = overrides.threeDOptions || this.threeDOptions;
+        const threeDOptions = (overrides.threeDOptions || this.threeDOptions) as IPannerOptions;
         const loopCount = overrides.loopCount || this.loopCount;
         const playbackRate = overrides.playbackRate || this.playbackRate;
         const volume = overrides.volume || this.volume;
