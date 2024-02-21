@@ -246,10 +246,11 @@ export class Cacophony {
     }
 
     /**
-     * Resumes the audio context.
-     * This method is required to resume the audio context on mobile devices.
-     * On desktop, the audio context will automatically resume when a sound is played.
-     */
+    * Resumes the audio context.
+    * This method is required to resume the audio context on mobile devices.
+    * On desktop, the audio context will automatically resume when a sound is played.
+    */
+
     resume() {
         if ('resume' in this.context) {
             this.context.resume();
