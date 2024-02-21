@@ -165,6 +165,7 @@ export class Sound extends FilterManager implements BaseSound {
 
     stop() {
         this.playbacks.forEach(p => p.stop());
+        this.playbacks = [];
     }
 
     /**
