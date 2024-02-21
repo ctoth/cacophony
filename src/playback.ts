@@ -610,6 +610,18 @@ export class Playback extends FilterManager implements BaseSound {
         connection = this.applyFilters(connection);
         connection.connect(this.gainNode);
     }
+
+    clone(overrides: Partial<Playback>): Playback {
+        if (!this.source || !this.gainNode || !this.context) {
+            throw new Error('Cannot clone a sound that has been cleaned up');
+        }
+
+        const panType = overrides.panType || this.panType;
+        // we'll need to create a new gain node
+        const gainNode = this.context.createGain();
+        const loopCount = overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
+        return new Playback(this.source, gainNode, this.context, loopCount, panType);
+    }
 }
 
 function clamp(value: number, min: number, max: number): number {
