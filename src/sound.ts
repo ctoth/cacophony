@@ -77,8 +77,16 @@ export class Sound extends FilterManager implements BaseSound {
     }
 
     /**
-    * Creates a deep copy of the current Sound instance, including all its properties and filters.
-    * The cloned sound can be played and manipulated independently of the original.
+    * Clones the current Sound instance, creating a deep copy with the option to override specific properties.
+    * This method allows for the creation of a new, independent Sound instance based on the current one, with the
+    * flexibility to modify certain attributes through the `overrides` parameter. This is particularly useful for
+    * creating variations of a sound without affecting the original instance. The cloned instance includes all properties,
+    * playback settings, and filters of the original, unless explicitly overridden.
+    *
+    * @param {SoundCloneOverrides} overrides - An object specifying properties to override in the cloned instance.
+    *        This can include audio settings like volume, playback rate, and spatial positioning, as well as
+    *        more complex configurations like 3D audio options and filter adjustments.
+    * @returns {Sound} A new Sound instance cloned from the current one, with any specified overrides applied.
     * @returns {Sound} A new Sound instance that is a clone of the current sound.
     */
 
