@@ -173,7 +173,7 @@ export class Playback extends FilterManager implements BaseSound {
             this.source.buffer = this.buffer;
             this.source.connect(this.panner);
             this.source.onended = this.handleLoop.bind(this);
-            if (this.currentLoop <= this.loopCount || this.loopCount === 'infinite') {
+            if (this.loopCount === 'infinite' || this.currentLoop <= this.loopCount) {
                 this.source.start(0);
             }
         } else {
