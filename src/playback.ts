@@ -621,7 +621,7 @@ export class Playback extends FilterManager implements BaseSound {
      * @returns {Playback} A new Playback instance cloned from the current one with the specified overrides applied.
      * @throws {Error} Throws an error if the sound has been cleaned up.
      */
-    clone(overrides: { loopCount?: LoopCount; panType?: PanType }): Playback {
+    clone(overrides: Partial<{ loopCount: LoopCount; panType: PanType }> = {}): Playback {
         if (!this.source || !this.gainNode || !this.context) {
             throw new Error('Cannot clone a sound that has been cleaned up');
         }
