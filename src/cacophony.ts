@@ -64,7 +64,7 @@ export type PanType = 'HRTF' | 'stereo';
  * @interface BaseSound
  */
 export interface BaseSound {
-    isPlaying(): boolean;
+    isPlaying: boolean;
     play(): BaseSound[];
     seek?(time: number): void;
     stop(): void;
@@ -398,7 +398,13 @@ export class MicrophonePlayback extends FilterManager {
         return [this];
     }
 
-    isPlaying() {
+
+    /**
+     * Indicates whether the audio is currently playing.
+     * @returns {boolean} True if the audio is playing, false otherwise.
+     */
+
+    get isPlaying() {
         return Boolean(this.source);
     }
 
@@ -528,10 +534,11 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
     }
 
     /**
-     * Returns a boolean indicating whether the sound is currently playing.
+     * A boolean indicating whether the sound is currently playing.
      * @returns {boolean} True if the sound is playing, false otherwise.
      */
-    isPlaying(): boolean {
+
+    get isPlaying(): boolean {
         return Boolean(this.streamPlayback);
     }
 

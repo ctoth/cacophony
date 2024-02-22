@@ -314,10 +314,12 @@ export class Sound extends FilterManager implements BaseSound {
 
     /**
     * Returns a boolean indicating whether the sound is currently playing.
+    * a sound is playing if any of its playbacks are currently playing.
     * @returns {boolean} True if the sound is playing, false otherwise.
     */
-    isPlaying(): boolean {
-        return this.playbacks.some(p => p.isPlaying());
+
+    get isPlaying(): boolean {
+        return this.playbacks.some(p => p.isPlaying);
     }
 
     get playbackRate(): number {

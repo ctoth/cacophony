@@ -86,8 +86,9 @@ export class Group implements BaseSound {
     * A boolean indicating whether any of the sounds in the group are currently playing.
     * @returns {boolean} True if any sound is playing, false otherwise.
     */
-    isPlaying(): boolean {
-        return this.sounds.some(sound => sound.isPlaying());
+
+    get isPlaying(): boolean {
+        return this.sounds.some(sound => sound.isPlaying);
     }
 
     /**

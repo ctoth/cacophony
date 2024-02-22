@@ -274,7 +274,7 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.source || !this.gainNode || !this.panner) {
             throw new Error('Cannot seek a sound that has been cleaned up');
         }
-        const playing = this.isPlaying();
+        const playing = this.isPlaying;
         this.stop();
         if ('mediaElement' in this.source && this.source.mediaElement) {
             this.source.mediaElement.currentTime = time;
@@ -429,7 +429,7 @@ export class Playback extends FilterManager implements BaseSound {
     * @throws {Error} Throws an error if the sound has been cleaned up.
     */
 
-    isPlaying(): boolean {
+    get isPlaying(): boolean {
         if (!this.source) {
             throw new Error('Cannot check if a sound is playing that has been cleaned up');
         }
@@ -508,7 +508,7 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.source) {
             throw new Error('Cannot stop a sound that has been cleaned up');
         }
-        if (!this.isPlaying()) {
+        if (!this.isPlaying) {
             return;
         }
         if ('stop' in this.source) {
@@ -521,9 +521,10 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
- * Pauses the audio playback.
- * @throws {Error} Throws an error if the sound has been cleaned up.
- */
+    * Pauses the audio playback.
+    * @throws {Error} Throws an error if the sound has been cleaned up.
+    */
+
     pause(): void {
         if (!this.source) {
             throw new Error('Cannot pause a sound that has been cleaned up');
@@ -534,9 +535,10 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
- * Resumes the audio playback if it was previously paused.
- * @throws {Error} Throws an error if the sound has been cleaned up.
- */
+    * Resumes the audio playback if it was previously paused.
+    * @throws {Error} Throws an error if the sound has been cleaned up.
+    */
+
     resume(): void {
         if (!this.source) {
             throw new Error('Cannot resume a sound that has been cleaned up');
@@ -547,9 +549,10 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
- * Adds a filter to the audio signal chain.
- * @param {BiquadFilterNode} filter - The filter to add.
- */
+    * Adds a filter to the audio signal chain.
+    * @param {BiquadFilterNode} filter - The filter to add.
+    */
+
     addFilter(filter: BiquadFilterNode): void {
         super.addFilter(filter);
         this.refreshFilters();
@@ -602,11 +605,12 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
- * Refreshes the audio filters by re-applying them to the audio signal chain.
- * This method is called internally whenever filters are added or removed.
- * @throws {Error} Throws an error if the sound has been cleaned up.
- */
-    private refreshFilters(): void {
+    * Refreshes the audio filters by re-applying them to the audio signal chain.
+    * This method is called internally whenever filters are added or removed.
+    * @throws {Error} Throws an error if the sound has been cleaned up.
+    */
+   private refreshFilters(): void {
+
         if (!this.panner || !this.gainNode) {
             throw new Error('Cannot update filters on a sound that has been cleaned up');
         }
