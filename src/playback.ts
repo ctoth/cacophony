@@ -617,13 +617,14 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
-     * Creates a clone of the current Playback instance with optional overrides for certain properties.
-     * This method allows for the creation of a new Playback instance that shares the same audio context
-     * and source node but can have different settings such as loop count or pan type.
-     * @param {Partial<Playback>} overrides - An object containing properties to override in the cloned instance.
-     * @returns {Playback} A new Playback instance cloned from the current one with the specified overrides applied.
-     * @throws {Error} Throws an error if the sound has been cleaned up.
-     */
+    * Creates a clone of the current Playback instance with optional overrides for certain properties.
+    * This method allows for the creation of a new Playback instance that shares the same audio context
+    * and source node but can have different settings such as loop count or pan type.
+    * @param {Partial<Playback>} overrides - An object containing properties to override in the cloned instance.
+    * @returns {Playback} A new Playback instance cloned from the current one with the specified overrides applied.
+    * @throws {Error} Throws an error if the sound has been cleaned up.
+    */
+
     clone(overrides: Partial<{ loopCount: LoopCount; panType: PanType }> = {}): Playback {
         if (!this.source || !this.gainNode || !this.context) {
             throw new Error('Cannot clone a sound that has been cleaned up');
@@ -632,6 +633,16 @@ export class Playback extends FilterManager implements BaseSound {
         const panType = overrides.panType || this.panType;
         // we'll need to create a new gain node
         const gainNode = this.context.createGain();
+        // clone the source node
+        let source: SourceNode;
+        if ('buffer' in this.source && this.source.buffer) {
+            source = this.context.createBufferSource();
+            source.buffer = this.source.buffer;
+        } else if ('mediaElement' in this.source && this.source.mediaElement) {
+            source = this.context.createMediaElementSource(this.source.mediaElement);
+        } else {
+            throw new Error('Unsupported source type');
+        }
         const loopCount = overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
         return new Playback(this.source, gainNode, this.context, loopCount, panType);
     }
