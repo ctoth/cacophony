@@ -6,10 +6,14 @@ import { Sound } from './sound';
 
 
 export class Group implements BaseSound {
-    sounds: Sound[] = [];
+
     private _position: Position = [0, 0, 0];
     loopCount: LoopCount = 0;
     private playIndex: number = 0;
+
+    constructor(
+        public sounds: Sound[] = [],
+    ) { }
 
     playRandom(): Playback {
         if (this.sounds.length === 0) {
@@ -21,6 +25,15 @@ export class Group implements BaseSound {
         playback.forEach(p => p.play());
         return playback[0];
     }
+
+
+    /**
+    * Plays the sounds in the group in a specific order.
+    * 
+    * @param shouldLoop - Indicates whether the sounds should be played in a loop.
+    * @returns The playback object representing the first sound being played.
+    * @throws Error if the group is empty and shouldLoop is false.
+     */
 
     playOrdered(shouldLoop: boolean = true): Playback {
         if (this.sounds.length === 0) {
@@ -59,20 +72,27 @@ export class Group implements BaseSound {
         }, []);
     }
 
+    /***
+    *   Plays all sounds in the group.
+    *  @returns {Playback[]} An array of Playback objects, one for each sound in the group.
+    */
+
     play(): Playback[] {
-        return this.preplay().map(playback => {
-            playback.play();
-            return playback;
-        });
+        return this.preplay().map(playback => playback.play()[0]
+        );
     }
 
     /**
-     * Returns a boolean indicating whether the sound is currently playing.
-     * @returns {boolean} True if the sound is playing, false otherwise.
-     */
+    * A boolean indicating whether any of the sounds in the group are currently playing.
+    * @returns {boolean} True if any sound is playing, false otherwise.
+    */
     isPlaying(): boolean {
         return this.sounds.some(sound => sound.isPlaying());
     }
+
+    /**
+    * Stops all the sounds in the group.
+    */
 
     stop(): void {
         this.sounds.forEach(sound => sound.stop());
@@ -91,7 +111,7 @@ export class Group implements BaseSound {
             return this.loopCount;
         }
         this.loopCount = loopCount;
-        this.sounds.forEach(sound => sound.loop && sound.loop(loopCount));
+        this.sounds.forEach(sound => sound.loop(loopCount));
         return this.loopCount;
     }
 
