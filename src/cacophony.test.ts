@@ -1,4 +1,5 @@
 import { Cacophony, Sound } from './cacophony';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { AudioContext } from 'standardized-audio-context-mock';
 
 let cacophony: Cacophony;
@@ -13,10 +14,10 @@ afterEach(() => {
     audioContextMock.close();
 });
 
-test('Cacophony is created with the correct context', () => {
+it('Cacophony is created with the correct context', () => {
     expect(cacophony.context).toBe(audioContextMock);
 });
-test('createSound creates a sound with the correct buffer', async () => {
+it('createSound creates a sound with the correct buffer', async () => {
     const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
     const sound = await cacophony.createSound(buffer) as Sound;
     expect(sound.buffer).toBe(buffer);
