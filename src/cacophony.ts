@@ -155,7 +155,7 @@ export class Cacophony {
     async createSound(url: string, soundType?: SoundType, panType?: PanType): Promise<Sound>
 
     async createSound(bufferOrUrl: AudioBuffer | string, soundType: SoundType = SoundType.Buffer, panType: PanType = 'HRTF'): Promise<Sound> {
-        if (bufferOrUrl instanceof AudioBuffer) {
+        if (typeof bufferOrUrl === 'object') {
             return Promise.resolve(new Sound("", bufferOrUrl, this.context, this.globalGainNode, SoundType.Buffer, panType));
         }
         const url = bufferOrUrl;

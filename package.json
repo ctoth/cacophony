@@ -51,10 +51,7 @@
   },
   "vitest": {
     "globals": true,
-    "environment": "node",
-    "transformMode": {
-      "web": [/.[tj]sx?$/]
-    }
+    "coverage": true
   },
   "dependencies": {
     "fft.js": "^4.0.4",
