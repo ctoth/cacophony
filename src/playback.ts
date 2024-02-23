@@ -161,7 +161,7 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.source || !this.panner) {
             return;
         }
-        if (this.loopCount !== 'infinite' && this.currentLoop >= this.loopCount) {
+
         if (this.loopCount !== 'infinite' && this.currentLoop > this.loopCount) {
             this.stop();
             this._playing = false;
@@ -272,10 +272,11 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
- * Seeks to a specific time in the audio.
- * @param {number} time - The time in seconds to seek to.
- * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
- */
+    * Seeks to a specific time in the audio.
+    * @param {number} time - The time in seconds to seek to.
+    * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
+    */
+
     seek(time: number): void {
         if (!this.source || !this.gainNode || !this.panner) {
             throw new Error('Cannot seek a sound that has been cleaned up');
@@ -302,10 +303,11 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
- * Gets the current volume of the audio.
- * @returns {number} The current volume.
- * @throws {Error} Throws an error if the sound has been cleaned up.
- */
+    * Gets the current volume of the audio.
+    * @throws {Error} Throws an error if the sound has been cleaned up.
+    * @returns {number} The current volume.
+    */
+
     get volume(): number {
         if (!this.gainNode) {
             throw new Error('Cannot get volume of a sound that has been cleaned up');
@@ -343,18 +345,14 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
-     * Gradually increases the volume of the sound from silence to its current volume level over the specified duration.
-     * @param {number} time - The duration in seconds over which the volume will increase.
-     * @param {FadeType} fadeType - The type of fade curve to apply, either 'linear' or 'exponential'.
-     * @returns {Promise<void>} A promise that resolves when the fade-in effect is complete.
-     */
-    /**
- * Fades in the audio from silence to its current volume level over a specified duration.
- * @param {number} time - The duration in seconds for the fade-in.
- * @param {FadeType} fadeType - The type of fade curve ('linear' or 'exponential').
- * @returns {Promise<void>} A promise that resolves when the fade-in is complete.
- * @throws {Error} Throws an error if the sound has been cleaned up.
- */
+    * Fades in the audio from silence to its current volume level over a specified duration.
+    * @param {number} time - The duration in seconds for the fade-in.
+    * @param {FadeType} fadeType - The type of fade curve ('linear' or 'exponential').
+    * @returns {Promise<void>} A promise that resolves when the fade-in is complete.
+    * @throws {Error} Throws an error if the sound has been cleaned up.
+    * @throws {Error} Throws an error if the sound has been cleaned up.
+    */
+
     fadeIn(time: number, fadeType: FadeType = 'linear'): Promise<void> {
         return new Promise(resolve => {
             if (!this.gainNode) {
@@ -426,16 +424,17 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
-     * Returns a boolean indicating whether the sound is currently playing.
-     * @returns {boolean} True if the sound is playing, false otherwise.
-     */
-    /**
     * Checks if the audio is currently playing.
     * @returns {boolean} True if the audio is playing, false otherwise.
-    * @throws {Error} Throws an error if the sound has been cleaned up.
     */
 
-    // Removed the isPlaying getter method as requested.
+    get isPlaying(): boolean {
+        if (!this.source) {
+            return false;
+        }
+        return this._playing;
+    }
+
 
     /**
  * Cleans up resources used by the Playback instance.
@@ -647,6 +646,7 @@ export class Playback extends FilterManager implements BaseSound {
         const loopCount = overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
         return new Playback(source, gainNode, this.context, loopCount, panType);
     }
+
 }
 
 function clamp(value: number, min: number, max: number): number {
