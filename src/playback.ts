@@ -513,6 +513,7 @@ export class Playback extends FilterManager implements BaseSound {
             this.source.mediaElement.pause();
             this.source.mediaElement.currentTime = 0;
         }
+        this._playing = false;
     }
 
     /**
@@ -526,6 +527,7 @@ export class Playback extends FilterManager implements BaseSound {
         }
         if ('suspend' in this.source.context) {
             this.source.context.suspend();
+            this._playing = false;
         }
     }
 
