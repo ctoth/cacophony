@@ -161,8 +161,10 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.source || !this.panner) {
             return;
         }
+        if (this.loopCount !== 'infinite' && this.currentLoop >= this.loopCount) {
         if (this.loopCount !== 'infinite' && this.currentLoop > this.loopCount) {
             this.stop();
+            this._playing = false;
             return;
         }
         if (this.loopCount !== 'infinite') {
@@ -175,9 +177,11 @@ export class Playback extends FilterManager implements BaseSound {
             this.source.onended = this.handleLoop.bind(this);
             if (this.loopCount === 'infinite' || this.currentLoop <= this.loopCount) {
                 this.source.start(0);
+                this._playing = true;
             }
         } else {
             this.seek(0);
+            this._playing = true;
         }
     }
 
