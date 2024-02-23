@@ -15,6 +15,12 @@ export class Group implements BaseSound {
         public sounds: Sound[] = [],
     ) { }
 
+    /**
+    * Plays a random sound from the group.
+    * @returns The playback object representing the played sound.
+    * @throws Error if the group is empty and there are no sounds to play.
+    */
+
     playRandom(): Playback {
         if (this.sounds.length === 0) {
             throw new Error('Cannot play a random sound from an empty group');

@@ -609,7 +609,7 @@ export class Playback extends FilterManager implements BaseSound {
     * This method is called internally whenever filters are added or removed.
     * @throws {Error} Throws an error if the sound has been cleaned up.
     */
-   private refreshFilters(): void {
+    private refreshFilters(): void {
 
         if (!this.panner || !this.gainNode) {
             throw new Error('Cannot update filters on a sound that has been cleaned up');
@@ -648,7 +648,7 @@ export class Playback extends FilterManager implements BaseSound {
             throw new Error('Unsupported source type');
         }
         const loopCount = overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
-        return new Playback(this.source, gainNode, this.context, loopCount, panType);
+        return new Playback(source, gainNode, this.context, loopCount, panType);
     }
 }
 
