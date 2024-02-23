@@ -26,6 +26,7 @@ import { FilterManager } from "./filters";
 
 
 export class Playback extends FilterManager implements BaseSound {
+    private _playing: boolean = false;
     private context: AudioContext;
     private source?: SourceNode;
     private gainNode?: GainNode;
@@ -195,6 +196,7 @@ export class Playback extends FilterManager implements BaseSound {
         } else if ('start' in this.source && this.source.start) {
             this.source.start();
         }
+        this._playing = true;
         return [this];
     }
 
