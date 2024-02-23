@@ -62,6 +62,8 @@ it('createBiquadFilter creates a BiquadFilterNode with the provided parameters',
 });
 import { Sound } from './sound';
 
+import { SoundType } from './cacophony';
+
 describe('Sound class', () => {
     let sound: Sound;
     let buffer: AudioBuffer;
