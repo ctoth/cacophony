@@ -1,6 +1,6 @@
 import { Cacophony, Sound } from './cacophony';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { AudioContext } from 'standardized-audio-context-mock';
+import { AudioContext, AudioBuffer } from 'standardized-audio-context-mock';
 
 let cacophony: Cacophony;
 let audioContextMock: AudioContext;
