@@ -60,3 +60,56 @@ it('createBiquadFilter creates a BiquadFilterNode with the provided parameters',
     expect(filter.gain.value).toBe(5);
     expect(filter.Q.value).toBe(0.5);
 });
+import { Sound } from './sound';
+
+describe('Sound class', () => {
+    let sound: Sound;
+    let buffer: AudioBuffer;
+
+    beforeEach(() => {
+        buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+        sound = new Sound('test-url', buffer, audioContextMock, audioContextMock.createGain());
+    });
+
+    it('is created with correct properties', () => {
+        expect(sound.url).toBe('test-url');
+        expect(sound.buffer).toBe(buffer);
+        expect(sound.context).toBe(audioContextMock);
+        expect(sound.type).toBe(SoundType.Buffer);
+        expect(sound.panType).toBe('HRTF');
+    });
+
+    it('can play and stop a sound', async () => {
+        const playbacks = sound.play();
+        expect(playbacks.length).toBeGreaterThan(0);
+        expect(playbacks[0].isPlaying).toBe(true);
+        sound.stop();
+        expect(playbacks[0].isPlaying).toBe(false);
+    });
+
+    it('can pause and resume a sound', async () => {
+        const playbacks = sound.play();
+        sound.pause();
+        expect(playbacks[0].isPlaying).toBe(false);
+        sound.resume();
+        expect(playbacks[0].isPlaying).toBe(true);
+    });
+
+    it('can set and get volume', () => {
+        sound.volume = 0.5;
+        expect(sound.volume).toBe(0.5);
+    });
+
+    it('can set and get playbackRate', () => {
+        sound.playbackRate = 0.75;
+        expect(sound.playbackRate).toBe(0.75);
+    });
+
+    it('can add and remove filters', () => {
+        const filter = audioContextMock.createBiquadFilter();
+        sound.addFilter(filter);
+        expect(sound.filters.length).toBe(1);
+        sound.removeFilter(filter);
+        expect(sound.filters.length).toBe(0);
+    });
+});
