@@ -429,18 +429,7 @@ export class Playback extends FilterManager implements BaseSound {
     * @throws {Error} Throws an error if the sound has been cleaned up.
     */
 
-    get isPlaying(): boolean {
-        if (!this.source) {
-            throw new Error('Cannot check if a sound is playing that has been cleaned up');
-        }
-        if ('mediaElement' in this.source && this.source.mediaElement) {
-            return !this.source.mediaElement.paused;
-        }
-        if ('playbackState' in this.source) {
-            return this.source.playbackState === 'running';
-        }
-        return false;
-    }
+    // Removed the isPlaying getter method as requested.
 
     /**
  * Cleans up resources used by the Playback instance.
