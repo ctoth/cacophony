@@ -20,8 +20,8 @@
     "build:worklets": "rollup -c",
     "clean": "rimraf build",
     "prepublishOnly": "npm run build",
-    "test": "jest",
-    "ci:test": "jest --no-color --ci"
+    "test": "vitest",
+    "ci:test": "vitest run --no-color --ci"
   },
   "keywords": [
     "audio",
@@ -50,9 +50,12 @@
     "vite": "^5.1.3",
     "vite-plugin-dts": "^3.7.2"
   },
-  "jest": {
-    "preset": "ts-jest",
-    "testEnvironment": "node"
+  "vitest": {
+    "globals": true,
+    "environment": "node",
+    "transformMode": {
+      "web": [/.[tj]sx?$/]
+    }
   },
   "dependencies": {
     "fft.js": "^4.0.4",
