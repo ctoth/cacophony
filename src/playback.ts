@@ -163,14 +163,14 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.source) {
             return;
         }
-        if (this.loopCount !== 'infinite' && this.currentLoop >= this.loopCount) {
-            this.stop();
-            return;
-        }
         if (this.loopCount !== 'infinite') {
             this.currentLoop++;
         }
-        if (this.currentLoop < this.loopCount || this.loopCount === 'infinite') {
+        if (this.loopCount !== 'infinite' && this.currentLoop > this.loopCount) {
+            this.stop();
+            return;
+        }
+        if (this.loopCount === 'infinite' || this.currentLoop < this.loopCount) {
             if (this.buffer) {
                 this.recreateSource();
                 (this.source as AudioBufferSourceNode).start(0);
@@ -180,14 +180,6 @@ export class Playback extends FilterManager implements BaseSound {
             }
         } else {
             this._playing = false;
-        }
-        if (this.buffer) {
-            if (this.loopCount === 'infinite' || this.currentLoop < this.loopCount) {
-                (this.source as AudioBufferSourceNode).start(0);
-                this._playing = true;
-            }
-        } else {
-            this.seek(0);
         }
     }
 
