@@ -20,6 +20,7 @@
                 sound = await cacophony.createSound(soundUrl, SoundType.Buffer, panType);
                 if (loopCheckbox) sound.loop('infinite');
                 sound.play();
+window.sound = sound;
             });
 
             document.getElementById('stopSound').addEventListener('click', () => {
