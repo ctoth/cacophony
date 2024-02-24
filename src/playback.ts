@@ -160,7 +160,7 @@ export class Playback extends FilterManager implements BaseSound {
     */
 
     handleLoop = () => {
-        if (!this.source || !this.panner) {
+        if (!this.source || !this.panner || !this._playing) {
             return;
         }
         this.pauseTime = 0
