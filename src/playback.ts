@@ -56,9 +56,11 @@ export class Playback extends FilterManager implements BaseSound {
             this.buffer = source.buffer;
         }
         if ('mediaElement' in source && source.mediaElement) {
-            source.mediaElement.onended = this.handleLoop.bind(this);
+            source.mediaElement.onended = this.handleLoop;
         } else if ('onended' in source) {
-            source.onended = this.handleLoop.bind(this);
+            source.onended = this.handleLoop;
+        } else {
+            throw new Error('Unsupported source type');
         }
         this.gainNode = gainNode;
         this.context = context;
@@ -163,20 +165,22 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.source) {
             return;
         }
-        if (this.loopCount !== 'infinite') {
-            this.currentLoop++;
-        }
+        this.currentLoop++;
         if (this.loopCount !== 'infinite' && this.currentLoop > this.loopCount) {
+            this._playing = false;
             this.stop();
-            return;
         }
         if (this.loopCount === 'infinite' || this.currentLoop < this.loopCount) {
             if (this.buffer) {
                 this.recreateSource();
-                (this.source as AudioBufferSourceNode).start(0);
-                this._playing = true;
+                if (this._playing) {
+                    (this.source as AudioBufferSourceNode).start(0);
+                    this._playing = true;
+                }
             } else {
-                this.seek(0);
+                if (this._playing) {
+                    this.seek(0);
+                }
             }
         } else {
             this._playing = false;
@@ -190,7 +194,7 @@ export class Playback extends FilterManager implements BaseSound {
         this.source = this.context.createBufferSource();
         this.source.buffer = this.buffer;
         this.source.connect(this.panner);
-        this.source.onended = this.handleLoop.bind(this);
+        this.source.onended = this.handleLoop;
     }
 
     /**
@@ -314,8 +318,9 @@ export class Playback extends FilterManager implements BaseSound {
             // Create a new source to start from the desired time
             this.source = this.context.createBufferSource();
             this.source.buffer = this.buffer;
+            this.source.onended = this.handleLoop;
             this.refreshFilters();
-            this.source.connect(this.panner).connect(this.gainNode);
+            this.source.connect(this.panner);
             if (playing) {
                 this.source.start(0, time);
             }
@@ -411,18 +416,13 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
-     * Gradually decreases the volume of the sound from its current volume level to silence over the specified duration.
-     * @param {number} time - The duration in seconds over which the volume will decrease.
-     * @param {FadeType} fadeType - The type of fade curve to apply, either 'linear' or 'exponential'.
-     * @returns {Promise<void>} A promise that resolves when the fade-out effect is complete.
-     */
-    /**
- * Fades out the audio to silence over a specified duration.
- * @param {number} time - The duration in seconds for the fade-out.
- * @param {FadeType} fadeType - The type of fade curve ('linear' or 'exponential').
- * @returns {Promise<void>} A promise that resolves when the fade-out is complete.
- * @throws {Error} Throws an error if the sound has been cleaned up.
- */
+    * Fades out the audio to silence over a specified duration.
+    * @param {number} time - The duration in seconds for the fade-out.
+    * @param {FadeType} fadeType - The type of fade curve ('linear' or 'exponential').
+    * @returns {Promise<void>} A promise that resolves when the fade-out is complete.
+    * @throws {Error} Throws an error if the sound has been cleaned up.
+    */
+
     fadeOut(time: number, fadeType: FadeType = 'linear'): Promise<void> {
         return new Promise(resolve => {
             // Storing the current gain value
@@ -526,12 +526,15 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.isPlaying) {
             return;
         }
-        if ('stop' in this.source) {
-            this.source.stop();
-        }
-        if ("mediaElement" in this.source && this.source.mediaElement) {
-            this.source.mediaElement.pause();
-            this.source.mediaElement.currentTime = 0;
+        try {
+            if ('stop' in this.source) {
+                this.source.stop();
+            }
+            if ("mediaElement" in this.source && this.source.mediaElement) {
+                this.source.mediaElement.pause();
+                this.source.mediaElement.currentTime = 0;
+            }
+        } catch (e) {
         }
         this._playing = false;
         this.startTime = 0;
@@ -549,9 +552,9 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
- * Removes a filter from the audio signal chain.
- * @param {BiquadFilterNode} filter - The filter to remove.
- */
+    * Removes a filter from the audio signal chain.
+    * @param {BiquadFilterNode} filter - The filter to remove.
+    */
     removeFilter(filter: BiquadFilterNode): void {
         super.removeFilter(filter);
         this.refreshFilters();
