@@ -51,7 +51,8 @@
   },
   "vitest": {
     "globals": true,
-    "coverage": true
+    "coverage": true,
+    "environment": "node"
   },
   "dependencies": {
     "fft.js": "^4.0.4",

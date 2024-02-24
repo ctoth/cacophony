@@ -1,7 +1,7 @@
 import { AudioContext, AudioWorkletNode, IAudioListener, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
 import phaseVocoderProcessorWorkletUrl from './bundles/phase-vocoder-bundle.js?url';
 import { CacheManager } from './cache';
-import { BiquadFilterNode, GainNode } from './context';
+import { BiquadFilterNode, GainNode, AudioBuffer } from './context';
 import { FilterManager } from './filters';
 import { Group } from './group';
 import { Playback } from './playback';
@@ -69,7 +69,6 @@ export interface BaseSound {
     seek?(time: number): void;
     stop(): void;
     pause(): void;
-    resume(): void;
     addFilter(filter: BiquadFilterNode): void;
     removeFilter(filter: BiquadFilterNode): void;
     volume: number;
@@ -165,7 +164,7 @@ export class Cacophony {
             audio.crossOrigin = 'anonymous';
             return new Sound(url, undefined, this.context, this.globalGainNode, SoundType.HTML, panType);
         }
-        return CacheManager.getAudioBuffer(url, this.context).then(buffer => new Sound(url, buffer, this.context, this.globalGainNode, soundType, panType));
+        return CacheManager.getAudioBuffer(url, this.context).then(buffer => new Sound(url as string, buffer, this.context, this.globalGainNode, soundType, panType));
     }
 
     async createGroup(sounds: Sound[]): Promise<Group> {

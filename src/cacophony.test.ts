@@ -1,6 +1,7 @@
+import { AudioBuffer, AudioContext } from 'standardized-audio-context-mock';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Cacophony } from './cacophony';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { AudioContext, AudioBuffer } from 'standardized-audio-context-mock';
+import { Sound } from './sound';
 
 let cacophony: Cacophony;
 let audioContextMock: AudioContext;
@@ -60,7 +61,6 @@ it('createBiquadFilter creates a BiquadFilterNode with the provided parameters',
     expect(filter.gain.value).toBe(5);
     expect(filter.Q.value).toBe(0.5);
 });
-import { Sound } from './sound';
 
 import { SoundType } from './cacophony';
 
@@ -93,7 +93,7 @@ describe('Sound class', () => {
         const playbacks = sound.play();
         sound.pause();
         expect(playbacks[0].isPlaying).toBe(false);
-        sound.resume();
+        sound.playbacks[0].play();
         expect(playbacks[0].isPlaying).toBe(true);
     });
 

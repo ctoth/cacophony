@@ -109,10 +109,6 @@ export class Group implements BaseSound {
         this.sounds.forEach(sound => sound.pause());
     }
 
-    resume(): void {
-        this.sounds.forEach(sound => sound.resume());
-    }
-
     loop(loopCount?: LoopCount): LoopCount {
         if (loopCount === undefined) {
             return this.loopCount;

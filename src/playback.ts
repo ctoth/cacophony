@@ -34,6 +34,8 @@ export class Playback extends FilterManager implements BaseSound {
     loopCount: LoopCount = 0;
     currentLoop: number = 0;
     private buffer?: AudioBuffer;
+    pauseTime: number = 0;
+    startTime: number = 0;
 
     /**
     * Creates an instance of the Playback class.
@@ -161,11 +163,10 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.source || !this.panner) {
             return;
         }
-
+        this.pauseTime = 0
         if (this.loopCount !== 'infinite' && this.currentLoop > this.loopCount) {
             this.stop();
             this._playing = false;
-            return;
         }
         if (this.loopCount !== 'infinite') {
             this.currentLoop++;
@@ -198,10 +199,24 @@ export class Playback extends FilterManager implements BaseSound {
         if ('mediaElement' in this.source && this.source.mediaElement) {
             this.source.mediaElement.play();
         } else if ('start' in this.source && this.source.start) {
-            this.source.start();
+            const offset = this.pauseTime ? this.pauseTime : 0;
+            this.source.start(0, offset);
         }
         this._playing = true;
         return [this];
+    }
+
+    pause(): void {
+        if (!this.source) {
+            throw new Error('Cannot pause a sound that has been cleaned up');
+        }
+        if ('mediaElement' in this.source && this.source.mediaElement) {
+            this.source.mediaElement.pause();
+        } else if ('stop' in this.source && this.source.stop) {
+            this.pauseTime = this.context.currentTime - this.startTime;
+            this.source.stop();
+        }
+        this._playing = false;
     }
 
     /**
@@ -252,23 +267,23 @@ export class Playback extends FilterManager implements BaseSound {
             throw new Error('Cannot set 3D options of a sound that is not using HRTF');
         }
         const panner = this.panner as PannerNode;
-        panner.coneInnerAngle = options.coneInnerAngle || panner.coneInnerAngle;
-        panner.coneOuterAngle = options.coneOuterAngle || panner.coneOuterAngle;
-        panner.coneOuterGain = options.coneOuterGain || panner.coneOuterGain;
+        panner.coneInnerAngle = options.coneInnerAngle !== undefined ? options.coneInnerAngle : panner.coneInnerAngle;
+        panner.coneOuterAngle = options.coneOuterAngle !== undefined ? options.coneOuterAngle : panner.coneOuterAngle;
+        panner.coneOuterGain = options.coneOuterGain !== undefined ? options.coneOuterGain : panner.coneOuterGain;
         panner.distanceModel = options.distanceModel || panner.distanceModel;
-        panner.maxDistance = options.maxDistance || panner.maxDistance;
-        panner.channelCount = options.channelCount || panner.channelCount;
+        panner.maxDistance = options.maxDistance !== undefined ? options.maxDistance : panner.maxDistance;
+        panner.channelCount = options.channelCount !== undefined ? options.channelCount : panner.channelCount;
         panner.channelCountMode = options.channelCountMode || panner.channelCountMode;
         panner.channelInterpretation = options.channelInterpretation || panner.channelInterpretation;
         panner.panningModel = options.panningModel || panner.panningModel;
-        panner.refDistance = options.refDistance || panner.refDistance;
-        panner.rolloffFactor = options.rolloffFactor || panner.rolloffFactor;
-        panner.positionX.value = options.positionX || panner.positionX.value;
-        panner.positionY.value = options.positionY || panner.positionY.value;
-        panner.positionZ.value = options.positionZ || panner.positionZ.value;
-        panner.orientationX.value = options.orientationX || panner.orientationX.value;
-        panner.orientationY.value = options.orientationY || panner.orientationY.value;
-        panner.orientationZ.value = options.orientationZ || panner.orientationZ.value;
+        panner.refDistance = options.refDistance !== undefined ? options.refDistance : panner.refDistance;
+        panner.rolloffFactor = options.rolloffFactor !== undefined ? options.rolloffFactor : panner.rolloffFactor;
+        panner.positionX.value = options.positionX !== undefined ? options.positionX : panner.positionX.value;
+        panner.positionY.value = options.positionY !== undefined ? options.positionY : panner.positionY.value;
+        panner.positionZ.value = options.positionZ !== undefined ? options.positionZ : panner.positionZ.value;
+        panner.orientationX.value = options.orientationX !== undefined ? options.orientationX : panner.orientationX.value;
+        panner.orientationY.value = options.orientationY !== undefined ? options.orientationY : panner.orientationY.value;
+        panner.orientationZ.value = options.orientationZ !== undefined ? options.orientationZ : panner.orientationZ.value;
     }
 
     /**
@@ -435,11 +450,11 @@ export class Playback extends FilterManager implements BaseSound {
         return this._playing;
     }
 
-
     /**
- * Cleans up resources used by the Playback instance.
- * This method should be called when the audio is no longer needed to free up resources.
- */
+    * Cleans up resources used by the Playback instance.
+    * This method should be called when the audio is no longer needed to free up resources.
+    */
+
     cleanup(): void {
         // Ensure cleanup is idempotent
         if (this.source) {
@@ -456,7 +471,6 @@ export class Playback extends FilterManager implements BaseSound {
             }
         });
         this._filters = [];
-        // Additional cleanup logic if needed
     }
 
     /**
@@ -513,35 +527,8 @@ export class Playback extends FilterManager implements BaseSound {
             this.source.mediaElement.currentTime = 0;
         }
         this._playing = false;
-    }
-
-    /**
-    * Pauses the audio playback.
-    * @throws {Error} Throws an error if the sound has been cleaned up.
-    */
-
-    pause(): void {
-        if (!this.source) {
-            throw new Error('Cannot pause a sound that has been cleaned up');
-        }
-        if ('suspend' in this.source.context) {
-            this.source.context.suspend();
-            this._playing = false;
-        }
-    }
-
-    /**
-    * Resumes the audio playback if it was previously paused.
-    * @throws {Error} Throws an error if the sound has been cleaned up.
-    */
-
-    resume(): void {
-        if (!this.source) {
-            throw new Error('Cannot resume a sound that has been cleaned up');
-        }
-        if ('resume' in this.source.context) {
-            this.source.context.resume();
-        }
+        this.startTime = 0;
+        this.pauseTime = 0;
     }
 
     /**

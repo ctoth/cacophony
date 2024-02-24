@@ -178,14 +178,6 @@ export class Sound extends FilterManager implements BaseSound {
     }
 
     /**
-    * Resumes all current playbacks of the sound that were previously paused.
-    */
-
-    resume(): void {
-        this.playbacks.forEach(playback => playback.resume());
-    }
-
-    /**
     * Seeks to a specific time within the sound's playback.
     * @param { number } time - The time in seconds to seek to.
     * This method iterates through all active `Playback` instances and calls their `seek()` method with the specified time.
