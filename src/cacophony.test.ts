@@ -1,5 +1,5 @@
 import { AudioBuffer, AudioContext } from 'standardized-audio-context-mock';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, test, } from 'vitest';
 import { Cacophony } from './cacophony';
 import { Sound } from './sound';
 
@@ -15,11 +15,11 @@ afterEach(() => {
     audioContextMock.close();
 });
 
-it('Cacophony is created with the correct context', () => {
+test('Cacophony is created with the correct context', () => {
     expect(cacophony.context).toBe(audioContextMock);
 });
 
-it('createSound creates a sound with the correct buffer', async () => {
+test('that createSound creates a sound with the correct buffer', async () => {
     const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
     const sound = await cacophony.createSound(buffer);
     expect(sound.buffer).toBe(buffer);
@@ -114,4 +114,25 @@ describe('Sound class', () => {
         sound.removeFilter(filter);
         expect(sound.filters.length).toBe(0);
     });
+});
+
+test('A sound loops the correct number of times', async () => {
+    const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    const sound = new Sound('test-url', buffer, audioContextMock, audioContextMock.createGain());
+    const playbacks = sound.play();
+    const playback = playbacks[0];
+    expect(playback.isPlaying).toBe(true);
+    // Set the sound to loop 3 times
+    playback.loop(3);
+
+    // Simulate the end of playback to trigger looping
+    for (let i = 0; i < 3; i++) {
+        playback.handleLoop();
+    }
+
+    // The sound should have looped 3 times
+    expect(playback.currentLoop).toBe(3);
+
+    // The sound should not be playing after 3 loops
+    expect(playback.isPlaying).toBe(false);
 });
