@@ -19,8 +19,8 @@
  */
 
 
-import { BaseSound, FadeType, LoopCount, PanType, Position } from "./cacophony";
-import { AudioBuffer, AudioContext, BiquadFilterNode, GainNode, IPannerOptions, PannerNode, SourceNode, StereoPannerNode } from "./context";
+import type { BaseSound, FadeType, LoopCount, PanType, Position } from "./cacophony";
+import type { AudioBuffer, AudioBufferSourceNode, AudioContext, BiquadFilterNode, GainNode, IPannerOptions, PannerNode, SourceNode, StereoPannerNode } from "./context";
 import { FilterManager } from "./filters";
 
 
@@ -160,30 +160,39 @@ export class Playback extends FilterManager implements BaseSound {
     */
 
     handleLoop = () => {
-        if (!this.source || !this.panner || !this._playing) {
+        if (!this.source || !this.panner) {
             return;
         }
+        if (this.buffer) {
+            this.recreateSource();
+        }
+
         this.pauseTime = 0
-        if (this.loopCount !== 'infinite' && this.currentLoop > this.loopCount) {
+        if (!this._playing || this.loopCount !== 'infinite' && this.currentLoop > this.loopCount) {
             this.stop();
-            this._playing = false;
+            return;
         }
         if (this.loopCount !== 'infinite') {
             this.currentLoop++;
         }
         if (this.buffer) {
-            this.source = this.context.createBufferSource();
-            this.source.buffer = this.buffer;
-            this.source.connect(this.panner);
-            this.source.onended = this.handleLoop.bind(this);
             if (this.loopCount === 'infinite' || this.currentLoop < this.loopCount) {
-                this.source.start(0);
+                (this.source as AudioBufferSourceNode).start(0);
                 this._playing = true;
             }
         } else {
             this.seek(0);
-            this._playing = true;
         }
+    }
+
+    private recreateSource() {
+        if (!this.buffer || !this.source || !this.panner || !this.context || !this.gainNode) {
+            throw new Error('Cannot recreate source of a sound that has been cleaned up');
+        }
+        this.source = this.context.createBufferSource();
+        this.source.buffer = this.buffer;
+        this.source.connect(this.panner);
+        this.source.onended = this.handleLoop.bind(this);
     }
 
     /**
@@ -633,7 +642,6 @@ export class Playback extends FilterManager implements BaseSound {
         const loopCount = overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
         return new Playback(source, gainNode, this.context, loopCount, panType);
     }
-
 }
 
 function clamp(value: number, min: number, max: number): number {
