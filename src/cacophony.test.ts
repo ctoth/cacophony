@@ -136,3 +136,21 @@ test('A sound loops the correct number of times', async () => {
     // The sound should not be playing after 3 loops
     expect(playback.isPlaying).toBe(false);
 });
+it('can safely stop a sound twice, then play it, and stop it again', async () => {
+    const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    const sound = new Sound('test-url', buffer, audioContextMock, audioContextMock.createGain());
+    // Create and stop the sound twice
+    sound.play();
+    sound.stop();
+    sound.stop();
+    // Ensure the sound is not playing
+    expect(sound.isPlaying).toBe(false);
+    // Play the sound again
+    sound.play();
+    // Ensure the sound is playing
+    expect(sound.isPlaying).toBe(true);
+    // Stop the sound
+    sound.stop();
+    // Ensure the sound is not playing
+    expect(sound.isPlaying).toBe(false);
+});
