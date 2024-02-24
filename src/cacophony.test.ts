@@ -154,3 +154,16 @@ it('can safely stop a sound twice, then play it, and stop it again', async () =>
     // Ensure the sound is not playing
     expect(sound.isPlaying).toBe(false);
 });
+it('ensures isPlaying is set to false after a sound ends naturally', async () => {
+    const buffer = new AudioBuffer({ length: 1, sampleRate: 44100 });
+    const sound = new Sound('test-url', buffer, audioContextMock, audioContextMock.createGain());
+    const playbacks = sound.play();
+    const playback = playbacks[0];
+    expect(playback.isPlaying).toBe(true);
+
+    // Simulate the end of playback
+    playback.handleLoop();
+
+    // The sound should not be playing after it ends
+    expect(playback.isPlaying).toBe(false);
+});
