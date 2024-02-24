@@ -167,7 +167,7 @@ export class Playback extends FilterManager implements BaseSound {
             this.recreateSource();
         }
 
-        this.pauseTime = 0
+        this.pauseTime = 0;
         if (!this._playing || this.loopCount !== 'infinite' && this.currentLoop > this.loopCount) {
             this.stop();
             return;

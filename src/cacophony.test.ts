@@ -125,10 +125,10 @@ test('A sound loops the correct number of times', async () => {
     // Set the sound to loop 3 times
     playback.loop(3);
 
-    // Simulate the end of playback to trigger looping
-    for (let i = 0; i < 3; i++) {
-        playback.handleLoop();
-    }
+    // Simulate the end of playback to trigger looping 3 times
+    playback.handleLoop(); // First loop
+    playback.handleLoop(); // Second loop
+    playback.handleLoop(); // Third loop
 
     // The sound should have looped 3 times
     expect(playback.currentLoop).toBe(3);
