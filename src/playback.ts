@@ -547,7 +547,12 @@ export class Playback extends FilterManager implements BaseSound {
     */
 
     addFilter(filter: BiquadFilterNode): void {
-        super.addFilter(filter);
+        // we have to clone the filter to avoid reusing the same filter node
+        const newFilter = filter.context.createBiquadFilter();
+        newFilter.type = filter.type;
+        newFilter.frequency.value = filter.frequency.value;
+        newFilter.Q.value = filter.Q.value;
+        super.addFilter(newFilter);
         this.refreshFilters();
     }
 
