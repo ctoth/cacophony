@@ -16,6 +16,9 @@ export class CacheManager {
         try {
             const response = await cache.match(url);
             if (response) {
+                if (!response.ok) {
+                    throw new Error('Failed to get audio data from cache');
+                }
                 const arrayBuffer = await response.arrayBuffer();
                 return context.decodeAudioData(arrayBuffer);
             }
