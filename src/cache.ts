@@ -29,11 +29,31 @@ export class CacheManager {
         }
     }
 
-    private static async fetchAndCacheAudioBuffer(url: string, cache: Cache, context: AudioContext): Promise<AudioBuffer> {
+    private static async fetchAndCacheAudioBuffer(url: string, cache: Cache, context: AudioContext, etag?: string, lastModified?: string): Promise<AudioBuffer> {
         try {
-            const fetchResponse = await fetch(url);
+            const headers = new Headers();
+            if (etag) {
+                headers.append('If-None-Match', etag);
+            }
+            if (lastModified) {
+                headers.append('If-Modified-Since', lastModified);
+            }
+            const fetchResponse = await fetch(url, { headers });
             const responseClone = fetchResponse.clone();
-            cache.put(url, responseClone);
+            if (fetchResponse.status === 200) {
+                const newEtag = fetchResponse.headers.get('ETag');
+                const newLastModified = fetchResponse.headers.get('Last-Modified');
+                const cacheData = { url, etag: newEtag, lastModified: newLastModified };
+                cache.put(url, responseClone);
+                cache.put(url + ':meta', new Response(JSON.stringify(cacheData)));
+            } else if (fetchResponse.status === 304) {
+                // The response has not been modified, use the cached version.
+                const cachedResponse = await cache.match(url);
+                if (cachedResponse) {
+                    const arrayBuffer = await cachedResponse.arrayBuffer();
+                    return context.decodeAudioData(arrayBuffer);
+                }
+            }
             const arrayBuffer = await fetchResponse.arrayBuffer();
             return context.decodeAudioData(arrayBuffer);
         } catch (error) {
@@ -65,8 +85,18 @@ export class CacheManager {
             return bufferFromCache;
         }
 
-        // If it's not in the cache, fetch and cache it.
-        pendingRequest = this.fetchAndCacheAudioBuffer(url, cache, context);
+        // Check for cached metadata (ETag, Last-Modified)
+        const metaResponse = await cache.match(url + ':meta');
+        let etag;
+        let lastModified;
+        if (metaResponse) {
+            const metaData = await metaResponse.json();
+            etag = metaData.etag;
+            lastModified = metaData.lastModified;
+        }
+
+        // If it's not in the cache or needs revalidation, fetch and cache it.
+        pendingRequest = this.fetchAndCacheAudioBuffer(url, cache, context, etag, lastModified);
         this.pendingRequests.set(url, pendingRequest);
 
         return pendingRequest;
