@@ -39,9 +39,11 @@ interface CacheMetadata {
     lastModified?: string;
 }
 
+const DEFAULT_CACHE_SIZE = 100;
+
 export class AudioCache {
     private static pendingRequests = new Map<string, Promise<AudioBuffer>>();
-    private static decodedBuffers = new LRUCache<string, AudioBuffer>(500); // Limit to 500 items
+    private static decodedBuffers = new LRUCache<string, AudioBuffer>(100); // Limit to 500 items
 
     private static async openCache(): Promise<Cache> {
         try {
@@ -170,7 +172,7 @@ export class AudioCache {
 
 
     public static clearMemoryCache(): void {
-        this.decodedBuffers = new LRUCache<string, AudioBuffer>(500);
+        this.decodedBuffers = new LRUCache<string, AudioBuffer>(DEFAULT_CACHE_SIZE);
         this.pendingRequests.clear();
     }
 }
