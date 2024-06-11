@@ -1,5 +1,37 @@
 import type { AudioContext } from './context';
 
+class LRUCache<K, V> {
+    private maxSize: number;
+    private cache: Map<K, V>;
+
+    constructor(maxSize: number) {
+        this.maxSize = maxSize;
+        this.cache = new Map();
+    }
+
+    get(key: K): V | undefined {
+        if (!this.cache.has(key)) return undefined;
+        const value = this.cache.get(key)!;
+        this.cache.delete(key);
+        this.cache.set(key, value);
+        return value;
+    }
+
+    set(key: K, value: V): void {
+        if (this.cache.has(key)) {
+            this.cache.delete(key);
+        } else if (this.cache.size >= this.maxSize) {
+            const firstKey = this.cache.keys().next().value;
+            this.cache.delete(firstKey);
+        }
+        this.cache.set(key, value);
+    }
+
+    has(key: K): boolean {
+        return this.cache.has(key);
+    }
+}
+
 interface CacheMetadata {
     url: string;
     etag?: string;
@@ -8,7 +40,7 @@ interface CacheMetadata {
 
 export class AudioCache {
     private static pendingRequests = new Map<string, Promise<AudioBuffer>>();
-    private static decodedBuffers = new Map<string, AudioBuffer>();
+    private static decodedBuffers = new LRUCache<string, AudioBuffer>(50); // Limit to 50 items
 
     private static async openCache(): Promise<Cache> {
         try {
@@ -121,13 +153,15 @@ export class AudioCache {
         const lastModified = metadata?.lastModified;
 
         // If it's not in the cache or needs revalidation, fetch and cache it.
-        pendingRequest = this.fetchAndCacheBuffer(url, cache, etag, lastModified).then(arrayBuffer => {
-            return this.decodeAudioData(context, arrayBuffer).then(audioBuffer => {
+        pendingRequest = this.fetchAndCacheBuffer(url, cache, etag, lastModified)
+            .then(arrayBuffer => this.decodeAudioData(context, arrayBuffer))
+            .then(audioBuffer => {
                 this.decodedBuffers.set(url, audioBuffer);
-                this.pendingRequests.delete(url); // Cleanup pending request
                 return audioBuffer;
+            })
+            .finally(() => {
+                this.pendingRequests.delete(url); // Cleanup pending request
             });
-        });
         this.pendingRequests.set(url, pendingRequest);
 
         return pendingRequest;
