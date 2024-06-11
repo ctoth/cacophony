@@ -32,6 +32,7 @@ class LRUCache<K, V> {
     }
 }
 
+
 interface CacheMetadata {
     url: string;
     etag?: string;
@@ -166,4 +167,12 @@ export class AudioCache {
 
         return pendingRequest;
     }
+
+
+    public static clearMemoryCache(): void {
+        this.decodedBuffers = new LRUCache<string, AudioBuffer>(500);
+        this.pendingRequests.clear();
+    }
 }
+
+

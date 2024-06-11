@@ -133,6 +133,11 @@ export class Cacophony {
             return new AudioWorkletNode!(this.context, name);
         }
     }
+    
+    clearMemoryCache(): void {
+        AudioCache.clearMemoryCache();
+    }
+
 
     createOscillator = ({ frequency, type, periodicWave }: OscillatorOptions) => {
         if (frequency === undefined) {
@@ -604,5 +609,4 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
 
     set playbackRate(rate: number) {
     }
-
 }
