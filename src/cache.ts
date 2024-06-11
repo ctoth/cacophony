@@ -40,7 +40,7 @@ interface CacheMetadata {
 
 export class AudioCache {
     private static pendingRequests = new Map<string, Promise<AudioBuffer>>();
-    private static decodedBuffers = new LRUCache<string, AudioBuffer>(50); // Limit to 50 items
+    private static decodedBuffers = new LRUCache<string, AudioBuffer>(500); // Limit to 500 items
 
     private static async openCache(): Promise<Cache> {
         try {
