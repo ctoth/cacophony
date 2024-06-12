@@ -134,6 +134,11 @@ export class Cacophony {
             return new AudioWorkletNode!(this.context, name);
         }
     }
+    
+    clearMemoryCache(): void {
+        AudioCache.clearMemoryCache();
+    }
+
 
     createOscillator(frequency: number, type: OscillatorType) {
         const synth = new Synth(type, frequency, this.context, this.globalGainNode, 'HRTF');
@@ -596,5 +601,4 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
 
     set playbackRate(rate: number) {
     }
-
 }
