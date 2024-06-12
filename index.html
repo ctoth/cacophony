@@ -17,7 +17,18 @@
                 const soundUrl = document.getElementById('soundUrl').value;
                 // Removed duplicate declaration of loopCheckbox
                 const loopCheckbox = document.getElementById('loopSound').checked;
-                sound = await cacophony.createSound(soundUrl, SoundType.Buffer, panType);
+                switch (soundUrl) {
+                    case "sine":
+                    case "sawtooth":
+                    case "square":
+                    case "triangle":
+                        sound = await cacophony.createOscillator(500, soundUrl);
+                        
+                        break;
+                    default:
+                        sound = await cacophony.createSound(soundUrl, SoundType.Buffer, panType);
+                        break;
+                }
                 if (loopCheckbox) sound.loop('infinite');
                 sound.play();
 window.sound = sound;

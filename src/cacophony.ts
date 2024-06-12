@@ -7,6 +7,7 @@ import { Group } from './group';
 import { Playback } from './playback';
 import { Sound } from './sound';
 import { createStream } from './stream';
+import { Synth } from './synth';
 
 
 export enum SoundType {
@@ -134,18 +135,9 @@ export class Cacophony {
         }
     }
 
-    createOscillator = ({ frequency, type, periodicWave }: OscillatorOptions) => {
-        if (frequency === undefined) {
-            frequency = 440;
-        }
-        const oscillator = this.context.createOscillator();
-        oscillator.type = type || 'sine';
-        if (periodicWave) {
-            oscillator.setPeriodicWave(periodicWave);
-        }
-        oscillator.frequency.setValueAtTime(frequency, this.context.currentTime);
-        oscillator.connect(this.globalGainNode);
-        return oscillator
+    createOscillator(frequency: number, type: OscillatorType) {
+        const synth = new Synth(type, frequency, this.context, this.globalGainNode, 'HRTF');
+        return synth;
     }
 
 
