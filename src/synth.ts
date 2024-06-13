@@ -1,7 +1,8 @@
 import { BaseSound, LoopCount, PanType, Position } from "./cacophony";
 import { FilterManager } from "./filters";
 import { Playback } from "./playback";
-import { AudioContext, OscillatorType, GainNode, IPannerOptions, PeriodicWave } from "standardized-audio-context";
+import { AudioContext, TOscillatorType, IPannerOptions, PeriodicWave, IPeriodicWave, IAudioScheduledSourceNode, IAudioBufferSourceNode } from "standardized-audio-context";
+import { GainNode, BiquadFilterNode } from "./context";
 
 type SynthCloneOverrides = {
     panType?: PanType;
@@ -47,7 +48,7 @@ export class Synth extends FilterManager implements BaseSound {
     private _volume: number = 1;
     private _oscillatorType: OscillatorType = 'sine';
     private _frequency: number = 440;
-    private _periodicWave?: PeriodicWave;
+    private _periodicWave?: IPeriodicWave;
     isPlaying: boolean = false;
 
     constructor(
@@ -56,14 +57,14 @@ export class Synth extends FilterManager implements BaseSound {
         context: AudioContext,
         globalGainNode: GainNode,
         public panType: PanType = 'HRTF',
-        periodicWave?: PeriodicWave
+        periodicWave?: IPeriodicWave
     ) {
         super();
         this.context = context;
         this.globalGainNode = globalGainNode;
         this._oscillatorType = oscillatorType;
         this._frequency = frequency;
-        this._periodicWave = periodicWave;
+        if (periodicWave) this._periodicWave = periodicWave;
     }
 
     clone(overrides: Partial<SynthCloneOverrides> = {}): Synth {
@@ -79,7 +80,7 @@ export class Synth extends FilterManager implements BaseSound {
         const frequency = overrides.frequency || this._frequency;
         const periodicWave = overrides.periodicWave || this._periodicWave;
 
-        const clone = new Synth(this.context, this.globalGainNode, panType, oscillatorType, frequency, periodicWave);
+        const clone = new Synth(oscillatorType, frequency, this.context, this.globalGainNode, panType, periodicWave);
         clone.loopCount = loopCount;
         clone._playbackRate = playbackRate;
         clone._volume = volume;
@@ -214,8 +215,8 @@ export class Synth extends FilterManager implements BaseSound {
     set oscillatorType(type: OscillatorType) {
         this._oscillatorType = type;
         this.playbacks.forEach(p => {
-            if (p.source instanceof OscillatorNode) {
-                p.source.type = type;
+            if (p.isOscillator()) {
+                p.type = type;
             }
         });
     }
@@ -227,8 +228,8 @@ export class Synth extends FilterManager implements BaseSound {
     set frequency(value: number) {
         this._frequency = value;
         this.playbacks.forEach(p => {
-            if (p.source instanceof OscillatorNode) {
-                p.source.frequency.setValueAtTime(value, this.context.currentTime);
+            if (p.isOscillator()) {
+                p.frequency = value;
             }
         });
     }
@@ -237,11 +238,11 @@ export class Synth extends FilterManager implements BaseSound {
         return this._periodicWave;
     }
 
-    set periodicWave(wave: PeriodicWave | undefined) {
+    set periodicWave(wave: IPeriodicWave) {
         this._periodicWave = wave;
         this.playbacks.forEach(p => {
-            if (p.source instanceof OscillatorNode) {
-                p.source.setPeriodicWave(wave);
+            if (p.isOscillator() && this.periodicWave) {
+                p.periodicWave = wave;
             }
         });
     }

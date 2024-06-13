@@ -19,6 +19,7 @@
  */
 
 
+import { TOscillatorType } from "standardized-audio-context";
 import type { BaseSound, FadeType, LoopCount, PanType, Position } from "./cacophony";
 import type { AudioBuffer, AudioBufferSourceNode, AudioContext, BiquadFilterNode, GainNode, IPannerOptions, PannerNode, SourceNode, StereoPannerNode } from "./context";
 import { FilterManager } from "./filters";
@@ -618,6 +619,44 @@ export class Playback extends FilterManager implements BaseSound {
         connection.connect(this.gainNode);
     }
 
+    // I'm not sure I like this. Should oscillator playback be extended from playback?
+    public isOscillator(): boolean {
+        return this.source ? 'frequency' in this.source && 'type' in this.source : false;
+    }
+
+    get type(): TOscillatorType | undefined {
+        if (!this.isOscillator() || !this.source) {
+            throw new Error('Cannot get type of a sound that is not an oscillator');
+        }
+        if (this.source instanceof OscillatorNode) return (this.source as OscillatorNode).type;
+    }
+
+    set type(type: TOscillatorType) {
+        if (!this.isOscillator() || !this.source) {
+            throw new Error('Cannot set type of a sound that is not an oscillator');
+        }
+        if (this.source instanceof OscillatorNode) (this.source as OscillatorNode).type = type;
+    }
+
+    get frequency(): number|undefined {
+        if (!this.isOscillator() || !this.source) {
+            throw new Error('Cannot get frequency of a sound that is not an oscillator');
+        }
+        if (this.source instanceof OscillatorNode) return (this.source as OscillatorNode).frequency.value;
+    }
+    set frequency(frequency: number) {
+        if (!this.isOscillator() || !this.source) {
+            throw new Error('Cannot set frequency of a sound that is not an oscillator');
+        }
+        if (this.source instanceof OscillatorNode) (this.source as OscillatorNode).frequency.value = frequency;
+    }
+
+    set periodicWave(wave: PeriodicWave) {
+        if (!this.isOscillator() || !this.source) {
+            throw new Error('Cannot set periodic wave of a sound that is not an oscillator');
+        }
+        if (this.source instanceof OscillatorNode) (this.source as OscillatorNode).setPeriodicWave(wave);
+    }
     /**
     * Creates a clone of the current Playback instance with optional overrides for certain properties.
     * This method allows for the creation of a new Playback instance that shares the same audio context
