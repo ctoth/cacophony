@@ -356,6 +356,7 @@ export class Playback extends PannerMixin(VolumeMixin(FilterManager)) implements
     * Removes a filter from the audio signal chain.
     * @param {BiquadFilterNode} filter - The filter to remove.
     */
+
     removeFilter(filter: BiquadFilterNode): void {
         super.removeFilter(filter);
         this.refreshFilters();
@@ -366,6 +367,7 @@ export class Playback extends PannerMixin(VolumeMixin(FilterManager)) implements
     * This method is called internally whenever filters are added or removed.
     * @throws {Error} Throws an error if the sound has been cleaned up.
     */
+
     private refreshFilters(): void {
         if (!this.panner || !this.gainNode) {
             throw new Error('Cannot update filters on a sound that has been cleaned up');
