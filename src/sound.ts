@@ -20,6 +20,7 @@
  * and can be controlled individually. This architecture allows for complex audio behaviors, such as playing multiple overlapping
  * instances of a sound with different settings, without requiring the user to manually manage each playback instance.
  */
+import { PlaybackContainer } from "container";
 import { BaseSound, LoopCount, PanType, Position, SoundType } from "./cacophony";
 import { BiquadFilterNode, GainNode, SourceNode, } from './context';
 import { FilterManager } from "./filters";
@@ -38,10 +39,10 @@ type SoundCloneOverrides = {
     filters?: BiquadFilterNode[];
 };
 
-export class Sound extends FilterManager implements BaseSound {
+
+export class Sound extends PlaybackContainer(FilterManager) implements BaseSound {
     buffer?: IAudioBuffer;
     context: AudioContext;
-    playbacks: Playback[] = [];
     private globalGainNode: GainNode;
     private _position: Position = [0, 0, 0];
     private _stereoPan: number = 0;
@@ -86,7 +87,6 @@ export class Sound extends FilterManager implements BaseSound {
     * @param {SoundCloneOverrides} overrides - An object specifying properties to override in the cloned instance.
     *        This can include audio settings like volume, playback rate, and spatial positioning, as well as
     *        more complex configurations like 3D audio options and filter adjustments.
-    * @returns {Sound} A new Sound instance cloned from the current one, with any specified overrides applied.
     * @returns {Sound} A new Sound instance that is a clone of the current sound.
     */
 
@@ -145,36 +145,6 @@ export class Sound extends FilterManager implements BaseSound {
         }
         this.playbacks.push(playback);
         return [playback];
-    }
-
-    /**
-    * Starts playback of the sound and returns a Playback instance representing this particular playback.
-    * Multiple Playback instances can be created by calling this method multiple times,
-    * allowing for the same sound to be played concurrently with different settings.
-    * @returns {Playback[]} An array containing the Playback instances that have been started.
-    */
-
-    play(): Playback[] {
-        const playback = this.preplay();
-        playback.forEach(p => p.play());
-        return playback;
-    }
-
-    /**
-    * Stops all current playbacks of the sound immediately. This will halt the sound regardless of how many times it has been played.
-    */
-
-    stop() {
-        this.playbacks.forEach(p => p.stop());
-        this.playbacks = [];
-    }
-
-    /**
-    * Pauses all current playbacks of the sound.
-    */
-
-    pause(): void {
-        this.playbacks.forEach(playback => playback.pause());
     }
 
     /**
@@ -259,35 +229,12 @@ export class Sound extends FilterManager implements BaseSound {
         return this.loopCount;
     }
 
-    /**
-    * Adds a BiquadFilterNode to the sound's filter chain.
-    * Filters are applied in the order they are added.
-    * @param { BiquadFilterNode } filter - The filter to add to the chain.
-    */
-
-    addFilter(filter: BiquadFilterNode): void {
-        super.addFilter(filter);
-        this.playbacks.forEach(p => p.addFilter(filter));
-    }
-
-    /**
-    * Removes a BiquadFilterNode from the sound's filter chain.
-    * If the filter is not part of the chain, the method has no effect.
-    * @param { BiquadFilterNode } filter - The filter to remove from the chain.
-    */
-
-    removeFilter(filter: BiquadFilterNode): void {
-        super.removeFilter(filter);
-        this.playbacks.forEach(p => p.removeFilter(filter));
-    }
-
-
     /*** 
-        * Gets the volume of the sound. This volume level affects all current and future playbacks of this sound instance.
-        * The volume is specified as a linear value between 0 (silent) and 1 (full volume).
-        * 
-        * @returns {number} The current volume of the sound.
-        */
+            * Gets the volume of the sound. This volume level affects all current and future playbacks of this sound instance.
+            * The volume is specified as a linear value between 0 (silent) and 1 (full volume).
+            * 
+            * @returns {number} The current volume of the sound.
+            */
 
     get volume(): number {
         return this._volume;
@@ -303,16 +250,6 @@ export class Sound extends FilterManager implements BaseSound {
     set volume(volume: number) {
         this._volume = volume;
         this.playbacks.forEach(p => p.volume = volume);
-    }
-
-    /**
-    * Returns a boolean indicating whether the sound is currently playing.
-    * a sound is playing if any of its playbacks are currently playing.
-    * @returns {boolean} True if the sound is playing, false otherwise.
-    */
-
-    get isPlaying(): boolean {
-        return this.playbacks.some(p => p.isPlaying);
     }
 
     get playbackRate(): number {
