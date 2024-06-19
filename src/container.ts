@@ -1,12 +1,35 @@
-import { Playback } from "./playback";
-import { BiquadFilterNode } from "./context";
+import { Position } from "./cacophony";
+import { BiquadFilterNode, IPannerOptions } from "./context";
 import { FilterManager } from "./filters";
+import { Playback } from "./playback";
 
 type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
 
 export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
-    abstract class PlaybackMixin extends Base {
+    abstract class PlaybackContainer extends Base {
         playbacks: Playback[] = [];
+        protected _position: Position = [0, 0, 0];
+        protected _stereoPan: number = 0;
+        protected _threeDOptions: IPannerOptions = {
+            coneInnerAngle: 360,
+            coneOuterAngle: 360,
+            coneOuterGain: 0,
+            distanceModel: 'inverse',
+            maxDistance: 10000,
+            channelCount: 2,
+            channelCountMode: 'clamped-max',
+            channelInterpretation: 'speakers',
+            panningModel: 'HRTF',
+            refDistance: 1,
+            rolloffFactor: 1,
+            positionX: 0,
+            positionY: 0,
+            positionZ: 0,
+            orientationX: 0,
+            orientationY: 0,
+            orientationZ: 0
+        };
+        protected _volume: number = 1;
 
         abstract preplay(): Playback[]
 
@@ -72,6 +95,75 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
         get isPlaying(): boolean {
             return this.playbacks.some(p => p.isPlaying);
         }
+
+
+        /**
+        * Retrieves the current 3D spatial position of the sound in the audio context.
+        * The position is returned as an array of three values[x, y, z].
+        * @returns { Position } The current position of the sound.
+        */
+
+        get position(): Position {
+            return [this._threeDOptions.positionX, this._threeDOptions.positionY, this._threeDOptions.positionZ]
+        }
+
+        /**
+        * Sets the 3D spatial position of the sound in the audio context.
+        * The position is an array of three values[x, y, z].
+        * This method updates the position of all active playbacks of the sound.
+        * @param { Position } position - The new position of the sound.
+        */
+
+        set position(position: Position) {
+            this._threeDOptions.positionX = position[0];
+            this._threeDOptions.positionY = position[1];
+            this._threeDOptions.positionZ = position[2];
+            this.playbacks.forEach(p => p.position = position);
+        }
+
+
+        get threeDOptions(): IPannerOptions {
+            return this._threeDOptions;
+        }
+
+        set threeDOptions(options: Partial<IPannerOptions>) {
+            this._threeDOptions = { ...this._threeDOptions, ...options };
+            this.playbacks.forEach(p => p.threeDOptions = this._threeDOptions);
+        }
+
+        get stereoPan(): number | null {
+            return this._stereoPan;
+        }
+
+        set stereoPan(value: number) {
+            this._stereoPan = value;
+            this.playbacks.forEach(p => p.stereoPan = value);
+        }
+
+
+        /*** 
+            * Gets the volume of the sound. This volume level affects all current and future playbacks of this sound instance.
+            * The volume is specified as a linear value between 0 (silent) and 1 (full volume).
+            * 
+            * @returns {number} The current volume of the sound.
+            */
+
+        get volume(): number {
+            return this._volume;
+        }
+
+        /***
+        * Sets the volume of the sound. This volume level affects all current and future playbacks of this sound instance.
+        * The volume is specified as a linear value between 0 (silent) and 1 (full volume).
+        * 
+        * @param {number} volume - The new volume level for the sound.
+        */
+
+        set volume(volume: number) {
+            this._volume = volume;
+            this.playbacks.forEach(p => p.volume = volume);
+        }
+
     };
-    return PlaybackMixin;
+    return PlaybackContainer;
 }
