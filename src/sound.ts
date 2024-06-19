@@ -134,6 +134,7 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
         gainNode.connect(this.globalGainNode);
         const playback = new Playback(source, gainNode, this.context, this.loopCount, this.panType);
         // this.finalizationRegistry.register(playback, playback);
+        playback.setGainNode(gainNode);
         playback.volume = this.volume;
         playback.playbackRate = this.playbackRate;
         this._filters.forEach(filter => playback.addFilter(filter));

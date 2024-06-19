@@ -22,10 +22,11 @@
 import type { BaseSound, FadeType, LoopCount, PanType, Position } from "./cacophony";
 import type { AudioBuffer, AudioBufferSourceNode, AudioContext, BiquadFilterNode, GainNode, IPannerOptions, PannerNode, SourceNode, StereoPannerNode } from "./context";
 import { FilterManager } from "./filters";
+import { VolumeMixin } from "./volumeMixin";
 
 
 
-export class Playback extends FilterManager implements BaseSound {
+export class Playback extends VolumeMixin(FilterManager) implements BaseSound {
     private _playing: boolean = false;
     private context: AudioContext;
     private source?: SourceNode;
@@ -73,6 +74,7 @@ export class Playback extends FilterManager implements BaseSound {
         }
         this.source.connect(this.panner);
         this.panner.connect(this.gainNode);
+        this.setGainNode(gainNode);
         this.refreshFilters();
     }
 
