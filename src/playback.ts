@@ -29,7 +29,7 @@ import { VolumeMixin } from "./volumeMixin";
 export class Playback extends PannerMixin(VolumeMixin(FilterManager)) implements BaseSound {
     private _playing: boolean = false;
     private context: AudioContext;
-    private source?: SourceNode;
+    public source?: SourceNode;
     loopCount: LoopCount = 0;
     currentLoop: number = 0;
     private buffer?: AudioBuffer;

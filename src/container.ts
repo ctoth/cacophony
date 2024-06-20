@@ -5,7 +5,7 @@ import { Playback } from "./playback";
 
 type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
 
-export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
+export function PlaybackContainer<TBase extends Constructor, >(Base: TBase) {
     abstract class PlaybackContainer extends Base {
         playbacks: Playback[] = [];
         protected _position: Position = [0, 0, 0];

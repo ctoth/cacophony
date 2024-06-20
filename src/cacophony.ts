@@ -12,7 +12,8 @@ import { createStream } from './stream';
 export enum SoundType {
     HTML = 'HTML',
     Streaming = 'Streaming',
-    Buffer = 'Buffer'
+    Buffer = 'Buffer',
+    Oscillator = 'oscillator'
 }
 
 
@@ -75,6 +76,8 @@ export interface BaseSound {
     playbackRate: number;
     loop?(loopCount?: LoopCount): LoopCount;
     duration: number;
+    position?: Position;
+    threeDOptions?: any;
 }
 
 
