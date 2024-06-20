@@ -22,7 +22,7 @@
  */
 
 
-import { PlaybackContainer } from "container";
+import { PlaybackContainer } from "./container";
 import { AudioContext, IAudioBuffer, IPannerOptions } from "standardized-audio-context";
 import { BaseSound, LoopCount, PanType, Position, SoundType } from "./cacophony";
 import { BiquadFilterNode, GainNode, SourceNode, } from './context';
