@@ -1,13 +1,13 @@
 import { Position } from "./cacophony";
 import { BiquadFilterNode, IPannerOptions } from "./context";
 import { FilterManager } from "./filters";
-import { Playback } from "./playback";
+import { BasePlayback, Playback } from "./playback";
 
 type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
 
 export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
     abstract class PlaybackContainer extends Base {
-        protected playbacks: Playback[] = [];
+        protected playbacks: BasePlayback[] = [];
         protected _position: Position = [0, 0, 0];
         protected _stereoPan: number = 0;
         protected _threeDOptions: IPannerOptions = {
@@ -31,7 +31,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
         };
         protected _volume: number = 1;
 
-        abstract preplay(): Playback[]
+        abstract preplay(): BasePlayback[]
 
         /**
         * Starts playback of the sound and returns a Playback instance representing this particular playback.
@@ -40,7 +40,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
         * @returns {Playback[]} An array containing the Playback instances that have been started.
         */
 
-        play(): Playback[] {
+        play(): BasePlayback[] {
             const playback = this.preplay();
             playback.forEach(p => p.play());
             return playback;
@@ -95,7 +95,6 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
         get isPlaying(): boolean {
             return this.playbacks.some(p => p.isPlaying);
         }
-
 
         /**
         * Retrieves the current 3D spatial position of the sound in the audio context.

@@ -20,14 +20,35 @@
 
 
 import type { BaseSound, FadeType, LoopCount, PanType, Position } from "./cacophony";
-import type { AudioBuffer, AudioBufferSourceNode, AudioContext, BiquadFilterNode, GainNode, IPannerOptions, PannerNode, SourceNode, StereoPannerNode } from "./context";
+import type { AudioBuffer, AudioBufferSourceNode, AudioContext, AudioNode, BiquadFilterNode, GainNode, IPannerOptions, PannerNode, SourceNode, StereoPannerNode } from "./context";
 import { FilterManager } from "./filters";
 import { PannerMixin } from "./pannerMixin";
 import { VolumeMixin } from "./volumeMixin";
 
+export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager)) {
+    public source?: AudioNode
+    protected _playing: boolean = false;
 
-export class Playback extends PannerMixin(VolumeMixin(FilterManager)) implements BaseSound {
-    private _playing: boolean = false;
+    abstract play(): [this];
+    abstract pause(): void;
+    abstract stop(): void;
+
+    /**
+    * Checks if the audio is currently playing.
+    * @returns {boolean} True if the audio is playing, false otherwise.
+    */
+
+    get isPlaying(): boolean {
+        if (!this.source) {
+            return false;
+        }
+        return this._playing;
+    }
+
+
+}
+
+export class Playback extends BasePlayback implements BaseSound {
     private context: AudioContext;
     public source?: SourceNode;
     loopCount: LoopCount = 0;
@@ -240,18 +261,6 @@ export class Playback extends PannerMixin(VolumeMixin(FilterManager)) implements
         if ("mediaElement" in this.source && this.source.mediaElement) {
             this.source.mediaElement.loop = loop;
         }
-    }
-
-    /**
-    * Checks if the audio is currently playing.
-    * @returns {boolean} True if the audio is playing, false otherwise.
-    */
-
-    get isPlaying(): boolean {
-        if (!this.source) {
-            return false;
-        }
-        return this._playing;
     }
 
     /**

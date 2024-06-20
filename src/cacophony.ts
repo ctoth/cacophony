@@ -74,9 +74,6 @@ export interface BaseSound {
     addFilter(filter: BiquadFilterNode): void;
     removeFilter(filter: BiquadFilterNode): void;
     volume: number;
-    playbackRate: number;
-    loop?(loopCount?: LoopCount): LoopCount;
-    duration: number;
     position?: Position;
     threeDOptions?: any;
 }
@@ -137,7 +134,7 @@ export class Cacophony {
             return new AudioWorkletNode!(this.context, name);
         }
     }
-    
+
     clearMemoryCache(): void {
         AudioCache.clearMemoryCache();
     }

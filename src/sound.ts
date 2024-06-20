@@ -43,6 +43,7 @@ type SoundCloneOverrides = {
 
 
 export class Sound extends PlaybackContainer(FilterManager) implements BaseSound {
+    protected playbacks: Playback[] = [];
     buffer?: IAudioBuffer;
     context: AudioContext;
     loopCount: LoopCount = 0;

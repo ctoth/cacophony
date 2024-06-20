@@ -23,6 +23,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     private _playbackRate: number = 1;
     private _oscillatorOptions: Partial<IOscillatorOptions>;
     protected playbacks: SynthPlayback[] = [];
+    duration: number = 0;
 
     constructor(
         public context: AudioContext,
@@ -35,7 +36,6 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         this.context = context;
         this._oscillatorOptions = oscillatorOptions;
     }
-    duration: number = 0;
 
     /**
      * Clones the current Synth instance, creating a deep copy with the option to override specific properties.
@@ -54,7 +54,6 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
         const threeDOptions = (overrides.threeDOptions || this.threeDOptions) as IPannerOptions;
         const loopCount = overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
-        const playbackRate = overrides.playbackRate || this.playbackRate;
         const volume = overrides.volume !== undefined ? overrides.volume : this.volume;
         const position = overrides.position && overrides.position.length ? overrides.position : this.position;
         const filters = overrides.filters && overrides.filters.length ? overrides.filters : this._filters;
@@ -62,7 +61,6 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
 
         const clone = new Synth(this.context, this.globalGainNode, this.type, panType, oscillatorOptions);
         clone.loopCount = loopCount;
-        clone._playbackRate = playbackRate;
         clone._volume = volume;
         clone._position = position;
         clone._stereoPan = stereoPan as number;
@@ -76,16 +74,15 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
      * This allows for pre-configuration of playback properties such as volume and position before the sound is actually played.
      * @returns {Playback[]} An array of Playback instances that are ready to be played.
      */
-    preplay(): Playback[] {
+    preplay(): SynthPlayback[] {
         const oscillator = this.context.createOscillator();
         Object.assign(oscillator, this._oscillatorOptions);
 
         const gainNode = this.context.createGain();
         gainNode.connect(this.globalGainNode);
-        const playback = new SynthPlayback(oscillator, gainNode, this.context, this.loopCount, this.panType);
+        const playback = new SynthPlayback(oscillator, gainNode, this.context, this.panType);
         playback.setGainNode(gainNode);
         playback.volume = this.volume;
-        playback.playbackRate = this.playbackRate;
         this._filters.forEach(filter => playback.addFilter(filter));
         if (this.panType === 'HRTF') {
             playback.threeDOptions = this.threeDOptions;
@@ -95,32 +92,6 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         }
         this.playbacks.push(playback);
         return [playback];
-    }
-
-    /**
-     * Sets or retrieves the loop behavior for the sound.
-     * If loopCount is provided, the sound will loop the specified number of times.
-     * If loopCount is 'infinite', the sound will loop indefinitely until stopped.
-     * If no argument is provided, the method returns the current loop count setting.
-     * @param { LoopCount } [loopCount] - The number of times to loop or 'infinite' for indefinite looping.
-     * @returns { LoopCount } The current loop count setting if no argument is provided.
-     */
-    loop(loopCount?: LoopCount): LoopCount {
-        if (loopCount === undefined) {
-            return this.loopCount;
-        }
-        this.loopCount = loopCount;
-        this.playbacks.forEach(p => p.loop(loopCount));
-        return this.loopCount;
-    }
-
-    get playbackRate(): number {
-        return this._playbackRate;
-    }
-
-    set playbackRate(rate: number) {
-        this._playbackRate = rate;
-        this.playbacks.forEach(p => p.playbackRate = rate);
     }
 
     get oscillatorOptions(): Partial<IOscillatorOptions> {
