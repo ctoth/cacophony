@@ -1,12 +1,12 @@
-import { PlaybackContainer } from "container";
 import { AudioContext, IOscillatorOptions, IPannerOptions } from "standardized-audio-context";
 import { BaseSound, LoopCount, PanType, Position, SoundType } from "./cacophony";
-import { BiquadFilterNode, GainNode, OscillatorNode, } from './context';
+import { PlaybackContainer } from "./container";
+import { BiquadFilterNode, GainNode } from './context';
 import { FilterManager } from "./filters";
 import { Playback } from "./playback";
-import { OscillatorMixin } from "./oscillatorMixin";
+import { SynthPlayback } from "./synthPlayback";
 
-type SoundCloneOverrides = {
+type SynthCloneOverrides = {
     panType?: PanType;
     stereoPan?: number;
     threeDOptions?: Partial<IPannerOptions>;
@@ -22,6 +22,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     loopCount: LoopCount = 0;
     private _playbackRate: number = 1;
     private _oscillatorOptions: Partial<IOscillatorOptions>;
+    protected playbacks: SynthPlayback[] = [];
 
     constructor(
         public context: AudioContext,
@@ -37,18 +38,18 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     duration: number = 0;
 
     /**
-     * Clones the current Sound instance, creating a deep copy with the option to override specific properties.
+     * Clones the current Synth instance, creating a deep copy with the option to override specific properties.
      * This method allows for the creation of a new, independent Sound instance based on the current one, with the
      * flexibility to modify certain attributes through the `overrides` parameter. This is particularly useful for
      * creating variations of a sound without affecting the original instance. The cloned instance includes all properties,
      * playback settings, and filters of the original, unless explicitly overridden.
      *
-     * @param {SoundCloneOverrides} overrides - An object specifying properties to override in the cloned instance.
+     * @param {SynthCloneOverrides} overrides - An object specifying properties to override in the cloned instance.
      *        This can include audio settings like volume, playback rate, and spatial positioning, as well as
      *        more complex configurations like 3D audio options and filter adjustments.
      * @returns {Sound} A new Sound instance that is a clone of the current sound.
      */
-    clone(overrides: Partial<SoundCloneOverrides> = {}): Synth {
+    clone(overrides: Partial<SynthCloneOverrides> = {}): Synth {
         const panType = overrides.panType || this.panType;
         const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
         const threeDOptions = (overrides.threeDOptions || this.threeDOptions) as IPannerOptions;
@@ -81,7 +82,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
 
         const gainNode = this.context.createGain();
         gainNode.connect(this.globalGainNode);
-        const playback = new Playback(oscillator, gainNode, this.context, this.loopCount, this.panType);
+        const playback = new SynthPlayback(oscillator, gainNode, this.context, this.loopCount, this.panType);
         playback.setGainNode(gainNode);
         playback.volume = this.volume;
         playback.playbackRate = this.playbackRate;
@@ -94,15 +95,6 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         }
         this.playbacks.push(playback);
         return [playback];
-    }
-
-    /**
-     * Seeks to a specific time within the sound's playback.
-     * @param { number } time - The time in seconds to seek to.
-     * This method iterates through all active `Playback` instances and calls their `seek()` method with the specified time.
-     */
-    seek(time: number): void {
-        this.playbacks.forEach(playback => playback.seek(time));
     }
 
     /**
