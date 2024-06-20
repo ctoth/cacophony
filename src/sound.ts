@@ -22,12 +22,12 @@
  */
 
 
-import { PanCloneOverrides } from "pannerMixin";
+import type { PanCloneOverrides } from "pannerMixin";
 import { AudioContext, IAudioBuffer } from "standardized-audio-context";
-import { VolumeCloneOverrides } from "volumeMixin";
-import { BaseSound, LoopCount, PanType, SoundType } from "./cacophony";
+import type { VolumeCloneOverrides } from "volumeMixin";
+import { SoundType, type BaseSound, type LoopCount, type PanType } from "./cacophony";
 import { PlaybackContainer } from "./container";
-import { BiquadFilterNode, GainNode, SourceNode, } from './context';
+import type { BiquadFilterNode, GainNode, SourceNode, } from './context';
 import { FilterManager } from "./filters";
 import { Playback } from "./playback";
 

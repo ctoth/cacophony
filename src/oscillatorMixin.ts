@@ -1,4 +1,4 @@
-import { OscillatorNode } from "./context";
+import type { OscillatorNode } from "./context";
 import { BasePlayback } from "./playback";
 
 export type OscillatorCloneOverrides = {
@@ -8,7 +8,7 @@ export type OscillatorCloneOverrides = {
 type Constructor<T = {}> = abstract new (...args: any[]) => T;
 
 export function OscillatorMixin<TBase extends Constructor>(Base: TBase) {
-    return class extends BasePlayback {
+    abstract class OscillatorMixin extends BasePlayback {
 
         private _oscillatorOptions: Partial<OscillatorOptions> = {};
         declare public source?: OscillatorNode;
@@ -45,4 +45,5 @@ export function OscillatorMixin<TBase extends Constructor>(Base: TBase) {
         }
 
     };
+    return OscillatorMixin;
 }

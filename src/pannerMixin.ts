@@ -20,7 +20,6 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
             return this._panType;
         }
 
-
         setPanType(panType: PanType, audioContext: AudioContext) {
             this._panType = panType;
             if (panType === 'stereo') {
@@ -29,7 +28,6 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
                 this.panner = audioContext.createPanner();
             }
         }
-
 
         setPannerNode(pannerNode: PannerNode) {
             this.panner = pannerNode;

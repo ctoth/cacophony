@@ -1,5 +1,5 @@
 import { Position } from "./cacophony";
-import { BiquadFilterNode, IPannerOptions } from "./context";
+import { BiquadFilterNode } from "./context";
 import { FilterManager } from "./filters";
 import { BasePlayback, Playback } from "./playback";
 
@@ -10,7 +10,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
         protected playbacks: BasePlayback[] = [];
         protected _position: Position = [0, 0, 0];
         protected _stereoPan: number = 0;
-        protected _threeDOptions: IPannerOptions = {
+        protected _threeDOptions: PannerOptions = {
             coneInnerAngle: 360,
             coneOuterAngle: 360,
             coneOuterGain: 0,
@@ -103,7 +103,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
         */
 
         get position(): Position {
-            return [this._threeDOptions.positionX, this._threeDOptions.positionY, this._threeDOptions.positionZ]
+            return [this._threeDOptions.positionX as number, this._threeDOptions.positionY as number, this._threeDOptions.positionZ as number]
         }
 
         /**
@@ -121,11 +121,11 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
         }
 
 
-        get threeDOptions(): IPannerOptions {
+        get threeDOptions(): PannerOptions {
             return this._threeDOptions;
         }
 
-        set threeDOptions(options: Partial<IPannerOptions>) {
+        set threeDOptions(options: Partial<PannerOptions>) {
             this._threeDOptions = { ...this._threeDOptions, ...options };
             this.playbacks.forEach(p => p.threeDOptions = this._threeDOptions);
         }

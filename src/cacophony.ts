@@ -140,8 +140,9 @@ export class Cacophony {
     }
 
 
-    createOscillator(options: IOscillatorOptions) {
+    createOscillator(options: OscillatorOptions) {
         const synth = new Synth(this.context, this.globalGainNode, SoundType.Oscillator, 'HRTF', options);
+        console.log('synth', synth);    
         return synth;
     }
 

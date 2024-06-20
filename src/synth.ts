@@ -1,12 +1,13 @@
-import { PanCloneOverrides } from "pannerMixin";
-import { AudioContext, IOscillatorOptions, IPannerOptions } from "standardized-audio-context";
-import { VolumeCloneOverrides } from "volumeMixin";
+import type { OscillatorCloneOverrides } from "oscillatorMixin";
+import type { PanCloneOverrides } from "pannerMixin";
+import type { VolumeCloneOverrides } from "volumeMixin";
 import { BaseSound, PanType, SoundType } from "./cacophony";
 import { PlaybackContainer } from "./container";
-import { BiquadFilterNode, GainNode } from './context';
-import { FilterCloneOverrides, FilterManager } from "./filters";
+import type { GainNode } from './context';
+import { AudioContext } from './context';
+import type { FilterCloneOverrides } from "./filters";
+import { FilterManager } from "./filters";
 import { SynthPlayback } from "./synthPlayback";
-import { OscillatorCloneOverrides } from "oscillatorMixin";
 
 type SynthCloneOverrides = FilterCloneOverrides & OscillatorCloneOverrides & PanCloneOverrides & VolumeCloneOverrides
 
@@ -41,7 +42,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     clone(overrides: Partial<SynthCloneOverrides> = {}): Synth {
         const panType = overrides.panType || this.panType;
         const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
-        const threeDOptions = (overrides.threeDOptions || this.threeDOptions) as IPannerOptions;
+        const threeDOptions = (overrides.threeDOptions || this.threeDOptions) as PannerOptions;
         const volume = overrides.volume !== undefined ? overrides.volume : this.volume;
         const position = overrides.position && overrides.position.length ? overrides.position : this.position;
         const filters = overrides.filters && overrides.filters.length ? overrides.filters : this._filters;
@@ -68,7 +69,6 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         const gainNode = this.context.createGain();
         gainNode.connect(this.globalGainNode);
         const playback = new SynthPlayback(oscillator, gainNode, this.context, this.panType);
-        playback.setGainNode(gainNode);
         playback.volume = this.volume;
         this._filters.forEach(filter => playback.addFilter(filter));
         if (this.panType === 'HRTF') {
@@ -81,11 +81,11 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         return [playback];
     }
 
-    get oscillatorOptions(): Partial<IOscillatorOptions> {
+    get oscillatorOptions(): Partial<OscillatorOptions> {
         return this._oscillatorOptions;
     }
 
-    set oscillatorOptions(options: Partial<IOscillatorOptions>) {
+    set oscillatorOptions(options: Partial<OscillatorOptions>) {
         this._oscillatorOptions = options;
         this.playbacks.forEach(p => {
             if (p.source instanceof OscillatorNode) {
