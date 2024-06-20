@@ -1,7 +1,7 @@
 import { Playback } from "./playback";
 import { OscillatorNode, IOscillatorOptions } from "standardized-audio-context";
 
-type Constructor<T = {}> = new (...args: any[]) => T;
+type Constructor<T = {}> = abstract new (...args: any[]) => T;
 
 export function OscillatorMixin<TBase extends Constructor>(Base: TBase) {
     return class extends Playback {
