@@ -1,8 +1,13 @@
-import type { AudioContext, IPannerOptions, PannerNode, StereoPannerNode } from "./context";
-
+import type { AudioContext, PannerNode, StereoPannerNode } from "./context";
 import { PanType, Position } from "./cacophony";
 import { FilterManager } from "./filters";
 
+export type PanCloneOverrides = {
+    panType?: PanType;
+    stereoPan?: number; // -1 (left) to 1 (right)
+    threeDOptions?: Partial<PannerOptions>; // HRTF panning only
+    position?: Position; // HRTF panning only, [x, y, z]
+};
 
 type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
 
@@ -67,7 +72,7 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
         * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
         */
 
-        get threeDOptions(): IPannerOptions {
+        get threeDOptions(): PannerOptions {
             if (!this.panner) {
                 throw new Error('Cannot get 3D options of a sound that has been cleaned up');
             }
@@ -101,7 +106,7 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
      * @param {Partial<IPannerOptions>} options - The 3D audio options to set.
      * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
      */
-        set threeDOptions(options: Partial<IPannerOptions>) {
+        set threeDOptions(options: Partial<PannerOptions>) {
             if (!this.panner) {
                 throw new Error('Cannot set 3D options of a sound that has been cleaned up');
             }

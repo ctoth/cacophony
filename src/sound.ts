@@ -22,25 +22,20 @@
  */
 
 
+import { PanCloneOverrides } from "pannerMixin";
+import { AudioContext, IAudioBuffer } from "standardized-audio-context";
+import { VolumeCloneOverrides } from "volumeMixin";
+import { BaseSound, LoopCount, PanType, SoundType } from "./cacophony";
 import { PlaybackContainer } from "./container";
-import { AudioContext, IAudioBuffer, IPannerOptions } from "standardized-audio-context";
-import { BaseSound, LoopCount, PanType, Position, SoundType } from "./cacophony";
 import { BiquadFilterNode, GainNode, SourceNode, } from './context';
 import { FilterManager } from "./filters";
 import { Playback } from "./playback";
 
-
-type SoundCloneOverrides = {
-    panType?: PanType;
-    stereoPan?: number;
-    threeDOptions?: Partial<IPannerOptions>;
+type SoundCloneOverrides = PanCloneOverrides & VolumeCloneOverrides & {
     loopCount?: LoopCount;
     playbackRate?: number;
-    volume?: number;
-    position?: Position;
     filters?: BiquadFilterNode[];
 };
-
 
 export class Sound extends PlaybackContainer(FilterManager) implements BaseSound {
     protected playbacks: Playback[] = [];
@@ -72,7 +67,7 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
     clone(overrides: Partial<SoundCloneOverrides> = {}): Sound {
         const panType = overrides.panType || this.panType;
         const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
-        const threeDOptions = (overrides.threeDOptions || this.threeDOptions) as IPannerOptions;
+        const threeDOptions = (overrides.threeDOptions || this.threeDOptions) as PannerOptions;
         const loopCount = overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
         const playbackRate = overrides.playbackRate || this.playbackRate;
         const volume = overrides.volume !== undefined ? overrides.volume : this.volume;
