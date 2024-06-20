@@ -20,11 +20,14 @@
  * and can be controlled individually. This architecture allows for complex audio behaviors, such as playing multiple overlapping
  * instances of a sound with different settings, without requiring the user to manually manage each playback instance.
  */
+
+
+import { PlaybackContainer } from "container";
+import { AudioContext, IAudioBuffer, IPannerOptions } from "standardized-audio-context";
 import { BaseSound, LoopCount, PanType, Position, SoundType } from "./cacophony";
 import { BiquadFilterNode, GainNode, SourceNode, } from './context';
 import { FilterManager } from "./filters";
 import { Playback } from "./playback";
-import { AudioContext, IAudioBuffer, IPannerOptions } from "standardized-audio-context";
 
 
 type SoundCloneOverrides = {
@@ -38,42 +41,18 @@ type SoundCloneOverrides = {
     filters?: BiquadFilterNode[];
 };
 
-export class Sound extends FilterManager implements BaseSound {
+
+export class Sound extends PlaybackContainer(FilterManager) implements BaseSound {
     buffer?: IAudioBuffer;
     context: AudioContext;
-    playbacks: Playback[] = [];
-    private globalGainNode: GainNode;
-    private _position: Position = [0, 0, 0];
-    private _stereoPan: number = 0;
-    private _threeDOptions: IPannerOptions = {
-        coneInnerAngle: 360,
-        coneOuterAngle: 360,
-        coneOuterGain: 0,
-        distanceModel: 'inverse',
-        maxDistance: 10000,
-        channelCount: 2,
-        channelCountMode: 'clamped-max',
-        channelInterpretation: 'speakers',
-        panningModel: 'HRTF',
-        refDistance: 1,
-        rolloffFactor: 1,
-        positionX: 0,
-        positionY: 0,
-        positionZ: 0,
-        orientationX: 0,
-        orientationY: 0,
-        orientationZ: 0
-    };
     loopCount: LoopCount = 0;
     private _playbackRate: number = 1;
-    private _volume: number = 1;
 
-    constructor(public url: string, buffer: AudioBuffer | undefined, context: AudioContext, globalGainNode: GainNode, public type: SoundType = SoundType.Buffer, public panType: PanType = 'HRTF'
+    constructor(public url: string, buffer: AudioBuffer | undefined, context: AudioContext, private globalGainNode: GainNode, public type: SoundType = SoundType.Buffer, public panType: PanType = 'HRTF'
     ) {
         super();
         this.buffer = buffer;
         this.context = context;
-        this.globalGainNode = globalGainNode;
     }
 
     /**
@@ -86,7 +65,6 @@ export class Sound extends FilterManager implements BaseSound {
     * @param {SoundCloneOverrides} overrides - An object specifying properties to override in the cloned instance.
     *        This can include audio settings like volume, playback rate, and spatial positioning, as well as
     *        more complex configurations like 3D audio options and filter adjustments.
-    * @returns {Sound} A new Sound instance cloned from the current one, with any specified overrides applied.
     * @returns {Sound} A new Sound instance that is a clone of the current sound.
     */
 
@@ -134,6 +112,7 @@ export class Sound extends FilterManager implements BaseSound {
         gainNode.connect(this.globalGainNode);
         const playback = new Playback(source, gainNode, this.context, this.loopCount, this.panType);
         // this.finalizationRegistry.register(playback, playback);
+        playback.setGainNode(gainNode);
         playback.volume = this.volume;
         playback.playbackRate = this.playbackRate;
         this._filters.forEach(filter => playback.addFilter(filter));
@@ -145,36 +124,6 @@ export class Sound extends FilterManager implements BaseSound {
         }
         this.playbacks.push(playback);
         return [playback];
-    }
-
-    /**
-    * Starts playback of the sound and returns a Playback instance representing this particular playback.
-    * Multiple Playback instances can be created by calling this method multiple times,
-    * allowing for the same sound to be played concurrently with different settings.
-    * @returns {Playback[]} An array containing the Playback instances that have been started.
-    */
-
-    play(): Playback[] {
-        const playback = this.preplay();
-        playback.forEach(p => p.play());
-        return playback;
-    }
-
-    /**
-    * Stops all current playbacks of the sound immediately. This will halt the sound regardless of how many times it has been played.
-    */
-
-    stop() {
-        this.playbacks.forEach(p => p.stop());
-        this.playbacks = [];
-    }
-
-    /**
-    * Pauses all current playbacks of the sound.
-    */
-
-    pause(): void {
-        this.playbacks.forEach(playback => playback.pause());
     }
 
     /**
@@ -199,49 +148,6 @@ export class Sound extends FilterManager implements BaseSound {
     }
 
     /**
-    * Retrieves the current 3D spatial position of the sound in the audio context.
-    * The position is returned as an array of three values[x, y, z].
-    * @returns { Position } The current position of the sound.
-    */
-
-    get position(): Position {
-        return [this._threeDOptions.positionX, this._threeDOptions.positionY, this._threeDOptions.positionZ]
-    }
-
-    /**
-    * Sets the 3D spatial position of the sound in the audio context.
-    * The position is an array of three values[x, y, z].
-    * This method updates the position of all active playbacks of the sound.
-    * @param { Position } position - The new position of the sound.
-    */
-
-    set position(position: Position) {
-        this._threeDOptions.positionX = position[0];
-        this._threeDOptions.positionY = position[1];
-        this._threeDOptions.positionZ = position[2];
-        this.playbacks.forEach(p => p.position = position);
-    }
-
-
-    get threeDOptions(): IPannerOptions {
-        return this._threeDOptions;
-    }
-
-    set threeDOptions(options: Partial<IPannerOptions>) {
-        this._threeDOptions = { ...this._threeDOptions, ...options };
-        this.playbacks.forEach(p => p.threeDOptions = this._threeDOptions);
-    }
-
-    get stereoPan(): number | null {
-        return this._stereoPan;
-    }
-
-    set stereoPan(value: number) {
-        this._stereoPan = value;
-        this.playbacks.forEach(p => p.stereoPan = value);
-    }
-
-    /**
     * Sets or retrieves the loop behavior for the sound.
     * If loopCount is provided, the sound will loop the specified number of times.
     * If loopCount is 'infinite', the sound will loop indefinitely until stopped.
@@ -257,62 +163,6 @@ export class Sound extends FilterManager implements BaseSound {
         this.loopCount = loopCount;
         this.playbacks.forEach(p => p.loop(loopCount));
         return this.loopCount;
-    }
-
-    /**
-    * Adds a BiquadFilterNode to the sound's filter chain.
-    * Filters are applied in the order they are added.
-    * @param { BiquadFilterNode } filter - The filter to add to the chain.
-    */
-
-    addFilter(filter: BiquadFilterNode): void {
-        super.addFilter(filter);
-        this.playbacks.forEach(p => p.addFilter(filter));
-    }
-
-    /**
-    * Removes a BiquadFilterNode from the sound's filter chain.
-    * If the filter is not part of the chain, the method has no effect.
-    * @param { BiquadFilterNode } filter - The filter to remove from the chain.
-    */
-
-    removeFilter(filter: BiquadFilterNode): void {
-        super.removeFilter(filter);
-        this.playbacks.forEach(p => p.removeFilter(filter));
-    }
-
-
-    /*** 
-        * Gets the volume of the sound. This volume level affects all current and future playbacks of this sound instance.
-        * The volume is specified as a linear value between 0 (silent) and 1 (full volume).
-        * 
-        * @returns {number} The current volume of the sound.
-        */
-
-    get volume(): number {
-        return this._volume;
-    }
-
-    /***
-    * Sets the volume of the sound. This volume level affects all current and future playbacks of this sound instance.
-    * The volume is specified as a linear value between 0 (silent) and 1 (full volume).
-    * 
-    * @param {number} volume - The new volume level for the sound.
-    */
-
-    set volume(volume: number) {
-        this._volume = volume;
-        this.playbacks.forEach(p => p.volume = volume);
-    }
-
-    /**
-    * Returns a boolean indicating whether the sound is currently playing.
-    * a sound is playing if any of its playbacks are currently playing.
-    * @returns {boolean} True if the sound is playing, false otherwise.
-    */
-
-    get isPlaying(): boolean {
-        return this.playbacks.some(p => p.isPlaying);
     }
 
     get playbackRate(): number {

@@ -22,15 +22,14 @@
 import type { BaseSound, FadeType, LoopCount, PanType, Position } from "./cacophony";
 import type { AudioBuffer, AudioBufferSourceNode, AudioContext, BiquadFilterNode, GainNode, IPannerOptions, PannerNode, SourceNode, StereoPannerNode } from "./context";
 import { FilterManager } from "./filters";
+import { PannerMixin } from "./pannerMixin";
+import { VolumeMixin } from "./volumeMixin";
 
 
-
-export class Playback extends FilterManager implements BaseSound {
+export class Playback extends PannerMixin(VolumeMixin(FilterManager)) implements BaseSound {
     private _playing: boolean = false;
     private context: AudioContext;
     private source?: SourceNode;
-    private gainNode?: GainNode;
-    private panner?: PannerNode | StereoPannerNode;
     loopCount: LoopCount = 0;
     currentLoop: number = 0;
     private buffer?: AudioBuffer;
@@ -47,10 +46,10 @@ export class Playback extends FilterManager implements BaseSound {
     * @throws {Error} Throws an error if an invalid pan type is provided.
     */
 
-    constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0, public panType: PanType = 'HRTF') {
+    constructor(source: SourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0, panType: PanType = 'HRTF') {
         super();
         this.loopCount = loopCount;
-        this.panType = panType;
+        this.setPanType(panType, context);
         this.source = source;
         if ('buffer' in source && source.buffer) {
             this.buffer = source.buffer;
@@ -62,47 +61,11 @@ export class Playback extends FilterManager implements BaseSound {
         } else {
             throw new Error('Unsupported source type');
         }
-        this.gainNode = gainNode;
         this.context = context;
-        if (this.panType === 'HRTF') {
-            this.panner = context.createPanner();
-        } else if (this.panType === 'stereo') {
-            this.panner = context.createStereoPanner();
-        } else {
-            throw new Error('Invalid pan type');
-        }
-        this.source.connect(this.panner);
-        this.panner.connect(this.gainNode);
+        this.source.connect(this.panner!);
+        this.setGainNode(gainNode);
+        this.panner!.connect(this.gainNode!);
         this.refreshFilters();
-    }
-
-    /**
-    * Gets the stereo panning value.
-    * @returns {number | null} The current stereo pan value, or null if stereo panning is not applicable.
-    * @throws {Error} Throws an error if stereo panning is not available or if the sound has been cleaned up.
-    */
-
-    get stereoPan(): number | null {
-        if (this.panType === 'stereo') {
-            return (this.panner as StereoPannerNode).pan.value;
-        }
-        return null;
-    }
-
-    /**
-    * Sets the stereo panning value.
-    * @param {number} value - The stereo pan value to set, between -1 (left) and 1 (right).
-    * @throws {Error} Throws an error if stereo panning is not available, if the sound has been cleaned up, or if the value is out of bounds.
-    */
-
-    set stereoPan(value: number) {
-        if (this.panType !== 'stereo') {
-            throw new Error('Stereo panning is not available when using HRTF.');
-        }
-        if (!this.panner) {
-            throw new Error('Cannot set stereo pan of a sound that has been cleaned up');
-        }
-        (this.panner as StereoPannerNode).pan.setValueAtTime(clamp(value, -1, 1), this.context.currentTime);
     }
 
     /**
@@ -231,73 +194,6 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
-    * Gets the 3D audio options if HRTF panning is used.
-    * @returns {IPannerOptions} The current 3D audio options.
-    * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
-    */
-
-    get threeDOptions(): IPannerOptions {
-        if (!this.panner) {
-            throw new Error('Cannot get 3D options of a sound that has been cleaned up');
-        }
-        if (this.panType !== 'HRTF') {
-            throw new Error('Cannot get 3D options of a sound that is not using HRTF');
-        }
-        const panner = this.panner as PannerNode;
-        return {
-            coneInnerAngle: panner.coneInnerAngle,
-            coneOuterAngle: panner.coneOuterAngle,
-            coneOuterGain: panner.coneOuterGain,
-            distanceModel: panner.distanceModel,
-            maxDistance: panner.maxDistance,
-            channelCount: this.panner.channelCount,
-            channelCountMode: panner.channelCountMode,
-            channelInterpretation: panner.channelInterpretation,
-            panningModel: panner.panningModel,
-            refDistance: panner.refDistance,
-            rolloffFactor: panner.rolloffFactor,
-            positionX: panner.positionX.value,
-            positionY: panner.positionY.value,
-            positionZ: panner.positionZ.value,
-            orientationX: panner.orientationX.value,
-            orientationY: panner.orientationY.value,
-            orientationZ: panner.orientationZ.value
-        }
-    }
-
-    /**
- * Sets the 3D audio options for HRTF panning.
- * @param {Partial<IPannerOptions>} options - The 3D audio options to set.
- * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
- */
-    set threeDOptions(options: Partial<IPannerOptions>) {
-        if (!this.panner) {
-            throw new Error('Cannot set 3D options of a sound that has been cleaned up');
-        }
-        if (this.panType !== 'HRTF') {
-            throw new Error('Cannot set 3D options of a sound that is not using HRTF');
-        }
-        const panner = this.panner as PannerNode;
-        panner.coneInnerAngle = options.coneInnerAngle !== undefined ? options.coneInnerAngle : panner.coneInnerAngle;
-        panner.coneOuterAngle = options.coneOuterAngle !== undefined ? options.coneOuterAngle : panner.coneOuterAngle;
-        panner.coneOuterGain = options.coneOuterGain !== undefined ? options.coneOuterGain : panner.coneOuterGain;
-        panner.distanceModel = options.distanceModel || panner.distanceModel;
-        panner.maxDistance = options.maxDistance !== undefined ? options.maxDistance : panner.maxDistance;
-        panner.channelCount = options.channelCount !== undefined ? options.channelCount : panner.channelCount;
-        panner.channelCountMode = options.channelCountMode || panner.channelCountMode;
-        panner.channelInterpretation = options.channelInterpretation || panner.channelInterpretation;
-        panner.panningModel = options.panningModel || panner.panningModel;
-        panner.refDistance = options.refDistance !== undefined ? options.refDistance : panner.refDistance;
-        panner.rolloffFactor = options.rolloffFactor !== undefined ? options.rolloffFactor : panner.rolloffFactor;
-        panner.positionX.value = options.positionX !== undefined ? options.positionX : panner.positionX.value;
-        panner.positionY.value = options.positionY !== undefined ? options.positionY : panner.positionY.value;
-        panner.positionZ.value = options.positionZ !== undefined ? options.positionZ : panner.positionZ.value;
-        panner.orientationX.value = options.orientationX !== undefined ? options.orientationX : panner.orientationX.value;
-        panner.orientationY.value = options.orientationY !== undefined ? options.orientationY : panner.orientationY.value;
-        panner.orientationZ.value = options.orientationZ !== undefined ? options.orientationZ : panner.orientationZ.value;
-    }
-
-    /**
     * Seeks to a specific time in the audio.
     * @param {number} time - The time in seconds to seek to.
     * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
@@ -330,35 +226,10 @@ export class Playback extends FilterManager implements BaseSound {
     }
 
     /**
-    * Gets the current volume of the audio.
+    * Sets whether the audio source should loop.
+    * @param {boolean} loop - Whether the audio should loop.
     * @throws {Error} Throws an error if the sound has been cleaned up.
-    * @returns {number} The current volume.
     */
-
-    get volume(): number {
-        if (!this.gainNode) {
-            throw new Error('Cannot get volume of a sound that has been cleaned up');
-        }
-        return this.gainNode.gain.value;
-    }
-
-    /**
- * Sets the volume of the audio.
- * @param {number} v - The volume to set.
- * @throws {Error} Throws an error if the sound has been cleaned up.
- */
-    set volume(v: number) {
-        if (!this.gainNode) {
-            throw new Error('Cannot set volume of a sound that has been cleaned up');
-        }
-        this.gainNode.gain.value = v;
-    }
-
-    /**
- * Sets whether the audio source should loop.
- * @param {boolean} loop - Whether the audio should loop.
- * @throws {Error} Throws an error if the sound has been cleaned up.
- */
     set sourceLoop(loop: boolean) {
         if (!this.source) {
             throw new Error('Cannot set loop on a sound that has been cleaned up');
@@ -369,80 +240,6 @@ export class Playback extends FilterManager implements BaseSound {
         if ("mediaElement" in this.source && this.source.mediaElement) {
             this.source.mediaElement.loop = loop;
         }
-    }
-
-    /**
-    * Fades in the audio from silence to its current volume level over a specified duration.
-    * @param {number} time - The duration in seconds for the fade-in.
-    * @param {FadeType} fadeType - The type of fade curve ('linear' or 'exponential').
-    * @returns {Promise<void>} A promise that resolves when the fade-in is complete.
-    * @throws {Error} Throws an error if the sound has been cleaned up.
-    * @throws {Error} Throws an error if the sound has been cleaned up.
-    */
-
-    fadeIn(time: number, fadeType: FadeType = 'linear'): Promise<void> {
-        return new Promise(resolve => {
-            if (!this.gainNode) {
-                throw new Error('Cannot fade in a sound that has been cleaned up');
-            }
-
-            const initialVolume = this.gainNode.gain.value;
-            const targetVolume = 1; // Assuming the target volume after fade-in is 1 (full volume)
-
-            // Reset volume to 0 to start the fade-in process
-            this.gainNode.gain.value = 0;
-
-            switch (fadeType) {
-                case 'exponential':
-                    // Start at a low value (0.01) because exponentialRampToValueAtTime cannot ramp from 0
-                    this.gainNode.gain.setValueAtTime(0.01, this.context.currentTime);
-                    this.gainNode.gain.exponentialRampToValueAtTime(targetVolume, this.context.currentTime + time);
-                    break;
-                case 'linear':
-                    this.gainNode.gain.linearRampToValueAtTime(targetVolume, this.context.currentTime + time);
-                    break;
-            }
-
-            // Resolve the Promise after the fade-in time
-            setTimeout(() => {
-                // Ensure the final volume is set to the target volume
-                if (!this.gainNode) {
-                    throw new Error('Cannot fade in a sound that has been cleaned up');
-                }
-                this.gainNode.gain.value = targetVolume;
-                resolve();
-            }, time * 1000);
-        });
-    }
-
-    /**
-    * Fades out the audio to silence over a specified duration.
-    * @param {number} time - The duration in seconds for the fade-out.
-    * @param {FadeType} fadeType - The type of fade curve ('linear' or 'exponential').
-    * @returns {Promise<void>} A promise that resolves when the fade-out is complete.
-    * @throws {Error} Throws an error if the sound has been cleaned up.
-    */
-
-    fadeOut(time: number, fadeType: FadeType = 'linear'): Promise<void> {
-        return new Promise(resolve => {
-            // Storing the current gain value
-            if (!this.gainNode) {
-                throw new Error('Cannot fade out a sound that has been cleaned up');
-            }
-            const initialVolume = this.gainNode.gain.value;
-            switch (fadeType) {
-                case 'exponential':
-                    // Scheduling an exponential fade down
-                    this.gainNode.gain.exponentialRampToValueAtTime(0.01, this.context.currentTime + time);
-                    break;
-                case 'linear':
-
-                    // Scheduling a linear ramp to 0 over the given duration
-                    this.gainNode.gain.linearRampToValueAtTime(0, this.context.currentTime + time);
-            }
-            // Resolving the Promise after the fade-out time
-            setTimeout(() => resolve(), time * 1000);
-        });
     }
 
     /**
@@ -508,7 +305,6 @@ export class Playback extends FilterManager implements BaseSound {
             this.source.loopEnd = this.source.buffer?.duration || 0;
             this.source.loopStart = 0;
             return this.source.loop === true ? 'infinite' : 0;
-
         }
 
         throw new Error('Unsupported source type');
@@ -560,46 +356,10 @@ export class Playback extends FilterManager implements BaseSound {
     * Removes a filter from the audio signal chain.
     * @param {BiquadFilterNode} filter - The filter to remove.
     */
+
     removeFilter(filter: BiquadFilterNode): void {
         super.removeFilter(filter);
         this.refreshFilters();
-    }
-
-    /**
-    * Sets the position of the audio source in 3D space (HRTF panning only).
-    * @param {Position} position - The [x, y, z] coordinates of the audio source.
-    * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
-    */
-
-    set position(position: Position) {
-        if (!this.panner) {
-            throw new Error('Cannot move a sound that has been cleaned up');
-        }
-        if (this.panType !== 'HRTF') {
-            throw new Error('Cannot move a sound that is not using HRTF');
-        }
-        const [x, y, z] = position;
-        const panner = this.panner as PannerNode;
-        panner.positionX.value = x;
-        panner.positionY.value = y;
-        panner.positionZ.value = z;
-    }
-
-    /**
-    * Gets the position of the audio source in 3D space (HRTF panning only).
-    * @returns {Position} The [x, y, z] coordinates of the audio source.
-    * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
-    */
-
-    get position(): Position {
-        if (!this.panner) {
-            throw new Error('Cannot get position of a sound that has been cleaned up');
-        }
-        if (this.panType !== 'HRTF') {
-            throw new Error('Cannot get position of a sound that is not using HRTF');
-        }
-        const panner = this.panner as PannerNode;
-        return [panner.positionX.value, panner.positionY.value, panner.positionZ.value];
     }
 
     /**
@@ -607,8 +367,8 @@ export class Playback extends FilterManager implements BaseSound {
     * This method is called internally whenever filters are added or removed.
     * @throws {Error} Throws an error if the sound has been cleaned up.
     */
-    private refreshFilters(): void {
 
+    private refreshFilters(): void {
         if (!this.panner || !this.gainNode) {
             throw new Error('Cannot update filters on a sound that has been cleaned up');
         }
@@ -631,7 +391,6 @@ export class Playback extends FilterManager implements BaseSound {
         if (!this.source || !this.gainNode || !this.context) {
             throw new Error('Cannot clone a sound that has been cleaned up');
         }
-
         const panType = overrides.panType || this.panType;
         // we'll need to create a new gain node
         const gainNode = this.context.createGain();
@@ -648,8 +407,4 @@ export class Playback extends FilterManager implements BaseSound {
         const loopCount = overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
         return new Playback(source, gainNode, this.context, loopCount, panType);
     }
-}
-
-function clamp(value: number, min: number, max: number): number {
-    return Math.min(Math.max(value, min), max);
 }
