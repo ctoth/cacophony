@@ -1,16 +1,16 @@
 import { Position } from "./cacophony";
-import { BiquadFilterNode, IPannerOptions } from "./context";
+import { BiquadFilterNode } from "./context";
 import { FilterManager } from "./filters";
-import { Playback } from "./playback";
+import { BasePlayback, Playback } from "./playback";
 
 type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
 
 export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
     abstract class PlaybackContainer extends Base {
-        playbacks: Playback[] = [];
+        protected playbacks: BasePlayback[] = [];
         protected _position: Position = [0, 0, 0];
         protected _stereoPan: number = 0;
-        protected _threeDOptions: IPannerOptions = {
+        protected _threeDOptions: PannerOptions = {
             coneInnerAngle: 360,
             coneOuterAngle: 360,
             coneOuterGain: 0,
@@ -31,7 +31,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
         };
         protected _volume: number = 1;
 
-        abstract preplay(): Playback[]
+        abstract preplay(): BasePlayback[]
 
         /**
         * Starts playback of the sound and returns a Playback instance representing this particular playback.
@@ -40,7 +40,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
         * @returns {Playback[]} An array containing the Playback instances that have been started.
         */
 
-        play(): Playback[] {
+        play(): BasePlayback[] {
             const playback = this.preplay();
             playback.forEach(p => p.play());
             return playback;
@@ -96,7 +96,6 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
             return this.playbacks.some(p => p.isPlaying);
         }
 
-
         /**
         * Retrieves the current 3D spatial position of the sound in the audio context.
         * The position is returned as an array of three values[x, y, z].
@@ -104,7 +103,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
         */
 
         get position(): Position {
-            return [this._threeDOptions.positionX, this._threeDOptions.positionY, this._threeDOptions.positionZ]
+            return [this._threeDOptions.positionX as number, this._threeDOptions.positionY as number, this._threeDOptions.positionZ as number]
         }
 
         /**
@@ -122,11 +121,11 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
         }
 
 
-        get threeDOptions(): IPannerOptions {
+        get threeDOptions(): PannerOptions {
             return this._threeDOptions;
         }
 
-        set threeDOptions(options: Partial<IPannerOptions>) {
+        set threeDOptions(options: Partial<PannerOptions>) {
             this._threeDOptions = { ...this._threeDOptions, ...options };
             this.playbacks.forEach(p => p.threeDOptions = this._threeDOptions);
         }

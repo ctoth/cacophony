@@ -1,4 +1,4 @@
-import { AudioContext, AudioWorkletNode, IAudioListener, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
+import { AudioContext, AudioWorkletNode, IAudioListener, IMediaStreamAudioSourceNode, IOscillatorOptions, IPannerNode, IPannerOptions } from 'standardized-audio-context';
 import phaseVocoderProcessorWorkletUrl from './bundles/phase-vocoder-bundle.js?url';
 import { AudioCache } from './cache';
 import { BiquadFilterNode, GainNode, AudioBuffer } from './context';
@@ -7,12 +7,14 @@ import { Group } from './group';
 import { Playback } from './playback';
 import { Sound } from './sound';
 import { createStream } from './stream';
+import { Synth } from './synth';
 
 
 export enum SoundType {
     HTML = 'HTML',
     Streaming = 'Streaming',
-    Buffer = 'Buffer'
+    Buffer = 'Buffer',
+    Oscillator = 'oscillator'
 }
 
 
@@ -72,9 +74,8 @@ export interface BaseSound {
     addFilter(filter: BiquadFilterNode): void;
     removeFilter(filter: BiquadFilterNode): void;
     volume: number;
-    playbackRate: number;
-    loop?(loopCount?: LoopCount): LoopCount;
-    duration: number;
+    position?: Position;
+    threeDOptions?: any;
 }
 
 
@@ -133,26 +134,16 @@ export class Cacophony {
             return new AudioWorkletNode!(this.context, name);
         }
     }
-    
+
     clearMemoryCache(): void {
         AudioCache.clearMemoryCache();
     }
 
 
-    createOscillator = ({ frequency, type, periodicWave }: OscillatorOptions) => {
-        if (frequency === undefined) {
-            frequency = 440;
-        }
-        const oscillator = this.context.createOscillator();
-        oscillator.type = type || 'sine';
-        if (periodicWave) {
-            oscillator.setPeriodicWave(periodicWave);
-        }
-        oscillator.frequency.setValueAtTime(frequency, this.context.currentTime);
-        oscillator.connect(this.globalGainNode);
-        return oscillator
+    createOscillator(options: OscillatorOptions) {
+        const synth = new Synth(this.context, this.globalGainNode, SoundType.Oscillator, 'HRTF', options);
+        return synth;
     }
-
 
     async createSound(buffer: AudioBuffer, soundType?: SoundType, panType?: PanType): Promise<Sound>
 

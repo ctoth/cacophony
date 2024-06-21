@@ -1,6 +1,10 @@
 import { FilterManager } from "./filters";
 import { GainNode } from "./context";
 
+export type VolumeCloneOverrides = {
+    volume?: number;
+};
+
 type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
 
 export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
@@ -37,7 +41,7 @@ export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
             this.gainNode.gain.value = v;
         }
 
+    };
 
-            };
     return VolumeMixin;
 }

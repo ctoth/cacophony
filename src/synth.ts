@@ -1,0 +1,96 @@
+import type { OscillatorCloneOverrides } from "oscillatorMixin";
+import type { PanCloneOverrides } from "pannerMixin";
+import type { VolumeCloneOverrides } from "volumeMixin";
+import { BaseSound, PanType, SoundType } from "./cacophony";
+import { PlaybackContainer } from "./container";
+import type { GainNode } from './context';
+import { AudioContext } from './context';
+import type { FilterCloneOverrides } from "./filters";
+import { FilterManager } from "./filters";
+import { SynthPlayback } from "./synthPlayback";
+
+type SynthCloneOverrides = FilterCloneOverrides & OscillatorCloneOverrides & PanCloneOverrides & VolumeCloneOverrides
+
+export class Synth extends PlaybackContainer(FilterManager) implements BaseSound {
+    private _oscillatorOptions: Partial<OscillatorOptions>;
+    protected playbacks: SynthPlayback[] = [];
+
+    constructor(
+        public context: AudioContext,
+        private globalGainNode: GainNode,
+        public type: SoundType = SoundType.Oscillator,
+        public panType: PanType = 'HRTF',
+        oscillatorOptions: Partial<OscillatorOptions> = {}
+    ) {
+        super();
+        this.context = context;
+        this._oscillatorOptions = oscillatorOptions;
+    }
+
+    /**
+     * Clones the current Synth instance, creating a deep copy with the option to override specific properties.
+     * This method allows for the creation of a new, independent Synth instance based on the current one, with the
+     * flexibility to modify certain attributes through the `overrides` parameter. This is particularly useful for
+     * creating variations of a synth without affecting the original instance. The cloned instance includes all properties,
+     * playback settings, and filters of the original, unless explicitly overridden.
+     *
+     * @param {SynthCloneOverrides} overrides - An object specifying properties to override in the cloned instance.
+     *        This can include audio settings like volume, playback rate, and spatial positioning, as well as
+     *        more complex configurations like 3D audio options and filter adjustments.
+     * @returns {Sound} A new Sound instance that is a clone of the current sound.
+     */
+    clone(overrides: Partial<SynthCloneOverrides> = {}): Synth {
+        const panType = overrides.panType || this.panType;
+        const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
+        const threeDOptions = (overrides.threeDOptions || this.threeDOptions) as PannerOptions;
+        const volume = overrides.volume !== undefined ? overrides.volume : this.volume;
+        const position = overrides.position && overrides.position.length ? overrides.position : this.position;
+        const filters = overrides.filters && overrides.filters.length ? overrides.filters : this._filters;
+        const oscillatorOptions = overrides.oscillatorOptions || this._oscillatorOptions;
+
+        const clone = new Synth(this.context, this.globalGainNode, this.type, panType, oscillatorOptions);
+        clone._volume = volume;
+        clone._position = position;
+        clone._stereoPan = stereoPan as number;
+        clone._threeDOptions = threeDOptions;
+        clone.addFilters(filters);
+        return clone;
+    }
+
+    /**
+     * Generates a Playback instance for the sound without starting playback.
+     * This allows for pre-configuration of playback properties such as volume and position before the sound is actually played.
+     * @returns {Playback[]} An array of Playback instances that are ready to be played.
+     */
+    preplay(): SynthPlayback[] {
+        const oscillator = this.context.createOscillator();
+        Object.assign(oscillator, this._oscillatorOptions);
+
+        const gainNode = this.context.createGain();
+        gainNode.connect(this.globalGainNode);
+        const playback = new SynthPlayback(oscillator, gainNode, this.context, this.panType);
+        playback.volume = this.volume;
+        this._filters.forEach(filter => playback.addFilter(filter));
+        if (this.panType === 'HRTF') {
+            playback.threeDOptions = this.threeDOptions;
+            playback.position = this.position;
+        } else if (this.panType === 'stereo') {
+            playback.stereoPan = this.stereoPan as number;
+        }
+        this.playbacks.push(playback);
+        return [playback];
+    }
+
+    get oscillatorOptions(): Partial<OscillatorOptions> {
+        return this._oscillatorOptions;
+    }
+
+    set oscillatorOptions(options: Partial<OscillatorOptions>) {
+        this._oscillatorOptions = options;
+        this.playbacks.forEach(p => {
+            if (p.source instanceof OscillatorNode) {
+                Object.assign(p.source, options);
+            }
+        });
+    }
+}
