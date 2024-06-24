@@ -1,5 +1,5 @@
+import type { PanType, Position } from "./cacophony";
 import type { AudioContext, PannerNode, StereoPannerNode } from "./context";
-import { PanType, Position } from "./cacophony";
 import { FilterManager } from "./filters";
 
 export type PanCloneOverrides = {

@@ -22,14 +22,13 @@
  */
 
 
-import type { PanCloneOverrides } from "pannerMixin";
-import { AudioContext, IAudioBuffer } from "standardized-audio-context";
-import type { VolumeCloneOverrides } from "volumeMixin";
 import { SoundType, type BaseSound, type LoopCount, type PanType } from "./cacophony";
 import { PlaybackContainer } from "./container";
-import type { BiquadFilterNode, GainNode, SourceNode, } from './context';
+import type { AudioBuffer, AudioContext, BiquadFilterNode, GainNode, SourceNode, } from './context';
 import { FilterManager } from "./filters";
+import type { PanCloneOverrides } from "./pannerMixin";
 import { Playback } from "./playback";
+import type { VolumeCloneOverrides } from "./volumeMixin";
 
 type SoundCloneOverrides = PanCloneOverrides & VolumeCloneOverrides & {
     loopCount?: LoopCount;
@@ -39,7 +38,7 @@ type SoundCloneOverrides = PanCloneOverrides & VolumeCloneOverrides & {
 
 export class Sound extends PlaybackContainer(FilterManager) implements BaseSound {
     protected playbacks: Playback[] = [];
-    buffer?: IAudioBuffer;
+    buffer?: AudioBuffer;
     context: AudioContext;
     loopCount: LoopCount = 0;
     private _playbackRate: number = 1;

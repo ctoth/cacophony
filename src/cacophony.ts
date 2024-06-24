@@ -1,10 +1,10 @@
-import { AudioContext, AudioWorkletNode, IAudioListener, IMediaStreamAudioSourceNode, IOscillatorOptions, IPannerNode, IPannerOptions } from 'standardized-audio-context';
+import { AudioContext, AudioWorkletNode, IAudioListener, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
 import phaseVocoderProcessorWorkletUrl from './bundles/phase-vocoder-bundle.js?url';
 import { AudioCache } from './cache';
-import { BiquadFilterNode, GainNode, AudioBuffer } from './context';
+import { AudioBuffer, BiquadFilterNode, GainNode } from './context';
 import { FilterManager } from './filters';
 import { Group } from './group';
-import { Playback } from './playback';
+import type { Playback } from './playback';
 import { Sound } from './sound';
 import { createStream } from './stream';
 import { Synth } from './synth';

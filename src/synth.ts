@@ -1,13 +1,13 @@
-import type { OscillatorCloneOverrides } from "oscillatorMixin";
-import type { PanCloneOverrides } from "pannerMixin";
-import type { VolumeCloneOverrides } from "volumeMixin";
-import { BaseSound, PanType, SoundType } from "./cacophony";
+import { SoundType, type BaseSound, type PanType } from "./cacophony";
 import { PlaybackContainer } from "./container";
 import type { GainNode } from './context';
 import { AudioContext } from './context';
 import type { FilterCloneOverrides } from "./filters";
 import { FilterManager } from "./filters";
+import type { OscillatorCloneOverrides } from "./oscillatorMixin";
+import type { PanCloneOverrides } from "./pannerMixin";
 import { SynthPlayback } from "./synthPlayback";
+import type { VolumeCloneOverrides } from "./volumeMixin";
 
 type SynthCloneOverrides = FilterCloneOverrides & OscillatorCloneOverrides & PanCloneOverrides & VolumeCloneOverrides
 

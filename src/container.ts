@@ -1,4 +1,4 @@
-import { Position } from "./cacophony";
+import type { Position } from "./cacophony";
 import { BiquadFilterNode } from "./context";
 import { FilterManager } from "./filters";
 import { BasePlayback, Playback } from "./playback";

@@ -1,4 +1,4 @@
-import { BaseSound, LoopCount, Position } from './cacophony';
+import type { BaseSound, LoopCount, Position } from './cacophony';
 
 import { BiquadFilterNode } from './context';
 import { Playback } from './playback';
