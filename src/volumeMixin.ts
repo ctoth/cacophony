@@ -1,5 +1,5 @@
-import { FilterManager } from "./filters";
 import { GainNode } from "./context";
+import { FilterManager } from "./filters";
 
 export type VolumeCloneOverrides = {
     volume?: number;

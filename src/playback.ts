@@ -18,7 +18,6 @@
  * spatial characteristics when using 3D audio.
  */
 
-
 import type { BaseSound, LoopCount, PanType } from "./cacophony";
 import type { AudioBuffer, AudioBufferSourceNode, AudioContext, AudioNode, BiquadFilterNode, GainNode, SourceNode } from "./context";
 import { FilterManager } from "./filters";
@@ -50,7 +49,7 @@ export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager
 
 export class Playback extends BasePlayback implements BaseSound {
     private context: AudioContext;
-    public source?: SourceNode;
+    declare public source?: SourceNode;
     loopCount: LoopCount = 0;
     currentLoop: number = 0;
     private buffer?: AudioBuffer;

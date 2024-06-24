@@ -15,7 +15,6 @@ export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(Filte
         this.refreshFilters()
     }
 
-
     /**
     * Refreshes the audio filters by re-applying them to the audio signal chain.
     * This method is called internally whenever filters are added or removed.
@@ -31,7 +30,4 @@ export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(Filte
         connection = this.applyFilters(connection);
         connection.connect(this.gainNode);
     }
-
-
-
 }
