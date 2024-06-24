@@ -41,7 +41,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
      */
     clone(overrides: Partial<SynthCloneOverrides> = {}): Synth {
         const panType = overrides.panType || this.panType;
-        const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
+        const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : (this.stereoPan ?? 0);
         const threeDOptions = (overrides.threeDOptions || this.threeDOptions) as PannerOptions;
         const volume = overrides.volume !== undefined ? overrides.volume : this.volume;
         const position = overrides.position && overrides.position.length ? overrides.position : this.position;
@@ -64,7 +64,9 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
      */
     preplay(): SynthPlayback[] {
         const oscillator = this.context.createOscillator();
-        Object.assign(oscillator, this._oscillatorOptions);
+        if (this.oscillatorOptions.detune) oscillator.detune.value = this.oscillatorOptions.detune;
+        if (this.oscillatorOptions.frequency) oscillator.frequency.value = this.oscillatorOptions.frequency;
+        if (this.oscillatorOptions.type) oscillator.type = this.oscillatorOptions.type;
 
         const gainNode = this.context.createGain();
         gainNode.connect(this.globalGainNode);
@@ -89,7 +91,9 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         this._oscillatorOptions = options;
         this.playbacks.forEach(p => {
             if (p.source instanceof OscillatorNode) {
-                Object.assign(p.source, options);
+                if (this.oscillatorOptions.detune) p.source.detune.value = this.oscillatorOptions.detune;
+                if (this.oscillatorOptions.frequency) p.source.frequency.value = this.oscillatorOptions.frequency;
+                if (this.oscillatorOptions.type) p.source.type = this.oscillatorOptions.type;
             }
         });
     }
