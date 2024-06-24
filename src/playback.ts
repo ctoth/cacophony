@@ -26,7 +26,7 @@ import { VolumeMixin } from "./volumeMixin";
 
 export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager)) {
     public source?: AudioNode
-    protected _playing: boolean = false;
+    _playing: boolean = false;
 
     abstract play(): [this];
     abstract pause(): void;

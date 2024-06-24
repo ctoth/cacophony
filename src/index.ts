@@ -1,5 +1,5 @@
 export * from './cacophony';
 export * from './group';
 export * from './playback';
-export * from './sound';
-export * from './synth';
+export { Sound } from './sound';
+export { Synth } from './synth';

@@ -13,8 +13,8 @@ type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
 
 export function PannerMixin<TBase extends Constructor>(Base: TBase) {
     abstract class PannerMixin extends Base {
-        protected panner?: PannerNode | StereoPannerNode;
-        private _panType: PanType = 'stereo';
+        panner?: PannerNode | StereoPannerNode;
+        _panType: PanType = 'stereo';
 
         get panType(): PanType {
             return this._panType;

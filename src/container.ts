@@ -7,10 +7,10 @@ type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
 
 export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
     abstract class PlaybackContainer extends Base {
-        protected playbacks: BasePlayback[] = [];
-        protected _position: Position = [0, 0, 0];
-        protected _stereoPan: number = 0;
-        protected _threeDOptions: PannerOptions = {
+        playbacks: BasePlayback[] = [];
+        _position: Position = [0, 0, 0];
+        _stereoPan: number = 0;
+        _threeDOptions: PannerOptions = {
             coneInnerAngle: 360,
             coneOuterAngle: 360,
             coneOuterGain: 0,
@@ -29,7 +29,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
             orientationY: 0,
             orientationZ: 0
         };
-        protected _volume: number = 1;
+        _volume: number = 1;
 
         abstract preplay(): BasePlayback[]
 

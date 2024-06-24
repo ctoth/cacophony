@@ -9,7 +9,7 @@ type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
 
 export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
     abstract class VolumeMixin extends Base {
-        protected gainNode?: GainNode;
+        gainNode?: GainNode;
 
         setGainNode(gainNode: GainNode) {
             this.gainNode = gainNode;

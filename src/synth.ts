@@ -11,8 +11,8 @@ import type { VolumeCloneOverrides } from "./volumeMixin";
 type SynthCloneOverrides = FilterCloneOverrides & OscillatorCloneOverrides & PanCloneOverrides & VolumeCloneOverrides
 
 export class Synth extends PlaybackContainer(FilterManager) implements BaseSound {
-    private _oscillatorOptions: Partial<OscillatorOptions>;
-    protected playbacks: SynthPlayback[] = [];
+    _oscillatorOptions: Partial<OscillatorOptions>;
+    playbacks: SynthPlayback[] = [];
 
     constructor(
         public context: AudioContext,

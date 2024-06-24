@@ -9,8 +9,7 @@ type Constructor<T = {}> = abstract new (...args: any[]) => T;
 
 export function OscillatorMixin<TBase extends Constructor>(Base: TBase) {
     abstract class OscillatorMixin extends BasePlayback {
-
-        private _oscillatorOptions: Partial<OscillatorOptions> = {};
+        _oscillatorOptions: Partial<OscillatorOptions> = {};
         declare public source?: OscillatorNode;
 
         get oscillatorOptions(): Partial<OscillatorOptions> {

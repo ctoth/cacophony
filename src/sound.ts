@@ -37,7 +37,7 @@ type SoundCloneOverrides = PanCloneOverrides & VolumeCloneOverrides & {
 };
 
 export class Sound extends PlaybackContainer(FilterManager) implements BaseSound {
-    protected playbacks: Playback[] = [];
+    playbacks: Playback[] = [];
     buffer?: AudioBuffer;
     context: AudioContext;
     loopCount: LoopCount = 0;

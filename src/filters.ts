@@ -5,7 +5,7 @@ export type FilterCloneOverrides = {
 };
 
 export abstract class FilterManager {
-    protected _filters: BiquadFilterNode[] = [];
+    _filters: BiquadFilterNode[] = [];
 
     addFilter(filter: BiquadFilterNode) {
         this._filters.push(filter);
