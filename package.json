@@ -12,9 +12,10 @@
     "README.md"
   ],
   "scripts": {
-    "build": "npm run clean&&npm run build:worklets&&vite build&&npm run docs",
+    "build": "npm run typecheck && npm run clean&&npm run build:worklets&&vite build&&npm run docs",
     "dev": "vite",
     "serve": "vite preview",
+    "typecheck": "tsc --noEmit",
     "docs": "typedoc --out docs --exclude *.test.ts src",
     "build:worklets": "rollup -c",
     "clean": "rimraf build",
