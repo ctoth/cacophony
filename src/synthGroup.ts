@@ -4,11 +4,11 @@ export class SynthGroup {
 
     constructor(public synths: Synth[] = []) { }
 
-    addSynth(synth) {
+    addSynth(synth: Synth) {
         this.synths.push(synth);
     }
 
-    removeSynth(synth) {
+    removeSynth(synth: Synth) {
         const index = this.synths.indexOf(synth);
         if (index !== -1) {
             this.synths.splice(index, 1);
