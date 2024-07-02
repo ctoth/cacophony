@@ -1,4 +1,4 @@
-import OLAProcessor from './ola.ts';
+import OLAProcessor from './ola';
 import FFT from 'fft.js';
 
 const MAX_REVERB_DURATION = 10; // Maximum reverb duration in seconds
