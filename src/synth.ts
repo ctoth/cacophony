@@ -57,9 +57,9 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     }
 
     /**
-     * Generates a Playback instance for the sound without starting playback.
-     * This allows for pre-configuration of playback properties such as volume and position before the sound is actually played.
-     * @returns {Playback[]} An array of Playback instances that are ready to be played.
+     * Generates a Playback instance for the synth without starting playback.
+     * This allows for pre-configuration of playback properties such as volume and position before the synth is actually played.
+     * @returns {SynthPlayback[]} An array of SynthPlayback instances that are ready to be played.
      */
     preplay(): SynthPlayback[] {
         const oscillator = this.context.createOscillator();

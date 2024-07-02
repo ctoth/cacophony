@@ -1,5 +1,4 @@
 import type { Position } from "./cacophony";
-import { BiquadFilterNode } from "./context";
 import { FilterManager } from "./filters";
 import { BasePlayback, Playback } from "./playback";
 
@@ -31,7 +30,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
         };
         _volume: number = 1;
 
-        abstract preplay(): BasePlayback[]
+        abstract preplay(): typeof this.playbacks;
 
         /**
         * Starts playback of the sound and returns a Playback instance representing this particular playback.
@@ -40,7 +39,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
         * @returns {Playback[]} An array containing the Playback instances that have been started.
         */
 
-        play(): BasePlayback[] {
+        play(): typeof this.playbacks {
             const playback = this.preplay();
             playback.forEach(p => p.play());
             return playback;
