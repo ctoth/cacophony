@@ -48,6 +48,32 @@ export function OscillatorMixin<TBase extends Constructor>(Base: TBase) {
             this.stop();
         }
 
+        get frequency(): number {
+            return this.source!.frequency.value;
+        }
+
+        set frequency(frequency: number) {
+            this.source!.frequency.value = frequency;
+            this.oscillatorOptions.frequency = frequency;
+        }
+
+        get detune(): number {
+            return this.source!.detune.value;
+        }
+
+        set detune(detune: number) {
+            this.source!.detune.value = detune;
+            this.oscillatorOptions.detune = detune;
+        }
+
+        get type(): OscillatorType {
+            return this.source!.type;
+        }
+
+        set type(type: OscillatorType) {
+            this.source!.type = type;
+            this.oscillatorOptions.type = type;
+        }
     };
     return OscillatorMixin;
 }

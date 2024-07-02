@@ -37,13 +37,13 @@ type SoundCloneOverrides = PanCloneOverrides & VolumeCloneOverrides & {
 };
 
 export class Sound extends PlaybackContainer(FilterManager) implements BaseSound {
-    playbacks: Playback[] = [];
+    declare public playbacks: Playback[];
     buffer?: AudioBuffer;
     context: AudioContext;
     loopCount: LoopCount = 0;
     private _playbackRate: number = 1;
 
-    constructor(public url: string, buffer: AudioBuffer | undefined, context: AudioContext, private globalGainNode: GainNode, public type: SoundType = SoundType.Buffer, public panType: PanType = 'HRTF'
+    constructor(public url: string, buffer: AudioBuffer | undefined, context: AudioContext, private globalGainNode: GainNode, public soundType: SoundType = SoundType.Buffer, public panType: PanType = 'HRTF'
     ) {
         super();
         this.buffer = buffer;
@@ -73,7 +73,7 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
         const position = overrides.position && overrides.position.length ? overrides.position : this.position;
         const filters = overrides.filters && overrides.filters.length ? overrides.filters : this._filters;
 
-        const clone = new Sound(this.url, this.buffer, this.context, this.globalGainNode, this.type, panType);
+        const clone = new Sound(this.url, this.buffer, this.context, this.globalGainNode, this.soundType, panType);
         clone.loopCount = loopCount;
         clone._playbackRate = playbackRate;
         clone._volume = volume;
@@ -168,6 +168,7 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
         this._playbackRate = rate;
         this.playbacks.forEach(p => p.playbackRate = rate);
     }
+
 
 }
 

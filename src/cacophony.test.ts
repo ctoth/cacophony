@@ -25,15 +25,15 @@ test('that createSound creates a sound with the correct buffer', async () => {
     expect(sound.buffer).toBe(buffer);
 });
 it('createOscillator creates an oscillator with default parameters when none are provided', () => {
-    const oscillator = cacophony.createOscillator({});
-    expect(oscillator.type).toBe('sine');
-    expect(oscillator.frequency.value).toBe(440);
+    const synth = cacophony.createOscillator({});
+    expect(synth.type).toBe('sine');
+    expect(synth.frequency).toBe(440);
 });
 
 it('createOscillator creates an oscillator with the provided parameters', () => {
-    const oscillator = cacophony.createOscillator({ frequency: 880, type: 'square' });
-    expect(oscillator.type).toBe('square');
-    expect(oscillator.frequency.value).toBe(880);
+    const synth = cacophony.createOscillator({ frequency: 880, type: 'square' });
+    expect(synth.type).toBe('square');
+    expect(synth.frequency).toBe(880);
 });
 
 it('createGroup creates a Group instance with the provided Sound instances', async () => {
@@ -77,7 +77,7 @@ describe('Sound class', () => {
         expect(sound.url).toBe('test-url');
         expect(sound.buffer).toBe(buffer);
         expect(sound.context).toBe(audioContextMock);
-        expect(sound.type).toBe(SoundType.Buffer);
+        expect(sound.soundType).toBe(SoundType.Buffer);
         expect(sound.panType).toBe('HRTF');
     });
 
