@@ -1,5 +1,6 @@
 import { AudioContext, AudioWorkletNode, IAudioListener, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
 import phaseVocoderProcessorWorkletUrl from './bundles/phase-vocoder-bundle.js?url';
+import reverbProcessorWorkletUrl from './bundles/reverb-bundle.js?url';
 import { AudioCache } from './cache';
 import { AudioBuffer, BiquadFilterNode, GainNode } from './context';
 import { FilterManager } from './filters';
@@ -104,12 +105,12 @@ export class Cacophony {
     async loadWorklets() {
         if (this.context.audioWorklet) {
             await this.createWorkletNode('phase-vocoder', phaseVocoderProcessorWorkletUrl);
+            await this.createWorkletNode('reverb', reverbProcessorWorkletUrl);
         }
         else {
             console.warn('AudioWorklet not supported');
         }
     }
-
 
     async createWorkletNode(
         name: string,

@@ -16,10 +16,8 @@ export default abstract class OLAProcessor extends AudioWorkletProcessor {
 
     constructor(options: AudioWorkletNodeOptions) {
         super(options);
-
         this.nbInputs = options.numberOfInputs || 1;
         this.nbOutputs = options.numberOfOutputs || 1;
-
         this.blockSize = options.processorOptions.blockSize || DEFAULT_BLOCK_SIZE;
         this.hopSize = WEBAUDIO_BLOCK_SIZE;
         this.nbOverlaps = Math.floor(this.blockSize / this.hopSize);
