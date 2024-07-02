@@ -1,6 +1,5 @@
 import type { BaseSound, LoopCount, Position } from './cacophony';
 
-import { BiquadFilterNode } from './context';
 import { Playback } from './playback';
 import { Sound } from './sound';
 
@@ -31,7 +30,6 @@ export class Group implements BaseSound {
         playback.forEach(p => p.play());
         return playback[0];
     }
-
 
     /**
     * Plays the sounds in the group in a specific order.
@@ -72,7 +70,7 @@ export class Group implements BaseSound {
     }
 
     preplay(): Playback[] {
-        return (this.sounds as Sound[]).reduce<Playback[]>((playbacks, sound) => {
+        return (this.sounds).reduce<Playback[]>((playbacks, sound) => {
             sound.loop && sound.loop(this.loopCount);
             return playbacks.concat(sound.preplay());
         }, []);
@@ -153,6 +151,5 @@ export class Group implements BaseSound {
     set playbackRate(rate: number) {
         this.sounds.forEach(sound => sound.playbackRate = rate);
     }
-
 
 }
