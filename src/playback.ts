@@ -19,7 +19,7 @@
  */
 
 import type { BaseSound, LoopCount, PanType } from "./cacophony";
-import type { AudioBuffer, AudioBufferSourceNode, AudioContext, AudioNode, BiquadFilterNode, GainNode, SourceNode } from "./context";
+import type { AudioBuffer, AudioBufferSourceNode, AudioContext, AudioNode, GainNode, SourceNode } from "./context";
 import { FilterManager } from "./filters";
 import { PannerMixin } from "./pannerMixin";
 import { VolumeMixin } from "./volumeMixin";

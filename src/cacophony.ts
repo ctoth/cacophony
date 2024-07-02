@@ -1,7 +1,7 @@
 import { AudioContext, AudioWorkletNode, IAudioListener, IMediaStreamAudioSourceNode, IPannerNode, IPannerOptions } from 'standardized-audio-context';
 import phaseVocoderProcessorWorkletUrl from './bundles/phase-vocoder-bundle.js?url';
 import { AudioCache } from './cache';
-import { AudioBuffer, BiquadFilterNode, GainNode } from './context';
+import { AudioBuffer, GainNode } from './context';
 import { FilterManager } from './filters';
 import { Group } from './group';
 import type { Playback } from './playback';

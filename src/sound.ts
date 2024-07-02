@@ -24,7 +24,7 @@
 
 import { SoundType, type BaseSound, type LoopCount, type PanType } from "./cacophony";
 import { PlaybackContainer } from "./container";
-import type { AudioBuffer, AudioContext, BiquadFilterNode, GainNode, SourceNode, } from './context';
+import type { AudioBuffer, AudioContext, GainNode, SourceNode, } from './context';
 import { FilterManager } from "./filters";
 import type { PanCloneOverrides } from "./pannerMixin";
 import { Playback } from "./playback";
@@ -168,7 +168,6 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
         this._playbackRate = rate;
         this.playbacks.forEach(p => p.playbackRate = rate);
     }
-
 
 }
 

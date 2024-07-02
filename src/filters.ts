@@ -1,5 +1,3 @@
-import { BiquadFilterNode } from './context'
-
 export type FilterCloneOverrides = {
     filters?: BiquadFilterNode[];
 };
@@ -31,7 +29,6 @@ export abstract class FilterManager {
         // todo: be more efficient
         filters.forEach(filter => this.addFilter(filter));
     }
-
 
     removeFilters(filters: BiquadFilterNode[]) {
         filters.forEach(filter => this.removeFilter(filter));
