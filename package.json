@@ -21,11 +21,12 @@
     "clean": "rimraf build",
     "prepublishOnly": "npm run build",
     "test": "vitest",
-    "ci:test": "vitest run --no-color --ci"
+    "ci:test": "vitest run --no-color --run --typecheck"
   },
   "keywords": [
     "audio",
     "audio worklets",
+    "synthesis",
     "webaudio"
   ],
   "author": "Christopher Toth",
