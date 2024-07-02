@@ -98,7 +98,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     }
 
     get frequency(): number {
-        return this.oscillatorOptions.frequency as number;
+        return this.oscillatorOptions.frequency as number || 440;
     }
 
     set frequency(frequency: number) {
@@ -118,7 +118,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     }
 
     get type(): OscillatorType {
-        return this.oscillatorOptions.type as OscillatorType;
+        return this.oscillatorOptions.type as OscillatorType || 'sine';
     }
 
     set type(type: OscillatorType) {

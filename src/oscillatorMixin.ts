@@ -74,6 +74,7 @@ export function OscillatorMixin<TBase extends Constructor>(Base: TBase) {
             this.source!.type = type;
             this.oscillatorOptions.type = type;
         }
+        
     };
     return OscillatorMixin;
 }
