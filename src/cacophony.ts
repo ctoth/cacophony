@@ -191,7 +191,8 @@ export class Cacophony {
         filter.frequency.value = frequency;
         filter.gain.value = gain || 0;
         filter.Q.value = Q || 1;
-        return filter;
+        // @ts-expect-error
+        return filter as BiquadFilterNode;
     }
 
     /**
