@@ -82,10 +82,6 @@ synthGroup.play(); // Play all synths in the group
 - **Flexible Synthesizer Options**: Create complex sounds with customizable oscillator settings.
 - **Efficient Group Management**: Control multiple audio sources simultaneously for complex audio scenarios.
 
-## Contributing
-
-We welcome contributions! If you're interested in helping improve Cacophony, please check out our [contribution guidelines](CONTRIBUTING.md).
-
 ## License
 
 Cacophony is open-source software licensed under the [MIT License](LICENSE.txt)
