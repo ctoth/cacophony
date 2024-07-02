@@ -17,7 +17,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     constructor(
         public context: AudioContext,
         private globalGainNode: GainNode,
-        public type: SoundType = SoundType.Oscillator,
+        public soundType: SoundType = SoundType.Oscillator,
         public panType: PanType = 'HRTF',
         oscillatorOptions: Partial<OscillatorOptions> = {}
     ) {
@@ -47,7 +47,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         const filters = overrides.filters && overrides.filters.length ? overrides.filters : this._filters;
         const oscillatorOptions = overrides.oscillatorOptions || this._oscillatorOptions;
 
-        const clone = new Synth(this.context, this.globalGainNode, this.type, panType, oscillatorOptions);
+        const clone = new Synth(this.context, this.globalGainNode, this.soundType, panType, oscillatorOptions);
         clone._volume = volume;
         clone._position = position;
         clone._stereoPan = stereoPan as number;
@@ -95,5 +95,35 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
                 if (this.oscillatorOptions.type) p.source.type = this.oscillatorOptions.type;
             }
         });
+    }
+
+    get frequency(): number {
+        return this.oscillatorOptions.frequency as number;
+    }
+
+    set frequency(frequency: number) {
+        this._oscillatorOptions.frequency = frequency;
+        this.playbacks.forEach((p) =>
+            p.frequency = frequency);
+    }
+
+    get detune(): number {
+        return this.oscillatorOptions.detune as number;
+    }
+
+    set detune(detune: number) {
+        this._oscillatorOptions.detune = detune;
+        this.playbacks.forEach((p) =>
+            p.detune = detune);
+    }
+
+    get type(): OscillatorType {
+        return this.oscillatorOptions.type as OscillatorType;
+    }
+
+    set type(type: OscillatorType) {
+        this._oscillatorOptions.type = type;
+        this.playbacks.forEach((p) =>
+            p.type = type);
     }
 }
