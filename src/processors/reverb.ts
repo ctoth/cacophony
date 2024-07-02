@@ -87,8 +87,9 @@ class ReverbProcessor extends OLAProcessor {
         const output = outputs[0][1] || outputs[0][0]; // Use second channel if available, otherwise first
 
         // Update sample rate if needed
-        if (sampleRate !== this.sampleRate) {
-            this.sampleRate = sampleRate;
+        const currentSampleRate = contextInfo.sampleRate;
+        if (currentSampleRate !== this.sampleRate) {
+            this.sampleRate = currentSampleRate;
             this.updateImpulseResponse(parameters.roomSize[0], parameters.damping[0], parameters.density[0]);
         }
 
