@@ -26,8 +26,10 @@ function generateImpulseResponse(sampleRate: number, roomSize: number, damping: 
     
     // Normalize
     const maxAmplitude = Math.max(...impulseResponse.map(Math.abs));
-    for (let i = 0; i < length; i++) {
-        impulseResponse[i] /= maxAmplitude;
+    if (maxAmplitude > 0) {
+        for (let i = 0; i < length; i++) {
+            impulseResponse[i] /= maxAmplitude;
+        }
     }
     
     return impulseResponse;
