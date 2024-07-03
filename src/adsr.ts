@@ -1,13 +1,16 @@
+import { IAudioParam } from "standardized-audio-context";
+
 export interface ADSREnvelope {
     attack: number;
     decay: number;
     sustain: number;
     release: number;
     sustainLevel: number;
+    duration: number;
 }
 
 export function applyADSR(
-    audioParam: AudioParam,
+    audioParam: IAudioParam,
     envelope: ADSREnvelope,
     startTime: number,
     endTime: number
@@ -42,7 +45,7 @@ export class ADSR {
     }
 
     applyToParam(
-        audioParam: AudioParam,
+        audioParam: IAudioParam,
         startTime: number,
         duration: number
     ): void {
