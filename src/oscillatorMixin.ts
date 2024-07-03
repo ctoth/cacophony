@@ -76,12 +76,12 @@ export function OscillatorMixin<TBase extends Constructor>(Base: TBase) {
             this.oscillatorOptions.detune = detune;
         }
 
-        applyADSRToDetune(adsr: ADSREnvelope): void {
+        applyDetuneEnvelope(adsr: ADSREnvelope): void {
             const instance = new ADSR(adsr);
             this.envelopes.detuneEnvelope = instance;
         }
 
-        applyADSRToFrequency(adsr: ADSREnvelope): void {
+        applyFrequencyEnvelope(adsr: ADSREnvelope): void {
             const instance = new ADSR(adsr);
             this.envelopes.frequencyEnvelope = instance;
         }
