@@ -1,3 +1,4 @@
+import { ADSREnvelope } from "./adsr";
 import { SoundType, type BaseSound, type PanType } from "./cacophony";
 import { PlaybackContainer } from "./container";
 import type { AudioContext, GainNode } from './context';
@@ -12,6 +13,7 @@ type SynthCloneOverrides = FilterCloneOverrides & OscillatorCloneOverrides & Pan
 
 export class Synth extends PlaybackContainer(FilterManager) implements BaseSound {
     _oscillatorOptions: Partial<OscillatorOptions>;
+    synthEnvelopes: SynthEnvelopes = {};
     playbacks: SynthPlayback[] = [];
 
     constructor(
@@ -72,6 +74,12 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         const playback = new SynthPlayback(oscillator, gainNode, this.context, this.panType);
         playback.volume = this.volume;
         this._filters.forEach(filter => playback.addFilter(filter));
+
+        // Envelope handling
+        if (this.synthEnvelopes.detuneEnvelope) playback.applyDetuneEnvelope(this.synthEnvelopes.detuneEnvelope);
+        if (this.synthEnvelopes.frequencyEnvelope) playback.applyFrequencyEnvelope(this.synthEnvelopes.frequencyEnvelope);
+        if (this.synthEnvelopes.volumeEnvelope) playback.applyVolumeEnvelope(this.synthEnvelopes.volumeEnvelope);
+
         if (this.panType === 'HRTF') {
             playback.threeDOptions = this.threeDOptions;
             playback.position = this.position;
@@ -126,4 +134,25 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         this.playbacks.forEach((p) =>
             p.type = type);
     }
+
+    applyFrequencyEnvelope(envelope: ADSREnvelope): void {
+        this.synthEnvelopes.frequencyEnvelope = envelope;
+        this.playbacks.forEach(p => p.applyFrequencyEnvelope(envelope));
+    }
+
+    applyDetuneEnvelope(envelope: ADSREnvelope): void {
+        this.synthEnvelopes.detuneEnvelope = envelope;
+        this.playbacks.forEach(p => p.applyDetuneEnvelope(envelope));
+    }
+
+    applyVolumeEnvelope(envelope: ADSREnvelope): void {
+        this.synthEnvelopes.volumeEnvelope = envelope;
+        this.playbacks.forEach(p => p.applyVolumeEnvelope(envelope));
+    }
+}
+
+export interface SynthEnvelopes {
+    volumeEnvelope?: ADSREnvelope;
+    frequencyEnvelope?: ADSREnvelope;
+    detuneEnvelope?: ADSREnvelope;
 }

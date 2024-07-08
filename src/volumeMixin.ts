@@ -12,7 +12,7 @@ type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
 export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
     abstract class VolumeMixin extends Base {
         gainNode?: GainNode;
-        envelopes: VolumeEnvelopes = {};
+        volumeEnvelopes: VolumeEnvelopes = {};
         declare public context: IAudioContext;
 
         setGainNode(gainNode: GainNode) {

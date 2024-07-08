@@ -36,9 +36,7 @@
                 if (loopCheckbox) sound.loop('infinite');
                 if (!isSynth) sound.play();
                 if (isSynth) {
-                    const synth = sound.preplay()[0];
-                    console.log(synth);
-                    synth.applyFrequencyEnvelope({
+                    sound.applyFrequencyEnvelope({
                         attack: 0.25,
                         decay: 0.2,
                         sustain: 0.3,
@@ -47,15 +45,14 @@
                         minValue: 220,
                         maxValue: 880
                     })
-                    synth.play()
-                    synth.applyVolumeEnvelope({
+                    sound.applyVolumeEnvelope({
                         attack: 0.25,
                         decay: 0.35,
                         sustain: 1,
                         release: 0.15,
                         sustainLevel: 1,
                     });
-
+                    sound.play();
                 }
                 window.sound = sound;
             });

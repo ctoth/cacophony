@@ -12,7 +12,7 @@ type Constructor<T = {}> = abstract new (...args: any[]) => T;
 export function OscillatorMixin<TBase extends Constructor>(Base: TBase) {
     abstract class OscillatorMixin extends BasePlayback {
         _oscillatorOptions: Partial<OscillatorOptions> = {};
-        envelopes: OscillatorEnvelopes = {};
+        oscillatorEnvelopes: OscillatorEnvelopes = {};
         declare public source?: OscillatorNode;
         declare public context: IAudioContext;
 
@@ -36,11 +36,11 @@ export function OscillatorMixin<TBase extends Constructor>(Base: TBase) {
             if (this.oscillatorOptions.detune) this.source.detune.value = this.oscillatorOptions.detune;
             if (this.oscillatorOptions.frequency) this.source.frequency.value = this.oscillatorOptions.frequency;
             if (this.oscillatorOptions.type) this.source.type = this.oscillatorOptions.type;
-            if (this.envelopes.frequencyEnvelope) {
-                this.envelopes.frequencyEnvelope.applyToParam(this.source.frequency, this.context.currentTime, this.envelopes.frequencyEnvelope.envelope.duration);
+            if (this.oscillatorEnvelopes.frequencyEnvelope) {
+                this.oscillatorEnvelopes.frequencyEnvelope.applyToParam(this.source.frequency, this.context.currentTime, this.oscillatorEnvelopes.frequencyEnvelope.envelope.duration);
             }
-            if (this.envelopes.detuneEnvelope) {
-                this.envelopes.detuneEnvelope.applyToParam(this.source.detune, this.context.currentTime, this.envelopes.detuneEnvelope.envelope.duration);
+            if (this.oscillatorEnvelopes.detuneEnvelope) {
+                this.oscillatorEnvelopes.detuneEnvelope.applyToParam(this.source.detune, this.context.currentTime, this.oscillatorEnvelopes.detuneEnvelope.envelope.duration);
             }
             this.source.start();
             this._playing = true;
@@ -78,12 +78,12 @@ export function OscillatorMixin<TBase extends Constructor>(Base: TBase) {
 
         applyDetuneEnvelope(adsr: ADSREnvelope): void {
             const instance = new ADSR(adsr);
-            this.envelopes.detuneEnvelope = instance;
+            this.oscillatorEnvelopes.detuneEnvelope = instance;
         }
 
         applyFrequencyEnvelope(adsr: ADSREnvelope): void {
             const instance = new ADSR(adsr);
-            this.envelopes.frequencyEnvelope = instance;
+            this.oscillatorEnvelopes.frequencyEnvelope = instance;
         }
 
         get type(): OscillatorType {
