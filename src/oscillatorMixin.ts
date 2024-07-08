@@ -14,7 +14,7 @@ export function OscillatorMixin<TBase extends Constructor>(Base: TBase) {
         _oscillatorOptions: Partial<OscillatorOptions> = {};
         oscillatorEnvelopes: OscillatorEnvelopes = {};
         declare public source?: OscillatorNode;
-        declare public context: IAudioContext;
+        declare context: IAudioContext;
 
         get oscillatorOptions(): Partial<OscillatorOptions> {
             return this._oscillatorOptions;

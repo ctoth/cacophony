@@ -1,6 +1,5 @@
-import { IAudioContext } from "standardized-audio-context";
 import { ADSR, ADSREnvelope } from "./adsr";
-import { GainNode } from "./context";
+import type { AudioContext, GainNode } from "./context";
 import { FilterManager } from "./filters";
 
 export type VolumeCloneOverrides = {
@@ -13,7 +12,7 @@ export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
     abstract class VolumeMixin extends Base {
         gainNode?: GainNode;
         volumeEnvelopes: VolumeEnvelopes = {};
-        declare public context: IAudioContext;
+        declare context: AudioContext;
 
         setGainNode(gainNode: GainNode) {
             this.gainNode = gainNode;

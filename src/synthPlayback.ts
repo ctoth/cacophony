@@ -6,7 +6,7 @@ import { PannerMixin } from "./pannerMixin";
 import { VolumeMixin } from "./volumeMixin";
 
 export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(FilterManager))) implements BaseSound {
-    constructor(public source: OscillatorNode, gainNode: GainNode, private context: AudioContext, panType: PanType = 'HRTF') {
+    constructor(public source: OscillatorNode, gainNode: GainNode, public context: AudioContext, panType: PanType = 'HRTF') {
         super()
         this.setPanType(panType, context)
         this.source.connect(this.panner!);
