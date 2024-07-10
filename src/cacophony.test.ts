@@ -1,9 +1,10 @@
 import { AudioBuffer, AudioContext } from 'standardized-audio-context-mock';
-import { afterEach, beforeEach, describe, expect, it, test, } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, test, vi } from 'vitest';
 import { Cacophony, SoundType } from './cacophony';
 import { Sound } from './sound';
 import { Synth } from './synth';
 import { SynthPlayback } from './synthPlayback';
+import { Playback } from './playback';
 
 let cacophony: Cacophony;
 let audioContextMock: AudioContext;
@@ -116,6 +117,158 @@ test('that createSound creates a sound with the correct buffer', async () => {
     const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
     const sound = await cacophony.createSound(buffer);
     expect(sound.buffer).toBe(buffer);
+});
+
+describe('Sound playback and state management', () => {
+    let sound: Sound;
+    let buffer: AudioBuffer;
+
+    beforeEach(async () => {
+        buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+        sound = await cacophony.createSound(buffer);
+    });
+
+    it('can play, stop, and play again', () => {
+        const playbacks1 = sound.play();
+        expect(sound.isPlaying).toBe(true);
+        expect(playbacks1.length).toBe(1);
+        expect(playbacks1[0].isPlaying).toBe(true);
+
+        sound.stop();
+        expect(sound.isPlaying).toBe(false);
+        expect(playbacks1[0].isPlaying).toBe(false);
+
+        const playbacks2 = sound.play();
+        expect(sound.isPlaying).toBe(true);
+        expect(playbacks2.length).toBe(1);
+        expect(playbacks2[0].isPlaying).toBe(true);
+        expect(playbacks2[0]).not.toBe(playbacks1[0]); // New playback instance
+    });
+
+    it('can pause and resume', () => {
+        const playbacks = sound.play();
+        expect(sound.isPlaying).toBe(true);
+
+        sound.pause();
+        expect(sound.isPlaying).toBe(false);
+        expect(playbacks[0].isPlaying).toBe(false);
+
+        sound.play();
+        expect(sound.isPlaying).toBe(true);
+        expect(playbacks[0].isPlaying).toBe(true);
+    });
+
+    it('stops all playbacks when sound is stopped', () => {
+        const playbacks1 = sound.play();
+        const playbacks2 = sound.play();
+        expect(sound.playbacks.length).toBe(2);
+
+        sound.stop();
+        expect(sound.isPlaying).toBe(false);
+        expect(playbacks1[0].isPlaying).toBe(false);
+        expect(playbacks2[0].isPlaying).toBe(false);
+    });
+
+    it('manages multiple playbacks correctly', () => {
+        const playbacks1 = sound.play();
+        const playbacks2 = sound.play();
+        expect(sound.playbacks.length).toBe(2);
+        expect(sound.isPlaying).toBe(true);
+
+        playbacks1[0].stop();
+        expect(sound.isPlaying).toBe(true); // Still playing because of playbacks2
+        expect(playbacks1[0].isPlaying).toBe(false);
+        expect(playbacks2[0].isPlaying).toBe(true);
+
+        playbacks2[0].stop();
+        expect(sound.isPlaying).toBe(false); // All playbacks stopped
+    });
+
+    it('applies volume changes to all playbacks', () => {
+        const playbacks1 = sound.play();
+        const playbacks2 = sound.play();
+        
+        sound.volume = 0.5;
+        expect(playbacks1[0].volume).toBe(0.5);
+        expect(playbacks2[0].volume).toBe(0.5);
+    });
+
+    it('applies playback rate changes to all playbacks', () => {
+        const playbacks1 = sound.play();
+        const playbacks2 = sound.play();
+        
+        sound.playbackRate = 1.5;
+        expect(playbacks1[0].playbackRate).toBe(1.5);
+        expect(playbacks2[0].playbackRate).toBe(1.5);
+    });
+
+    it('handles looping correctly', () => {
+        sound.loop(2);
+        const playbacks = sound.play();
+        expect(playbacks[0].loopCount).toBe(2);
+
+        // Simulate loop completion
+        vi.spyOn(playbacks[0], 'handleLoop');
+        playbacks[0].handleLoop();
+        expect(playbacks[0].currentLoop).toBe(1);
+        playbacks[0].handleLoop();
+        expect(playbacks[0].currentLoop).toBe(2);
+        playbacks[0].handleLoop();
+        expect(playbacks[0].isPlaying).toBe(false);
+    });
+});
+
+describe('Playback class', () => {
+    let playback: Playback;
+    let buffer: AudioBuffer;
+    let source: AudioBufferSourceNode;
+    let gainNode: GainNode;
+
+    beforeEach(() => {
+        buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+        source = audioContextMock.createBufferSource();
+        source.buffer = buffer;
+        gainNode = audioContextMock.createGain();
+        playback = new Playback(source, gainNode, audioContextMock);
+    });
+
+    it('can play and stop', () => {
+        playback.play();
+        expect(playback.isPlaying).toBe(true);
+        playback.stop();
+        expect(playback.isPlaying).toBe(false);
+    });
+
+    it('can pause and resume', () => {
+        playback.play();
+        playback.pause();
+        expect(playback.isPlaying).toBe(false);
+        playback.play();
+        expect(playback.isPlaying).toBe(true);
+    });
+
+    it('handles seeking correctly', () => {
+        const seekTime = 5;
+        playback.seek(seekTime);
+        expect(playback.pauseTime).toBe(seekTime);
+    });
+
+    it('applies volume changes', () => {
+        playback.volume = 0.5;
+        expect(playback.volume).toBe(0.5);
+    });
+
+    it('applies playback rate changes', () => {
+        playback.playbackRate = 1.5;
+        expect(playback.playbackRate).toBe(1.5);
+    });
+
+    it('handles cleanup correctly', () => {
+        const disconnectSpy = vi.spyOn(playback.source!, 'disconnect');
+        playback.cleanup();
+        expect(disconnectSpy).toHaveBeenCalled();
+        expect(playback.source).toBeUndefined();
+    });
 });
 it('createOscillator creates an oscillator with default parameters when none are provided', () => {
     const synth = cacophony.createOscillator({});
