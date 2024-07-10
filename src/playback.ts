@@ -225,6 +225,7 @@ export class Playback extends BasePlayback implements BaseSound {
         }
         const playing = this.isPlaying;
         this.stop();
+        this.pauseTime = time;
         if ('mediaElement' in this.source && this.source.mediaElement) {
             this.source.mediaElement.currentTime = time;
             if (playing) {

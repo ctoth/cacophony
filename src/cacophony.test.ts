@@ -153,9 +153,9 @@ describe('Sound playback and state management', () => {
         expect(sound.isPlaying).toBe(false);
         expect(playbacks[0].isPlaying).toBe(false);
 
-        sound.play();
+        const newPlaybacks = sound.play();
         expect(sound.isPlaying).toBe(true);
-        expect(playbacks[0].isPlaying).toBe(true);
+        expect(newPlaybacks[0].isPlaying).toBe(true);
     });
 
     it('stops all playbacks when sound is stopped', () => {
