@@ -81,6 +81,39 @@ synthGroup.play(); // Play all synths in the group
 - **Volume Transitions**: Employ `fadeIn` and `fadeOut` for nuanced volume control.
 - **Flexible Synthesizer Options**: Create complex sounds with customizable oscillator settings.
 - **Efficient Group Management**: Control multiple audio sources simultaneously for complex audio scenarios.
+- **Audio Filters**: Apply various audio filters, such as lowpass, highpass, and bandpass, to Sounds or Synths and their playbacks.
+
+## Using Audio Filters
+
+Cacophony supports applying audio filters to both Sounds and Synths. Here's an example of using a lowpass filter:
+
+```typescript
+const cacophony = new Cacophony();
+
+// Create a lowpass filter
+const lowpassFilter = cacophony.createBiquadFilter({
+  type: 'lowpass',
+  frequency: 1000,
+  Q: 1
+});
+
+// Apply filter to a Sound
+const sound = await cacophony.createSound('path/to/audio.mp3');
+sound.addFilter(lowpassFilter);
+sound.play();
+
+// Apply filter to a Synth
+const synth = cacophony.createOscillator({ frequency: 440, type: 'sawtooth' });
+synth.addFilter(lowpassFilter);
+synth.play();
+
+// Filters affect all playbacks of the Sound or Synth
+const playback1 = sound.play()[0];
+const playback2 = sound.play()[0];
+// Both playback1 and playback2 will have the lowpass filter applied
+```
+
+This example demonstrates how to create and apply a lowpass filter to both a Sound and a Synth. The filter affects all playbacks of the Sound or Synth, allowing for consistent audio processing across multiple instances.
 
 ## License
 
