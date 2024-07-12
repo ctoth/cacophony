@@ -76,6 +76,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         this._filters.forEach(filter => playback.addFilter(filter));
 
         // Envelope handling
+        playback.synthEnvelopes = { ...this.synthEnvelopes };
         if (this.synthEnvelopes.detuneEnvelope) playback.applyDetuneEnvelope(this.synthEnvelopes.detuneEnvelope);
         if (this.synthEnvelopes.frequencyEnvelope) playback.applyFrequencyEnvelope(this.synthEnvelopes.frequencyEnvelope);
         if (this.synthEnvelopes.volumeEnvelope) playback.applyVolumeEnvelope(this.synthEnvelopes.volumeEnvelope);

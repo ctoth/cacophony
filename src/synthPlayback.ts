@@ -4,8 +4,11 @@ import { FilterManager } from "./filters";
 import { OscillatorMixin } from "./oscillatorMixin";
 import { PannerMixin } from "./pannerMixin";
 import { VolumeMixin } from "./volumeMixin";
+import { SynthEnvelopes } from "./synth";
 
 export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(FilterManager))) implements BaseSound {
+    synthEnvelopes: SynthEnvelopes = {};
+
     constructor(public source: OscillatorNode, gainNode: GainNode, public context: AudioContext, panType: PanType = 'HRTF') {
         super()
         this.setPanType(panType, context)
