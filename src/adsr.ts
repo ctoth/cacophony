@@ -1,5 +1,11 @@
 import { IAudioParam } from "standardized-audio-context";
 
+export enum EnvelopeType {
+    Linear = 'linear',
+    Exponential = 'exponential',
+    Logarithmic = 'logarithmic'
+}
+
 export interface ADSREnvelope {
     attack: number;
     decay: number;
@@ -9,13 +15,21 @@ export interface ADSREnvelope {
     duration: number;
     minValue: number;
     maxValue: number;
+    attackType: EnvelopeType;
+    decayType: EnvelopeType;
+    releaseType: EnvelopeType;
 }
 
 export class ADSR {
     envelope: ADSREnvelope;
 
-    constructor(envelope: ADSREnvelope) {
-        this.envelope = envelope;
+    constructor(envelope: Partial<ADSREnvelope>) {
+        this.envelope = {
+            ...envelope,
+            attackType: envelope.attackType || EnvelopeType.Linear,
+            decayType: envelope.decayType || EnvelopeType.Linear,
+            releaseType: envelope.releaseType || EnvelopeType.Linear
+        } as ADSREnvelope;
     }
 
     applyToParam(
@@ -37,7 +51,7 @@ export class ADSR {
         startTime: number,
         endTime: number
     ): void {
-        let { attack, decay, sustain, release, sustainLevel, minValue, maxValue } = envelope;
+        let { attack, decay, sustain, release, sustainLevel, minValue, maxValue, attackType, decayType, releaseType } = envelope;
         if (!minValue) minValue = 0;
         if (!maxValue) maxValue = 1;
     
@@ -48,16 +62,47 @@ export class ADSR {
         // Apply attack
         audioParam.cancelScheduledValues(startTime);
         audioParam.setValueAtTime(minValue, startTime);
-        audioParam.linearRampToValueAtTime(maxValue, attackEnd);
+        this.applyEnvelopeSegment(audioParam, attackType, startTime, attackEnd, minValue, maxValue);
     
         // Apply decay
-        audioParam.linearRampToValueAtTime(sustainLevel, decayEnd);
+        this.applyEnvelopeSegment(audioParam, decayType, attackEnd, decayEnd, maxValue, sustainLevel);
     
         // Sustain value should be held until the release phase
         audioParam.setValueAtTime(sustainLevel, releaseStart);
     
         // Apply release
         const releaseEnd = releaseStart + release;
-        audioParam.linearRampToValueAtTime(minValue, releaseEnd);
+        this.applyEnvelopeSegment(audioParam, releaseType, releaseStart, releaseEnd, sustainLevel, minValue);
+    }
+
+    private applyEnvelopeSegment(
+        audioParam: IAudioParam,
+        envelopeType: EnvelopeType,
+        startTime: number,
+        endTime: number,
+        startValue: number,
+        endValue: number
+    ): void {
+        switch (envelopeType) {
+            case EnvelopeType.Linear:
+                audioParam.linearRampToValueAtTime(endValue, endTime);
+                break;
+            case EnvelopeType.Exponential:
+                // Avoid zero values for exponential ramps
+                const safeStartValue = Math.max(startValue, 0.0001);
+                const safeEndValue = Math.max(endValue, 0.0001);
+                audioParam.exponentialRampToValueAtTime(safeEndValue, endTime);
+                break;
+            case EnvelopeType.Logarithmic:
+                // Implement logarithmic ramp using setValueCurveAtTime
+                const curveLength = 100;
+                const curve = new Float32Array(curveLength);
+                for (let i = 0; i < curveLength; i++) {
+                    const t = i / (curveLength - 1);
+                    curve[i] = startValue + (endValue - startValue) * Math.log1p(t) / Math.log1p(1);
+                }
+                audioParam.setValueCurveAtTime(curve, startTime, endTime - startTime);
+                break;
+        }
     }
 }
