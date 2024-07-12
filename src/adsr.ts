@@ -25,11 +25,36 @@ export class ADSR {
 
     constructor(envelope: Partial<ADSREnvelope>) {
         this.envelope = {
-            ...envelope,
-            attackType: envelope.attackType || EnvelopeType.Linear,
-            decayType: envelope.decayType || EnvelopeType.Linear,
-            releaseType: envelope.releaseType || EnvelopeType.Linear
-        } as ADSREnvelope;
+            attack: 0,
+            decay: 0,
+            sustain: 0,
+            release: 0,
+            sustainLevel: 1,
+            duration: 0,
+            minValue: 0,
+            maxValue: 1,
+            attackType: EnvelopeType.Linear,
+            decayType: EnvelopeType.Linear,
+            releaseType: EnvelopeType.Linear,
+            ...envelope
+        };
+
+        this.validateEnvelope();
+    }
+
+    private validateEnvelope(): void {
+        if (this.envelope.duration > 0 && this.envelope.duration < this.getTotalDuration()) {
+            console.warn('Envelope duration is shorter than the sum of ADSR phases. This may result in unexpected behavior.');
+        }
+    }
+
+    updateEnvelope(newEnvelope: Partial<ADSREnvelope>): void {
+        this.envelope = { ...this.envelope, ...newEnvelope };
+        this.validateEnvelope();
+    }
+
+    getTotalDuration(): number {
+        return this.envelope.attack + this.envelope.decay + this.envelope.sustain + this.envelope.release;
     }
 
     applyToParam(
@@ -51,13 +76,12 @@ export class ADSR {
         startTime: number,
         endTime: number
     ): void {
-        let { attack, decay, sustain, release, sustainLevel, minValue, maxValue, attackType, decayType, releaseType } = envelope;
-        if (!minValue) minValue = 0;
-        if (!maxValue) maxValue = 1;
-    
+        const { attack, decay, sustain, release, sustainLevel, minValue, maxValue, attackType, decayType, releaseType } = envelope;
+        
         const attackEnd = startTime + attack;
         const decayEnd = attackEnd + decay;
-        const releaseStart = endTime;
+        const sustainEnd = decayEnd + sustain;
+        const releaseEnd = Math.min(endTime, sustainEnd + release);
     
         // Apply attack
         audioParam.cancelScheduledValues(startTime);
@@ -67,12 +91,13 @@ export class ADSR {
         // Apply decay
         this.applyEnvelopeSegment(audioParam, decayType, attackEnd, decayEnd, maxValue, sustainLevel);
     
-        // Sustain value should be held until the release phase
-        audioParam.setValueAtTime(sustainLevel, releaseStart);
-    
+        // Sustain
+        audioParam.setValueAtTime(sustainLevel, decayEnd);
+        
         // Apply release
-        const releaseEnd = releaseStart + release;
-        this.applyEnvelopeSegment(audioParam, releaseType, releaseStart, releaseEnd, sustainLevel, minValue);
+        if (releaseEnd > sustainEnd) {
+            this.applyEnvelopeSegment(audioParam, releaseType, sustainEnd, releaseEnd, sustainLevel, minValue);
+        }
     }
 
     private applyEnvelopeSegment(
@@ -83,6 +108,8 @@ export class ADSR {
         startValue: number,
         endValue: number
     ): void {
+        const duration = endTime - startTime;
+        
         switch (envelopeType) {
             case EnvelopeType.Linear:
                 audioParam.linearRampToValueAtTime(endValue, endTime);
@@ -95,13 +122,13 @@ export class ADSR {
                 break;
             case EnvelopeType.Logarithmic:
                 // Implement logarithmic ramp using setValueCurveAtTime
-                const curveLength = 100;
+                const curveLength = Math.ceil(duration * 1000); // 1 point per millisecond
                 const curve = new Float32Array(curveLength);
                 for (let i = 0; i < curveLength; i++) {
                     const t = i / (curveLength - 1);
-                    curve[i] = startValue + (endValue - startValue) * Math.log1p(t) / Math.log1p(1);
+                    curve[i] = startValue + (endValue - startValue) * (Math.log1p(t * 99) / Math.log(100));
                 }
-                audioParam.setValueCurveAtTime(curve, startTime, endTime - startTime);
+                audioParam.setValueCurveAtTime(curve, startTime, duration);
                 break;
         }
     }
