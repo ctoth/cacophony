@@ -1,5 +1,5 @@
+import { BasePlayback } from "./basePlayback";
 import type { OscillatorNode } from "./context";
-import { BasePlayback } from "./playback";
 
 export type OscillatorCloneOverrides = {
     oscillatorOptions?: Partial<OscillatorOptions>;
