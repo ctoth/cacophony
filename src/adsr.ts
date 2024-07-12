@@ -24,9 +24,8 @@ export class ADSR {
         duration: number
     ): void {
         if (!duration || !this.envelope.duration) {
-            // calculate duration based on all envelope properties other than duration itself.
-            duration = this.envelope.attack + this.envelope.decay + this.envelope.release;
-            
+            // calculate duration based on all envelope properties including sustain.
+            duration = this.envelope.attack + this.envelope.decay + this.envelope.sustain + this.envelope.release;
         }
         const endTime = startTime + duration;
         this.applyADSR(audioParam, this.envelope, startTime, endTime);
