@@ -155,8 +155,8 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         this.playbacks.forEach(p => p.applyVolumeEnvelope(envelope));
     }
 
-    setFrequencyLFO(frequency: number, depth: number, waveform: OscillatorType = 'sine', phase: number = 0, bipolar: boolean = false): void {
-        this.frequencyLFO = new LFO(this.context, frequency, depth, waveform, phase, bipolar);
+    setFrequencyLFO(frequency: number, depth: number, waveform: OscillatorType | 'custom' = 'sine', phase: number = 0, bipolar: boolean = false, customShape?: number[]): void {
+        this.frequencyLFO = new LFO(this.context, frequency, depth, waveform, phase, bipolar, customShape);
         this.playbacks.forEach(p => {
             if (p.source instanceof OscillatorNode) {
                 this.frequencyLFO!.connect(p.source.frequency);
@@ -165,8 +165,8 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         this.frequencyLFO.start();
     }
 
-    setDetuneLFO(frequency: number, depth: number, waveform: OscillatorType = 'sine', phase: number = 0, bipolar: boolean = true): void {
-        this.detuneLFO = new LFO(this.context, frequency, depth, waveform, phase, bipolar);
+    setDetuneLFO(frequency: number, depth: number, waveform: OscillatorType | 'custom' = 'sine', phase: number = 0, bipolar: boolean = true, customShape?: number[]): void {
+        this.detuneLFO = new LFO(this.context, frequency, depth, waveform, phase, bipolar, customShape);
         this.playbacks.forEach(p => {
             if (p.source instanceof OscillatorNode) {
                 this.detuneLFO!.connect(p.source.detune);
@@ -175,8 +175,8 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         this.detuneLFO.start();
     }
 
-    setVolumeLFO(frequency: number, depth: number, waveform: OscillatorType = 'sine', phase: number = 0, bipolar: boolean = false): void {
-        this.volumeLFO = new LFO(this.context, frequency, depth, waveform, phase, bipolar);
+    setVolumeLFO(frequency: number, depth: number, waveform: OscillatorType | 'custom' = 'sine', phase: number = 0, bipolar: boolean = false, customShape?: number[]): void {
+        this.volumeLFO = new LFO(this.context, frequency, depth, waveform, phase, bipolar, customShape);
         this.playbacks.forEach(p => {
             this.volumeLFO!.connect(p.gainNode.gain);
         });
@@ -189,10 +189,41 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         if (this.volumeLFO) this.volumeLFO.stop();
     }
 
+    pauseLFOs(): void {
+        if (this.frequencyLFO) this.frequencyLFO.pause();
+        if (this.detuneLFO) this.detuneLFO.pause();
+        if (this.volumeLFO) this.volumeLFO.pause();
+    }
+
+    resumeLFOs(): void {
+        if (this.frequencyLFO) this.frequencyLFO.resume();
+        if (this.detuneLFO) this.detuneLFO.resume();
+        if (this.volumeLFO) this.volumeLFO.resume();
+    }
+
+    resetLFOs(): void {
+        if (this.frequencyLFO) this.frequencyLFO.reset();
+        if (this.detuneLFO) this.detuneLFO.reset();
+        if (this.volumeLFO) this.volumeLFO.reset();
+    }
+
     syncLFOs(time: number): void {
         if (this.frequencyLFO) this.frequencyLFO.syncToTime(time);
         if (this.detuneLFO) this.detuneLFO.syncToTime(time);
         if (this.volumeLFO) this.volumeLFO.syncToTime(time);
+    }
+
+    modulateLFODepths(depth: number, duration: number): void {
+        if (this.frequencyLFO) this.frequencyLFO.modulateDepth(depth, duration);
+        if (this.detuneLFO) this.detuneLFO.modulateDepth(depth, duration);
+        if (this.volumeLFO) this.volumeLFO.modulateDepth(depth, duration);
+    }
+
+    static synchronizeAllLFOs(...synths: Synth[]): void {
+        const allLFOs = synths.flatMap(synth => 
+            [synth.frequencyLFO, synth.detuneLFO, synth.volumeLFO].filter(Boolean) as LFO[]
+        );
+        LFO.synchronize(...allLFOs);
     }
 }
 
