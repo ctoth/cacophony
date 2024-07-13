@@ -8,6 +8,13 @@ export class LFO {
     private customWaveform: PeriodicWave | null = null;
     private isPlaying: boolean = false;
     private pausedAt: number | null = null;
+    private initialState: {
+        frequency: number;
+        depth: number;
+        waveform: OscillatorType | 'custom';
+        phase: number;
+        bipolar: boolean;
+    };
 
     constructor(
         private context: IAudioContext,
@@ -16,7 +23,7 @@ export class LFO {
         public waveform: OscillatorType | 'custom' = 'sine',
         public phase: number = 0,
         public bipolar: boolean = false,
-        customShape?: number[]
+        public shape?: number[]
     ) {
         this.oscillator = this.context.createOscillator();
         this.gainNode = this.context.createGain();
@@ -37,6 +44,14 @@ export class LFO {
         this.depthNode.connect(this.offsetNode);
 
         this.setPhase(this.phase);
+
+        this.initialState = {
+            frequency,
+            depth,
+            waveform,
+            phase,
+            bipolar
+        };
     }
 
     connect(param: IAudioParam): void {
@@ -82,15 +97,11 @@ export class LFO {
 
     reset(): void {
         this.stop();
-        this.oscillator = this.context.createOscillator();
-        if (this.customWaveform) {
-            this.oscillator.setPeriodicWave(this.customWaveform);
-        } else {
-            this.oscillator.type = this.waveform as OscillatorType;
-        }
-        this.oscillator.frequency.value = this.frequency;
-        this.oscillator.connect(this.gainNode);
-        this.setPhase(this.phase);
+        this.setFrequency(this.initialState.frequency);
+        this.setDepth(this.initialState.depth);
+        this.setWaveform(this.initialState.waveform, this.shape);
+        this.setPhase(this.initialState.phase);
+        this.setBipolar(this.initialState.bipolar);
     }
 
     setFrequency(value: number, time?: number): void {
@@ -103,14 +114,15 @@ export class LFO {
         this.depth = value;
     }
 
-    setWaveform(waveform: OscillatorType | 'custom', customShape?: number[]): void {
-        if (waveform === 'custom' && customShape) {
-            this.setCustomWaveform(customShape);
+    setWaveform(waveform: OscillatorType | 'custom', shape?: number[]): void {
+        if (waveform === 'custom' && shape) {
+            this.setCustomWaveform(shape);
         } else {
             this.oscillator.type = waveform as OscillatorType;
             this.customWaveform = null;
         }
         this.waveform = waveform;
+        this.shape = shape;
     }
 
     setCustomWaveform(shape: number[]): void {
@@ -153,6 +165,11 @@ export class LFO {
         this.depthNode.gain.setValueAtTime(this.depth, now);
         this.depthNode.gain.linearRampToValueAtTime(depth, now + duration);
         this.depth = depth;
+    }
+
+    static synchronize(...lfos: LFO[]): void {
+        const now = lfos[0].context.currentTime;
+        lfos.forEach(lfo => lfo.syncToTime(now));
     }
 
     static synchronize(...lfos: LFO[]): void {
