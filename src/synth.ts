@@ -155,8 +155,8 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         this.playbacks.forEach(p => p.applyVolumeEnvelope(envelope));
     }
 
-    setFrequencyLFO(frequency: number, amplitude: number, waveform: OscillatorType = 'sine'): void {
-        this.frequencyLFO = new LFO(this.context, frequency, amplitude, waveform);
+    setFrequencyLFO(frequency: number, depth: number, waveform: OscillatorType = 'sine', phase: number = 0, bipolar: boolean = false): void {
+        this.frequencyLFO = new LFO(this.context, frequency, depth, waveform, phase, bipolar);
         this.playbacks.forEach(p => {
             if (p.source instanceof OscillatorNode) {
                 this.frequencyLFO!.connect(p.source.frequency);
@@ -165,8 +165,8 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         this.frequencyLFO.start();
     }
 
-    setDetuneLFO(frequency: number, amplitude: number, waveform: OscillatorType = 'sine'): void {
-        this.detuneLFO = new LFO(this.context, frequency, amplitude, waveform);
+    setDetuneLFO(frequency: number, depth: number, waveform: OscillatorType = 'sine', phase: number = 0, bipolar: boolean = true): void {
+        this.detuneLFO = new LFO(this.context, frequency, depth, waveform, phase, bipolar);
         this.playbacks.forEach(p => {
             if (p.source instanceof OscillatorNode) {
                 this.detuneLFO!.connect(p.source.detune);
@@ -175,8 +175,8 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         this.detuneLFO.start();
     }
 
-    setVolumeLFO(frequency: number, amplitude: number, waveform: OscillatorType = 'sine'): void {
-        this.volumeLFO = new LFO(this.context, frequency, amplitude, waveform);
+    setVolumeLFO(frequency: number, depth: number, waveform: OscillatorType = 'sine', phase: number = 0, bipolar: boolean = false): void {
+        this.volumeLFO = new LFO(this.context, frequency, depth, waveform, phase, bipolar);
         this.playbacks.forEach(p => {
             this.volumeLFO!.connect(p.gainNode.gain);
         });
@@ -187,6 +187,12 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         if (this.frequencyLFO) this.frequencyLFO.stop();
         if (this.detuneLFO) this.detuneLFO.stop();
         if (this.volumeLFO) this.volumeLFO.stop();
+    }
+
+    syncLFOs(time: number): void {
+        if (this.frequencyLFO) this.frequencyLFO.syncToTime(time);
+        if (this.detuneLFO) this.detuneLFO.syncToTime(time);
+        if (this.volumeLFO) this.volumeLFO.syncToTime(time);
     }
 }
 
