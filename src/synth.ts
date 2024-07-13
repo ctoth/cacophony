@@ -4,6 +4,7 @@ import { PlaybackContainer } from "./container";
 import type { AudioContext, GainNode } from './context';
 import type { FilterCloneOverrides } from "./filters";
 import { FilterManager } from "./filters";
+import { LFO } from "./lfo";
 import type { OscillatorCloneOverrides } from "./oscillatorMixin";
 import type { PanCloneOverrides } from "./pannerMixin";
 import { SynthPlayback } from "./synthPlayback";
@@ -15,6 +16,9 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     _oscillatorOptions: Partial<OscillatorOptions>;
     synthEnvelopes: SynthEnvelopes = {};
     playbacks: SynthPlayback[] = [];
+    frequencyLFO?: LFO;
+    detuneLFO?: LFO;
+    volumeLFO?: LFO;
 
     constructor(
         public context: AudioContext,
@@ -149,6 +153,40 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     applyVolumeEnvelope(envelope: ADSREnvelope): void {
         this.synthEnvelopes.volumeEnvelope = envelope;
         this.playbacks.forEach(p => p.applyVolumeEnvelope(envelope));
+    }
+
+    setFrequencyLFO(frequency: number, amplitude: number, waveform: OscillatorType = 'sine'): void {
+        this.frequencyLFO = new LFO(this.context, frequency, amplitude, waveform);
+        this.playbacks.forEach(p => {
+            if (p.source instanceof OscillatorNode) {
+                this.frequencyLFO!.connect(p.source.frequency);
+            }
+        });
+        this.frequencyLFO.start();
+    }
+
+    setDetuneLFO(frequency: number, amplitude: number, waveform: OscillatorType = 'sine'): void {
+        this.detuneLFO = new LFO(this.context, frequency, amplitude, waveform);
+        this.playbacks.forEach(p => {
+            if (p.source instanceof OscillatorNode) {
+                this.detuneLFO!.connect(p.source.detune);
+            }
+        });
+        this.detuneLFO.start();
+    }
+
+    setVolumeLFO(frequency: number, amplitude: number, waveform: OscillatorType = 'sine'): void {
+        this.volumeLFO = new LFO(this.context, frequency, amplitude, waveform);
+        this.playbacks.forEach(p => {
+            this.volumeLFO!.connect(p.gainNode.gain);
+        });
+        this.volumeLFO.start();
+    }
+
+    stopLFOs(): void {
+        if (this.frequencyLFO) this.frequencyLFO.stop();
+        if (this.detuneLFO) this.detuneLFO.stop();
+        if (this.volumeLFO) this.volumeLFO.stop();
     }
 }
 
