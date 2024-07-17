@@ -1,4 +1,5 @@
-import { AudioContext, GainNode, OscillatorNode } from "./context";
+import { IAudioParam } from "standardized-audio-context";
+import { AudioContext, GainNode, OscillatorNode, ConstantSourceNode } from "./context";
 
 export class LFO {
   private oscillator: OscillatorNode;
@@ -30,8 +31,8 @@ export class LFO {
     this.depthNode = this.context.createGain();
     this.offsetNode = this.context.createConstantSource();
 
-    if (waveform === "custom" && customShape) {
-      this.setCustomWaveform(customShape);
+    if (waveform === "custom" && shape) {
+      this.setCustomWaveform(shape);
     } else {
       this.oscillator.type = waveform as OscillatorType;
     }
@@ -168,11 +169,6 @@ export class LFO {
     this.depthNode.gain.setValueAtTime(this.depth, now);
     this.depthNode.gain.linearRampToValueAtTime(depth, now + duration);
     this.depth = depth;
-  }
-
-  static synchronize(...lfos: LFO[]): void {
-    const now = lfos[0].context.currentTime;
-    lfos.forEach((lfo) => lfo.syncToTime(now));
   }
 
   static synchronize(...lfos: LFO[]): void {

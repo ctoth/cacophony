@@ -225,43 +225,6 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         );
         LFO.synchronize(...allLFOs);
     }
-
-    pauseLFOs(): void {
-        if (this.frequencyLFO) this.frequencyLFO.pause();
-        if (this.detuneLFO) this.detuneLFO.pause();
-        if (this.volumeLFO) this.volumeLFO.pause();
-    }
-
-    resumeLFOs(): void {
-        if (this.frequencyLFO) this.frequencyLFO.resume();
-        if (this.detuneLFO) this.detuneLFO.resume();
-        if (this.volumeLFO) this.volumeLFO.resume();
-    }
-
-    resetLFOs(): void {
-        if (this.frequencyLFO) this.frequencyLFO.reset();
-        if (this.detuneLFO) this.detuneLFO.reset();
-        if (this.volumeLFO) this.volumeLFO.reset();
-    }
-
-    syncLFOs(time: number): void {
-        if (this.frequencyLFO) this.frequencyLFO.syncToTime(time);
-        if (this.detuneLFO) this.detuneLFO.syncToTime(time);
-        if (this.volumeLFO) this.volumeLFO.syncToTime(time);
-    }
-
-    modulateLFODepths(depth: number, duration: number): void {
-        if (this.frequencyLFO) this.frequencyLFO.modulateDepth(depth, duration);
-        if (this.detuneLFO) this.detuneLFO.modulateDepth(depth, duration);
-        if (this.volumeLFO) this.volumeLFO.modulateDepth(depth, duration);
-    }
-
-    static synchronizeAllLFOs(...synths: Synth[]): void {
-        const allLFOs = synths.flatMap(synth => 
-            [synth.frequencyLFO, synth.detuneLFO, synth.volumeLFO].filter(Boolean) as LFO[]
-        );
-        LFO.synchronize(...allLFOs);
-    }
 }
 
 export interface SynthEnvelopes {
