@@ -5,6 +5,7 @@ import { Sound } from './sound';
 import { Synth } from './synth';
 import { SynthPlayback } from './synthPlayback';
 import { Playback } from './playback';
+import { EnvelopeType } from './adsr';
 
 let cacophony: Cacophony;
 let audioContextMock: AudioContext;
@@ -268,6 +269,89 @@ describe('Playback class', () => {
         playback.cleanup();
         expect(disconnectSpy).toHaveBeenCalled();
         expect(playback.source).toBeUndefined();
+    });
+});
+
+describe('ADSR Envelope', () => {
+    let synth: Synth;
+    let audioContextMock: AudioContext;
+
+    beforeEach(() => {
+        audioContextMock = new AudioContext();
+        synth = new Synth(audioContextMock, audioContextMock.createGain());
+    });
+
+    it('can apply volume envelope', () => {
+        const volumeEnvelope = {
+            attack: 0.1,
+            decay: 0.2,
+            sustain: 0.5,
+            release: 0.3,
+            sustainLevel: 0.7,
+            duration: 1,
+            minValue: 0,
+            maxValue: 1,
+            attackType: EnvelopeType.Linear,
+            decayType: EnvelopeType.Linear,
+            releaseType: EnvelopeType.Linear
+        };
+        synth.applyVolumeEnvelope(volumeEnvelope);
+        expect(synth.synthEnvelopes.volumeEnvelope).toEqual(volumeEnvelope);
+    });
+
+    it('can apply frequency envelope', () => {
+        const frequencyEnvelope = {
+            attack: 0.1,
+            decay: 0.2,
+            sustain: 0.5,
+            release: 0.3,
+            sustainLevel: 0.7,
+            duration: 1,
+            minValue: 220,
+            maxValue: 880,
+            attackType: EnvelopeType.Exponential,
+            decayType: EnvelopeType.Exponential,
+            releaseType: EnvelopeType.Exponential
+        };
+        synth.applyFrequencyEnvelope(frequencyEnvelope);
+        expect(synth.synthEnvelopes.frequencyEnvelope).toEqual(frequencyEnvelope);
+    });
+
+    it('can apply detune envelope', () => {
+        const detuneEnvelope = {
+            attack: 0.1,
+            decay: 0.2,
+            sustain: 0.5,
+            release: 0.3,
+            sustainLevel: 0.7,
+            duration: 1,
+            minValue: -100,
+            maxValue: 100,
+            attackType: EnvelopeType.Linear,
+            decayType: EnvelopeType.Linear,
+            releaseType: EnvelopeType.Linear
+        };
+        synth.applyDetuneEnvelope(detuneEnvelope);
+        expect(synth.synthEnvelopes.detuneEnvelope).toEqual(detuneEnvelope);
+    });
+
+    it('applies envelopes to playbacks', () => {
+        const volumeEnvelope = {
+            attack: 0.1,
+            decay: 0.2,
+            sustain: 0.5,
+            release: 0.3,
+            sustainLevel: 0.7,
+            duration: 1,
+            minValue: 0,
+            maxValue: 1,
+            attackType: EnvelopeType.Linear,
+            decayType: EnvelopeType.Linear,
+            releaseType: EnvelopeType.Linear
+        };
+        synth.applyVolumeEnvelope(volumeEnvelope);
+        const playbacks = synth.preplay();
+        expect(playbacks[0].synthEnvelopes.volumeEnvelope).toEqual(volumeEnvelope);
     });
 });
 it('createOscillator creates an oscillator with default parameters when none are provided', () => {

@@ -35,7 +35,7 @@ type PlaybackCloneOverrides = {
 };
 
 export class Playback extends BasePlayback implements BaseSound {
-  private context: AudioContext;
+  context: AudioContext;
   public declare source?: SourceNode;
   loopCount: LoopCount = 0;
   currentLoop: number = 0;
@@ -403,9 +403,7 @@ export class Playback extends BasePlayback implements BaseSound {
    * @throws {Error} Throws an error if the sound has been cleaned up.
    */
 
-  clone(
-    overrides: Partial<PlaybackCloneOverrides> = {}
-  ): Playback {
+  clone(overrides: Partial<PlaybackCloneOverrides> = {}): Playback {
     if (!this.source || !this.gainNode || !this.context) {
       throw new Error("Cannot clone a sound that has been cleaned up");
     }

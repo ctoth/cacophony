@@ -12,6 +12,7 @@
             const cacophony = new Cacophony();
             window.cacophony = cacophony;
             let sound;
+            let isSynth = false;
 
             document.getElementById('playSound').addEventListener('click', async () => {
                 const soundUrl = document.getElementById('soundUrl').value;
@@ -26,15 +27,34 @@
                             type: soundUrl,
                             panType: panType,
                         });
-                        
+                        isSynth = true;
                         break;
                     default:
                         sound = await cacophony.createSound(soundUrl, SoundType.Buffer, panType);
                         break;
                 }
                 if (loopCheckbox) sound.loop('infinite');
-                sound.play();
-window.sound = sound;
+                if (!isSynth) sound.play();
+                if (isSynth) {
+                    sound.applyFrequencyEnvelope({
+                        attack: 0.25,
+                        decay: 0.2,
+                        sustain: 0.3,
+                        release: 0.15,
+                        sustainLevel: 440,
+                        minValue: 220,
+                        maxValue: 880
+                    })
+                    sound.applyVolumeEnvelope({
+                        attack: 0.25,
+                        decay: 0.35,
+                        sustain: 1,
+                        release: 0.15,
+                        sustainLevel: 1,
+                    });
+                    sound.play();
+                }
+                window.sound = sound;
             });
 
             document.getElementById('stopSound').addEventListener('click', () => {

@@ -1,8 +1,10 @@
+import { ADSREnvelope } from "./adsr";
 import { SoundType, type BaseSound, type PanType } from "./cacophony";
 import { PlaybackContainer } from "./container";
 import type { AudioContext, GainNode } from './context';
 import type { FilterCloneOverrides } from "./filters";
 import { FilterManager } from "./filters";
+import { LFO } from "./lfo";
 import type { OscillatorCloneOverrides } from "./oscillatorMixin";
 import type { PanCloneOverrides } from "./pannerMixin";
 import { SynthPlayback } from "./synthPlayback";
@@ -12,7 +14,11 @@ type SynthCloneOverrides = FilterCloneOverrides & OscillatorCloneOverrides & Pan
 
 export class Synth extends PlaybackContainer(FilterManager) implements BaseSound {
     _oscillatorOptions: Partial<OscillatorOptions>;
+    synthEnvelopes: SynthEnvelopes = {};
     playbacks: SynthPlayback[] = [];
+    frequencyLFO?: LFO;
+    detuneLFO?: LFO;
+    volumeLFO?: LFO;
 
     constructor(
         public context: AudioContext,
@@ -72,6 +78,13 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         const playback = new SynthPlayback(oscillator, gainNode, this.context, this.panType);
         playback.volume = this.volume;
         this._filters.forEach(filter => playback.addFilter(filter));
+
+        // Envelope handling
+        playback.synthEnvelopes = { ...this.synthEnvelopes };
+        if (this.synthEnvelopes.detuneEnvelope) playback.applyDetuneEnvelope(this.synthEnvelopes.detuneEnvelope);
+        if (this.synthEnvelopes.frequencyEnvelope) playback.applyFrequencyEnvelope(this.synthEnvelopes.frequencyEnvelope);
+        if (this.synthEnvelopes.volumeEnvelope) playback.applyVolumeEnvelope(this.synthEnvelopes.volumeEnvelope);
+
         if (this.panType === 'HRTF') {
             playback.threeDOptions = this.threeDOptions;
             playback.position = this.position;
@@ -126,4 +139,96 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         this.playbacks.forEach((p) =>
             p.type = type);
     }
+
+    applyFrequencyEnvelope(envelope: ADSREnvelope): void {
+        this.synthEnvelopes.frequencyEnvelope = envelope;
+        this.playbacks.forEach(p => p.applyFrequencyEnvelope(envelope));
+    }
+
+    applyDetuneEnvelope(envelope: ADSREnvelope): void {
+        this.synthEnvelopes.detuneEnvelope = envelope;
+        this.playbacks.forEach(p => p.applyDetuneEnvelope(envelope));
+    }
+
+    applyVolumeEnvelope(envelope: ADSREnvelope): void {
+        this.synthEnvelopes.volumeEnvelope = envelope;
+        this.playbacks.forEach(p => p.applyVolumeEnvelope(envelope));
+    }
+
+    setFrequencyLFO(frequency: number, depth: number, waveform: OscillatorType | 'custom' = 'sine', phase: number = 0, bipolar: boolean = false, shape?: number[]): void {
+        this.frequencyLFO = new LFO(this.context, frequency, depth, waveform, phase, bipolar, shape);
+        this.playbacks.forEach(p => {
+            if (p.source instanceof OscillatorNode) {
+                this.frequencyLFO!.connect(p.source.frequency);
+            }
+        });
+        this.frequencyLFO.start();
+    }
+
+    setDetuneLFO(frequency: number, depth: number, waveform: OscillatorType | 'custom' = 'sine', phase: number = 0, bipolar: boolean = true, shape?: number[]): void {
+        this.detuneLFO = new LFO(this.context, frequency, depth, waveform, phase, bipolar, shape);
+        this.playbacks.forEach(p => {
+            if (p.source instanceof OscillatorNode) {
+                this.detuneLFO!.connect(p.source.detune);
+            }
+        });
+        this.detuneLFO.start();
+    }
+
+    setVolumeLFO(frequency: number, depth: number, waveform: OscillatorType | 'custom' = 'sine', phase: number = 0, bipolar: boolean = false, shape?: number[]): void {
+        this.volumeLFO = new LFO(this.context, frequency, depth, waveform, phase, bipolar, shape);
+        this.playbacks.forEach(p => {
+            this.volumeLFO!.connect(p.gainNode.gain);
+        });
+        this.volumeLFO.start();
+    }
+
+    stopLFOs(): void {
+        if (this.frequencyLFO) this.frequencyLFO.stop();
+        if (this.detuneLFO) this.detuneLFO.stop();
+        if (this.volumeLFO) this.volumeLFO.stop();
+    }
+
+    pauseLFOs(): void {
+        if (this.frequencyLFO) this.frequencyLFO.pause();
+        if (this.detuneLFO) this.detuneLFO.pause();
+        if (this.volumeLFO) this.volumeLFO.pause();
+    }
+
+    resumeLFOs(): void {
+        if (this.frequencyLFO) this.frequencyLFO.resume();
+        if (this.detuneLFO) this.detuneLFO.resume();
+        if (this.volumeLFO) this.volumeLFO.resume();
+    }
+
+    resetLFOs(): void {
+        if (this.frequencyLFO) this.frequencyLFO.reset();
+        if (this.detuneLFO) this.detuneLFO.reset();
+        if (this.volumeLFO) this.volumeLFO.reset();
+    }
+
+    syncLFOs(time: number): void {
+        if (this.frequencyLFO) this.frequencyLFO.syncToTime(time);
+        if (this.detuneLFO) this.detuneLFO.syncToTime(time);
+        if (this.volumeLFO) this.volumeLFO.syncToTime(time);
+    }
+
+    modulateLFODepths(depth: number, duration: number): void {
+        if (this.frequencyLFO) this.frequencyLFO.modulateDepth(depth, duration);
+        if (this.detuneLFO) this.detuneLFO.modulateDepth(depth, duration);
+        if (this.volumeLFO) this.volumeLFO.modulateDepth(depth, duration);
+    }
+
+    static synchronizeAllLFOs(...synths: Synth[]): void {
+        const allLFOs = synths.flatMap(synth => 
+            [synth.frequencyLFO, synth.detuneLFO, synth.volumeLFO].filter(Boolean) as LFO[]
+        );
+        LFO.synchronize(...allLFOs);
+    }
+}
+
+export interface SynthEnvelopes {
+    volumeEnvelope?: ADSREnvelope;
+    frequencyEnvelope?: ADSREnvelope;
+    detuneEnvelope?: ADSREnvelope;
 }
