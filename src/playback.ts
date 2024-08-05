@@ -45,11 +45,9 @@ export class Playback extends BasePlayback implements BaseSound {
 
   /**
    * Creates an instance of the Playback class.
+   * @param {Sound} origin - The Sound instance that the Playback is associated with.
    * @param {SourceNode} source - The audio source node.
    * @param {GainNode} gainNode - The gain node for controlling volume.
-   * @param {AudioContext} context - The audio context.
-   * @param {LoopCount} loopCount - The number of times the audio should loop. 'infinite' for endless looping.
-   * @param {PanType} panType - The type of panning to use ('HRTF' for 3D audio or 'stereo' for stereo panning).
    * @throws {Error} Throws an error if an invalid pan type is provided.
    */
 
