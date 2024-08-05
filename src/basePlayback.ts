@@ -1,3 +1,4 @@
+import { IPlaybackContainer } from "./container";
 import { AudioNode } from "./context";
 import { FilterManager } from "./filters";
 import { PannerMixin } from "./pannerMixin";
@@ -8,6 +9,7 @@ export abstract class BasePlayback extends PannerMixin(
 ) {
   public source?: AudioNode;
   _playing: boolean = false;
+  public origin!: IPlaybackContainer;
 
   abstract play(): [this];
   abstract pause(): void;

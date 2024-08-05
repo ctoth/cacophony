@@ -3,6 +3,18 @@ import type { Position } from "./cacophony";
 import { FilterManager } from "./filters";
 
 type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
+export interface IPlaybackContainer {
+  play(): BasePlayback[];
+  stop(): void;
+  pause(): void;
+  addFilter(filter: BiquadFilterNode): void;
+  removeFilter(filter: BiquadFilterNode): void;
+  isPlaying: boolean;
+  position: Position;
+  threeDOptions: PannerOptions;
+  stereoPan: number | null;
+  volume: number;
+}
 
 export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
   abstract class PlaybackContainer extends Base {

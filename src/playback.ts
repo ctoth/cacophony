@@ -18,13 +18,13 @@
  * spatial characteristics when using 3D audio.
  */
 
+import type { Sound } from "./sound";
 import { BasePlayback } from "./basePlayback";
 import type { BaseSound, LoopCount, PanType } from "./cacophony";
 import type {
   AudioBuffer,
   AudioBufferSourceNode,
   AudioContext,
-  AudioNode,
   GainNode,
   SourceNode,
 } from "./context";
@@ -54,6 +54,7 @@ export class Playback extends BasePlayback implements BaseSound {
    */
 
   constructor(
+    public origin: Sound,
     source: SourceNode,
     gainNode: GainNode,
     context: AudioContext,
@@ -403,9 +404,7 @@ export class Playback extends BasePlayback implements BaseSound {
    * @throws {Error} Throws an error if the sound has been cleaned up.
    */
 
-  clone(
-    overrides: Partial<PlaybackCloneOverrides> = {}
-  ): Playback {
+  clone(overrides: Partial<PlaybackCloneOverrides> = {}): Playback {
     if (!this.source || !this.gainNode || !this.context) {
       throw new Error("Cannot clone a sound that has been cleaned up");
     }
@@ -424,6 +423,13 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     const loopCount =
       overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
-    return new Playback(source, gainNode, this.context, loopCount, panType);
+    return new Playback(
+      this.origin,
+      source,
+      gainNode,
+      this.context,
+      loopCount,
+      panType
+    );
   }
 }
