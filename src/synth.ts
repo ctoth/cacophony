@@ -96,13 +96,7 @@ export class Synth
 
     const gainNode = this.context.createGain();
     gainNode.connect(this.globalGainNode);
-    const playback = new SynthPlayback(
-      this,
-      oscillator,
-      gainNode,
-      this.context,
-      this.panType
-    );
+    const playback = new SynthPlayback(this, oscillator, gainNode);
     playback.volume = this.volume;
     this._filters.forEach((filter) => playback.addFilter(filter));
     if (this.panType === "HRTF") {

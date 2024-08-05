@@ -10,15 +10,15 @@ export class SynthPlayback
   extends OscillatorMixin(PannerMixin(VolumeMixin(FilterManager)))
   implements BaseSound
 {
+  context: AudioContext;
   constructor(
     public origin: Synth,
     public source: OscillatorNode,
-    gainNode: GainNode,
-    private context: AudioContext,
-    panType: PanType = "HRTF"
+    gainNode: GainNode
   ) {
     super();
-    this.setPanType(panType, context);
+    this.context = origin.context;
+    this.setPanType(origin.panType, origin.context);
     this.source.connect(this.panner!);
     this.setGainNode(gainNode);
     this.panner!.connect(this.gainNode!);
