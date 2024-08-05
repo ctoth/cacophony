@@ -53,17 +53,11 @@ export class Playback extends BasePlayback implements BaseSound {
    * @throws {Error} Throws an error if an invalid pan type is provided.
    */
 
-  constructor(
-    public origin: Sound,
-    source: SourceNode,
-    gainNode: GainNode,
-    context: AudioContext,
-    loopCount: LoopCount = 0,
-    panType: PanType = "HRTF"
-  ) {
+  constructor(public origin: Sound, source: SourceNode, gainNode: GainNode) {
     super();
-    this.loopCount = loopCount;
-    this.setPanType(panType, context);
+    this.context = origin.context;
+    this.loopCount = origin.loopCount;
+    this.setPanType(origin.panType, origin.context);
     this.source = source;
     if ("buffer" in source && source.buffer) {
       this.buffer = source.buffer;
@@ -75,7 +69,6 @@ export class Playback extends BasePlayback implements BaseSound {
     } else {
       throw new Error("Unsupported source type");
     }
-    this.context = context;
     this.source.connect(this.panner!);
     this.setGainNode(gainNode);
     this.panner!.connect(this.gainNode!);
@@ -423,13 +416,10 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     const loopCount =
       overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
-    return new Playback(
-      this.origin,
-      source,
-      gainNode,
-      this.context,
-      loopCount,
-      panType
-    );
+    const clone = new Playback(this.origin, source, gainNode);
+    clone.loopCount = loopCount;
+    clone.setPanType(panType, this.context);
+    clone.volume = this.volume;
+    return clone;
   }
 }

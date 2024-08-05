@@ -141,14 +141,7 @@ export class Sound
     }
     const gainNode = this.context.createGain();
     gainNode.connect(this.globalGainNode);
-    const playback = new Playback(
-      this,
-      source,
-      gainNode,
-      this.context,
-      this.loopCount,
-      this.panType
-    );
+    const playback = new Playback(this, source, gainNode);
     // this.finalizationRegistry.register(playback, playback);
     playback.setGainNode(gainNode);
     playback.volume = this.volume;
