@@ -191,10 +191,26 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this.source.mediaElement.play();
+      this.startTime = this.context.currentTime - this.source.mediaElement.currentTime;
     } else if ("start" in this.source && this.source.start) {
       const offset = this.pauseTime ? this.pauseTime : 0;
       this.source.start(0, offset);
+      this.startTime = this.context.currentTime - offset;
     }
+    this._playing = true;
+    return [this];
+  }
+
+  resume(): [this] {
+    if (!this.source) {
+      throw new Error("Cannot resume a sound that has been cleaned up");
+    }
+    if ("mediaElement" in this.source && this.source.mediaElement) {
+      this.source.mediaElement.play();
+    } else if ("start" in this.source && this.source.start) {
+      this.source.start(0, this.pauseTime);
+    }
+    this.startTime = this.context.currentTime - this.pauseTime;
     this._playing = true;
     return [this];
   }
@@ -205,6 +221,7 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this.source.mediaElement.pause();
+      this.pauseTime = this.source.mediaElement.currentTime;
     } else if ("stop" in this.source && this.source.stop) {
       this.pauseTime = this.context.currentTime - this.startTime;
       this.source.stop();
@@ -229,6 +246,7 @@ export class Playback extends BasePlayback implements BaseSound {
       this.source.mediaElement.currentTime = time;
       if (playing) {
         this.source.mediaElement.play();
+        this.startTime = this.context.currentTime - time;
       }
     } else if (this.buffer) {
       // Create a new source to start from the desired time
@@ -239,6 +257,7 @@ export class Playback extends BasePlayback implements BaseSound {
       this.source.connect(this.panner);
       if (playing) {
         this.source.start(0, time);
+        this.startTime = this.context.currentTime - time;
       }
     } else {
       throw new Error("Unsupported source type for seeking");
