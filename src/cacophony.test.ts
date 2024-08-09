@@ -1,5 +1,15 @@
 import { AudioBuffer, AudioContext } from "standardized-audio-context-mock";
-import { afterEach, beforeEach, describe, expect, it, test, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  test,
+  vi,
+} from "vitest";
 import { Cacophony, SoundType } from "./cacophony";
 import { Playback } from "./playback";
 import { Sound } from "./sound";
@@ -296,10 +306,10 @@ describe("Playback class", () => {
     const initialSeekTime = 2;
     playback.seek(initialSeekTime);
     playback.play();
-    
+
     // Simulate some time passing
     vi.advanceTimersByTime(1000);
-    
+
     playback.pause();
     const pauseTime = playback.pauseTime;
     expect(pauseTime).toBeGreaterThan(initialSeekTime);
