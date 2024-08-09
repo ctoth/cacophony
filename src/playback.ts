@@ -191,7 +191,8 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this.source.mediaElement.play();
-      this.startTime = this.context.currentTime - this.source.mediaElement.currentTime;
+      this.startTime =
+        this.context.currentTime - this.source.mediaElement.currentTime;
     } else if ("start" in this.source && this.source.start) {
       const offset = this.pauseTime ? this.pauseTime : 0;
       this.source.start(0, offset);
