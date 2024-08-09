@@ -196,10 +196,16 @@ export class Playback extends BasePlayback implements BaseSound {
     } else if ("start" in this.source && this.source.start) {
       const offset = this.pauseTime ? this.pauseTime : 0;
       this.source.start(0, offset);
-      this.startTime = Math.max(0, this.context.currentTime - offset);
+      this.startTime = this.context.currentTime;
     }
     this._playing = true;
     return [this];
+  }
+
+  private updatePauseTime() {
+    if (this.startTime > 0) {
+      this.pauseTime = this.context.currentTime - this.startTime;
+    }
   }
 
   resume(): [this] {
@@ -224,7 +230,7 @@ export class Playback extends BasePlayback implements BaseSound {
       this.source.mediaElement.pause();
       this.pauseTime = this.source.mediaElement.currentTime;
     } else if ("stop" in this.source && this.source.stop) {
-      this.pauseTime = this.context.currentTime - this.startTime;
+      this.updatePauseTime();
       this.source.stop();
     }
     this._playing = false;
