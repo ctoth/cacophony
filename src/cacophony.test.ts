@@ -9,6 +9,14 @@ import { SynthPlayback } from "./synthPlayback";
 let cacophony: Cacophony;
 let audioContextMock: AudioContext;
 
+beforeAll(() => {
+  vi.useFakeTimers();
+});
+
+afterAll(() => {
+  vi.useRealTimers();
+});
+
 beforeEach(() => {
   audioContextMock = new AudioContext();
   cacophony = new Cacophony(audioContextMock);
@@ -273,6 +281,38 @@ describe("Playback class", () => {
     playback.cleanup();
     expect(disconnectSpy).toHaveBeenCalled();
     expect(playback.source).toBeUndefined();
+  });
+
+  it("can play after seeking", () => {
+    const seekTime = 2;
+    playback.seek(seekTime);
+    playback.play();
+    expect(playback.isPlaying).toBe(true);
+    expect(playback.startTime).toBeGreaterThan(0);
+    expect(playback.pauseTime).toBe(seekTime);
+  });
+
+  it("resumes from the correct position after seeking and pausing", () => {
+    const initialSeekTime = 2;
+    playback.seek(initialSeekTime);
+    playback.play();
+    
+    // Simulate some time passing
+    vi.advanceTimersByTime(1000);
+    
+    playback.pause();
+    const pauseTime = playback.pauseTime;
+    expect(pauseTime).toBeGreaterThan(initialSeekTime);
+
+    playback.play();
+    expect(playback.pauseTime).toBe(pauseTime);
+  });
+
+  it("handles multiple seek operations correctly", () => {
+    playback.seek(2);
+    playback.seek(4);
+    playback.play();
+    expect(playback.pauseTime).toBe(4);
   });
 });
 it("createOscillator creates an oscillator with default parameters when none are provided", () => {
