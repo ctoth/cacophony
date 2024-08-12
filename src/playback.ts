@@ -42,6 +42,8 @@ export class Playback extends BasePlayback implements BaseSound {
   private buffer?: AudioBuffer;
   private _startTime: number = 0;
   private _offset: number = 0;
+  private _paused: boolean = false;
+  private _pauseTime: number = 0;
 
   /**
    * Creates an instance of the Playback class.
