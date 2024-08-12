@@ -300,7 +300,11 @@ describe("Playback class", () => {
     playback.seek(seekTime);
     playback.play();
     expect(playback.isPlaying).toBe(true);
-    expect(playback.startTime).toBeGreaterThan(0);
+    expect(playback.startTime).toBeDefined();
+    expect(typeof playback.startTime).toBe('number');
+    if (playback.startTime !== undefined) {
+      expect(playback.startTime).toBeGreaterThan(0);
+    }
   });
 
   it("resumes from the correct position after seeking and pausing", () => {
