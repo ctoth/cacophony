@@ -161,24 +161,6 @@ export class Playback extends BasePlayback implements BaseSound {
     }
   };
 
-  private recreateSource() {
-    if (
-      !this.buffer ||
-      !this.source ||
-      !this.panner ||
-      !this.context ||
-      !this.gainNode
-    ) {
-      throw new Error(
-        "Cannot recreate source of a sound that has been cleaned up"
-      );
-    }
-    this.source = this.context.createBufferSource();
-    this.source.buffer = this.buffer;
-    this.source.connect(this.panner);
-    this.source.onended = this.handleLoop;
-  }
-
   /**
    * Starts playing the audio.
    * @returns {[this]} Returns the instance of the Playback class for chaining.
@@ -189,7 +171,7 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source) {
       throw new Error("Cannot play a sound that has been cleaned up");
     }
-    
+
     this.recreateSource();
 
     if ("mediaElement" in this.source && this.source.mediaElement) {
@@ -202,25 +184,6 @@ export class Playback extends BasePlayback implements BaseSound {
     this._startTime = this.context.currentTime - this._offset;
     this._playing = true;
     return [this];
-  }
-
-  stop(): void {
-    if (!this.source) {
-      throw new Error("Cannot stop a sound that has been cleaned up");
-    }
-    if (!this.isPlaying) {
-      return;
-    }
-    try {
-      if ("stop" in this.source) {
-        this.source.stop();
-      }
-      if ("mediaElement" in this.source && this.source.mediaElement) {
-        this.source.mediaElement.pause();
-      }
-    } catch (e) {}
-    this._playing = false;
-    this._offset = this.currentTime;
   }
 
   seek(time: number): void {
@@ -249,7 +212,9 @@ export class Playback extends BasePlayback implements BaseSound {
 
   private recreateSource() {
     if (!this.buffer || !this.panner || !this.context || !this.gainNode) {
-      throw new Error("Cannot recreate source of a sound that has been cleaned up");
+      throw new Error(
+        "Cannot recreate source of a sound that has been cleaned up"
+      );
     }
     if (this.source) {
       this.source.disconnect();
@@ -351,12 +316,10 @@ export class Playback extends BasePlayback implements BaseSound {
       }
       if ("mediaElement" in this.source && this.source.mediaElement) {
         this.source.mediaElement.pause();
-        this.source.mediaElement.currentTime = 0;
       }
     } catch (e) {}
     this._playing = false;
-    this.startTime = 0;
-    this.pauseTime = 0;
+    this._offset = this.currentTime;
   }
 
   /**
