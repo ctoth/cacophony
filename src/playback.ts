@@ -40,8 +40,8 @@ export class Playback extends BasePlayback implements BaseSound {
   loopCount: LoopCount = 0;
   currentLoop: number = 0;
   private buffer?: AudioBuffer;
-  pauseTime: number = 0;
-  startTime: number = 0;
+  private _startTime: number = 0;
+  private _offset: number = 0;
 
   /**
    * Creates an instance of the Playback class.
@@ -189,81 +189,76 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source) {
       throw new Error("Cannot play a sound that has been cleaned up");
     }
+    
+    this.recreateSource();
+
     if ("mediaElement" in this.source && this.source.mediaElement) {
+      this.source.mediaElement.currentTime = this._offset;
       this.source.mediaElement.play();
-      this.startTime =
-        this.context.currentTime - this.source.mediaElement.currentTime;
     } else if ("start" in this.source && this.source.start) {
-      const offset = this.pauseTime ? this.pauseTime : 0;
-      this.source.start(0, offset);
-      this.startTime = this.context.currentTime;
+      this.source.start(0, this._offset);
     }
+
+    this._startTime = this.context.currentTime - this._offset;
     this._playing = true;
     return [this];
   }
 
-  private updatePauseTime() {
-    if (this.startTime > 0) {
-      this.pauseTime = this.context.currentTime - this.startTime;
-    }
-  }
-
-  resume(): [this] {
+  stop(): void {
     if (!this.source) {
-      throw new Error("Cannot resume a sound that has been cleaned up");
+      throw new Error("Cannot stop a sound that has been cleaned up");
     }
-    if ("mediaElement" in this.source && this.source.mediaElement) {
-      this.source.mediaElement.play();
-    } else if ("start" in this.source && this.source.start) {
-      this.source.start(0, this.pauseTime);
+    if (!this.isPlaying) {
+      return;
     }
-    this.startTime = this.context.currentTime - this.pauseTime;
-    this._playing = true;
-    return [this];
-  }
-
-  pause(): void {
-    if (!this.source) {
-      throw new Error("Cannot pause a sound that has been cleaned up");
-    }
-    if ("mediaElement" in this.source && this.source.mediaElement) {
-      this.source.mediaElement.pause();
-      this.pauseTime = this.source.mediaElement.currentTime;
-    } else if ("stop" in this.source && this.source.stop) {
-      this.updatePauseTime();
-      this.source.stop();
-    }
+    try {
+      if ("stop" in this.source) {
+        this.source.stop();
+      }
+      if ("mediaElement" in this.source && this.source.mediaElement) {
+        this.source.mediaElement.pause();
+      }
+    } catch (e) {}
     this._playing = false;
+    this._offset = this.currentTime;
   }
-
-  /**
-   * Seeks to a specific time in the audio.
-   * @param {number} time - The time in seconds to seek to.
-   * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
-   */
 
   seek(time: number): void {
     if (!this.source || !this.gainNode || !this.panner) {
       throw new Error("Cannot seek a sound that has been cleaned up");
     }
-    const playing = this.isPlaying;
-    this.stop();
-    this.source.disconnect();
-    this.pauseTime = time;
-    if ("mediaElement" in this.source && this.source.mediaElement) {
-      this.source.mediaElement.currentTime = time;
-      if (playing) {
-        this.source.mediaElement.play();
-        this.startTime = this.context.currentTime - time;
-      }
-    } else if (this.buffer) {
-      // Create a new source to start from the desired time
-      this.recreateSource();
-      if (playing) {
-        (this.source as AudioBufferSourceNode).start(0, time);
-        this.startTime = this.context.currentTime - time;
-      }
+
+    const wasPlaying = this.isPlaying;
+    if (wasPlaying) {
+      this.stop();
     }
+
+    this._offset = time;
+
+    if (wasPlaying) {
+      this.play();
+    }
+  }
+
+  get currentTime(): number {
+    if (!this.isPlaying) {
+      return this._offset;
+    }
+    return this.context.currentTime - this._startTime + this._offset;
+  }
+
+  private recreateSource() {
+    if (!this.buffer || !this.panner || !this.context || !this.gainNode) {
+      throw new Error("Cannot recreate source of a sound that has been cleaned up");
+    }
+    if (this.source) {
+      this.source.disconnect();
+    }
+    this.source = this.context.createBufferSource();
+    this.source.buffer = this.buffer;
+    this.source.connect(this.panner);
+    this.source.onended = this.handleLoop;
+    this.refreshFilters();
   }
 
   /**
