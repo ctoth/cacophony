@@ -172,7 +172,13 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Cannot play a sound that has been cleaned up");
     }
 
-    this.recreateSource();
+    if (this._paused) {
+      // Resume from paused state
+      this._paused = false;
+      this._offset += this.context.currentTime - this._pauseTime;
+    } else {
+      this.recreateSource();
+    }
 
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this.source.mediaElement.currentTime = this._offset;
@@ -184,6 +190,23 @@ export class Playback extends BasePlayback implements BaseSound {
     this._startTime = this.context.currentTime - this._offset;
     this._playing = true;
     return [this];
+  }
+
+  pause(): void {
+    if (!this.source || !this._playing) {
+      return;
+    }
+
+    this._paused = true;
+    this._pauseTime = this.context.currentTime;
+
+    if ("mediaElement" in this.source && this.source.mediaElement) {
+      this.source.mediaElement.pause();
+    } else if ("stop" in this.source) {
+      this.source.stop();
+    }
+
+    this._playing = false;
   }
 
   seek(time: number): void {
@@ -204,8 +227,11 @@ export class Playback extends BasePlayback implements BaseSound {
   }
 
   get currentTime(): number {
-    if (!this.isPlaying) {
+    if (!this.isPlaying && !this._paused) {
       return this._offset;
+    }
+    if (this._paused) {
+      return this._pauseTime - this._startTime + this._offset;
     }
     return this.context.currentTime - this._startTime + this._offset;
   }
@@ -307,7 +333,7 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source) {
       throw new Error("Cannot stop a sound that has been cleaned up");
     }
-    if (!this.isPlaying) {
+    if (!this.isPlaying && !this._paused) {
       return;
     }
     try {
@@ -316,10 +342,13 @@ export class Playback extends BasePlayback implements BaseSound {
       }
       if ("mediaElement" in this.source && this.source.mediaElement) {
         this.source.mediaElement.pause();
+        this.source.mediaElement.currentTime = 0;
       }
     } catch (e) {}
     this._playing = false;
-    this._offset = this.currentTime;
+    this._paused = false;
+    this._offset = 0;
+    this._pauseTime = 0;
   }
 
   /**
