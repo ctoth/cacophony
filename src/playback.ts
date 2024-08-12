@@ -82,6 +82,10 @@ export class Playback extends BasePlayback implements BaseSound {
     this.refreshFilters();
   }
 
+  get isPlaying(): boolean {
+    return this._state === PlaybackState.Playing;
+  }
+
   /**
    * Gets the duration of the audio in seconds.
    * @returns {number} The duration of the audio.
