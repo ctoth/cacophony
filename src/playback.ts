@@ -21,6 +21,13 @@
 import type { Sound } from "./sound";
 import { BasePlayback } from "./basePlayback";
 import type { BaseSound, LoopCount, PanType } from "./cacophony";
+
+enum PlaybackState {
+  Unplayed,
+  Playing,
+  Paused,
+  Stopped
+}
 import type {
   AudioBuffer,
   AudioBufferSourceNode,
@@ -42,7 +49,7 @@ export class Playback extends BasePlayback implements BaseSound {
   private buffer?: AudioBuffer;
   private _startTime: number = 0;
   private _offset: number = 0;
-  private _paused: boolean = false;
+  private _state: PlaybackState = PlaybackState.Unplayed;
   private _pauseTime: number = 0;
 
   /**
@@ -174,11 +181,10 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Cannot play a sound that has been cleaned up");
     }
 
-    if (this._paused) {
+    if (this._state === PlaybackState.Paused) {
       // Resume from paused state
-      this._paused = false;
       this._offset += this.context.currentTime - this._pauseTime;
-    } else {
+    } else if (this._state !== PlaybackState.Playing) {
       this.recreateSource();
     }
 
@@ -190,16 +196,16 @@ export class Playback extends BasePlayback implements BaseSound {
     }
 
     this._startTime = this.context.currentTime - this._offset;
-    this._playing = true;
+    this._state = PlaybackState.Playing;
     return [this];
   }
 
   pause(): void {
-    if (!this.source || !this._playing) {
+    if (!this.source || this._state !== PlaybackState.Playing) {
       return;
     }
 
-    this._paused = true;
+    this._state = PlaybackState.Paused;
     this._pauseTime = this.context.currentTime;
 
     if ("mediaElement" in this.source && this.source.mediaElement) {
@@ -207,8 +213,6 @@ export class Playback extends BasePlayback implements BaseSound {
     } else if ("stop" in this.source) {
       this.source.stop();
     }
-
-    this._playing = false;
   }
 
   seek(time: number): void {
@@ -229,13 +233,15 @@ export class Playback extends BasePlayback implements BaseSound {
   }
 
   get currentTime(): number {
-    if (!this.isPlaying && !this._paused) {
-      return this._offset;
+    switch (this._state) {
+      case PlaybackState.Unplayed:
+      case PlaybackState.Stopped:
+        return this._offset;
+      case PlaybackState.Paused:
+        return this._pauseTime - this._startTime + this._offset;
+      case PlaybackState.Playing:
+        return this.context.currentTime - this._startTime + this._offset;
     }
-    if (this._paused) {
-      return this._pauseTime - this._startTime + this._offset;
-    }
-    return this.context.currentTime - this._startTime + this._offset;
   }
 
   private recreateSource() {
@@ -335,7 +341,7 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source) {
       throw new Error("Cannot stop a sound that has been cleaned up");
     }
-    if (!this.isPlaying && !this._paused) {
+    if (this._state === PlaybackState.Stopped || this._state === PlaybackState.Unplayed) {
       return;
     }
     try {
@@ -347,8 +353,7 @@ export class Playback extends BasePlayback implements BaseSound {
         this.source.mediaElement.currentTime = 0;
       }
     } catch (e) {}
-    this._playing = false;
-    this._paused = false;
+    this._state = PlaybackState.Stopped;
     this._offset = 0;
     this._pauseTime = 0;
   }
