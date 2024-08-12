@@ -191,7 +191,8 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this.source.mediaElement.play();
-      this.startTime = this.context.currentTime - this.source.mediaElement.currentTime;
+      this.startTime =
+        this.context.currentTime - this.source.mediaElement.currentTime;
     } else if ("start" in this.source && this.source.start) {
       const offset = this.pauseTime ? this.pauseTime : 0;
       this.source.start(0, offset);
@@ -247,6 +248,7 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     const playing = this.isPlaying;
     this.stop();
+    this.source.disconnect();
     this.pauseTime = time;
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this.source.mediaElement.currentTime = time;
@@ -256,17 +258,11 @@ export class Playback extends BasePlayback implements BaseSound {
       }
     } else if (this.buffer) {
       // Create a new source to start from the desired time
-      this.source = this.context.createBufferSource();
-      this.source.buffer = this.buffer;
-      this.source.onended = this.handleLoop;
-      this.refreshFilters();
-      this.source.connect(this.panner);
+      this.recreateSource();
       if (playing) {
-        this.source.start(0, time);
+        (this.source as AudioBufferSourceNode).start(0, time);
         this.startTime = this.context.currentTime - time;
       }
-    } else {
-      throw new Error("Unsupported source type for seeking");
     }
   }
 
