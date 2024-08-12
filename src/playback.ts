@@ -22,12 +22,6 @@ import type { Sound } from "./sound";
 import { BasePlayback } from "./basePlayback";
 import type { BaseSound, LoopCount, PanType } from "./cacophony";
 
-enum PlaybackState {
-  Unplayed,
-  Playing,
-  Paused,
-  Stopped
-}
 import type {
   AudioBuffer,
   AudioBufferSourceNode,
@@ -40,6 +34,12 @@ type PlaybackCloneOverrides = {
   loopCount: LoopCount;
   panType: PanType;
 };
+enum PlaybackState {
+  Unplayed,
+  Playing,
+  Paused,
+  Stopped,
+}
 
 export class Playback extends BasePlayback implements BaseSound {
   private context: AudioContext;
@@ -345,7 +345,10 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source) {
       throw new Error("Cannot stop a sound that has been cleaned up");
     }
-    if (this._state === PlaybackState.Stopped || this._state === PlaybackState.Unplayed) {
+    if (
+      this._state === PlaybackState.Stopped ||
+      this._state === PlaybackState.Unplayed
+    ) {
       return;
     }
     try {
