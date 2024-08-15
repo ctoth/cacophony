@@ -15,37 +15,44 @@ export class Group implements BaseSound {
     ) { }
 
     /**
-    * Plays a random sound from the group.
-    * @returns The playback object representing the played sound.
-    * @throws Error if the group is empty and there are no sounds to play.
+    * Prepares a random sound from the group for playback.
+    * @returns The playback object representing the prepared sound.
+    * @throws Error if the group is empty and there are no sounds to prepare.
     */
-
-    playRandom(): Playback {
+    preplayRandom(): Playback {
         if (this.sounds.length === 0) {
-            throw new Error('Cannot play a random sound from an empty group');
+            throw new Error('Cannot prepare a random sound from an empty group');
         }
         const randomIndex = Math.floor(Math.random() * this.sounds.length);
         const randomSound = this.sounds[randomIndex] as Sound;
         const playback = randomSound.preplay();
-        playback.forEach(p => p.play());
         return playback[0];
     }
 
     /**
-    * Plays the sounds in the group in a specific order.
-    * 
-    * @param shouldLoop - Indicates whether the sounds should be played in a loop.
-    * @returns The playback object representing the first sound being played.
-    * @throws Error if the group is empty and shouldLoop is false.
-     */
+    * Plays a random sound from the group.
+    * @returns The playback object representing the played sound.
+    * @throws Error if the group is empty and there are no sounds to play.
+    */
+    playRandom(): Playback {
+        const playback = this.preplayRandom();
+        playback.play();
+        return playback;
+    }
 
-    playOrdered(shouldLoop: boolean = true): Playback {
+    /**
+    * Prepares the sounds in the group for playback in a specific order.
+    * 
+    * @param shouldLoop - Indicates whether the sounds should be prepared for looping.
+    * @returns The playback object representing the first sound being prepared.
+    * @throws Error if the group is empty.
+    */
+    preplayOrdered(shouldLoop: boolean = true): Playback {
         if (this.sounds.length === 0) {
-            throw new Error('Cannot play an ordered sound from an empty group');
+            throw new Error('Cannot prepare an ordered sound from an empty group');
         }
         const sound = this.sounds[this.playIndex] as Sound;
-        const playback = sound.preplay();
-        playback.forEach(p => p.play());
+        const playback = sound.preplay()[0];
         this.playIndex++;
         if (this.playIndex >= this.sounds.length) {
             if (shouldLoop) {
@@ -54,7 +61,20 @@ export class Group implements BaseSound {
                 this.playIndex = this.sounds.length; // Set to length to indicate end of list
             }
         }
-        return playback[0];
+        return playback;
+    }
+
+    /**
+    * Plays the sounds in the group in a specific order.
+    * 
+    * @param shouldLoop - Indicates whether the sounds should be played in a loop.
+    * @returns The playback object representing the first sound being played.
+    * @throws Error if the group is empty.
+    */
+    playOrdered(shouldLoop: boolean = true): Playback {
+        const playback = this.preplayOrdered(shouldLoop);
+        playback.play();
+        return playback;
     }
 
     get duration() {
