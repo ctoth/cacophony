@@ -37,13 +37,19 @@ interface CacheMetadata {
     url: string;
     etag?: string;
     lastModified?: string;
+    timestamp: number;
 }
 
 const DEFAULT_CACHE_SIZE = 100;
 
 export class AudioCache {
     private static pendingRequests = new Map<string, Promise<AudioBuffer>>();
-    private static decodedBuffers = new LRUCache<string, AudioBuffer>(100); // Limit to 500 items
+    private static decodedBuffers = new LRUCache<string, AudioBuffer>(DEFAULT_CACHE_SIZE);
+    private static cacheExpirationTime: number = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+
+    public static setCacheExpirationTime(time: number): void {
+        this.cacheExpirationTime = time;
+    }
 
     private static async openCache(): Promise<Cache> {
         try {
@@ -79,7 +85,12 @@ export class AudioCache {
             if (fetchResponse.status === 200) {
                 const newEtag = fetchResponse.headers.get('ETag') || undefined;
                 const newLastModified = fetchResponse.headers.get('Last-Modified') || undefined;
-                const cacheData: CacheMetadata = { url, etag: newEtag, lastModified: newLastModified };
+                const cacheData: CacheMetadata = { 
+                    url, 
+                    etag: newEtag, 
+                    lastModified: newLastModified,
+                    timestamp: Date.now()
+                };
 
                 await cache.put(url, responseClone);
                 await cache.put(url + ':meta', new Response(JSON.stringify(cacheData), { headers: { 'Content-Type': 'application/json' } }));
@@ -142,32 +153,46 @@ export class AudioCache {
             return pendingRequest;
         }
 
-        // Try getting the buffer from cache.
-        const bufferFromCache = await this.getBufferFromCache(url, cache);
-        if (bufferFromCache) {
-            const audioBuffer = await this.decodeAudioData(context, bufferFromCache);
-            this.decodedBuffers.set(url, audioBuffer);
-            return audioBuffer;
-        }
-
         // Check for cached metadata (ETag, Last-Modified)
         const metadata = await this.getMetadataFromCache(url, cache);
-        const etag = metadata?.etag;
-        const lastModified = metadata?.lastModified;
+        let shouldFetch = !metadata;
 
-        // If it's not in the cache or needs revalidation, fetch and cache it.
-        pendingRequest = this.fetchAndCacheBuffer(url, cache, etag, lastModified)
-            .then(arrayBuffer => this.decodeAudioData(context, arrayBuffer))
-            .then(audioBuffer => {
+        if (metadata) {
+            if (metadata.etag || metadata.lastModified) {
+                // Use ETag or Last-Modified for revalidation
+                shouldFetch = false;
+            } else {
+                // If no ETag or Last-Modified, use expiration time
+                shouldFetch = (Date.now() - metadata.timestamp) > this.cacheExpirationTime;
+            }
+        }
+
+        if (shouldFetch) {
+            // If it's not in the cache or needs revalidation, fetch and cache it.
+            pendingRequest = this.fetchAndCacheBuffer(url, cache, metadata?.etag, metadata?.lastModified)
+                .then(arrayBuffer => this.decodeAudioData(context, arrayBuffer))
+                .then(audioBuffer => {
+                    this.decodedBuffers.set(url, audioBuffer);
+                    return audioBuffer;
+                })
+                .finally(() => {
+                    this.pendingRequests.delete(url); // Cleanup pending request
+                });
+            this.pendingRequests.set(url, pendingRequest);
+
+            return pendingRequest;
+        } else {
+            // Use cached version
+            const cachedBuffer = await this.getBufferFromCache(url, cache);
+            if (cachedBuffer) {
+                const audioBuffer = await this.decodeAudioData(context, cachedBuffer);
                 this.decodedBuffers.set(url, audioBuffer);
                 return audioBuffer;
-            })
-            .finally(() => {
-                this.pendingRequests.delete(url); // Cleanup pending request
-            });
-        this.pendingRequests.set(url, pendingRequest);
+            }
+        }
 
-        return pendingRequest;
+        // If we reach here, something went wrong
+        throw new Error('Failed to retrieve audio buffer');
     }
 
 
