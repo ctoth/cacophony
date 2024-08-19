@@ -161,9 +161,12 @@ export class AudioCache {
             if (metadata.etag || metadata.lastModified) {
                 // Use ETag or Last-Modified for revalidation
                 shouldFetch = false;
-            } else {
-                // If no ETag or Last-Modified, use expiration time
+            } else if (metadata.timestamp) {
+                // If timestamp exists, use expiration time
                 shouldFetch = (Date.now() - metadata.timestamp) > this.cacheExpirationTime;
+            } else {
+                // If no timestamp, ETag, or Last-Modified, assume it's expired
+                shouldFetch = true;
             }
         }
 
