@@ -86,58 +86,192 @@ synth.play();
 
 ## Synthesizer Functionality
 
-Create and manipulate synthesized sounds with ease:
+Create and manipulate synthesized sounds with advanced control:
 
 ```typescript
 const cacophony = new Cacophony();
-const synth = cacophony.createOscillator({ frequency: 440, type: 'sine' });
-synth.play();
-synth.frequency = 880; // Change frequency
-synth.type = 'square'; // Change waveform
-synth.detune = 50; // Detune by 50 cents
+
+// Create a simple sine wave oscillator
+const sineOsc = cacophony.createOscillator({ frequency: 440, type: 'sine' });
+sineOsc.play();
+
+// Create a complex sound with multiple oscillators
+const complexSynth = cacophony.createOscillator({ frequency: 220, type: 'sawtooth' });
+const subOsc = cacophony.createOscillator({ frequency: 110, type: 'sine' });
+complexSynth.addFilter(cacophony.createBiquadFilter({ type: 'lowpass', frequency: 1000 }));
+complexSynth.play();
+subOsc.play();
+
+// Modulate frequency over time
+let time = 0;
+setInterval(() => {
+  const frequency = 440 + Math.sin(time) * 100;
+  sineOsc.frequency = frequency;
+  time += 0.1;
+}, 50);
+
+// Apply envelope to volume
+complexSynth.volume = 0;
+complexSynth.fadeIn(0.5, 'linear');
+setTimeout(() => complexSynth.fadeOut(1, 'exponential'), 2000);
 ```
 
 ## Group Functionality
 
-Efficiently manage multiple sounds or synthesizers:
+Efficiently manage and control multiple sounds or synthesizers:
 
 ```typescript
-const soundGroup = await cacophony.createGroupFromUrls(['sound1.mp3', 'sound2.mp3']);
-soundGroup.play(); // Play all sounds in the group
-soundGroup.volume = 0.5; // Set volume for all sounds in the group
+const cacophony = new Cacophony();
 
+// Create a group of sounds
+const soundGroup = await cacophony.createGroupFromUrls(['drum.mp3', 'bass.mp3', 'synth.mp3']);
+
+// Play all sounds in the group
+soundGroup.play();
+
+// Control volume for all sounds
+soundGroup.volume = 0.7;
+
+// Apply 3D positioning to the entire group
+soundGroup.position = [1, 0, -1];
+
+// Create a group of synthesizers
 const synthGroup = new SynthGroup();
+const synth1 = cacophony.createOscillator({ frequency: 440, type: 'sine' });
+const synth2 = cacophony.createOscillator({ frequency: 660, type: 'square' });
 synthGroup.addSynth(synth1);
 synthGroup.addSynth(synth2);
-synthGroup.play(); // Play all synths in the group
-synthGroup.setVolume(0.8); // Set volume for all synths in the group
+
+// Play and control all synths in the group
+synthGroup.play();
+synthGroup.setVolume(0.5);
+synthGroup.stereoPan = -0.3; // Pan slightly to the left
+
+// Remove a synth from the group
+synthGroup.removeSynth(synth2);
 ```
 
 ## Microphone Input
 
-Capture and process live audio input:
+Capture, process, and manipulate live audio input:
 
 ```typescript
 const cacophony = new Cacophony();
-const micStream = await cacophony.getMicrophoneStream();
-micStream.play();
 
-// Apply effects to microphone input
-const echoFilter = cacophony.createBiquadFilter({ type: 'delay', delayTime: 0.5 });
-micStream.addFilter(echoFilter);
+async function setupMicrophone() {
+  try {
+    const micStream = await cacophony.getMicrophoneStream();
+    micStream.play();
+
+    // Apply a low-pass filter to the microphone input
+    const lowPassFilter = cacophony.createBiquadFilter({ type: 'lowpass', frequency: 1000 });
+    micStream.addFilter(lowPassFilter);
+
+    // Add a delay effect
+    const delayFilter = cacophony.createBiquadFilter({ type: 'delay', delayTime: 0.5 });
+    micStream.addFilter(delayFilter);
+
+    // Control microphone volume
+    micStream.volume = 0.8;
+
+    // Pause and resume microphone input
+    setTimeout(() => {
+      micStream.pause();
+      console.log("Microphone paused");
+      setTimeout(() => {
+        micStream.resume();
+        console.log("Microphone resumed");
+      }, 2000);
+    }, 5000);
+
+  } catch (error) {
+    console.error("Error accessing microphone:", error);
+  }
+}
+
+setupMicrophone();
 ```
 
 ## 3D Audio Positioning
 
-Create immersive audio experiences with spatial positioning:
+Create immersive soundscapes with precise spatial audio control:
 
 ```typescript
-const sound = await cacophony.createSound('path/to/audio.mp3', SoundType.Buffer, 'HRTF');
-sound.position = [1, 0, -1]; // Set position in 3D space
-sound.play();
+const cacophony = new Cacophony();
 
-// Update listener position
-cacophony.listenerPosition = [0, 0, 0];
+async function create3DAudioScene() {
+  // Create sounds with HRTF panning
+  const ambience = await cacophony.createSound('forest_ambience.mp3', SoundType.Buffer, 'HRTF');
+  const birdSound = await cacophony.createSound('bird_chirp.mp3', SoundType.Buffer, 'HRTF');
+  const footsteps = await cacophony.createSound('footsteps.mp3', SoundType.Buffer, 'HRTF');
+
+  // Position sounds in 3D space
+  ambience.position = [0, 0, -5]; // Slightly behind the listener
+  birdSound.position = [10, 5, 0]; // To the right and above
+  footsteps.position = [-2, -1, 2]; // Slightly to the left and in front
+
+  // Play the sounds
+  ambience.play();
+  birdSound.play();
+  footsteps.play();
+
+  // Update listener position and orientation
+  cacophony.listenerPosition = [0, 0, 0];
+  cacophony.listenerOrientation = {
+    forward: [0, 0, -1],
+    up: [0, 1, 0]
+  };
+
+  // Animate bird sound position
+  let time = 0;
+  setInterval(() => {
+    const x = Math.sin(time) * 10;
+    birdSound.position = [x, 5, 0];
+    time += 0.05;
+  }, 50);
+
+  // Change listener position over time
+  setTimeout(() => {
+    cacophony.listenerPosition = [0, 0, 5];
+    console.log("Listener moved forward");
+  }, 5000);
+}
+
+create3DAudioScene();
+```
+
+## Audio Streaming
+
+Stream audio content efficiently:
+
+```typescript
+const cacophony = new Cacophony();
+
+async function streamAudio() {
+  try {
+    const streamedSound = await cacophony.createStream('https://example.com/live_radio_stream');
+    streamedSound.play();
+
+    // Apply real-time effects to the stream
+    const highPassFilter = cacophony.createBiquadFilter({ type: 'highpass', frequency: 500 });
+    streamedSound.addFilter(highPassFilter);
+
+    // Control streaming playback
+    setTimeout(() => {
+      streamedSound.pause();
+      console.log("Stream paused");
+      setTimeout(() => {
+        streamedSound.play();
+        console.log("Stream resumed");
+      }, 5000);
+    }, 10000);
+
+  } catch (error) {
+    console.error("Error streaming audio:", error);
+  }
+}
+
+streamAudio();
 ```
 
 ## Additional Highlights
