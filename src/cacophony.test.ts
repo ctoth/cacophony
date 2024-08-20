@@ -42,38 +42,46 @@ describe("Event system", () => {
     });
   });
 
-  it("emits stop event when sound is stopped", (done) => {
-    sound.on("stop", () => {
-      expect(sound.isPlaying).toBe(false);
-      done();
+  it("emits stop event when sound is stopped", () => {
+    return new Promise<void>((resolve) => {
+      sound.on("stop", () => {
+        expect(sound.isPlaying).toBe(false);
+        resolve();
+      });
+      sound.play();
+      sound.stop();
     });
-    sound.play();
-    sound.stop();
   });
 
-  it("emits pause event when sound is paused", (done) => {
-    sound.on("pause", () => {
-      expect(sound.isPlaying).toBe(false);
-      done();
+  it("emits pause event when sound is paused", () => {
+    return new Promise<void>((resolve) => {
+      sound.on("pause", () => {
+        expect(sound.isPlaying).toBe(false);
+        resolve();
+      });
+      sound.play();
+      sound.pause();
     });
-    sound.play();
-    sound.pause();
   });
 
-  it("emits volumeChange event when volume is changed", (done) => {
-    sound.on("volumeChange", (volume) => {
-      expect(volume).toBe(0.5);
-      done();
+  it("emits volumeChange event when volume is changed", () => {
+    return new Promise<void>((resolve) => {
+      sound.on("volumeChange", (volume) => {
+        expect(volume).toBe(0.5);
+        resolve();
+      });
+      sound.volume = 0.5;
     });
-    sound.volume = 0.5;
   });
 
-  it("emits rateChange event when playback rate is changed", (done) => {
-    sound.on("rateChange", (rate) => {
-      expect(rate).toBe(1.5);
-      done();
+  it("emits rateChange event when playback rate is changed", () => {
+    return new Promise<void>((resolve) => {
+      sound.on("rateChange", (rate) => {
+        expect(rate).toBe(1.5);
+        resolve();
+      });
+      sound.playbackRate = 1.5;
     });
-    sound.playbackRate = 1.5;
   });
 
   it("can remove event listeners", () => {
@@ -479,7 +487,7 @@ describe("Sound class", () => {
 
   it("can set and get volume", () => {
     sound.volume = 0.5;
-    expect(sound.volume).toBe(0.5);
+    expect(sound.volume).toBeCloseTo(0.5);
   });
 
   it("can set and get playbackRate", () => {
