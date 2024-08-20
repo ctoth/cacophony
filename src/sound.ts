@@ -99,6 +99,13 @@ export class Sound
     this.eventEmitter.emit(event, data);
   }
 
+  protected async emitAsync<K extends keyof SoundEvents>(
+    event: K,
+    data: SoundEvents[K]
+  ): Promise<void> {
+    return this.eventEmitter.emitAsync(event, data);
+  }
+
   /**
    * Clones the current Sound instance, creating a deep copy with the option to override specific properties.
    * This method allows for the creation of a new, independent Sound instance based on the current one, with the
