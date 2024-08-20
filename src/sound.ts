@@ -194,20 +194,20 @@ export class Sound
     return [playback];
   }
 
-  async play(): Promise<ReturnType<this["preplay"]>> {
+  play(): ReturnType<this["preplay"]> {
     const playbacks = super.play() as ReturnType<this["preplay"]>;
-    await this.emitAsync("play", playbacks[0]);
+    Promise.resolve().then(() => this.emitAsync("play", playbacks[0]));
     return playbacks;
   }
 
   stop(): void {
     super.stop();
-    this.emit("stop", undefined);
+    Promise.resolve().then(() => this.emitAsync("stop", undefined));
   }
 
   pause(): void {
     super.pause();
-    this.emit("pause", undefined);
+    Promise.resolve().then(() => this.emitAsync("pause", undefined));
   }
 
   /**
