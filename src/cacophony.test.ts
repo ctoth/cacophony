@@ -487,7 +487,7 @@ describe("Sound class", () => {
 
   it("can set and get volume", () => {
     sound.volume = 0.5;
-    expect(sound.volume).toBeCloseTo(0.5);
+    expect(sound.getVolume()).toBeCloseTo(0.5);
   });
 
   it("can set and get playbackRate", () => {
