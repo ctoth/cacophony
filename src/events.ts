@@ -1,5 +1,8 @@
+import { BasePlayback } from "basePlayback";
+import { Playback } from "playback";
+
 export interface BaseAudioEvents {
-  play: void;
+  play: Playback;
   stop: void;
   pause: void;
   resume: void;

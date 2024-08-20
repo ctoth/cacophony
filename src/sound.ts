@@ -57,7 +57,8 @@ export class Sound
   context: AudioContext;
   loopCount: LoopCount = 0;
   private _playbackRate: number = 1;
-  private eventEmitter: TypedEventEmitter<SoundEvents> = new TypedEventEmitter<SoundEvents>();
+  private eventEmitter: TypedEventEmitter<SoundEvents> =
+    new TypedEventEmitter<SoundEvents>();
 
   constructor(
     public url: string,
@@ -72,15 +73,24 @@ export class Sound
     this.context = context;
   }
 
-  on<K extends keyof SoundEvents>(event: K, listener: (data: SoundEvents[K]) => void): void {
+  on<K extends keyof SoundEvents>(
+    event: K,
+    listener: (data: SoundEvents[K]) => void
+  ): void {
     this.eventEmitter.on(event, listener);
   }
 
-  off<K extends keyof SoundEvents>(event: K, listener: (data: SoundEvents[K]) => void): void {
+  off<K extends keyof SoundEvents>(
+    event: K,
+    listener: (data: SoundEvents[K]) => void
+  ): void {
     this.eventEmitter.off(event, listener);
   }
 
-  protected emit<K extends keyof SoundEvents>(event: K, data: SoundEvents[K]): void {
+  protected emit<K extends keyof SoundEvents>(
+    event: K,
+    data: SoundEvents[K]
+  ): void {
     this.eventEmitter.emit(event, data);
   }
 
@@ -172,25 +182,20 @@ export class Sound
     return [playback];
   }
 
-  play(): Playback[] {
-    const playbacks = super.play();
-    this.emit('play', playbacks[0]);
+  play(): ReturnType<this["preplay"]> {
+    const playbacks = super.play() as ReturnType<this["preplay"]>;
+    this.emit("play", playbacks[0]);
     return playbacks;
   }
 
   stop(): void {
     super.stop();
-    this.emit('stop', undefined);
+    this.emit("stop", undefined);
   }
 
   pause(): void {
     super.pause();
-    this.emit('pause', undefined);
-  }
-
-  resume(): void {
-    super.resume();
-    this.emit('resume', undefined);
+    this.emit("pause", undefined);
   }
 
   /**
@@ -239,11 +244,11 @@ export class Sound
   set playbackRate(rate: number) {
     this._playbackRate = rate;
     this.playbacks.forEach((p) => (p.playbackRate = rate));
-    this.emit('rateChange', rate);
+    this.emit("rateChange", rate);
   }
 
   set volume(volume: number) {
     super.volume = volume;
-    this.emit('volumeChange', volume);
+    this.emit("volumeChange", volume);
   }
 }

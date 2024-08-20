@@ -42,7 +42,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
     };
     _volume: number = 1;
 
-    abstract preplay(): typeof this.playbacks;
+    abstract preplay(): BasePlayback[];
 
     /**
      * Starts playback of the sound and returns a Playback instance representing this particular playback.
@@ -51,7 +51,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
      * @returns {Playback[]} An array containing the Playback instances that have been started.
      */
 
-    play(): typeof this.playbacks {
+    play(): BasePlayback[] {
       const playback = this.preplay();
       playback.forEach((p) => p.play());
       return playback;
