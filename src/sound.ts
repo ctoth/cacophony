@@ -194,9 +194,9 @@ export class Sound
     return [playback];
   }
 
-  play(): ReturnType<this["preplay"]> {
+  async play(): Promise<ReturnType<this["preplay"]>> {
     const playbacks = super.play() as ReturnType<this["preplay"]>;
-    this.emit("play", playbacks[0]);
+    await this.emitAsync("play", playbacks[0]);
     return playbacks;
   }
 
