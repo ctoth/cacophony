@@ -32,12 +32,14 @@ describe("Event system", () => {
     sound = await cacophony.createSound(buffer);
   });
 
-  it("emits play event when sound is played", (done) => {
-    sound.on("play", (playback) => {
-      expect(playback).toBeInstanceOf(Playback);
-      done();
+  it("emits play event when sound is played", async () => {
+    return new Promise<void>((resolve) => {
+      sound.on("play", (playback) => {
+        expect(playback).toBeInstanceOf(Playback);
+        resolve();
+      });
+      sound.play();
     });
-    sound.play();
   });
 
   it("emits stop event when sound is stopped", (done) => {
