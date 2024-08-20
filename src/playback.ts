@@ -201,6 +201,7 @@ export class Playback extends BasePlayback implements BaseSound {
 
     this._startTime = this.context.currentTime - this._offset;
     this._state = PlaybackState.Playing;
+    this.emit('play', undefined);
     return [this];
   }
 
@@ -217,6 +218,7 @@ export class Playback extends BasePlayback implements BaseSound {
     } else if ("stop" in this.source) {
       this.source.stop();
     }
+    this.emit('pause', undefined);
   }
 
   seek(time: number): void {

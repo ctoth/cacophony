@@ -38,6 +38,8 @@ import { FilterManager } from "./filters";
 import type { PanCloneOverrides } from "./pannerMixin";
 import { Playback } from "./playback";
 import type { VolumeCloneOverrides } from "./volumeMixin";
+import { TypedEventEmitter } from "./eventEmitter";
+import { SoundEvents } from "./events";
 
 type SoundCloneOverrides = PanCloneOverrides &
   VolumeCloneOverrides & {
@@ -55,6 +57,7 @@ export class Sound
   context: AudioContext;
   loopCount: LoopCount = 0;
   private _playbackRate: number = 1;
+  private eventEmitter: TypedEventEmitter<SoundEvents> = new TypedEventEmitter<SoundEvents>();
 
   constructor(
     public url: string,
@@ -67,6 +70,18 @@ export class Sound
     super();
     this.buffer = buffer;
     this.context = context;
+  }
+
+  on<K extends keyof SoundEvents>(event: K, listener: (data: SoundEvents[K]) => void): void {
+    this.eventEmitter.on(event, listener);
+  }
+
+  off<K extends keyof SoundEvents>(event: K, listener: (data: SoundEvents[K]) => void): void {
+    this.eventEmitter.off(event, listener);
+  }
+
+  protected emit<K extends keyof SoundEvents>(event: K, data: SoundEvents[K]): void {
+    this.eventEmitter.emit(event, data);
   }
 
   /**
