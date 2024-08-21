@@ -315,25 +315,22 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source) {
       throw new Error("Cannot loop a sound that has been cleaned up");
     }
+    if (loopCount !== undefined) {
+      this.loopCount = loopCount;
+    }
     if ("mediaElement" in this.source && this.source.mediaElement) {
       const mediaElement = this.source.mediaElement;
-      if (loopCount === undefined) {
-        return mediaElement.loop === true ? "infinite" : 0;
-      }
-      mediaElement.loop = true;
-      // Looping for HTMLMediaElement is controlled by the 'loop' attribute, no need for loopStart or loopEnd
-      return mediaElement.loop === true ? "infinite" : 0;
+      mediaElement.loop = this.loopCount === "infinite";
     } else if ("loop" in this.source) {
-      if (loopCount === undefined) {
-        return this.source.loop === true ? "infinite" : 0;
+      this.source.loop = this.loopCount === "infinite";
+      if (this.source.buffer) {
+        this.source.loopEnd = this.source.buffer.duration;
+        this.source.loopStart = 0;
       }
-      this.source.loop = true;
-      this.source.loopEnd = this.source.buffer?.duration || 0;
-      this.source.loopStart = 0;
-      return this.source.loop === true ? "infinite" : 0;
+    } else {
+      throw new Error("Unsupported source type");
     }
-
-    throw new Error("Unsupported source type");
+    return this.loopCount;
   }
 
   /**
