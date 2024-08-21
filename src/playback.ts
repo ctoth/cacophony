@@ -153,24 +153,20 @@ export class Playback extends BasePlayback implements BaseSound {
       return;
     }
     this.currentLoop++;
-    if (this.loopCount !== "infinite" && this.currentLoop > this.loopCount) {
-      this._playing = false;
+    if (this.loopCount !== "infinite" && this.currentLoop >= this.loopCount) {
+      this._state = PlaybackState.Stopped;
       this.stop();
-    }
-    if (this.loopCount === "infinite" || this.currentLoop < this.loopCount) {
+    } else {
       if (this.buffer) {
         this.recreateSource();
-        if (this._playing) {
+        if (this._state === PlaybackState.Playing) {
           (this.source as AudioBufferSourceNode).start(0);
-          this._playing = true;
         }
       } else {
-        if (this._playing) {
+        if (this._state === PlaybackState.Playing) {
           this.seek(0);
         }
       }
-    } else {
-      this._playing = false;
     }
   };
 
@@ -317,6 +313,7 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     if (loopCount !== undefined) {
       this.loopCount = loopCount;
+      this.currentLoop = 0;
     }
     if ("mediaElement" in this.source && this.source.mediaElement) {
       const mediaElement = this.source.mediaElement;
