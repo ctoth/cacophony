@@ -16,11 +16,7 @@ export class Group implements BaseSound {
    * @throws Error if the group is empty and there are no sounds to prepare.
    */
   preplayRandom(): Playback {
-    if (this.sounds.length === 0) {
-      throw new Error("Cannot prepare a random sound from an empty group");
-    }
-    const randomIndex = Math.floor(Math.random() * this.sounds.length);
-    const randomSound = this.sounds[randomIndex] as Sound;
+    const randomSound = this.randomSound();
     const playback = randomSound.preplay();
     return playback[0];
   }
