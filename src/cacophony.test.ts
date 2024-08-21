@@ -229,12 +229,12 @@ describe("Sound playback and state management", () => {
     expect(playbacks[0].loopCount).toBe(2);
 
     // Simulate loop completion
-    vi.spyOn(playbacks[0], "handleLoop");
-    playbacks[0].handleLoop();
+    vi.spyOn(playbacks[0], "loopEnded");
+    playbacks[0].loopEnded();
     expect(playbacks[0].currentLoop).toBe(1);
-    playbacks[0].handleLoop();
+    playbacks[0].loopEnded();
     expect(playbacks[0].currentLoop).toBe(2);
-    playbacks[0].handleLoop();
+    playbacks[0].loopEnded();
     expect(playbacks[0].isPlaying).toBe(false);
   });
 });
@@ -435,13 +435,14 @@ test("A sound loops the correct number of times", async () => {
   const playbacks = sound.play();
   const playback = playbacks[0];
   expect(playback.isPlaying).toBe(true);
-  // Set the sound to loop 3 times
-  playback.loop(3);
 
+  playback.loop(3);
+  expect(playback.loopCount).toBe(2);
+  expect(playback.currentLoop).toBe(0);
   // Simulate the end of playback to trigger looping 3 times
-  playback.handleLoop(); // First loop
-  playback.handleLoop(); // Second loop
-  playback.handleLoop(); // Third loop
+  playback.loopEnded(); // First loop
+  playback.loopEnded(); // Second loop
+  playback.loopEnded(); // Third loop
 
   // The sound should have looped 3 times
   expect(playback.currentLoop).toBe(3);
@@ -466,15 +467,15 @@ it("can transition a looping sound to non-looping and vice versa", async () => {
   expect(playback.loopCount).toBe("infinite");
 
   // Simulate the end of playback
-  playback.handleLoop();
+  playback.loopEnded();
   expect(playback.isPlaying).toBe(true);
 
   // Change to non-looping
   playback.loop(0);
-  expect(playback.loopCount).toBe(0);
 
   // Simulate the end of playback
-  playback.handleLoop();
+  playback.loopEnded();
+  expect(playback.currentLoop).toBe(1);
   expect(playback.isPlaying).toBe(false);
 
   // Set back to looping
@@ -483,11 +484,11 @@ it("can transition a looping sound to non-looping and vice versa", async () => {
 
   // Play again and simulate two loop cycles
   playback.play();
-  playback.handleLoop(); // First loop
+  playback.loopEnded(); // First loop
   expect(playback.isPlaying).toBe(true);
-  playback.handleLoop(); // Second loop
+  playback.loopEnded(); // Second loop
   expect(playback.isPlaying).toBe(true);
-  playback.handleLoop(); // Should stop after second loop
+  playback.loopEnded(); // Should stop after second loop
   expect(playback.isPlaying).toBe(false);
 });
 it("can safely stop a sound twice, then play it, and stop it again", async () => {
@@ -526,7 +527,7 @@ it("ensures isPlaying is set to false after a sound ends naturally", async () =>
   expect(playback.isPlaying).toBe(true);
 
   // Simulate the end of playback
-  playback.handleLoop();
+  playback.loopEnded();
 
   // The sound should not be playing after it ends
   expect(playback.isPlaying).toBe(false);

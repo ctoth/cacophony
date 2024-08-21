@@ -34,6 +34,7 @@ type PlaybackCloneOverrides = {
   loopCount: LoopCount;
   panType: PanType;
 };
+
 enum PlaybackState {
   Unplayed,
   Playing,
@@ -70,9 +71,9 @@ export class Playback extends BasePlayback implements BaseSound {
       this.buffer = source.buffer;
     }
     if ("mediaElement" in source && source.mediaElement) {
-      source.mediaElement.onended = this.handleLoop;
+      source.mediaElement.onended = this.loopEnded;
     } else if ("onended" in source) {
-      source.onended = this.handleLoop;
+      source.onended = this.loopEnded;
     } else {
       throw new Error("Unsupported source type");
     }
@@ -148,14 +149,13 @@ export class Playback extends BasePlayback implements BaseSound {
    * It manages looping logic and restarts playback if necessary.
    */
 
-  handleLoop = () => {
+  loopEnded = () => {
     if (!this.source) {
       return;
     }
     this.currentLoop++;
     if (this.loopCount !== "infinite" && this.currentLoop > this.loopCount) {
-      this._state = PlaybackState.Stopped;
-      this.stop();
+      return this.stop();
     } else {
       if (this.buffer) {
         this.recreateSource();
@@ -253,7 +253,7 @@ export class Playback extends BasePlayback implements BaseSound {
     this.source = this.context.createBufferSource();
     this.source.buffer = this.buffer;
     this.source.connect(this.panner);
-    this.source.onended = this.handleLoop;
+    this.source.onended = this.loopEnded;
     this.refreshFilters();
   }
 
@@ -309,6 +309,9 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Cannot loop a sound that has been cleaned up");
     }
     if (loopCount !== undefined) {
+      if (this.isPlaying && isFinite(Number(loopCount))) {
+        loopCount = Number(loopCount) - 1;
+      }
       this.loopCount = loopCount;
       this.currentLoop = 0;
     }
@@ -350,10 +353,11 @@ export class Playback extends BasePlayback implements BaseSound {
         this.source.mediaElement.pause();
         this.source.mediaElement.currentTime = 0;
       }
-    } catch (e) {}
-    this._state = PlaybackState.Stopped;
-    this._offset = 0;
-    this._pauseTime = 0;
+    } finally {
+      this._state = PlaybackState.Stopped;
+      this._offset = 0;
+      this._pauseTime = 0;
+    }
   }
 
   /**
