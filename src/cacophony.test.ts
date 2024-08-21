@@ -449,6 +449,47 @@ test("A sound loops the correct number of times", async () => {
   // The sound should not be playing after 3 loops
   expect(playback.isPlaying).toBe(false);
 });
+
+it("can transition a looping sound to non-looping and vice versa", async () => {
+  const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+  const sound = new Sound(
+    "test-url",
+    buffer,
+    audioContextMock,
+    audioContextMock.createGain()
+  );
+  const playbacks = sound.play();
+  const playback = playbacks[0];
+
+  // Set the sound to loop infinitely
+  playback.loop("infinite");
+  expect(playback.loopCount).toBe("infinite");
+
+  // Simulate the end of playback
+  playback.handleLoop();
+  expect(playback.isPlaying).toBe(true);
+
+  // Change to non-looping
+  playback.loop(0);
+  expect(playback.loopCount).toBe(0);
+
+  // Simulate the end of playback
+  playback.handleLoop();
+  expect(playback.isPlaying).toBe(false);
+
+  // Set back to looping
+  playback.loop(2);
+  expect(playback.loopCount).toBe(2);
+
+  // Play again and simulate two loop cycles
+  playback.play();
+  playback.handleLoop(); // First loop
+  expect(playback.isPlaying).toBe(true);
+  playback.handleLoop(); // Second loop
+  expect(playback.isPlaying).toBe(true);
+  playback.handleLoop(); // Should stop after second loop
+  expect(playback.isPlaying).toBe(false);
+});
 it("can safely stop a sound twice, then play it, and stop it again", async () => {
   const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
   const sound = new Sound(
