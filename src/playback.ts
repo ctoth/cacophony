@@ -153,19 +153,15 @@ export class Playback extends BasePlayback implements BaseSound {
       return;
     }
     this.currentLoop++;
-    if (this.loopCount !== "infinite" && this.currentLoop > this.loopCount) {
+    if (this.loopCount !== "infinite" && this.currentLoop >= this.loopCount) {
       this._state = PlaybackState.Stopped;
       this.stop();
-    } else {
+    } else if (this._state === PlaybackState.Playing) {
       if (this.buffer) {
         this.recreateSource();
-        if (this._state === PlaybackState.Playing) {
-          (this.source as AudioBufferSourceNode).start(0);
-        }
+        (this.source as AudioBufferSourceNode).start(0);
       } else {
-        if (this._state === PlaybackState.Playing) {
-          this.seek(0);
-        }
+        this.seek(0);
       }
     }
   };
