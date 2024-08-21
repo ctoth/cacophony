@@ -87,6 +87,19 @@ export class Group implements BaseSound {
     this.sounds.push(sound);
   }
 
+  /**
+   * Returns a random sound from the group.
+   * @returns A random Sound object from the group.
+   * @throws Error if the group is empty.
+   */
+  randomSound(): Sound {
+    if (this.sounds.length === 0) {
+      throw new Error("Cannot get a random sound from an empty group");
+    }
+    const randomIndex = Math.floor(Math.random() * this.sounds.length);
+    return this.sounds[randomIndex];
+  }
+
   preplay(): Playback[] {
     return this.sounds.reduce<Playback[]>((playbacks, sound) => {
       sound.loop && sound.loop(this.loopCount);
