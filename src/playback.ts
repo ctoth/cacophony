@@ -153,6 +153,9 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source) {
       return;
     }
+    if (this._state !== PlaybackState.Playing) {
+      return;
+    }
     this.currentLoop++;
     if (this.loopCount !== "infinite" && this.currentLoop > this.loopCount) {
       return this.stop();
