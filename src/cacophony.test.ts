@@ -458,6 +458,29 @@ test("A sound loops the correct number of times", async () => {
   expect(playback.isPlaying).toBe(false);
 });
 
+it("can stop an infinitely-looped sound", async () => {
+  const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+  const sound = new Sound(
+    "test-url",
+    buffer,
+    audioContextMock,
+    audioContextMock.createGain()
+  );
+  const playbacks = sound.play();
+  const playback = playbacks[0];
+
+  // Set the sound to loop infinitely
+  playback.loop("infinite");
+  expect(playback.loopCount).toBe("infinite");
+  expect(playback.isPlaying).toBe(true);
+
+  // Stop the playback
+  playback.stop();
+
+  // Ensure the playback is stopped
+  expect(playback.isPlaying).toBe(false);
+});
+
 it("can transition a looping sound to non-looping and vice versa", async () => {
   const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
   const sound = new Sound(
