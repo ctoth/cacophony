@@ -345,19 +345,16 @@ export class Playback extends BasePlayback implements BaseSound {
     ) {
       return;
     }
-    try {
-      if ("stop" in this.source) {
-        this.source.stop();
-      }
-      if ("mediaElement" in this.source && this.source.mediaElement) {
-        this.source.mediaElement.pause();
-        this.source.mediaElement.currentTime = 0;
-      }
-    } finally {
-      this._state = PlaybackState.Stopped;
-      this._offset = 0;
-      this._pauseTime = 0;
+    if ("stop" in this.source) {
+      this.source.stop();
     }
+    if ("mediaElement" in this.source && this.source.mediaElement) {
+      this.source.mediaElement.pause();
+      this.source.mediaElement.currentTime = 0;
+    }
+    this._state = PlaybackState.Stopped;
+    this._offset = 0;
+    this._pauseTime = 0;
   }
 
   /**
