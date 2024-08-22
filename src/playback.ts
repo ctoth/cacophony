@@ -348,6 +348,9 @@ export class Playback extends BasePlayback implements BaseSound {
     ) {
       return;
     }
+    this._state = PlaybackState.Stopped;
+    this._offset = 0;
+    this._pauseTime = 0;
     if ("stop" in this.source) {
       this.source.stop();
     }
@@ -355,9 +358,6 @@ export class Playback extends BasePlayback implements BaseSound {
       this.source.mediaElement.pause();
       this.source.mediaElement.currentTime = 0;
     }
-    this._state = PlaybackState.Stopped;
-    this._offset = 0;
-    this._pauseTime = 0;
   }
 
   /**
