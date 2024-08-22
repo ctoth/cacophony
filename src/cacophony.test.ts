@@ -295,6 +295,13 @@ describe("Playback class", () => {
     expect(playback.source).toBeUndefined();
   });
 
+  it("can stop playbacks directly", () => {
+    playback.play();
+    expect(playback.isPlaying).toBe(true);
+    playback.stop();
+    expect(playback.isPlaying).toBe(false);
+  });
+
   it("can play after seeking", () => {
     const seekTime = 2;
     playback.seek(seekTime);
