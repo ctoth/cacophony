@@ -21,6 +21,16 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
         }
 
         setPanType(panType: PanType, audioContext: AudioContext) {
+            if (this._panType === panType && this.panner) {
+                // If the pan type is already set and a panner exists, do nothing
+                return;
+            }
+
+            // Clean up existing panner if it exists
+            if (this.panner) {
+                this.panner.disconnect();
+            }
+
             this._panType = panType;
             if (panType === 'stereo') {
                 this.panner = audioContext.createStereoPanner();
