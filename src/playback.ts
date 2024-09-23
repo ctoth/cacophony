@@ -184,7 +184,7 @@ export class Playback extends BasePlayback implements BaseSound {
     if (this._state === PlaybackState.Paused) {
       // Resume from paused state
       this._offset += this.context.currentTime - this._pauseTime;
-    } else if (this._state !== PlaybackState.Playing) {
+    } else if (this._state !== PlaybackState.Playing && this.buffer) {
       this.recreateSource();
     }
 
