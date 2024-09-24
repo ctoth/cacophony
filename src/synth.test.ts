@@ -1,19 +1,8 @@
 import { AudioContext } from "standardized-audio-context-mock";
-import {
-  beforeEach,
-  describe,
-  expect,
-  it
-} from "vitest";
-import { Cacophony, SoundType } from "./cacophony";
+import { beforeEach, describe, expect, it } from "vitest";
+import { SoundType } from "./cacophony";
 import { Synth } from "./synth";
 import { SynthPlayback } from "./synthPlayback";
-
-let cacophony: Cacophony;
-let audioContextMock: AudioContext;
-
-
-
 describe("Synth class", () => {
   let synth: Synth;
   let audioContextMock: AudioContext;
@@ -107,4 +96,3 @@ describe("Synth class", () => {
     expect(synth.stereoPan).toBe(0.5);
   });
 });
-
