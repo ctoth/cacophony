@@ -52,6 +52,8 @@
             let progressInterval;
 
             const playPauseButton = document.getElementById('playPauseSound');
+            const rewindButton = document.getElementById('rewindSound');
+            const fastForwardButton = document.getElementById('fastForwardSound');
             const stopButton = document.getElementById('stopSound');
             const loadButton = document.getElementById('loadSound');
             const soundStateIndicator = document.getElementById('soundStateIndicator');
@@ -63,6 +65,8 @@
                 soundStateIndicator.textContent = `Sound State: ${soundState}`;
                 stopButton.disabled = soundState === 'stopped';
                 playPauseButton.disabled = !sound;
+                rewindButton.disabled = !sound;
+                fastForwardButton.disabled = !sound;
                 document.querySelectorAll('.control').forEach(control => {
                     control.disabled = !sound;
                 });
@@ -126,6 +130,22 @@
                     clearInterval(progressInterval);
                     progressFill.style.width = '0%';
                     updateUIState();
+                }
+            });
+
+            rewindButton.addEventListener('click', () => {
+                if (sound) {
+                    const newTime = Math.max(0, sound.currentTime - 5);
+                    sound.seek(newTime);
+                    updateProgressBar();
+                }
+            });
+
+            fastForwardButton.addEventListener('click', () => {
+                if (sound) {
+                    const newTime = Math.min(sound.duration, sound.currentTime + 5);
+                    sound.seek(newTime);
+                    updateProgressBar();
                 }
             });
 
@@ -202,6 +222,8 @@
         <input type="text" id="soundUrl" placeholder="Enter sound URL or oscillator type">
         <button id="loadSound" class="button">Load Sound</button>
         <button id="playPauseSound" class="button" disabled>Play</button>
+        <button id="rewindSound" class="button" disabled>⏪</button>
+        <button id="fastForwardSound" class="button" disabled>⏩</button>
         <button id="stopSound" class="button" disabled>Stop</button>
     </div>
     <div id="soundStateIndicator">Sound State: stopped</div>
