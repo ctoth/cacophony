@@ -170,12 +170,15 @@ export class Sound
   /**
    * Retrieves the duration of the sound in seconds.
    * If the sound is based on an AudioBuffer, it returns the duration of the buffer.
-   * Otherwise, it returns 0, indicating that the duration is unknown or not applicable.
+   * Otherwise, if the sound has not been played and is a MediaElementSource, it returns NaN, indicating that the duration is unknown or not applicable.
    * @returns { number } The duration of the sound in seconds.
    */
 
   get duration() {
-    return this.buffer?.duration || 0;
+    if (this.playbacks.length > 0) {
+      return this.playbacks[0].duration;
+    }
+    return this.buffer?.duration || NaN;
   }
 
   /**

@@ -89,17 +89,20 @@ export class Playback extends BasePlayback implements BaseSound {
 
   /**
    * Gets the duration of the audio in seconds.
-   * @returns {number} The duration of the audio.
+   * @returns {number} The duration of the audio or NaN if the duration is unknown.
    * @throws {Error} Throws an error if the sound has been cleaned up.
    */
 
   get duration() {
-    if (!this.buffer) {
+    if (!this.buffer || !this.source) {
       throw new Error(
         "Cannot get duration of a sound that has been cleaned up"
       );
     }
-    return this.buffer.duration;
+    if ("mediaElement" in this.source && this.source.mediaElement) {
+      return this.source.mediaElement.duration;
+    }
+    return this.buffer.duration || NaN;
   }
 
   /**
