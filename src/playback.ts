@@ -185,9 +185,6 @@ export class Playback extends BasePlayback implements BaseSound {
     }
 
     if (this._state === PlaybackState.Paused) {
-      // Resume from paused state
-      this._offset += this.context.currentTime - this._pauseTime;
-    } else if (this._state !== PlaybackState.Playing && this.buffer) {
       this.recreateSource();
     }
 
@@ -210,12 +207,27 @@ export class Playback extends BasePlayback implements BaseSound {
 
     this._state = PlaybackState.Paused;
     this._pauseTime = this.context.currentTime;
+    this._offset += this._pauseTime - this._startTime;
 
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this.source.mediaElement.pause();
     } else if ("stop" in this.source) {
       this.source.stop();
     }
+  }
+
+  private recreateSource() {
+    if (!this.buffer || !this.panner || !this.context || !this.gainNode) {
+      throw new Error("Cannot recreate source of a sound that has been cleaned up");
+    }
+    if (this.source) {
+      this.source.disconnect();
+    }
+    this.source = this.context.createBufferSource();
+    this.source.buffer = this.buffer;
+    this.source.connect(this.panner);
+    this.source.onended = this.loopEnded;
+    this.refreshFilters();
   }
 
   seek(time: number): void {
