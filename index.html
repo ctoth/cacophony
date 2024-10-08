@@ -53,6 +53,7 @@
 
             const playPauseButton = document.getElementById('playPauseSound');
             const stopButton = document.getElementById('stopSound');
+            const loadButton = document.getElementById('loadSound');
             const soundStateIndicator = document.getElementById('soundStateIndicator');
             const progressFill = document.getElementById('progressFill');
             const errorMessage = document.getElementById('errorMessage');
@@ -61,6 +62,7 @@
                 playPauseButton.textContent = soundState === 'playing' ? 'Pause' : 'Play';
                 soundStateIndicator.textContent = `Sound State: ${soundState}`;
                 stopButton.disabled = soundState === 'stopped';
+                playPauseButton.disabled = !sound;
                 document.querySelectorAll('.control').forEach(control => {
                     control.disabled = !sound;
                 });
@@ -73,32 +75,36 @@
                 }
             };
 
-            const togglePlayPause = async () => {
-                if (!sound) {
-                    const soundUrl = document.getElementById('soundUrl').value;
-                    try {
-                        switch (soundUrl) {
-                            case "sine":
-                            case "sawtooth":
-                            case "square":
-                            case "triangle":
-                                sound = await cacophony.createOscillator({
-                                    type: soundUrl,
-                                    panType: panType,
-                                });
-                                break;
-                            default:
-                                sound = await cacophony.createSound(soundUrl, SoundType.Buffer, panType);
-                                break;
-                        }
-                        sound.play();
-                        soundState = 'playing';
-                        progressInterval = setInterval(updateProgressBar, 100);
-                    } catch (error) {
-                        errorMessage.textContent = `Error: ${error.message}`;
-                        return;
+            const loadSound = async () => {
+                const soundUrl = document.getElementById('soundUrl').value;
+                try {
+                    switch (soundUrl) {
+                        case "sine":
+                        case "sawtooth":
+                        case "square":
+                        case "triangle":
+                            sound = await cacophony.createOscillator({
+                                type: soundUrl,
+                                panType: panType,
+                            });
+                            break;
+                        default:
+                            sound = await cacophony.createSound(soundUrl, SoundType.Buffer, panType);
+                            break;
                     }
-                } else if (soundState === 'playing') {
+                    errorMessage.textContent = '';
+                    updateUIState();
+                } catch (error) {
+                    errorMessage.textContent = `Error: ${error.message}`;
+                    sound = undefined;
+                    updateUIState();
+                }
+            };
+
+            const togglePlayPause = () => {
+                if (!sound) return;
+
+                if (soundState === 'playing') {
                     sound.pause();
                     soundState = 'paused';
                     clearInterval(progressInterval);
@@ -110,6 +116,7 @@
                 updateUIState();
             };
 
+            loadButton.addEventListener('click', loadSound);
             playPauseButton.addEventListener('click', togglePlayPause);
 
             stopButton.addEventListener('click', () => {
@@ -169,6 +176,8 @@
                     togglePlayPause();
                 } else if (event.code === 'KeyS') {
                     stopButton.click();
+                } else if (event.code === 'KeyL') {
+                    loadButton.click();
                 }
             });
 
@@ -191,7 +200,8 @@
     <h1>Cacophony Test Page</h1>
     <div class="control-group">
         <input type="text" id="soundUrl" placeholder="Enter sound URL or oscillator type">
-        <button id="playPauseSound" class="button">Play</button>
+        <button id="loadSound" class="button">Load Sound</button>
+        <button id="playPauseSound" class="button" disabled>Play</button>
         <button id="stopSound" class="button" disabled>Stop</button>
     </div>
     <div id="soundStateIndicator">Sound State: stopped</div>
