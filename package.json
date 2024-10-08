@@ -37,17 +37,17 @@
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": "^25.0.8",
-    "@rollup/plugin-node-resolve": "^15.2.3",
+    "@rollup/plugin-node-resolve": "^15.3.0",
     "@rollup/plugin-replace": "^5.0.7",
     "@rollup/plugin-typescript": "^11.1.6",
-    "@types/jest": "^29.5.12",
-    "rimraf": "^5.0.7",
-    "rollup": "^4.18.0",
-    "standardized-audio-context-mock": "^9.7.6",
+    "@types/jest": "^29.5.13",
+    "rimraf": "^5.0.10",
+    "rollup": "^4.24.0",
+    "standardized-audio-context-mock": "^9.7.10",
     "typedoc": "^0.25.13",
     "typescript": "^5.4.5",
-    "vite": "^5.2.13",
-    "vite-plugin-dts": "^4.0.0-beta.2",
+    "vite": "^5.4.8",
+    "vite-plugin-dts": "^4.2.3",
     "vitest": "^1.6.0"
   },
   "vitest": {
@@ -57,6 +57,6 @@
   },
   "dependencies": {
     "fft.js": "^4.0.4",
-    "standardized-audio-context": "^25.3.72"
+    "standardized-audio-context": "^25.3.77"
   }
 }
