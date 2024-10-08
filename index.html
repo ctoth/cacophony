@@ -5,6 +5,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cacophony Test Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        .button {
+            padding: 10px;
+            margin-right: 10px;
+            cursor: pointer;
+        }
+        .disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        #progressBar {
+            width: 100%;
+            height: 20px;
+            background-color: #ddd;
+            margin-top: 10px;
+        }
+        #progressFill {
+            height: 100%;
+            width: 0;
+            background-color: #4CAF50;
+            transition: width 0.1s;
+        }
+        #errorMessage {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
     <script type="module">
         import { Cacophony, SoundType, Sound } from '/src/index.ts';
 
@@ -12,33 +48,78 @@
             const cacophony = new Cacophony();
             window.cacophony = cacophony;
             let sound;
+            let soundState = 'stopped';
+            let progressInterval;
 
-            document.getElementById('playSound').addEventListener('click', async () => {
-                const soundUrl = document.getElementById('soundUrl').value;
-                // Removed duplicate declaration of loopCheckbox
-                const loopCheckbox = document.getElementById('loopSound').checked;
-                switch (soundUrl) {
-                    case "sine":
-                    case "sawtooth":
-                    case "square":
-                    case "triangle":
-                        sound = await cacophony.createOscillator({
-                            type: soundUrl,
-                            panType: panType,
-                        });
-                        
-                        break;
-                    default:
-                        sound = await cacophony.createSound(soundUrl, SoundType.Buffer, panType);
-                        break;
+            const playPauseButton = document.getElementById('playPauseSound');
+            const stopButton = document.getElementById('stopSound');
+            const soundStateIndicator = document.getElementById('soundStateIndicator');
+            const progressFill = document.getElementById('progressFill');
+            const errorMessage = document.getElementById('errorMessage');
+
+            const updateUIState = () => {
+                playPauseButton.textContent = soundState === 'playing' ? 'Pause' : 'Play';
+                soundStateIndicator.textContent = `Sound State: ${soundState}`;
+                stopButton.disabled = soundState === 'stopped';
+                document.querySelectorAll('.control').forEach(control => {
+                    control.disabled = !sound;
+                });
+            };
+
+            const updateProgressBar = () => {
+                if (sound && sound.duration) {
+                    const progress = (sound.currentTime / sound.duration) * 100;
+                    progressFill.style.width = `${progress}%`;
                 }
-                if (loopCheckbox) sound.loop('infinite');
-                sound.play();
-window.sound = sound;
-            });
+            };
 
-            document.getElementById('stopSound').addEventListener('click', () => {
-                if (sound) sound.stop();
+            const togglePlayPause = async () => {
+                if (!sound) {
+                    const soundUrl = document.getElementById('soundUrl').value;
+                    try {
+                        switch (soundUrl) {
+                            case "sine":
+                            case "sawtooth":
+                            case "square":
+                            case "triangle":
+                                sound = await cacophony.createOscillator({
+                                    type: soundUrl,
+                                    panType: panType,
+                                });
+                                break;
+                            default:
+                                sound = await cacophony.createSound(soundUrl, SoundType.Buffer, panType);
+                                break;
+                        }
+                        sound.play();
+                        soundState = 'playing';
+                        progressInterval = setInterval(updateProgressBar, 100);
+                    } catch (error) {
+                        errorMessage.textContent = `Error: ${error.message}`;
+                        return;
+                    }
+                } else if (soundState === 'playing') {
+                    sound.pause();
+                    soundState = 'paused';
+                    clearInterval(progressInterval);
+                } else {
+                    sound.play();
+                    soundState = 'playing';
+                    progressInterval = setInterval(updateProgressBar, 100);
+                }
+                updateUIState();
+            };
+
+            playPauseButton.addEventListener('click', togglePlayPause);
+
+            stopButton.addEventListener('click', () => {
+                if (sound) {
+                    sound.stop();
+                    soundState = 'stopped';
+                    clearInterval(progressInterval);
+                    progressFill.style.width = '0%';
+                    updateUIState();
+                }
             });
 
             document.getElementById('volume').addEventListener('input', (event) => {
@@ -53,6 +134,7 @@ window.sound = sound;
                     if (event.target.checked) {
                         panType = event.target.value;
                         if (sound) sound.panType = panType;
+                        updateStereoPanVisibility();
                     }
                 });
             });
@@ -69,57 +151,83 @@ window.sound = sound;
                 }
             });
 
-            document.getElementById('loopSound').addEventListener('change', (event) => {
-                if (sound) sound.loop(event.target.checked ? 'infinite' : 0);
+            document.getElementById('loopCount').addEventListener('change', (event) => {
+                if (sound) {
+                    const loopCount = event.target.value === 'infinite' ? 'infinite' : parseInt(event.target.value, 10);
+                    sound.loop(loopCount);
+                }
             });
 
             const updateStereoPanVisibility = () => {
                 const stereoPanSlider = document.getElementById('stereoPanContainer');
-                if (panType === 'stereo') {
-                    stereoPanSlider.style.display = 'block';
-                } else {
-                    stereoPanSlider.style.display = 'none';
-                }
+                stereoPanSlider.style.display = panType === 'stereo' ? 'block' : 'none';
             };
 
-            panTypeRadios.forEach(radio => {
-                radio.addEventListener('change', () => {
-                    updateStereoPanVisibility();
-                });
+            document.addEventListener('keydown', (event) => {
+                if (event.code === 'Space') {
+                    event.preventDefault();
+                    togglePlayPause();
+                } else if (event.code === 'KeyS') {
+                    stopButton.click();
+                }
+            });
+
+            document.getElementById('progressBar').addEventListener('click', (event) => {
+                if (sound && sound.duration) {
+                    const clickPosition = event.offsetX / event.target.offsetWidth;
+                    const seekTime = clickPosition * sound.duration;
+                    sound.seek(seekTime);
+                    updateProgressBar();
+                }
             });
 
             updateStereoPanVisibility();
-
-            // Additional controls can be added as needed
+            updateUIState();
         };
     </script>
 </head>
 
 <body>
     <h1>Cacophony Test Page</h1>
-    <input type="text" id="soundUrl" placeholder="Enter sound URL">
-    <button id="playSound">Play Sound</button>
-    <button id="stopSound">Stop Sound</button>
-    <br>
-    <label for="volume">Volume:</label>
-    <input type="range" id="volume" min="0" max="1" step="0.01" value="1">
-    <br>
-    <label for="positionX">Position X:</label>
-    <input type="range" id="positionX" min="-10" max="10" step="0.1" value="0">
-    <br>
-    <label for="loopSound">Loop:</label>
-    <input type="checkbox" id="loopSound">
-    <br>
-    <label>Pan Type:</label>
-    <input type="radio" id="panTypeHRTF" name="panType" value="HRTF" checked>
-    <label for="panTypeHRTF">HRTF</label>
-    <input type="radio" id="panTypeStereo" name="panType" value="stereo">
-    <label for="panTypeStereo">Stereo</label>
-    <div id="stereoPanContainer" style="display: none;">
-        <label for="stereoPan">Stereo Pan:</label>
-        <input type="range" id="stereoPan" min="-1" max="1" step="0.01" value="0">
+    <div class="control-group">
+        <input type="text" id="soundUrl" placeholder="Enter sound URL or oscillator type">
+        <button id="playPauseSound" class="button">Play</button>
+        <button id="stopSound" class="button" disabled>Stop</button>
     </div>
-    <!-- Additional UI elements for testing other features can be added here -->
+    <div id="soundStateIndicator">Sound State: stopped</div>
+    <div id="progressBar">
+        <div id="progressFill"></div>
+    </div>
+    <div class="control-group">
+        <label for="volume">Volume:</label>
+        <input type="range" id="volume" class="control" min="0" max="1" step="0.01" value="1" disabled>
+    </div>
+    <div class="control-group">
+        <label for="positionX">Position X:</label>
+        <input type="range" id="positionX" class="control" min="-10" max="10" step="0.1" value="0" disabled>
+    </div>
+    <div class="control-group">
+        <label for="loopCount">Loop:</label>
+        <select id="loopCount" class="control" disabled>
+            <option value="0">No loop</option>
+            <option value="1">1 time</option>
+            <option value="2">2 times</option>
+            <option value="5">5 times</option>
+            <option value="infinite">Infinite</option>
+        </select>
+    </div>
+    <div class="control-group">
+        <label>Pan Type:</label>
+        <input type="radio" id="panTypeHRTF" name="panType" value="HRTF" checked>
+        <label for="panTypeHRTF">HRTF</label>
+        <input type="radio" id="panTypeStereo" name="panType" value="stereo">
+        <label for="panTypeStereo">Stereo</label>
+    </div>
+    <div id="stereoPanContainer" class="control-group" style="display: none;">
+        <label for="stereoPan">Stereo Pan:</label>
+        <input type="range" id="stereoPan" class="control" min="-1" max="1" step="0.01" value="0" disabled>
+    </div>
+    <div id="errorMessage"></div>
 </body>
 
 </html>
