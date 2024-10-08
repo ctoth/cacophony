@@ -101,4 +101,25 @@ describe("Playback class", () => {
     playback.play();
     expect(playback.isPlaying).toBe(true);
   });
+
+  it("resumes from pause position instead of restarting", () => {
+    const startSpy = vi.spyOn(source, 'start');
+    playback.play();
+    expect(playback.isPlaying).toBe(true);
+    
+    // Simulate some time passing
+    vi.advanceTimersByTime(2000);
+    
+    playback.pause();
+    expect(playback.isPlaying).toBe(false);
+    
+    playback.play();
+    expect(playback.isPlaying).toBe(true);
+    
+    // Check that start was only called once (at the initial play)
+    expect(startSpy).toHaveBeenCalledTimes(1);
+    
+    // The second argument to start should be the offset, which should be greater than 0
+    expect(startSpy.mock.calls[0][1]).toBeGreaterThan(0);
+  });
 });
