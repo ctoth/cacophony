@@ -125,6 +125,11 @@ export class Playback extends BasePlayback implements BaseSound {
    */
 
   set playbackRate(rate: number) {
+    if (this._state === PlaybackState.Playing) {
+      const elapsed = (this.context.currentTime - this._startTime) * this._playbackRate;
+      this._offset += elapsed;
+      this._startTime = this.context.currentTime;
+    }
     this._playbackRate = rate;
     if (!this.source) {
       return;
@@ -138,22 +143,10 @@ export class Playback extends BasePlayback implements BaseSound {
   }
 
   /**
-   * Updates the current offset based on the playback state.
-   */
-  private updateOffset(): void {
-    if (this._state === PlaybackState.Playing) {
-      const elapsed = (this.context.currentTime - this._startTime) * this._playbackRate;
-      this._offset += elapsed;
-      this._startTime = this.context.currentTime;
-    }
-  }
-
-  /**
    * Handles the loop event when the audio ends.
    * This method is bound to the 'onended' event of the audio source.
    * It manages looping logic and restarts playback if necessary.
    */
-
   loopEnded = () => {
     if (!this.source) {
       return;
@@ -162,23 +155,11 @@ export class Playback extends BasePlayback implements BaseSound {
       return;
     }
     this.currentLoop++;
-    if (this.loopCount !== "infinite" && this.currentLoop > this.loopCount) {
-      this._state = PlaybackState.Stopped;
-      this._offset = 0;
-      this._playedTime = 0;
-      return;
+    if (this.loopCount !== "infinite" && this.currentLoop >= this.loopCount) {
+      this.stop();
     } else {
-      this.updateOffset();
-      this._playedTime = 0;
-      this._offset = 0;
-      if (this.buffer) {
-        this.recreateSource();
-        (this.source as AudioBufferSourceNode).start(0);
-      } else {
-        this.seek(0);
-      }
-      this._lastPlayStart = this.context.currentTime;
-      this._state = PlaybackState.Playing;
+      this.seek(0);
+      this.play();
     }
   };
 
@@ -253,42 +234,28 @@ export class Playback extends BasePlayback implements BaseSound {
   }
 
   seek(time: number): void {
-    console.log("Seeking to", time);
     if (!this.source || !this.gainNode || !this.panner) {
       throw new Error("Cannot seek a sound that has been cleaned up");
     }
     if (!isFinite(time) || time < 0) {
       throw new Error("Invalid time value for seek");
     }
-    const currentState = this._state;
 
-    // Stop the current playback if it's playing
-    if (currentState === PlaybackState.Playing && "stop" in this.source) {
-      this.source.stop();
+    const wasPlaying = this._state === PlaybackState.Playing;
+    if (wasPlaying) {
+      this.pause();
     }
 
     this._offset = time;
-    this._playedTime = time;
 
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this.source.mediaElement.currentTime = time;
     } else {
       this.recreateSource();
-      if (currentState === PlaybackState.Playing) {
-        console.log("Starting at time", time);
-        (this.source as AudioBufferSourceNode).start(0, this._offset);
-        this._lastPlayStart = this.context.currentTime;
-      }
     }
 
-    // Restore the previous state
-    this._state = currentState;
-
-    // If it was playing before, resume playback
-    if (currentState === PlaybackState.Playing) {
-      if ("mediaElement" in this.source && this.source.mediaElement) {
-        this.source.mediaElement.play();
-      }
+    if (wasPlaying) {
+      this.play();
     }
   }
 
