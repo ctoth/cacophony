@@ -44,13 +44,12 @@
     <script type="module">
         import { Cacophony, SoundType, Sound } from '/src/index.ts';
 
-        window.onload = () => {
-            const cacophony = new Cacophony();
-            window.cacophony = cacophony;
-            let sound;
-            let soundState = 'stopped';
-            let progressInterval;
+        window.cacophony = new Cacophony();
+        window.sound = null;
+        window.soundState = 'stopped';
+        let progressInterval;
 
+        window.onload = () => {
             const playPauseButton = document.getElementById('playPauseSound');
             const rewindButton = document.getElementById('rewindSound');
             const fastForwardButton = document.getElementById('fastForwardSound');
@@ -60,27 +59,27 @@
             const progressFill = document.getElementById('progressFill');
             const errorMessage = document.getElementById('errorMessage');
 
-            const updateUIState = () => {
-                playPauseButton.textContent = soundState === 'playing' ? 'Pause' : 'Play';
-                soundStateIndicator.textContent = `Sound State: ${soundState}`;
-                stopButton.disabled = soundState === 'stopped';
-                playPauseButton.disabled = !sound;
-                rewindButton.disabled = !sound;
-                fastForwardButton.disabled = !sound;
+            window.updateUIState = () => {
+                playPauseButton.textContent = window.soundState === 'playing' ? 'Pause' : 'Play';
+                soundStateIndicator.textContent = `Sound State: ${window.soundState}`;
+                stopButton.disabled = window.soundState === 'stopped';
+                playPauseButton.disabled = !window.sound;
+                rewindButton.disabled = !window.sound;
+                fastForwardButton.disabled = !window.sound;
                 document.querySelectorAll('.control').forEach(control => {
-                    control.disabled = !sound;
+                    control.disabled = !window.sound;
                 });
             };
 
-            const updateProgressBar = () => {
-                if (sound && sound.playbacks[0] && sound.duration) {
-                    const playback = sound.playbacks[0];
-                    const progress = (playback.currentTime / sound.duration) * 100;
+            window.updateProgressBar = () => {
+                if (window.sound && window.sound.playbacks[0] && window.sound.duration) {
+                    const playback = window.sound.playbacks[0];
+                    const progress = (playback.currentTime / window.sound.duration) * 100;
                     progressFill.style.width = `${progress}%`;
                 }
             };
 
-            const loadSound = async () => {
+            window.loadSound = async () => {
                 const soundUrl = document.getElementById('soundUrl').value;
                 try {
                     switch (soundUrl) {
@@ -88,82 +87,82 @@
                         case "sawtooth":
                         case "square":
                         case "triangle":
-                            sound = await cacophony.createOscillator({
+                            window.sound = await window.cacophony.createOscillator({
                                 type: soundUrl,
-                                panType: panType,
+                                panType: window.panType,
                             });
                             break;
                         default:
-                            sound = await cacophony.createSound(soundUrl, SoundType.Buffer, panType);
+                            window.sound = await window.cacophony.createSound(soundUrl, SoundType.Buffer, window.panType);
                             break;
                     }
                     errorMessage.textContent = '';
-                    updateUIState();
+                    window.updateUIState();
                 } catch (error) {
                     errorMessage.textContent = `Error: ${error.message}`;
-                    sound = undefined;
-                    updateUIState();
+                    window.sound = undefined;
+                    window.updateUIState();
                 }
             };
 
-            const togglePlayPause = () => {
-                if (!sound) return;
+            window.togglePlayPause = () => {
+                if (!window.sound) return;
 
-                if (soundState === 'playing') {
-                    sound.pause();
-                    soundState = 'paused';
+                if (window.soundState === 'playing') {
+                    window.sound.pause();
+                    window.soundState = 'paused';
                     clearInterval(progressInterval);
                 } else {
-                    sound.play();
-                    soundState = 'playing';
-                    progressInterval = setInterval(updateProgressBar, 100);
+                    window.sound.play();
+                    window.soundState = 'playing';
+                    progressInterval = setInterval(window.updateProgressBar, 100);
                 }
-                updateUIState();
+                window.updateUIState();
             };
 
-            loadButton.addEventListener('click', loadSound);
-            playPauseButton.addEventListener('click', togglePlayPause);
+            loadButton.addEventListener('click', window.loadSound);
+            playPauseButton.addEventListener('click', window.togglePlayPause);
 
             stopButton.addEventListener('click', () => {
-                if (sound) {
-                    sound.stop();
-                    soundState = 'stopped';
+                if (window.sound) {
+                    window.sound.stop();
+                    window.soundState = 'stopped';
                     clearInterval(progressInterval);
                     progressFill.style.width = '0%';
-                    updateUIState();
+                    window.updateUIState();
                 }
             });
 
             rewindButton.addEventListener('click', () => {
-                if (sound && sound.playbacks[0]) {
-                    const playback = sound.playbacks[0];
+                if (window.sound && window.sound.playbacks[0]) {
+                    const playback = window.sound.playbacks[0];
                     const newTime = Math.max(0, playback.currentTime - 5);
-                    sound.seek(newTime);
-                    updateProgressBar();
+                    window.sound.seek(newTime);
+                    window.updateProgressBar();
                 }
             });
 
             fastForwardButton.addEventListener('click', () => {
-                if (sound && sound.playbacks[0]) {
-                    const playback = sound.playbacks[0];
-                    const newTime = Math.min(sound.duration, playback.currentTime + 5);
-                    sound.seek(newTime);
-                    updateProgressBar();
+                if (window.sound && window.sound.playbacks[0]) {
+                    const playback = window.sound.playbacks[0];
+                    const newTime = Math.min(window.sound.duration, playback.currentTime + 5);
+                    window.sound.seek(newTime);
+                    window.updateProgressBar();
                 }
             });
 
             document.getElementById('volume').addEventListener('input', (event) => {
                 const volume = parseFloat(event.target.value);
-                if (sound) sound.volume = volume;
+                if (window.sound) window.sound.volume = volume;
             });
 
             const panTypeRadios = document.getElementsByName('panType');
-            let panType = 'HRTF';
+            window.panType = 'HRTF';
             panTypeRadios.forEach(radio => {
                 radio.addEventListener('change', (event) => {
                     if (event.target.checked) {
-                        panType = event.target.value;
-                        if (sound) sound.panType = panType;
+                        window.panType = event.target.value;
+                        if (window.sound) window.sound.panType = window.panType;
                         updateStereoPanVisibility();
                     }
                 });
@@ -171,32 +170,32 @@
 
             document.getElementById('positionX').addEventListener('input', (event) => {
                 const x = parseFloat(event.target.value);
-                if (sound) sound.position = [x, sound.position[1], sound.position[2]];
+                if (window.sound) window.sound.position = [x, window.sound.position[1], window.sound.position[2]];
             });
 
             document.getElementById('stereoPan').addEventListener('input', (event) => {
-                if (sound && sound.panType === 'stereo') {
+                if (window.sound && window.sound.panType === 'stereo') {
                     const pan = parseFloat(event.target.value);
-                    sound.stereoPan = pan;
+                    window.sound.stereoPan = pan;
                 }
             });
 
             document.getElementById('loopCount').addEventListener('change', (event) => {
-                if (sound) {
+                if (window.sound) {
                     const loopCount = event.target.value === 'infinite' ? 'infinite' : parseInt(event.target.value, 10);
-                    sound.loop(loopCount);
+                    window.sound.loop(loopCount);
                 }
             });
 
             const updateStereoPanVisibility = () => {
                 const stereoPanSlider = document.getElementById('stereoPanContainer');
-                stereoPanSlider.style.display = panType === 'stereo' ? 'block' : 'none';
+                stereoPanSlider.style.display = window.panType === 'stereo' ? 'block' : 'none';
             };
 
             document.addEventListener('keydown', (event) => {
                 if (event.code === 'Space') {
                     event.preventDefault();
-                    togglePlayPause();
+                    window.togglePlayPause();
                 } else if (event.code === 'KeyS') {
                     stopButton.click();
                 } else if (event.code === 'KeyL') {
@@ -205,16 +204,16 @@
             });
 
             document.getElementById('progressBar').addEventListener('click', (event) => {
-                if (sound && sound.playbacks[0] && sound.duration) {
+                if (window.sound && window.sound.playbacks[0] && window.sound.duration) {
                     const clickPosition = event.offsetX / event.target.offsetWidth;
-                    const seekTime = clickPosition * sound.duration;
-                    sound.seek(seekTime);
-                    updateProgressBar();
+                    const seekTime = clickPosition * window.sound.duration;
+                    window.sound.seek(seekTime);
+                    window.updateProgressBar();
                 }
             });
 
             updateStereoPanVisibility();
-            updateUIState();
+            window.updateUIState();
         };
     </script>
 </head>

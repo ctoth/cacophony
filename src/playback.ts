@@ -233,7 +233,8 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Cannot seek a sound that has been cleaned up");
     }
 
-    const wasPlaying = this.isPlaying;
+    const wasPlaying = this._state === PlaybackState.Playing;
+    
     if (wasPlaying && "stop" in this.source) {
       try {
         this.source.stop();
@@ -252,13 +253,11 @@ export class Playback extends BasePlayback implements BaseSound {
       if (wasPlaying) {
         (this.source as AudioBufferSourceNode).start(0, this._offset);
         this._lastPlayStart = this.context.currentTime;
-        this._state = PlaybackState.Playing;
       }
     }
 
-    if (!wasPlaying) {
-      this._state = PlaybackState.Paused;
-    }
+    // Update the state based on whether it was playing before
+    this._state = wasPlaying ? PlaybackState.Playing : PlaybackState.Paused;
   }
 
   get currentTime(): number {
