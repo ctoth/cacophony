@@ -456,9 +456,14 @@ export class Playback extends BasePlayback implements BaseSound {
     clone._lastPlayStart = this._lastPlayStart;
     clone._state = this._state;
 
-    // Copy filters
+    // Deep clone filters
     this._filters.forEach(filter => {
-      clone.addFilter(filter);
+      const clonedFilter = this.context.createBiquadFilter();
+      clonedFilter.type = filter.type;
+      clonedFilter.frequency.value = filter.frequency.value;
+      clonedFilter.Q.value = filter.Q.value;
+      clonedFilter.gain.value = filter.gain.value;
+      clone.addFilter(clonedFilter);
     });
 
     // If the original is playing, start the clone
