@@ -140,7 +140,7 @@ export class Playback extends BasePlayback implements BaseSound {
   private updateOffset(): void {
     if (this._state === PlaybackState.Playing) {
       const currentTime = this.context.currentTime;
-      const elapsedTime = currentTime - this._lastPlayStart;
+      const elapsedTime = currentTime - this._lastPlayStart + this._offset;
       this._offset = this._playedTime + elapsedTime * this._playbackRate;
       this._playedTime = this._offset;
       this._lastPlayStart = currentTime;
@@ -232,6 +232,7 @@ export class Playback extends BasePlayback implements BaseSound {
   }
 
   seek(time: number): void {
+    console.log("Seeking to", time);
     if (!this.source || !this.gainNode || !this.panner) {
       throw new Error("Cannot seek a sound that has been cleaned up");
     }
@@ -253,7 +254,8 @@ export class Playback extends BasePlayback implements BaseSound {
     } else {
       this.recreateSource();
       if (currentState === PlaybackState.Playing) {
-        (this.source as AudioBufferSourceNode).start(0, time);
+        console.log("Starting at time", time);
+        (this.source as AudioBufferSourceNode).start(0, this._offset);
         this._lastPlayStart = this.context.currentTime;
       }
     }
