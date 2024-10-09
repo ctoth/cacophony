@@ -221,13 +221,35 @@ export class Playback extends BasePlayback implements BaseSound {
 
     const elapsed = (this.context.currentTime - this._startTime) * this._playbackRate;
     this._offset += elapsed;
-    this._state = PlaybackState.Paused;
 
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this.source.mediaElement.pause();
     } else if ("stop" in this.source) {
       this.source.stop();
     }
+
+    this._state = PlaybackState.Paused;
+  }
+
+  stop(): void {
+    if (!this.source) {
+      throw new Error("Cannot stop a sound that has been cleaned up");
+    }
+    if (this._state === PlaybackState.Stopped || this._state === PlaybackState.Unplayed) {
+      return;
+    }
+
+    if ("stop" in this.source && this._state === PlaybackState.Playing) {
+      this.source.stop();
+    }
+    if ("mediaElement" in this.source && this.source.mediaElement) {
+      this.source.mediaElement.pause();
+      this.source.mediaElement.currentTime = 0;
+    }
+
+    this._offset = 0;
+    this._startTime = 0;
+    this._state = PlaybackState.Stopped;
   }
 
   seek(time: number): void {
@@ -364,33 +386,6 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Unsupported source type");
     }
     return this.loopCount;
-  }
-
-  /**
-   * Stops the audio playback immediately.
-   * @throws {Error} Throws an error if the sound has been cleaned up.
-   */
-
-  stop(): void {
-    if (!this.source) {
-      throw new Error("Cannot stop a sound that has been cleaned up");
-    }
-    if (
-      this._state === PlaybackState.Stopped ||
-      this._state === PlaybackState.Unplayed
-    ) {
-      return;
-    }
-    this._offset = 0;
-    this._startTime = 0;
-    if ("stop" in this.source && this._state === PlaybackState.Playing) {
-      this.source.stop();
-    }
-    if ("mediaElement" in this.source && this.source.mediaElement) {
-      this.source.mediaElement.pause();
-      this.source.mediaElement.currentTime = 0;
-    }
-    this._state = PlaybackState.Stopped;
   }
 
   /**
