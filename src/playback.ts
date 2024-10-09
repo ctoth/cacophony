@@ -219,8 +219,8 @@ export class Playback extends BasePlayback implements BaseSound {
       return;
     }
 
-    this.updateOffset();
-    this._playedTime = this._offset;
+    const elapsed = (this.context.currentTime - this._startTime) * this._playbackRate;
+    this._offset += elapsed;
     this._state = PlaybackState.Paused;
 
     if ("mediaElement" in this.source && this.source.mediaElement) {
@@ -382,7 +382,7 @@ export class Playback extends BasePlayback implements BaseSound {
       return;
     }
     this._offset = 0;
-    this._playedTime = 0;
+    this._startTime = 0;
     if ("stop" in this.source && this._state === PlaybackState.Playing) {
       this.source.stop();
     }
