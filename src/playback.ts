@@ -126,7 +126,8 @@ export class Playback extends BasePlayback implements BaseSound {
 
   set playbackRate(rate: number) {
     if (this._state === PlaybackState.Playing) {
-      const elapsed = (this.context.currentTime - this._startTime) * this._playbackRate;
+      const elapsed =
+        (this.context.currentTime - this._startTime) * this._playbackRate;
       this._offset += elapsed;
       this._startTime = this.context.currentTime;
     }
@@ -178,19 +179,29 @@ export class Playback extends BasePlayback implements BaseSound {
       return [this];
     }
 
-    this._startTime = this.context.currentTime;
-
-    if (this._state === PlaybackState.Paused || this._state === PlaybackState.Stopped) {
+    if (this._state === PlaybackState.Paused) {
+      // If we're resuming from a paused state
+      if ("mediaElement" in this.source && this.source.mediaElement) {
+        this.source.mediaElement.play();
+      } else {
+        // For non-mediaElement sources, we need to recreate and start the source
+        this.recreateSource();
+        if ("start" in this.source && this.source.start) {
+          this.source.start(0, this._offset);
+        }
+      }
+    } else {
+      // If we're starting from the beginning or a stopped state
       this.recreateSource();
+      if ("mediaElement" in this.source && this.source.mediaElement) {
+        this.source.mediaElement.currentTime = this._offset;
+        this.source.mediaElement.play();
+      } else if ("start" in this.source && this.source.start) {
+        this.source.start(0, this._offset);
+      }
     }
 
-    if ("mediaElement" in this.source && this.source.mediaElement) {
-      this.source.mediaElement.currentTime = this._offset;
-      this.source.mediaElement.play();
-    } else if ("start" in this.source && this.source.start) {
-      this.source.start(0, this._offset);
-    }
-
+    this._startTime = this.context.currentTime;
     this._state = PlaybackState.Playing;
     return [this];
   }
@@ -200,13 +211,16 @@ export class Playback extends BasePlayback implements BaseSound {
       return;
     }
 
-    const elapsed = (this.context.currentTime - this._startTime) * this._playbackRate;
+    const elapsed =
+      (this.context.currentTime - this._startTime) * this._playbackRate;
     this._offset += elapsed;
 
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this.source.mediaElement.pause();
-    } else if ("stop" in this.source) {
-      this.source.stop();
+    } else {
+      // For non-mediaElement sources, we disconnect the source
+      // instead of stopping it
+      this.recreateSource();
     }
 
     this._state = PlaybackState.Paused;
@@ -216,7 +230,10 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source) {
       throw new Error("Cannot stop a sound that has been cleaned up");
     }
-    if (this._state === PlaybackState.Stopped || this._state === PlaybackState.Unplayed) {
+    if (
+      this._state === PlaybackState.Stopped ||
+      this._state === PlaybackState.Unplayed
+    ) {
       return;
     }
 
@@ -261,7 +278,8 @@ export class Playback extends BasePlayback implements BaseSound {
 
   get currentTime(): number {
     if (this._state === PlaybackState.Playing) {
-      const elapsed = (this.context.currentTime - this._startTime) * this._playbackRate;
+      const elapsed =
+        (this.context.currentTime - this._startTime) * this._playbackRate;
       return this._offset + elapsed;
     } else {
       return this._offset;
@@ -446,8 +464,6 @@ export class Playback extends BasePlayback implements BaseSound {
     clone.volume = this.volume;
     clone.playbackRate = this._playbackRate;
     clone._offset = this._offset;
-    clone._playedTime = this._playedTime;
-    clone._lastPlayStart = this._lastPlayStart;
     clone._state = this._state;
 
     // Deep clone filters
