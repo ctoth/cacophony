@@ -228,6 +228,22 @@ export class Playback extends BasePlayback implements BaseSound {
     }
   }
 
+  pause(): void {
+    if (!this.source || this._state !== PlaybackState.Playing) {
+      return;
+    }
+
+    this.updateOffset();
+    this._playedTime = this._offset;
+    this._state = PlaybackState.Paused;
+
+    if ("mediaElement" in this.source && this.source.mediaElement) {
+      this.source.mediaElement.pause();
+    } else if ("stop" in this.source) {
+      this.source.stop();
+    }
+  }
+
   seek(time: number): void {
     if (!this.source || !this.gainNode || !this.panner) {
       throw new Error("Cannot seek a sound that has been cleaned up");
