@@ -72,8 +72,8 @@
             };
 
             window.updateProgressBar = () => {
-                if (window.sound && window.sound.playbacks[0] && window.sound.duration) {
-                    const playback = window.sound.playbacks[0];
+                if (window.sound && window.sound.playbacks.length > 0 && window.sound.duration) {
+                    const playback = window.sound.playbacks[window.sound.playbacks.length - 1];
                     const progress = (playback.currentTime / window.sound.duration) * 100;
                     progressFill.style.width = `${progress}%`;
                 }
@@ -139,8 +139,8 @@
             });
 
             rewindButton.addEventListener('click', () => {
-                if (window.sound && window.sound.playbacks[0]) {
-                    const playback = window.sound.playbacks[0];
+                if (window.sound && window.sound.playbacks.length > 0) {
+                    const playback = window.sound.playbacks[window.sound.playbacks.length - 1];
                     const newTime = Math.max(0, playback.currentTime - 5);
                     window.sound.seek(newTime);
                     window.updateProgressBar();
@@ -148,8 +148,8 @@
             });
 
             fastForwardButton.addEventListener('click', () => {
-                if (window.sound && window.sound.playbacks[0]) {
-                    const playback = window.sound.playbacks[0];
+                if (window.sound && window.sound.playbacks.length > 0) {
+                    const playback = window.sound.playbacks[window.sound.playbacks.length - 1];
                     const newTime = Math.min(window.sound.duration, playback.currentTime + 5);
                     window.sound.seek(newTime);
                     window.updateProgressBar();
@@ -209,7 +209,7 @@
             });
 
             document.getElementById('progressBar').addEventListener('click', (event) => {
-                if (window.sound && window.sound.playbacks[0] && window.sound.duration) {
+                if (window.sound && window.sound.playbacks.length > 0 && window.sound.duration) {
                     const clickPosition = event.offsetX / event.target.offsetWidth;
                     const seekTime = clickPosition * window.sound.duration;
                     window.sound.seek(seekTime);
