@@ -194,7 +194,10 @@ export class Playback extends BasePlayback implements BaseSound {
 
     this.updateOffset();
 
-    if (this._state === PlaybackState.Paused || this._state === PlaybackState.Stopped) {
+    if (
+      this._state === PlaybackState.Paused ||
+      this._state === PlaybackState.Stopped
+    ) {
       this.recreateSource();
     }
 
@@ -232,32 +235,38 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source || !this.gainNode || !this.panner) {
       throw new Error("Cannot seek a sound that has been cleaned up");
     }
+    if (!isFinite(time) || time < 0) {
+      throw new Error("Invalid time value for seek");
+    }
+    const currentState = this._state;
 
-    const wasPlaying = this._state === PlaybackState.Playing;
-    
-    if (wasPlaying && "stop" in this.source) {
-      try {
-        this.source.stop();
-      } catch (e) {
-        console.warn("Attempted to stop a source that wasn't playing:", e);
-      }
+    // Stop the current playback if it's playing
+    if (currentState === PlaybackState.Playing && "stop" in this.source) {
+      this.source.stop();
     }
 
-    this._offset = isFinite(time) ? time : 0;
-    this._playedTime = this._offset / this._playbackRate;
+    this._offset = time;
+    this._playedTime = time;
 
     if ("mediaElement" in this.source && this.source.mediaElement) {
-      this.source.mediaElement.currentTime = this._offset;
+      this.source.mediaElement.currentTime = time;
     } else {
       this.recreateSource();
-      if (wasPlaying) {
-        (this.source as AudioBufferSourceNode).start(0, this._offset);
+      if (currentState === PlaybackState.Playing) {
+        (this.source as AudioBufferSourceNode).start(0, time);
         this._lastPlayStart = this.context.currentTime;
       }
     }
 
-    // Update the state based on whether it was playing before
-    this._state = wasPlaying ? PlaybackState.Playing : PlaybackState.Paused;
+    // Restore the previous state
+    this._state = currentState;
+
+    // If it was playing before, resume playback
+    if (currentState === PlaybackState.Playing) {
+      if ("mediaElement" in this.source && this.source.mediaElement) {
+        this.source.mediaElement.play();
+      }
+    }
   }
 
   get currentTime(): number {
@@ -370,8 +379,7 @@ export class Playback extends BasePlayback implements BaseSound {
     this._offset = 0;
     this._playedTime = 0;
     if ("stop" in this.source && this._state === PlaybackState.Playing) {
-      
-        this.source.stop();
+      this.source.stop();
     }
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this.source.mediaElement.pause();
@@ -387,7 +395,7 @@ export class Playback extends BasePlayback implements BaseSound {
 
   addFilter(filter: BiquadFilterNode): void {
     // Disconnect and remove old filters
-    this._filters.forEach(oldFilter => {
+    this._filters.forEach((oldFilter) => {
       oldFilter.disconnect();
     });
     this._filters = [];
@@ -463,7 +471,7 @@ export class Playback extends BasePlayback implements BaseSound {
     const loopCount =
       overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
     const clone = new Playback(this.origin, source, gainNode);
-    
+
     // Copy all relevant properties
     clone.loopCount = loopCount;
     clone.currentLoop = this.currentLoop;
@@ -476,7 +484,7 @@ export class Playback extends BasePlayback implements BaseSound {
     clone._state = this._state;
 
     // Deep clone filters
-    this._filters.forEach(filter => {
+    this._filters.forEach((filter) => {
       const clonedFilter = this.context.createBiquadFilter();
       clonedFilter.type = filter.type;
       clonedFilter.frequency.value = filter.frequency.value;
