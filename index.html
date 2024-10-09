@@ -81,16 +81,21 @@
 
             window.loadSound = async () => {
                 const soundUrl = document.getElementById('soundUrl').value;
+                const soundType = document.querySelector('input[name="soundType"]:checked').value;
                 try {
-                    switch (soundUrl) {
-                        case "sine":
-                        case "sawtooth":
-                        case "square":
-                        case "triangle":
-                            window.sound = await window.cacophony.createOscillator({
-                                type: soundUrl,
-                                panType: window.panType,
-                            });
+                    switch (soundType) {
+                        case "oscillator":
+                            if (["sine", "sawtooth", "square", "triangle"].includes(soundUrl)) {
+                                window.sound = await window.cacophony.createOscillator({
+                                    type: soundUrl,
+                                    panType: window.panType,
+                                });
+                            } else {
+                                throw new Error("Invalid oscillator type");
+                            }
+                            break;
+                        case "streaming":
+                            window.sound = await window.cacophony.createStream(soundUrl);
                             break;
                         default:
                             window.sound = await window.cacophony.createSound(soundUrl, SoundType.Buffer, window.panType);
@@ -227,6 +232,15 @@
         <button id="rewindSound" class="button" disabled>⏪</button>
         <button id="fastForwardSound" class="button" disabled>⏩</button>
         <button id="stopSound" class="button" disabled>Stop</button>
+    </div>
+    <div class="control-group">
+        <label>Sound Type:</label>
+        <input type="radio" id="soundTypeBuffer" name="soundType" value="buffer" checked>
+        <label for="soundTypeBuffer">Buffer</label>
+        <input type="radio" id="soundTypeStreaming" name="soundType" value="streaming">
+        <label for="soundTypeStreaming">Streaming</label>
+        <input type="radio" id="soundTypeOscillator" name="soundType" value="oscillator">
+        <label for="soundTypeOscillator">Oscillator</label>
     </div>
     <div id="soundStateIndicator">Sound State: stopped</div>
     <div id="progressBar">
