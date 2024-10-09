@@ -162,7 +162,10 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     this.currentLoop++;
     if (this.loopCount !== "infinite" && this.currentLoop > this.loopCount) {
-      return this.stop();
+      this._state = PlaybackState.Stopped;
+      this._offset = 0;
+      this._playedTime = 0;
+      return;
     } else {
       this.updateOffset();
       this._playedTime = 0;
@@ -231,9 +234,11 @@ export class Playback extends BasePlayback implements BaseSound {
     }
 
     const wasPlaying = this.isPlaying;
-    if (wasPlaying) {
-      if ("stop" in this.source) {
+    if (wasPlaying && "stop" in this.source) {
+      try {
         this.source.stop();
+      } catch (e) {
+        console.warn("Attempted to stop a source that wasn't playing:", e);
       }
     }
 
@@ -244,11 +249,14 @@ export class Playback extends BasePlayback implements BaseSound {
       this.source.mediaElement.currentTime = this._offset;
     } else {
       this.recreateSource();
+      if (wasPlaying) {
+        (this.source as AudioBufferSourceNode).start(0, this._offset);
+        this._lastPlayStart = this.context.currentTime;
+        this._state = PlaybackState.Playing;
+      }
     }
 
-    if (wasPlaying) {
-      this.play();
-    } else {
+    if (!wasPlaying) {
       this._state = PlaybackState.Paused;
     }
   }
@@ -363,8 +371,12 @@ export class Playback extends BasePlayback implements BaseSound {
     this._state = PlaybackState.Stopped;
     this._offset = 0;
     this._playedTime = 0;
-    if ("stop" in this.source) {
-      this.source.stop();
+    if ("stop" in this.source && this._state === PlaybackState.Playing) {
+      try {
+        this.source.stop();
+      } catch (e) {
+        console.warn("Attempted to stop a source that wasn't playing:", e);
+      }
     }
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this.source.mediaElement.pause();
@@ -378,11 +390,18 @@ export class Playback extends BasePlayback implements BaseSound {
    */
 
   addFilter(filter: BiquadFilterNode): void {
-    // we have to clone the filter to avoid reusing the same filter node
+    // Disconnect and remove old filters
+    this._filters.forEach(oldFilter => {
+      oldFilter.disconnect();
+    });
+    this._filters = [];
+
+    // Clone and add the new filter
     const newFilter = filter.context.createBiquadFilter();
     newFilter.type = filter.type;
     newFilter.frequency.value = filter.frequency.value;
     newFilter.Q.value = filter.Q.value;
+    newFilter.gain.value = filter.gain.value;
     super.addFilter(newFilter);
     this.refreshFilters();
   }
@@ -393,7 +412,11 @@ export class Playback extends BasePlayback implements BaseSound {
    */
 
   removeFilter(filter: BiquadFilterNode): void {
-    super.removeFilter(filter);
+    const index = this._filters.indexOf(filter);
+    if (index !== -1) {
+      const removedFilter = this._filters.splice(index, 1)[0];
+      removedFilter.disconnect();
+    }
     this.refreshFilters();
   }
 

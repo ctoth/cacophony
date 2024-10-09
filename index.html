@@ -73,8 +73,9 @@
             };
 
             const updateProgressBar = () => {
-                if (sound && sound.duration) {
-                    const progress = (sound.currentTime / sound.duration) * 100;
+                if (sound && sound.playbacks[0] && sound.duration) {
+                    const playback = sound.playbacks[0];
+                    const progress = (playback.currentTime / sound.duration) * 100;
                     progressFill.style.width = `${progress}%`;
                 }
             };
@@ -134,16 +135,18 @@
             });
 
             rewindButton.addEventListener('click', () => {
-                if (sound) {
-                    const newTime = Math.max(0, sound.currentTime - 5);
+                if (sound && sound.playbacks[0]) {
+                    const playback = sound.playbacks[0];
+                    const newTime = Math.max(0, playback.currentTime - 5);
                     sound.seek(newTime);
                     updateProgressBar();
                 }
             });
 
             fastForwardButton.addEventListener('click', () => {
-                if (sound) {
-                    const newTime = Math.min(sound.duration, sound.currentTime + 5);
+                if (sound && sound.playbacks[0]) {
+                    const playback = sound.playbacks[0];
+                    const newTime = Math.min(sound.duration, playback.currentTime + 5);
                     sound.seek(newTime);
                     updateProgressBar();
                 }
@@ -202,7 +205,7 @@
             });
 
             document.getElementById('progressBar').addEventListener('click', (event) => {
-                if (sound && sound.duration) {
+                if (sound && sound.playbacks[0] && sound.duration) {
                     const clickPosition = event.offsetX / event.target.offsetWidth;
                     const seekTime = clickPosition * sound.duration;
                     sound.seek(seekTime);
