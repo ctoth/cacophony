@@ -156,11 +156,16 @@ export class Playback extends BasePlayback implements BaseSound {
       return;
     }
     this.currentLoop++;
-    if (this.loopCount !== "infinite" && this.currentLoop >= this.loopCount) {
+    if (this.loopCount !== "infinite" && this.currentLoop > this.loopCount) {
       this.stop();
     } else {
       this.seek(0);
-      this.play();
+      this._state = PlaybackState.Playing;
+      if ("start" in this.source && this.source.start) {
+        this.source.start(0, this._offset);
+      } else if ("mediaElement" in this.source && this.source.mediaElement) {
+        this.source.mediaElement.play();
+      }
     }
   };
 
@@ -355,7 +360,7 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Cannot loop a sound that has been cleaned up");
     }
     if (loopCount !== undefined) {
-      this.loopCount = loopCount;
+      this.loopCount = loopCount === "infinite" ? "infinite" : Math.max(0, loopCount - 1);
       this.currentLoop = 0;
     }
     if ("mediaElement" in this.source && this.source.mediaElement) {
