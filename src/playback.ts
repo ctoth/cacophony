@@ -473,7 +473,7 @@ export class Playback extends BasePlayback implements BaseSound {
       clonedFilter.frequency.value = filter.frequency.value;
       clonedFilter.Q.value = filter.Q.value;
       clonedFilter.gain.value = filter.gain.value;
-      clone.addFilter(clonedFilter);
+      clone.addFilter(clonedFilter as unknown as BiquadFilterNode);
     });
 
     // If the original is playing, start the clone
