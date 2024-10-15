@@ -224,7 +224,6 @@ export class Cacophony {
   }
 
   async createStream(url: string): Promise<Sound> {
-    const stream = await createStream(url, this.context);
     const sound = new Sound(
       url,
       undefined,
