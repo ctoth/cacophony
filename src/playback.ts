@@ -98,13 +98,16 @@ export class Playback extends BasePlayback implements BaseSound {
    */
 
   get duration() {
-    if (!this.buffer || !this.source) {
+    if (!this.source) {
       throw new Error(
         "Cannot get duration of a sound that has been cleaned up"
       );
     }
     if ("mediaElement" in this.source && this.source.mediaElement) {
       return this.source.mediaElement.duration;
+    }
+    if (!this.buffer) {
+      return NaN;
     }
     return this.buffer.duration || NaN;
   }
@@ -152,9 +155,9 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source || this._state !== PlaybackState.Playing) {
       return;
     }
-    
+
     this.currentLoop++;
-    
+
     if (this.loopCount !== "infinite" && this.currentLoop > this.loopCount) {
       this.stop();
     } else {
@@ -196,11 +199,12 @@ export class Playback extends BasePlayback implements BaseSound {
       }
     } else {
       // If we're starting from the beginning or a stopped state
-      this.recreateSource();
+
       if ("mediaElement" in this.source && this.source.mediaElement) {
         this.source.mediaElement.currentTime = this._offset;
         this.source.mediaElement.play();
       } else if ("start" in this.source && this.source.start) {
+        this.recreateSource();
         this.source.start(0, this._offset);
       }
     }
@@ -359,7 +363,8 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Cannot loop a sound that has been cleaned up");
     }
     if (loopCount !== undefined) {
-      this.loopCount = loopCount === "infinite" ? "infinite" : Math.max(0, loopCount);
+      this.loopCount =
+        loopCount === "infinite" ? "infinite" : Math.max(0, loopCount);
       this.currentLoop = 0;
     }
     if ("mediaElement" in this.source && this.source.mediaElement) {
