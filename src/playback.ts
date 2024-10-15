@@ -149,13 +149,12 @@ export class Playback extends BasePlayback implements BaseSound {
    * It manages looping logic and restarts playback if necessary.
    */
   loopEnded = () => {
-    if (!this.source) {
+    if (!this.source || this._state !== PlaybackState.Playing) {
       return;
     }
-    if (this._state !== PlaybackState.Playing) {
-      return;
-    }
+    
     this.currentLoop++;
+    
     if (this.loopCount !== "infinite" && this.currentLoop > this.loopCount) {
       this.stop();
     } else {
@@ -360,7 +359,7 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Cannot loop a sound that has been cleaned up");
     }
     if (loopCount !== undefined) {
-      this.loopCount = loopCount === "infinite" ? "infinite" : Math.max(0, loopCount - 1);
+      this.loopCount = loopCount === "infinite" ? "infinite" : Math.max(0, loopCount);
       this.currentLoop = 0;
     }
     if ("mediaElement" in this.source && this.source.mediaElement) {

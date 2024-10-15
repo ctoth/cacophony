@@ -172,19 +172,31 @@ describe("Sound class", () => {
     const playback = playbacks[0];
     expect(playback.isPlaying).toBe(true);
 
-    playback.loop(3);
+    // Set loop count to 2 (play 3 times in total)
+    playback.loop(2);
     expect(playback.loopCount).toBe(2);
     expect(playback.currentLoop).toBe(0);
-    // Simulate the end of playback to trigger looping 3 times
-    playback.loopEnded(); // First loop
-    playback.loopEnded(); // Second loop
-    playback.loopEnded(); // Third loop
 
-    // The sound should have looped 3 times
+    // Simulate the end of playback to trigger looping
+    playback.loopEnded(); // First play (currentLoop becomes 1)
+    expect(playback.isPlaying).toBe(true);
+    expect(playback.currentLoop).toBe(1);
+
+    playback.loopEnded(); // Second play (currentLoop becomes 2)
+    expect(playback.isPlaying).toBe(true);
+    expect(playback.currentLoop).toBe(2);
+
+    playback.loopEnded(); // Third play (should stop now)
+    expect(playback.isPlaying).toBe(false);
     expect(playback.currentLoop).toBe(3);
 
-    // The sound should not be playing after 3 loops
+    // Test with loop count 0 (play once, don't loop)
+    playback.loop(0);
+    playback.play();
+    expect(playback.isPlaying).toBe(true);
+    playback.loopEnded();
     expect(playback.isPlaying).toBe(false);
+    expect(playback.currentLoop).toBe(1);
   });
 
   it("can stop an infinitely-looped sound", async () => {
