@@ -69,4 +69,45 @@ describe("Cacophony core", () => {
     expect(filter.gain.value).toBe(5);
     expect(filter.Q.value).toBe(0.5);
   });
+
+  describe("Global volume and muting", () => {
+    it("sets and gets global volume correctly", () => {
+      cacophony.volume = 0.5;
+      expect(cacophony.volume).toBe(0.5);
+      expect(cacophony.globalGainNode.gain.value).toBe(0.5);
+
+      cacophony.volume = 0.75;
+      expect(cacophony.volume).toBe(0.75);
+      expect(cacophony.globalGainNode.gain.value).toBe(0.75);
+    });
+
+    it("mutes and unmutes correctly", () => {
+      cacophony.volume = 0.8;
+      expect(cacophony.muted).toBe(false);
+
+      cacophony.mute();
+      expect(cacophony.muted).toBe(true);
+      expect(cacophony.volume).toBe(0);
+      expect(cacophony.globalGainNode.gain.value).toBe(0);
+
+      cacophony.unmute();
+      expect(cacophony.muted).toBe(false);
+      expect(cacophony.volume).toBe(0.8);
+      expect(cacophony.globalGainNode.gain.value).toBe(0.8);
+    });
+
+    it("handles muted property correctly", () => {
+      cacophony.volume = 0.6;
+      
+      cacophony.muted = true;
+      expect(cacophony.muted).toBe(true);
+      expect(cacophony.volume).toBe(0);
+      expect(cacophony.globalGainNode.gain.value).toBe(0);
+
+      cacophony.muted = false;
+      expect(cacophony.muted).toBe(false);
+      expect(cacophony.volume).toBe(0.6);
+      expect(cacophony.globalGainNode.gain.value).toBe(0.6);
+    });
+  });
 });
