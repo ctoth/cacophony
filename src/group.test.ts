@@ -52,26 +52,29 @@ describe("Group class", () => {
   });
 
   it("plays sounds in order", () => {
-    const preplaySpy1 = vi.spyOn(sound1, 'preplay');
-    const preplaySpy2 = vi.spyOn(sound2, 'preplay');
+    const preplaySpy1 = vi.spyOn(sound1, 'preplay').mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
+    const preplaySpy2 = vi.spyOn(sound2, 'preplay').mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
 
-    group.playOrdered();
+    const playback1 = group.playOrdered();
     expect(preplaySpy1).toHaveBeenCalled();
     expect(preplaySpy2).not.toHaveBeenCalled();
+    expect(playback1).toBeDefined();
 
-    group.playOrdered();
+    const playback2 = group.playOrdered();
     expect(preplaySpy2).toHaveBeenCalled();
+    expect(playback2).toBeDefined();
   });
 
   it("plays random sounds", () => {
     const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.7);
-    const preplaySpy1 = vi.spyOn(sound1, 'preplay');
-    const preplaySpy2 = vi.spyOn(sound2, 'preplay');
+    const preplaySpy1 = vi.spyOn(sound1, 'preplay').mockReturnValue([]);
+    const preplaySpy2 = vi.spyOn(sound2, 'preplay').mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
 
-    group.playRandom();
+    const playback = group.playRandom();
     expect(randomSpy).toHaveBeenCalled();
     expect(preplaySpy2).toHaveBeenCalled();
     expect(preplaySpy1).not.toHaveBeenCalled();
+    expect(playback).toBeDefined();
   });
 
   it("handles looping correctly", () => {
@@ -85,6 +88,9 @@ describe("Group class", () => {
   });
 
   it("manages playback state correctly", () => {
+    vi.spyOn(sound1, 'preplay').mockReturnValue([{ play: vi.fn(), isPlaying: true } as unknown as Playback]);
+    vi.spyOn(sound2, 'preplay').mockReturnValue([{ play: vi.fn(), isPlaying: true } as unknown as Playback]);
+
     const playbacks = group.play();
     expect(group.isPlaying).toBe(true);
 
@@ -96,5 +102,12 @@ describe("Group class", () => {
 
     group.stop();
     expect(group.isPlaying).toBe(false);
+  });
+
+  it("handles empty group gracefully", () => {
+    const emptyGroup = new Group();
+    expect(emptyGroup.playRandom()).toBeUndefined();
+    expect(emptyGroup.playOrdered()).toBeUndefined();
+    expect(emptyGroup.play()).toEqual([]);
   });
 });
