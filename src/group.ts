@@ -100,10 +100,8 @@ export class Group implements BaseSound {
   }
 
   preplay(): Playback[] {
-    return this.sounds.reduce<Playback[]>((playbacks, sound) => {
-      sound.loop && sound.loop(this.loopCount);
-      return playbacks.concat(sound.preplay());
-    }, []);
+    const playbacks = this.sounds.map((sound) => sound.preplay());
+    return playbacks.flat();
   }
 
   /***
@@ -112,10 +110,13 @@ export class Group implements BaseSound {
    */
 
   play(): Playback[] {
-    return this.preplay().map((playback) => {
-      const result = playback.play();
-      return Array.isArray(result) ? result[0] : result;
+    const playbacks: Playback[] = [];
+    // preplay returns an array, and then play on each of those also returns an array, and we only want one array of playbacks
+    this.preplay().forEach((playback) => {
+      playback.play();
+      playbacks.push(playback);
     });
+    return playbacks;
   }
 
   /**
@@ -124,7 +125,7 @@ export class Group implements BaseSound {
    */
 
   get isPlaying(): boolean {
-    return this.sounds.some((sound) => sound.isPlaying) || this.playbacks.some((playback) => playback.isPlaying);
+    return this.sounds.some((sound) => sound.isPlaying);
   }
 
   /**
