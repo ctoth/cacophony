@@ -33,14 +33,15 @@ describe("Group class", () => {
   });
 
   it("performs collective operations on grouped sounds", () => {
-    const playSpy1 = vi.spyOn(sound1, 'play');
-    const playSpy2 = vi.spyOn(sound2, 'play');
-    const stopSpy1 = vi.spyOn(sound1, 'stop');
-    const stopSpy2 = vi.spyOn(sound2, 'stop');
+    const preplaySpy1 = vi.spyOn(sound1, 'preplay').mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
+    const preplaySpy2 = vi.spyOn(sound2, 'preplay').mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
 
     group.play();
-    expect(playSpy1).toHaveBeenCalled();
-    expect(playSpy2).toHaveBeenCalled();
+    expect(preplaySpy1).toHaveBeenCalled();
+    expect(preplaySpy2).toHaveBeenCalled();
+
+    const stopSpy1 = vi.spyOn(sound1, 'stop');
+    const stopSpy2 = vi.spyOn(sound2, 'stop');
 
     group.stop();
     expect(stopSpy1).toHaveBeenCalled();

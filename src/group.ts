@@ -112,7 +112,10 @@ export class Group implements BaseSound {
    */
 
   play(): Playback[] {
-    return this.preplay().map((playback) => playback.play()[0]);
+    return this.preplay().map((playback) => {
+      const result = playback.play();
+      return Array.isArray(result) ? result[0] : result;
+    });
   }
 
   /**
