@@ -124,7 +124,7 @@ export class Group implements BaseSound {
    */
 
   get isPlaying(): boolean {
-    return this.sounds.some((sound) => sound.isPlaying);
+    return this.sounds.some((sound) => sound.isPlaying) || this.playbacks.some((playback) => playback.isPlaying);
   }
 
   /**
