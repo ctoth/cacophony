@@ -4,6 +4,7 @@ import { audioContextMock, cacophony } from "./setupTests";
 
 import { Group } from "./group";
 import { Sound } from "./sound";
+import { Playback } from "./playback";
 
 describe("Group class", () => {
   let group: Group;
@@ -11,8 +12,8 @@ describe("Group class", () => {
   let sound2: Sound;
 
   beforeEach(async () => {
-    const buffer1 = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    const buffer2 = new AudioBuffer({ length: 200, sampleRate: 44100 });
+    const buffer1 = new AudioBuffer({ length: 10, sampleRate: 44100 });
+    const buffer2 = new AudioBuffer({ length: 20, sampleRate: 44100 });
     sound1 = await cacophony.createSound(buffer1);
     sound2 = await cacophony.createSound(buffer2);
     group = new Group([sound1, sound2]);
@@ -20,9 +21,14 @@ describe("Group class", () => {
 
   it("can add and remove sounds from a group", () => {
     expect(group.sounds.length).toBe(2);
-    
-    const buffer3 = new AudioBuffer({ length: 300, sampleRate: 44100 });
-    const sound3 = new Sound("test-url-3", buffer3, audioContextMock, audioContextMock.createGain());
+
+    const buffer3 = new AudioBuffer({ length: 30, sampleRate: 44100 });
+    const sound3 = new Sound(
+      "test-url-3",
+      buffer3,
+      audioContextMock,
+      audioContextMock.createGain()
+    );
     group.addSound(sound3);
     expect(group.sounds.length).toBe(3);
     expect(group.sounds).toContain(sound3);
@@ -33,15 +39,19 @@ describe("Group class", () => {
   });
 
   it("performs collective operations on grouped sounds", () => {
-    const preplaySpy1 = vi.spyOn(sound1, 'preplay').mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
-    const preplaySpy2 = vi.spyOn(sound2, 'preplay').mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
+    const preplaySpy1 = vi
+      .spyOn(sound1, "preplay")
+      .mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
+    const preplaySpy2 = vi
+      .spyOn(sound2, "preplay")
+      .mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
 
     group.play();
     expect(preplaySpy1).toHaveBeenCalled();
     expect(preplaySpy2).toHaveBeenCalled();
 
-    const stopSpy1 = vi.spyOn(sound1, 'stop');
-    const stopSpy2 = vi.spyOn(sound2, 'stop');
+    const stopSpy1 = vi.spyOn(sound1, "stop");
+    const stopSpy2 = vi.spyOn(sound2, "stop");
 
     group.stop();
     expect(stopSpy1).toHaveBeenCalled();
@@ -53,8 +63,12 @@ describe("Group class", () => {
   });
 
   it("plays sounds in order", () => {
-    const preplaySpy1 = vi.spyOn(sound1, 'preplay').mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
-    const preplaySpy2 = vi.spyOn(sound2, 'preplay').mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
+    const preplaySpy1 = vi
+      .spyOn(sound1, "preplay")
+      .mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
+    const preplaySpy2 = vi
+      .spyOn(sound2, "preplay")
+      .mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
 
     const playback1 = group.playOrdered();
     expect(preplaySpy1).toHaveBeenCalled();
@@ -67,9 +81,11 @@ describe("Group class", () => {
   });
 
   it("plays random sounds", () => {
-    const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.7);
-    const preplaySpy1 = vi.spyOn(sound1, 'preplay').mockReturnValue([]);
-    const preplaySpy2 = vi.spyOn(sound2, 'preplay').mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
+    const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.7);
+    const preplaySpy1 = vi.spyOn(sound1, "preplay").mockReturnValue([]);
+    const preplaySpy2 = vi
+      .spyOn(sound2, "preplay")
+      .mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
 
     const playback = group.playRandom();
     expect(randomSpy).toHaveBeenCalled();
@@ -89,9 +105,6 @@ describe("Group class", () => {
   });
 
   it("manages playback state correctly", () => {
-    vi.spyOn(sound1, 'preplay').mockReturnValue([{ play: vi.fn(), isPlaying: true } as unknown as Playback]);
-    vi.spyOn(sound2, 'preplay').mockReturnValue([{ play: vi.fn(), isPlaying: true } as unknown as Playback]);
-
     const playbacks = group.play();
     expect(group.isPlaying).toBe(true);
 
