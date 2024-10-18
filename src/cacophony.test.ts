@@ -1,5 +1,5 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
-import { describe, expect, it, test, vi, beforeEach } from "vitest";
+import { afterEach, describe, expect, it, test, vi, beforeEach } from "vitest";
 import { audioContextMock, cacophony, mockCache } from "./setupTests";
 import { Sound } from "./sound";
 import { Group } from "./group";
@@ -97,7 +97,7 @@ describe("Cacophony core", () => {
 
     it("handles muted property correctly", () => {
       cacophony.volume = 0.6;
-      
+
       cacophony.muted = true;
       expect(cacophony.muted).toBe(true);
       expect(cacophony.volume).toBe(0);
@@ -121,7 +121,9 @@ describe("Cacophony advanced features", () => {
   });
 
   it("createStream creates a streaming Sound instance", async () => {
-    const streamSound = await cacophony.createStream("https://example.com/audio.mp3");
+    const streamSound = await cacophony.createStream(
+      "https://example.com/audio.mp3"
+    );
     expect(streamSound).toBeInstanceOf(Sound);
     expect(streamSound.soundType).toBe(SoundType.Streaming);
   });
@@ -131,7 +133,7 @@ describe("Cacophony advanced features", () => {
     const group = await cacophony.createGroupFromUrls(urls);
     expect(group).toBeInstanceOf(Group);
     expect(group.sounds.length).toBe(3);
-    group.sounds.forEach(sound => expect(sound).toBeInstanceOf(Sound));
+    group.sounds.forEach((sound) => expect(sound).toBeInstanceOf(Sound));
   });
 
   it("clearMemoryCache calls cache.clearMemoryCache", () => {
@@ -142,7 +144,7 @@ describe("Cacophony advanced features", () => {
   it("sets and gets listener orientation correctly", () => {
     const orientation = {
       forward: [1, 0, 0],
-      up: [0, 1, 0]
+      up: [0, 1, 0],
     };
     cacophony.listenerOrientation = orientation;
     expect(cacophony.listenerOrientation).toEqual(orientation);
@@ -150,7 +152,9 @@ describe("Cacophony advanced features", () => {
 
   it("getMicrophoneStream returns a MicrophoneStream instance", async () => {
     const mockMediaStream = {} as MediaStream;
-    vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(mockMediaStream);
+    vi.spyOn(navigator.mediaDevices, "getUserMedia").mockResolvedValue(
+      mockMediaStream
+    );
 
     const micStream = await cacophony.getMicrophoneStream();
     expect(micStream).toBeInstanceOf(MicrophoneStream);
@@ -166,13 +170,17 @@ describe("Cacophony advanced features", () => {
   });
 
   it("throws an error when creating a sound with an invalid URL", async () => {
-    vi.mocked(mockCache.getAudioBuffer).mockRejectedValueOnce(new Error("Invalid URL"));
-    await expect(cacophony.createSound("invalid-url")).rejects.toThrow("Invalid URL");
+    vi.mocked(mockCache.getAudioBuffer).mockRejectedValueOnce(
+      new Error("Invalid URL")
+    );
+    await expect(cacophony.createSound("invalid-url")).rejects.toThrow(
+      "Invalid URL"
+    );
   });
 
   it("pause and resume methods call context.suspend and context.resume", () => {
-    const suspendSpy = vi.spyOn(cacophony.context, 'suspend');
-    const resumeSpy = vi.spyOn(cacophony.context, 'resume');
+    const suspendSpy = vi.spyOn(cacophony.context, "suspend");
+    const resumeSpy = vi.spyOn(cacophony.context, "resume");
 
     cacophony.pause();
     expect(suspendSpy).toHaveBeenCalled();
@@ -187,8 +195,12 @@ describe("Cacophony advanced features", () => {
   });
 
   it("loadWorklets loads the phase-vocoder worklet", async () => {
-    const addModuleSpy = vi.spyOn(cacophony.context.audioWorklet, 'addModule').mockResolvedValue();
+    const addModuleSpy = vi
+      .spyOn(cacophony.context.audioWorklet, "addModule")
+      .mockResolvedValue();
     await cacophony.loadWorklets();
-    expect(addModuleSpy).toHaveBeenCalledWith(expect.stringContaining("phase-vocoder-bundle.js"));
+    expect(addModuleSpy).toHaveBeenCalledWith(
+      expect.stringContaining("phase-vocoder-bundle.js")
+    );
   });
 });
