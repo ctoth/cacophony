@@ -93,7 +93,7 @@ export class Sound
     const playbackRate = overrides.playbackRate || this.playbackRate;
     const volume =
       overrides.volume !== undefined ? overrides.volume : this.volume;
-    const position = overrides.position ?? [...this.position];
+    const position = overrides.position ? [...overrides.position] : [...this.position];
     const filters =
       overrides.filters && overrides.filters.length
         ? overrides.filters
