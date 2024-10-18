@@ -1,25 +1,10 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
-import {
-  describe,
-  expect,
-  it,
-  test,
-  vi,
-  beforeEach,
-  afterEach
-} from "vitest";
-import { audioContextMock, cacophony } from "./setupTests";
+import { describe, expect, it, test } from "vitest";
+import { audioContextMock, cacophony, AudioCache } from "./setupTests";
 import { Sound } from "./sound";
 import { Group } from "./group";
 import { SoundType } from "./cacophony";
 import { MicrophoneStream } from "./microphone";
-
-vi.mock('./cache', () => ({
-  AudioCache: {
-    getAudioBuffer: vi.fn().mockResolvedValue(new AudioBuffer({ length: 100, sampleRate: 44100 })),
-    clearMemoryCache: vi.fn(),
-  },
-}));
 
 describe("Cacophony core", () => {
   test("Cacophony is created with the correct context", () => {
