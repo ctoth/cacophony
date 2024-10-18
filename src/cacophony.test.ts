@@ -1,5 +1,5 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
-import { describe, expect, it, test, vi } from "vitest";
+import { describe, expect, it, test, vi, beforeEach } from "vitest";
 import { audioContextMock, cacophony, mockCache } from "./setupTests";
 import { Sound } from "./sound";
 import { Group } from "./group";
