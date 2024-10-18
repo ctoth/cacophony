@@ -1,4 +1,5 @@
 import type { AudioContext } from './context';
+import { ICache } from './interfaces/ICache';
 
 class LRUCache<K, V> {
     private maxSize: number;
@@ -42,7 +43,7 @@ interface CacheMetadata {
 
 const DEFAULT_CACHE_SIZE = 100;
 
-export class AudioCache {
+export class AudioCache implements ICache {
     private static pendingRequests = new Map<string, Promise<AudioBuffer>>();
     private static decodedBuffers = new LRUCache<string, AudioBuffer>(DEFAULT_CACHE_SIZE);
     private static cacheExpirationTime: number = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
@@ -130,31 +131,31 @@ export class AudioCache {
         }
     }
 
-    public static async getAudioBuffer(context: AudioContext, url: string): Promise<AudioBuffer> {
+    public async getAudioBuffer(context: AudioContext, url: string): Promise<AudioBuffer> {
         // Check if the decoded buffer is already available
-        if (this.decodedBuffers.has(url)) {
-            return this.decodedBuffers.get(url)!;
+        if (AudioCache.decodedBuffers.has(url)) {
+            return AudioCache.decodedBuffers.get(url)!;
         }
 
         // handle data: urls
         if (url.startsWith('data:')) {
             const base64Data = url.split(',')[1];
             const buffer = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0)).buffer;
-            const audioBuffer = await this.decodeAudioData(context, buffer);
-            this.decodedBuffers.set(url, audioBuffer);
+            const audioBuffer = await AudioCache.decodeAudioData(context, buffer);
+            AudioCache.decodedBuffers.set(url, audioBuffer);
             return audioBuffer;
         }
 
-        const cache = await this.openCache();
+        const cache = await AudioCache.openCache();
 
         // First, check if there's a pending request.
-        let pendingRequest = this.pendingRequests.get(url);
+        let pendingRequest = AudioCache.pendingRequests.get(url);
         if (pendingRequest) {
             return pendingRequest;
         }
 
         // Check for cached metadata (ETag, Last-Modified)
-        const metadata = await this.getMetadataFromCache(url, cache);
+        const metadata = await AudioCache.getMetadataFromCache(url, cache);
         let shouldFetch = !metadata;
 
         if (metadata) {
@@ -163,7 +164,7 @@ export class AudioCache {
                 shouldFetch = false;
             } else if (metadata.timestamp) {
                 // If timestamp exists, use expiration time
-                shouldFetch = (Date.now() - metadata.timestamp) > this.cacheExpirationTime;
+                shouldFetch = (Date.now() - metadata.timestamp) > AudioCache.cacheExpirationTime;
             } else {
                 // If no timestamp, ETag, or Last-Modified, assume it's expired
                 shouldFetch = true;
@@ -172,24 +173,24 @@ export class AudioCache {
 
         if (shouldFetch) {
             // If it's not in the cache or needs revalidation, fetch and cache it.
-            pendingRequest = this.fetchAndCacheBuffer(url, cache, metadata?.etag, metadata?.lastModified)
-                .then(arrayBuffer => this.decodeAudioData(context, arrayBuffer))
+            pendingRequest = AudioCache.fetchAndCacheBuffer(url, cache, metadata?.etag, metadata?.lastModified)
+                .then(arrayBuffer => AudioCache.decodeAudioData(context, arrayBuffer))
                 .then(audioBuffer => {
-                    this.decodedBuffers.set(url, audioBuffer);
+                    AudioCache.decodedBuffers.set(url, audioBuffer);
                     return audioBuffer;
                 })
                 .finally(() => {
-                    this.pendingRequests.delete(url); // Cleanup pending request
+                    AudioCache.pendingRequests.delete(url); // Cleanup pending request
                 });
-            this.pendingRequests.set(url, pendingRequest);
+            AudioCache.pendingRequests.set(url, pendingRequest);
 
             return pendingRequest;
         } else {
             // Use cached version
-            const cachedBuffer = await this.getBufferFromCache(url, cache);
+            const cachedBuffer = await AudioCache.getBufferFromCache(url, cache);
             if (cachedBuffer) {
-                const audioBuffer = await this.decodeAudioData(context, cachedBuffer);
-                this.decodedBuffers.set(url, audioBuffer);
+                const audioBuffer = await AudioCache.decodeAudioData(context, cachedBuffer);
+                AudioCache.decodedBuffers.set(url, audioBuffer);
                 return audioBuffer;
             }
         }
@@ -199,9 +200,9 @@ export class AudioCache {
     }
 
 
-    public static clearMemoryCache(): void {
-        this.decodedBuffers = new LRUCache<string, AudioBuffer>(DEFAULT_CACHE_SIZE);
-        this.pendingRequests.clear();
+    public clearMemoryCache(): void {
+        AudioCache.decodedBuffers = new LRUCache<string, AudioBuffer>(DEFAULT_CACHE_SIZE);
+        AudioCache.pendingRequests.clear();
     }
 }
 

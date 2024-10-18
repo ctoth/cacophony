@@ -1,6 +1,6 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
-import { describe, expect, it, test } from "vitest";
-import { audioContextMock, cacophony, AudioCache } from "./setupTests";
+import { describe, expect, it, test, vi } from "vitest";
+import { audioContextMock, cacophony, mockCache } from "./setupTests";
 import { Sound } from "./sound";
 import { Group } from "./group";
 import { SoundType } from "./cacophony";
@@ -134,9 +134,9 @@ describe("Cacophony advanced features", () => {
     group.sounds.forEach(sound => expect(sound).toBeInstanceOf(Sound));
   });
 
-  it("clearMemoryCache calls AudioCache.clearMemoryCache", () => {
+  it("clearMemoryCache calls cache.clearMemoryCache", () => {
     cacophony.clearMemoryCache();
-    expect(vi.mocked(AudioCache.clearMemoryCache)).toHaveBeenCalled();
+    expect(mockCache.clearMemoryCache).toHaveBeenCalled();
   });
 
   it("sets and gets listener orientation correctly", () => {
@@ -166,7 +166,7 @@ describe("Cacophony advanced features", () => {
   });
 
   it("throws an error when creating a sound with an invalid URL", async () => {
-    vi.mocked(AudioCache.getAudioBuffer).mockRejectedValueOnce(new Error("Invalid URL"));
+    vi.mocked(mockCache.getAudioBuffer).mockRejectedValueOnce(new Error("Invalid URL"));
     await expect(cacophony.createSound("invalid-url")).rejects.toThrow("Invalid URL");
   });
 
