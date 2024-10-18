@@ -1,10 +1,10 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { audioContextMock, cacophony } from "./setupTests";
 
 import { Group } from "./group";
-import { Sound } from "./sound";
 import { Playback } from "./playback";
+import { Sound } from "./sound";
 
 describe("Group class", () => {
   let group: Group;
@@ -17,6 +17,11 @@ describe("Group class", () => {
     sound1 = await cacophony.createSound(buffer1);
     sound2 = await cacophony.createSound(buffer2);
     group = new Group([sound1, sound2]);
+  });
+
+  afterEach(() => {
+    sound1 = sound2 = group = null;
+    vi.restoreAllMocks();
   });
 
   it("can add and remove sounds from a group", () => {
