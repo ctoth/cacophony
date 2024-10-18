@@ -114,12 +114,13 @@ describe("Sound cloning", () => {
       "test-url",
       buffer,
       audioContextMock,
-      audioContextMock.createGain()
+      audioContextMock.createGain(),
+      SoundType.Buffer,
+      "HRTF"
     );
     originalSound.volume = 0.8;
     originalSound.playbackRate = 1.2;
     originalSound.position = [1, 2, 3];
-    originalSound.stereoPan = 0.5;
     originalSound.loop(2);
     originalSound.addFilter(audioContextMock.createBiquadFilter());
   });
@@ -163,7 +164,10 @@ describe("Sound cloning", () => {
   });
 
   it("clones a Sound instance with overridden stereoPan", () => {
-    const clonedSound = originalSound.clone({ stereoPan: -0.5 });
+    const clonedSound = originalSound.clone({
+      panType: "stereo",
+      stereoPan: -0.5,
+    });
 
     expect(clonedSound.stereoPan).toBe(-0.5);
     expect(clonedSound.stereoPan).not.toBe(originalSound.stereoPan);
@@ -196,7 +200,6 @@ describe("Sound cloning", () => {
     const clonedSound = originalSound.clone({
       volume: 0.3,
       playbackRate: 0.8,
-      position: [7, 8, 9],
       stereoPan: 0.2,
       loopCount: 5,
       panType: "stereo",
@@ -204,7 +207,6 @@ describe("Sound cloning", () => {
 
     expect(clonedSound.volume).toBe(0.3);
     expect(clonedSound.playbackRate).toBe(0.8);
-    expect(clonedSound.position).toEqual([7, 8, 9]);
     expect(clonedSound.stereoPan).toBe(0.2);
     expect(clonedSound.loopCount).toBe(5);
     expect(clonedSound.panType).toBe("stereo");
