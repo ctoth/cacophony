@@ -227,3 +227,61 @@ describe("Playback cloning", () => {
     expect(originalPlayback['_filters'].length).toBe(1);
   });
 });
+
+describe("Playback error cases", () => {
+  let playback: Playback;
+  let buffer: AudioBuffer;
+  let source: AudioBufferSourceNode;
+  let gainNode: GainNode;
+  let sound: Sound;
+
+  beforeEach(() => {
+    buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    source = audioContextMock.createBufferSource();
+    source.buffer = buffer;
+    gainNode = audioContextMock.createGain();
+    sound = new Sound("test-url", buffer, audioContextMock, gainNode);
+    playback = new Playback(sound, source, gainNode);
+  });
+
+  it("throws an error when trying to play a cleaned-up sound", () => {
+    playback.cleanup();
+    expect(() => playback.play()).toThrow("Cannot play a sound that has been cleaned up");
+  });
+
+  it("throws an error when seeking to a negative time", () => {
+    expect(() => playback.seek(-1)).toThrow("Invalid time value for seek");
+  });
+
+  it("throws an error when seeking to NaN", () => {
+    expect(() => playback.seek(NaN)).toThrow("Invalid time value for seek");
+  });
+
+  it("throws an error when setting an invalid volume", () => {
+    expect(() => { playback.volume = -0.1; }).toThrow("Volume must be between 0 and 1");
+    expect(() => { playback.volume = 1.1; }).toThrow("Volume must be between 0 and 1");
+  });
+
+  it("throws an error when setting an invalid playback rate", () => {
+    expect(() => { playback.playbackRate = 0; }).toThrow("Playback rate must be greater than 0");
+    expect(() => { playback.playbackRate = -1; }).toThrow("Playback rate must be greater than 0");
+  });
+
+  it("throws an error when trying to clone a cleaned-up sound", () => {
+    playback.cleanup();
+    expect(() => playback.clone()).toThrow("Cannot clone a sound that has been cleaned up");
+  });
+
+  it("throws an error when trying to add a filter to a cleaned-up sound", () => {
+    playback.cleanup();
+    const filter = audioContextMock.createBiquadFilter();
+    expect(() => playback.addFilter(filter as unknown as BiquadFilterNode)).toThrow("Cannot update filters on a sound that has been cleaned up");
+  });
+
+  it("throws an error when trying to remove a filter from a cleaned-up sound", () => {
+    const filter = audioContextMock.createBiquadFilter();
+    playback.addFilter(filter as unknown as BiquadFilterNode);
+    playback.cleanup();
+    expect(() => playback.removeFilter(filter as unknown as BiquadFilterNode)).toThrow("Cannot update filters on a sound that has been cleaned up");
+  });
+});
