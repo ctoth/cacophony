@@ -3,9 +3,23 @@ import {
   describe,
   expect,
   it,
-  test
+  test,
+  vi,
+  beforeEach,
+  afterEach
 } from "vitest";
 import { audioContextMock, cacophony } from "./setupTests";
+import { Sound } from "./sound";
+import { Group } from "./group";
+import { SoundType } from "./cacophony";
+import { MicrophoneStream } from "./microphone";
+
+vi.mock('./cache', () => ({
+  AudioCache: {
+    getAudioBuffer: vi.fn().mockResolvedValue(new AudioBuffer({ length: 100, sampleRate: 44100 })),
+    clearMemoryCache: vi.fn(),
+  },
+}));
 
 describe("Cacophony core", () => {
   test("Cacophony is created with the correct context", () => {
@@ -109,5 +123,87 @@ describe("Cacophony core", () => {
       expect(cacophony.volume).toBe(0.6);
       expect(cacophony.globalGainNode.gain.value).toBe(0.6);
     });
+  });
+});
+
+describe("Cacophony advanced features", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("createStream creates a streaming Sound instance", async () => {
+    const streamSound = await cacophony.createStream("https://example.com/audio.mp3");
+    expect(streamSound).toBeInstanceOf(Sound);
+    expect(streamSound.soundType).toBe(SoundType.Streaming);
+  });
+
+  it("createGroupFromUrls creates a Group with Sound instances", async () => {
+    const urls = ["url1", "url2", "url3"];
+    const group = await cacophony.createGroupFromUrls(urls);
+    expect(group).toBeInstanceOf(Group);
+    expect(group.sounds.length).toBe(3);
+    group.sounds.forEach(sound => expect(sound).toBeInstanceOf(Sound));
+  });
+
+  it("clearMemoryCache calls AudioCache.clearMemoryCache", () => {
+    cacophony.clearMemoryCache();
+    expect(vi.mocked(AudioCache.clearMemoryCache)).toHaveBeenCalled();
+  });
+
+  it("sets and gets listener orientation correctly", () => {
+    const orientation = {
+      forward: [1, 0, 0],
+      up: [0, 1, 0]
+    };
+    cacophony.listenerOrientation = orientation;
+    expect(cacophony.listenerOrientation).toEqual(orientation);
+  });
+
+  it("getMicrophoneStream returns a MicrophoneStream instance", async () => {
+    const mockMediaStream = {} as MediaStream;
+    vi.spyOn(navigator.mediaDevices, 'getUserMedia').mockResolvedValue(mockMediaStream);
+
+    const micStream = await cacophony.getMicrophoneStream();
+    expect(micStream).toBeInstanceOf(MicrophoneStream);
+  });
+
+  it("createPanner creates a PannerNode with correct default values", () => {
+    const panner = cacophony.createPanner({});
+    expect(panner.panningModel).toBe("HRTF");
+    expect(panner.distanceModel).toBe("inverse");
+    expect(panner.refDistance).toBe(1);
+    expect(panner.maxDistance).toBe(10000);
+    expect(panner.rolloffFactor).toBe(1);
+  });
+
+  it("throws an error when creating a sound with an invalid URL", async () => {
+    vi.mocked(AudioCache.getAudioBuffer).mockRejectedValueOnce(new Error("Invalid URL"));
+    await expect(cacophony.createSound("invalid-url")).rejects.toThrow("Invalid URL");
+  });
+
+  it("pause and resume methods call context.suspend and context.resume", () => {
+    const suspendSpy = vi.spyOn(cacophony.context, 'suspend');
+    const resumeSpy = vi.spyOn(cacophony.context, 'resume');
+
+    cacophony.pause();
+    expect(suspendSpy).toHaveBeenCalled();
+
+    cacophony.resume();
+    expect(resumeSpy).toHaveBeenCalled();
+  });
+
+  it("setGlobalVolume sets the global gain node value", () => {
+    cacophony.setGlobalVolume(0.5);
+    expect(cacophony.globalGainNode.gain.value).toBe(0.5);
+  });
+
+  it("loadWorklets loads the phase-vocoder worklet", async () => {
+    const addModuleSpy = vi.spyOn(cacophony.context.audioWorklet, 'addModule').mockResolvedValue();
+    await cacophony.loadWorklets();
+    expect(addModuleSpy).toHaveBeenCalledWith(expect.stringContaining("phase-vocoder-bundle.js"));
   });
 });
