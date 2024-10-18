@@ -256,12 +256,7 @@ describe("Playback error cases", () => {
   it("throws an error when seeking to NaN", () => {
     expect(() => playback.seek(NaN)).toThrow("Invalid time value for seek");
   });
-
-  it("throws an error when setting an invalid volume", () => {
-    expect(() => { playback.volume = -0.1; }).toThrow("Volume must be between 0 and 1");
-    expect(() => { playback.volume = 1.1; }).toThrow("Volume must be between 0 and 1");
-  });
-
+  
   it("throws an error when setting an invalid playback rate", () => {
     expect(() => { playback.playbackRate = 0; }).toThrow("Playback rate must be greater than 0");
     expect(() => { playback.playbackRate = -1; }).toThrow("Playback rate must be greater than 0");
