@@ -15,7 +15,7 @@ import type { Playback } from "./playback";
 import { Sound } from "./sound";
 import { createStream } from "./stream";
 import { Synth } from "./synth";
-import { ICache } from './interfaces/ICache';
+import { ICache } from "./interfaces/ICache";
 
 export enum SoundType {
   HTML = "HTML",
@@ -194,17 +194,19 @@ export class Cacophony {
         panType
       );
     }
-    return this.cache.getAudioBuffer(this.context, url).then(
-      (buffer) =>
-        new Sound(
-          url as string,
-          buffer,
-          this.context,
-          this.globalGainNode,
-          soundType,
-          panType
-        )
-    );
+    return this.cache
+      .getAudioBuffer(this.context, url)
+      .then(
+        (buffer) =>
+          new Sound(
+            url as string,
+            buffer,
+            this.context,
+            this.globalGainNode,
+            soundType,
+            panType
+          )
+      );
   }
 
   async createGroup(sounds: Sound[]): Promise<Group> {
