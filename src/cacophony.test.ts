@@ -1,6 +1,7 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
 import { afterEach, describe, expect, it, test, vi, beforeEach } from "vitest";
 import { audioContextMock, cacophony, mockCache } from "./setupTests";
+import { SoundType } from "./cacophony";
 import { Sound } from "./sound";
 import { Group } from "./group";
 import { SoundType } from "./cacophony";
