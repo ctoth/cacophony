@@ -130,6 +130,8 @@ describe("Cacophony advanced features", () => {
 
   it("createGroupFromUrls creates a Group with Sound instances", async () => {
     const urls = ["url1", "url2", "url3"];
+    const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    vi.mocked(mockCache.getAudioBuffer).mockResolvedValue(mockBuffer);
     const group = await cacophony.createGroupFromUrls(urls);
     expect(group).toBeInstanceOf(Group);
     expect(group.sounds.length).toBe(3);
@@ -146,6 +148,15 @@ describe("Cacophony advanced features", () => {
       forward: [1, 0, 0],
       up: [0, 1, 0],
     };
+    // Mock the listener properties
+    cacophony.listener = {
+      forwardX: { value: 0 },
+      forwardY: { value: 0 },
+      forwardZ: { value: 0 },
+      upX: { value: 0 },
+      upY: { value: 0 },
+      upZ: { value: 0 },
+    } as any;
     cacophony.listenerOrientation = orientation;
     expect(cacophony.listenerOrientation).toEqual(orientation);
   });
