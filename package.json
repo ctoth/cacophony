@@ -40,14 +40,13 @@
     "@rollup/plugin-node-resolve": "^15.3.0",
     "@rollup/plugin-replace": "^5.0.7",
     "@rollup/plugin-typescript": "^11.1.6",
-    "@types/jest": "^29.5.13",
     "rimraf": "^5.0.10",
-    "rollup": "^4.24.0",
-    "standardized-audio-context-mock": "^9.7.12",
+    "rollup": "^4.24.2",
+    "standardized-audio-context-mock": "^9.7.13",
     "typedoc": "^0.25.13",
     "typescript": "^5.4.5",
-    "vite": "^5.4.9",
-    "vite-plugin-dts": "^4.2.4",
+    "vite": "^5.4.10",
+    "vite-plugin-dts": "^4.3.0",
     "vitest": "^1.6.0"
   },
   "vitest": {
