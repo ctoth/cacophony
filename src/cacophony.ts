@@ -15,6 +15,7 @@ import type { Playback } from "./playback";
 import { Sound } from "./sound";
 import { createStream } from "./stream";
 import { Synth } from "./synth";
+import { ICache } from "./interfaces/ICache";
 
 export enum SoundType {
   HTML = "HTML",
@@ -85,12 +86,14 @@ export class Cacophony {
   listener: IAudioListener;
   private prevVolume: number = 1;
   private finalizationRegistry: FinalizationRegistry<Playback>;
+  private cache: ICache;
 
-  constructor(context?: AudioContext) {
+  constructor(context?: AudioContext, cache?: ICache) {
     this.context = context || new AudioContext();
     this.listener = this.context.listener;
     this.globalGainNode = this.context.createGain();
     this.globalGainNode.connect(this.context.destination);
+    this.cache = cache || new AudioCache();
 
     this.finalizationRegistry = new FinalizationRegistry((heldValue) => {
       // Cleanup callback for Playbacks
@@ -131,7 +134,7 @@ export class Cacophony {
   }
 
   clearMemoryCache(): void {
-    AudioCache.clearMemoryCache();
+    this.cache.clearMemoryCache();
   }
 
   createOscillator(
@@ -191,17 +194,19 @@ export class Cacophony {
         panType
       );
     }
-    return AudioCache.getAudioBuffer(this.context, url).then(
-      (buffer) =>
-        new Sound(
-          url as string,
-          buffer,
-          this.context,
-          this.globalGainNode,
-          soundType,
-          panType
-        )
-    );
+    return this.cache
+      .getAudioBuffer(this.context, url)
+      .then(
+        (buffer) =>
+          new Sound(
+            url as string,
+            buffer,
+            this.context,
+            this.globalGainNode,
+            soundType,
+            panType
+          )
+      );
   }
 
   async createGroup(sounds: Sound[]): Promise<Group> {

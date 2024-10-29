@@ -128,6 +128,9 @@ export class Playback extends BasePlayback implements BaseSound {
    */
 
   set playbackRate(rate: number) {
+    if (rate <= 0) {
+      throw new Error("Playback rate must be greater than 0");
+    }
     if (this._state === PlaybackState.Playing) {
       const elapsed =
         (this.context.currentTime - this._startTime) * this._playbackRate;
@@ -388,19 +391,13 @@ export class Playback extends BasePlayback implements BaseSound {
    */
 
   addFilter(filter: BiquadFilterNode): void {
-    // Disconnect and remove old filters
-    this._filters.forEach((oldFilter) => {
-      oldFilter.disconnect();
-    });
-    this._filters = [];
-
     // Clone and add the new filter
-    const newFilter = filter.context.createBiquadFilter();
+    const newFilter = this.context.createBiquadFilter();
     newFilter.type = filter.type;
     newFilter.frequency.value = filter.frequency.value;
     newFilter.Q.value = filter.Q.value;
     newFilter.gain.value = filter.gain.value;
-    super.addFilter(newFilter);
+    this._filters.push(newFilter);
     this.refreshFilters();
   }
 

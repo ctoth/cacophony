@@ -104,6 +104,115 @@ describe("Sound playback and state management", () => {
   });
 });
 
+describe("Sound cloning", () => {
+  let originalSound: Sound;
+  let buffer: AudioBuffer;
+
+  beforeEach(() => {
+    buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    originalSound = new Sound(
+      "test-url",
+      buffer,
+      audioContextMock,
+      audioContextMock.createGain(),
+      SoundType.Buffer,
+      "HRTF"
+    );
+    originalSound.volume = 0.8;
+    originalSound.playbackRate = 1.2;
+    originalSound.position = [1, 2, 3];
+    originalSound.loop(2);
+    originalSound.addFilter(audioContextMock.createBiquadFilter());
+  });
+
+  it("clones a Sound instance with default settings", () => {
+    const clonedSound = originalSound.clone();
+
+    expect(clonedSound).not.toBe(originalSound);
+    expect(clonedSound.url).toBe(originalSound.url);
+    expect(clonedSound.buffer).toBe(originalSound.buffer);
+    expect(clonedSound.context).toBe(originalSound.context);
+    expect(clonedSound.soundType).toBe(originalSound.soundType);
+    expect(clonedSound.panType).toBe(originalSound.panType);
+    expect(clonedSound.volume).toBe(originalSound.volume);
+    expect(clonedSound.playbackRate).toBe(originalSound.playbackRate);
+    expect(clonedSound.position).toEqual(originalSound.position);
+    expect(clonedSound.stereoPan).toBe(originalSound.stereoPan);
+    expect(clonedSound.loopCount).toBe(originalSound.loopCount);
+    expect(clonedSound.filters.length).toBe(originalSound.filters.length);
+  });
+
+  it("clones a Sound instance with overridden volume", () => {
+    const clonedSound = originalSound.clone({ volume: 0.5 });
+
+    expect(clonedSound.volume).toBe(0.5);
+    expect(clonedSound.volume).not.toBe(originalSound.volume);
+  });
+
+  it("clones a Sound instance with overridden playbackRate", () => {
+    const clonedSound = originalSound.clone({ playbackRate: 1.5 });
+
+    expect(clonedSound.playbackRate).toBe(1.5);
+    expect(clonedSound.playbackRate).not.toBe(originalSound.playbackRate);
+  });
+
+  it("clones a Sound instance with overridden position", () => {
+    const clonedSound = originalSound.clone({ position: [4, 5, 6] });
+
+    expect(clonedSound.position).toEqual([4, 5, 6]);
+    expect(clonedSound.position).not.toEqual(originalSound.position);
+  });
+
+  it("clones a Sound instance with overridden stereoPan", () => {
+    const clonedSound = originalSound.clone({
+      panType: "stereo",
+      stereoPan: -0.5,
+    });
+
+    expect(clonedSound.stereoPan).toBe(-0.5);
+    expect(clonedSound.stereoPan).not.toBe(originalSound.stereoPan);
+  });
+
+  it("clones a Sound instance with overridden loopCount", () => {
+    const clonedSound = originalSound.clone({ loopCount: "infinite" });
+
+    expect(clonedSound.loopCount).toBe("infinite");
+    expect(clonedSound.loopCount).not.toBe(originalSound.loopCount);
+  });
+
+  it("clones a Sound instance with overridden panType", () => {
+    const clonedSound = originalSound.clone({ panType: "stereo" });
+
+    expect(clonedSound.panType).toBe("stereo");
+    expect(clonedSound.panType).not.toBe(originalSound.panType);
+  });
+
+  it("clones a Sound instance with overridden filters", () => {
+    const newFilter = audioContextMock.createBiquadFilter();
+    const clonedSound = originalSound.clone({ filters: [newFilter] });
+
+    expect(clonedSound.filters.length).toBe(1);
+    expect(clonedSound.filters[0]).toBe(newFilter);
+    expect(clonedSound.filters).not.toEqual(originalSound.filters);
+  });
+
+  it("clones a Sound instance with multiple overrides", () => {
+    const clonedSound = originalSound.clone({
+      volume: 0.3,
+      playbackRate: 0.8,
+      stereoPan: 0.2,
+      loopCount: 5,
+      panType: "stereo",
+    });
+
+    expect(clonedSound.volume).toBe(0.3);
+    expect(clonedSound.playbackRate).toBe(0.8);
+    expect(clonedSound.stereoPan).toBe(0.2);
+    expect(clonedSound.loopCount).toBe(5);
+    expect(clonedSound.panType).toBe("stereo");
+  });
+});
+
 describe("Sound class", () => {
   let sound: Sound;
   let buffer: AudioBuffer;

@@ -94,9 +94,7 @@ export class Sound
     const volume =
       overrides.volume !== undefined ? overrides.volume : this.volume;
     const position =
-      overrides.position && overrides.position.length
-        ? overrides.position
-        : this.position;
+      overrides.position !== undefined ? overrides.position : this.position;
     const filters =
       overrides.filters && overrides.filters.length
         ? overrides.filters
@@ -110,12 +108,15 @@ export class Sound
       this.soundType,
       panType
     );
-    clone.loopCount = loopCount;
-    clone._playbackRate = playbackRate;
-    clone._volume = volume;
-    clone._position = position;
-    clone._stereoPan = stereoPan as number;
-    clone._threeDOptions = threeDOptions;
+    clone.loop(loopCount);
+    clone.playbackRate = playbackRate;
+    clone.volume = volume;
+    if (panType === "HRTF") {
+      clone.threeDOptions = threeDOptions;
+      clone.position = position;
+    } else {
+      clone.stereoPan = stereoPan as number;
+    }
     clone.addFilters(filters);
     return clone;
   }
