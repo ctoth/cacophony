@@ -397,7 +397,7 @@ export class Playback extends BasePlayback implements BaseSound {
     newFilter.frequency.value = filter.frequency.value;
     newFilter.Q.value = filter.Q.value;
     newFilter.gain.value = filter.gain.value;
-    this._filters.push(newFilter);
+    this._filters.push(newFilter as unknown as BiquadFilterNode);
     this.refreshFilters();
   }
 
