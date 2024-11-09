@@ -20,7 +20,7 @@
     "build:worklets": "rollup -c",
     "clean": "rimraf build",
     "prepublishOnly": "npm run build",
-    "test": "vitest",
+    "test": "vitest run",
     "ci:test": "vitest run --no-color --run --typecheck"
   },
   "keywords": [
