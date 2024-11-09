@@ -1,7 +1,11 @@
 import { AudioContext, AudioBuffer } from "standardized-audio-context-mock";
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from "vitest";
 import { Cacophony } from "./cacophony";
+
 import { ICache } from './interfaces/ICache';
+
+import { mockCacheStorage } from "./__tests__/mockUtils";
+
 
 export let cacophony: Cacophony;
 export let audioContextMock: AudioContext;
@@ -13,6 +17,8 @@ const mockCache: ICache = {
 
 beforeAll(() => {
   vi.useFakeTimers();
+  // Mock Cache API
+  global.caches = mockCacheStorage();
 });
 
 afterAll(() => {
@@ -22,7 +28,11 @@ afterAll(() => {
 beforeEach(() => {
   vi.resetAllMocks();
   audioContextMock = new AudioContext();
+
   cacophony = new Cacophony(audioContextMock, mockCache);
+  // Reset all mocks
+  vi.clearAllMocks();
+
 });
 
 afterEach(() => {
