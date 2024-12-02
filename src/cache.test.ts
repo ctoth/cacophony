@@ -69,20 +69,23 @@ describe("AudioCache", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1); // Still just one fetch
   });
 
-  it("handles 304 Not Modified responses correctly", async () => {
+  it("handles 304 Not Modified responses correctly when cache expires", async () => {
     const url = "https://example.com/audio.mp3";
     const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
     const mockArrayBuffer = new ArrayBuffer(8);
     const etag = '"123456"';
 
-    // Mock cache to return metadata
+    // Set a short cache expiration time for testing
+    AudioCache.setCacheExpirationTime(100); // 100ms
+
+    // Mock cache to return metadata with expired timestamp
     const mockCache = {
       match: vi.fn().mockImplementation((key) => {
         if (key === `${url}:meta`) {
           return Promise.resolve(new Response(JSON.stringify({
             url,
             etag,
-            timestamp: Date.now()
+            timestamp: Date.now() - 1000 // Expired timestamp
           })));
         }
         return Promise.resolve(new Response(mockArrayBuffer));
