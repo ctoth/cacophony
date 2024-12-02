@@ -28,12 +28,6 @@ import {
   type PanType,
 } from "./cacophony";
 import { PlaybackContainer } from "./container";
-import type {
-  AudioBuffer,
-  AudioContext,
-  GainNode,
-  SourceNode,
-} from "./context";
 import { FilterManager } from "./filters";
 import type { PanCloneOverrides } from "./pannerMixin";
 import { Playback } from "./playback";

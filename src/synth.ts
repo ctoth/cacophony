@@ -1,6 +1,5 @@
 import { SoundType, type BaseSound, type PanType } from "./cacophony";
 import { PlaybackContainer } from "./container";
-import type { AudioContext, GainNode } from "./context";
 import type { FilterCloneOverrides } from "./filters";
 import { FilterManager } from "./filters";
 import type { OscillatorCloneOverrides } from "./oscillatorMixin";

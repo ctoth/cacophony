@@ -1,5 +1,4 @@
 import { IPlaybackContainer } from "./container";
-import { AudioNode } from "./context";
 import { FilterManager } from "./filters";
 import { PannerMixin } from "./pannerMixin";
 import { VolumeMixin } from "./volumeMixin";

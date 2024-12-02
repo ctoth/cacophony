@@ -1,5 +1,4 @@
 import type { BaseSound, PanType } from "./cacophony";
-import type { AudioContext, GainNode, OscillatorNode } from "./context";
 import { FilterManager } from "./filters";
 import { OscillatorMixin } from "./oscillatorMixin";
 import { PannerMixin } from "./pannerMixin";

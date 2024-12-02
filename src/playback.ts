@@ -18,17 +18,9 @@
  * spatial characteristics when using 3D audio.
  */
 
-import type { Sound } from "./sound";
 import { BasePlayback } from "./basePlayback";
 import type { BaseSound, LoopCount, PanType } from "./cacophony";
-
-import type {
-  AudioBuffer,
-  AudioBufferSourceNode,
-  AudioContext,
-  GainNode,
-  SourceNode,
-} from "./context";
+import type { Sound } from "./sound";
 
 type PlaybackCloneOverrides = {
   loopCount: LoopCount;
