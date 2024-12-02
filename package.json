@@ -55,7 +55,14 @@
     "environment": "node"
   },
   "dependencies": {
-    "fft.js": "^4.0.4",
+    "fft.js": "^4.0.4"
+  },
+  "peerDependencies": {
     "standardized-audio-context": "^25.3.77"
+  },
+  "peerDependenciesMeta": {
+    "standardized-audio-context": {
+      "optional": true
+    }
   }
 }
