@@ -106,11 +106,10 @@ describe("AudioCache", () => {
     const result = await cache.getAudioBuffer(audioContextMock, url);
     
     expect(result).toBe(mockAudioBuffer);
-    expect(mockFetch).toHaveBeenCalledWith(url, {
-      headers: expect.objectContaining({
-        'If-None-Match': etag
-      })
-    });
+    const fetchCall = mockFetch.mock.calls[0];
+    expect(fetchCall[0]).toBe(url);
+    const headers = fetchCall[1].headers as Headers;
+    expect(headers.get('If-None-Match')).toBe(etag);
   });
 
   it("handles cache expiration", async () => {
