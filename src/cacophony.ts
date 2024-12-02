@@ -7,7 +7,7 @@ import {
   IPannerOptions,
 } from "standardized-audio-context";
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
-import { AudioCache } from "./cache";
+import { AudioCache, ICache } from "./cache";
 import { AudioBuffer, GainNode } from "./context";
 import { Group } from "./group";
 import { MicrophoneStream } from "./microphone";
@@ -15,7 +15,6 @@ import type { Playback } from "./playback";
 import { Sound } from "./sound";
 import { createStream } from "./stream";
 import { Synth } from "./synth";
-import { ICache } from "./interfaces/ICache";
 
 export enum SoundType {
   HTML = "HTML",
