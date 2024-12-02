@@ -61,6 +61,44 @@ export class AudioCache implements ICache {
         }
     }
 
+    private static async getOrCreatePendingRequest(
+        url: string, 
+        createRequest: () => Promise<AudioBuffer>
+    ): Promise<AudioBuffer> {
+        let pendingRequest = this.pendingRequests.get(url);
+        if (!pendingRequest) {
+            const requestPromise = (async () => {
+                try {
+                    return await createRequest();
+                } finally {
+                    this.pendingRequests.delete(url);
+                }
+            })();
+            this.pendingRequests.set(url, requestPromise);
+            return requestPromise;
+        }
+        return pendingRequest;
+    }
+
+    private static async updateMetadata(
+        cache: Cache, 
+        url: string, 
+        data: Partial<CacheMetadata>
+    ): Promise<void> {
+        const metadata: CacheMetadata = {
+            url,
+            timestamp: Date.now(),
+            ...data
+        };
+        
+        await cache.put(
+            `${url}:meta`,
+            new Response(JSON.stringify(metadata), {
+                headers: { 'Content-Type': 'application/json' }
+            })
+        );
+    }
+
     private static async getBufferFromCache(url: string, cache: Cache): Promise<ArrayBuffer | null> {
         try {
             const response = await cache.match(url);
@@ -74,39 +112,51 @@ export class AudioCache implements ICache {
         }
     }
 
-    private static async fetchAndCacheBuffer(url: string, cache: Cache, etag?: string, lastModified?: string): Promise<ArrayBuffer> {
-        try {
-            const headers = new Headers();
-            if (etag) headers.append('If-None-Match', etag);
-            if (lastModified) headers.append('If-Modified-Since', lastModified);
+    private static async fetchAndCacheBuffer(
+        url: string,
+        cache: Cache,
+        etag?: string,
+        lastModified?: string
+    ): Promise<ArrayBuffer> {
+        const headers = new Headers();
+        if (etag) headers.append('If-None-Match', etag);
+        if (lastModified) headers.append('If-Modified-Since', lastModified);
 
-            const fetchResponse = await fetch(url, { headers });
-            const responseClone = fetchResponse.clone();
-
-            if (fetchResponse.status === 200) {
-                const newEtag = fetchResponse.headers.get('ETag') || undefined;
-                const newLastModified = fetchResponse.headers.get('Last-Modified') || undefined;
-                const cacheData: CacheMetadata = { 
-                    url, 
-                    etag: newEtag, 
-                    lastModified: newLastModified,
-                    timestamp: Date.now()
-                };
-
-                await cache.put(url, responseClone);
-                await cache.put(url + ':meta', new Response(JSON.stringify(cacheData), { headers: { 'Content-Type': 'application/json' } }));
-            } else if (fetchResponse.status === 304) {
-                const cachedResponse = await cache.match(url);
-                if (cachedResponse) {
-                    return await cachedResponse.arrayBuffer();
-                }
+        const fetchResponse = await fetch(url, { headers });
+        
+        if (fetchResponse.status === 304) {
+            const cachedResponse = await cache.match(url);
+            if (cachedResponse) {
+                // Update metadata timestamp on revalidation
+                const timestamp = Date.now();
+                await this.updateMetadata(cache, url, { timestamp, etag, lastModified });
+                return await cachedResponse.arrayBuffer();
             }
-
-            return await fetchResponse.arrayBuffer();
-        } catch (error) {
-            console.error('Failed to fetch and cache data:', error);
-            throw error;
         }
+
+        if (fetchResponse.status === 200) {
+            const responseClone = fetchResponse.clone();
+            const newEtag = fetchResponse.headers.get('ETag');
+            const newLastModified = fetchResponse.headers.get('Last-Modified');
+
+            try {
+                await Promise.all([
+                    cache.put(url, responseClone),
+                    this.updateMetadata(cache, url, {
+                        timestamp: Date.now(),
+                        etag: newEtag || undefined,
+                        lastModified: newLastModified || undefined
+                    })
+                ]);
+            } catch (error) {
+                // Clean up partial cache entries on error
+                await cache.delete(url);
+                await cache.delete(`${url}:meta`);
+                throw error;
+            }
+        }
+
+        return await fetchResponse.arrayBuffer();
     }
 
     private static async decodeAudioData(context: AudioContext, arrayBuffer: ArrayBuffer): Promise<AudioBuffer> {
@@ -148,52 +198,30 @@ export class AudioCache implements ICache {
 
         const cache = await AudioCache.openCache();
 
-        // First, check if there's a pending request.
-        let pendingRequest = AudioCache.pendingRequests.get(url);
-        if (pendingRequest) {
-            return pendingRequest;
-        }
-
-        // Check for cached metadata (ETag, Last-Modified)
         const metadata = await AudioCache.getMetadataFromCache(url, cache);
-        let shouldFetch = !metadata;
+        const shouldFetch = !metadata || 
+            (!metadata.etag && !metadata.lastModified) ||
+            ((Date.now() - metadata.timestamp) > AudioCache.cacheExpirationTime);
 
-        if (metadata) {
-            if (metadata.etag || metadata.lastModified) {
-                // Use ETag or Last-Modified for revalidation
-                shouldFetch = false;
-            } else if (metadata.timestamp) {
-                // If timestamp exists, use expiration time
-                shouldFetch = (Date.now() - metadata.timestamp) > AudioCache.cacheExpirationTime;
-            } else {
-                // If no timestamp, ETag, or Last-Modified, assume it's expired
-                shouldFetch = true;
-            }
-        }
-
-        if (shouldFetch) {
-            // If it's not in the cache or needs revalidation, fetch and cache it.
-            pendingRequest = AudioCache.fetchAndCacheBuffer(url, cache, metadata?.etag, metadata?.lastModified)
-                .then(arrayBuffer => AudioCache.decodeAudioData(context, arrayBuffer))
-                .then(audioBuffer => {
-                    AudioCache.decodedBuffers.set(url, audioBuffer);
-                    return audioBuffer;
-                })
-                .finally(() => {
-                    AudioCache.pendingRequests.delete(url); // Cleanup pending request
-                });
-            AudioCache.pendingRequests.set(url, pendingRequest);
-
-            return pendingRequest;
-        } else {
-            // Use cached version
-            const cachedBuffer = await AudioCache.getBufferFromCache(url, cache);
-            if (cachedBuffer) {
-                const audioBuffer = await AudioCache.decodeAudioData(context, cachedBuffer);
+        return AudioCache.getOrCreatePendingRequest(url, async () => {
+            if (shouldFetch) {
+                const arrayBuffer = await AudioCache.fetchAndCacheBuffer(
+                    url, 
+                    cache, 
+                    metadata?.etag, 
+                    metadata?.lastModified
+                );
+                const audioBuffer = await AudioCache.decodeAudioData(context, arrayBuffer);
                 AudioCache.decodedBuffers.set(url, audioBuffer);
                 return audioBuffer;
+            } else {
+                const cachedBuffer = await AudioCache.getBufferFromCache(url, cache);
+                if (cachedBuffer) {
+                    const audioBuffer = await AudioCache.decodeAudioData(context, cachedBuffer);
+                    AudioCache.decodedBuffers.set(url, audioBuffer);
+                    return audioBuffer;
+                }
             }
-        }
 
         // If we reach here, something went wrong
         throw new Error('Failed to retrieve audio buffer');
