@@ -22,13 +22,30 @@ Cacophony is a powerful and intuitive audio library designed for modern web appl
 npm install cacophony
 ```
 
+## Audio Context Support
+
+Cacophony supports both the standard Web Audio API and the `standardized-audio-context` package. You can use either:
+
+```typescript
+// Using standard Web Audio API
+const context = new AudioContext();
+const cacophony = new Cacophony(context);
+
+// Using standardized-audio-context
+import { AudioContext } from 'standardized-audio-context';
+const standardizedContext = new AudioContext();
+const cacophony = new Cacophony(standardizedContext);
+```
+
 ## Quick Start
 
 ```typescript
 import { Cacophony } from 'cacophony';
 
 async function audioDemo() {
-  const cacophony = new Cacophony();
+  // Using standard Web Audio API
+  const context = new AudioContext();
+  const cacophony = new Cacophony(context);
   
   // Create and play a sound with 3D positioning
   const sound = await cacophony.createSound('path/to/audio.mp3');
