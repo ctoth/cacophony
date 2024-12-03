@@ -24,9 +24,13 @@ npm install cacophony
 
 ## Audio Context Support
 
-Cacophony supports both the standard Web Audio API and the `standardized-audio-context` package. You can use either:
+Cacophony supports both the standard Web Audio API and the `standardized-audio-context` package. The AudioContext is optional - if not specified, it will use the browser's default AudioContext:
 
 ```typescript
+// Using default browser AudioContext
+const cacophony = new Cacophony();
+
+// Or explicitly specify an AudioContext:
 // Using standard Web Audio API
 const context = new AudioContext();
 const cacophony = new Cacophony(context);
@@ -43,9 +47,7 @@ const cacophony = new Cacophony(standardizedContext);
 import { Cacophony } from 'cacophony';
 
 async function audioDemo() {
-  // Using standard Web Audio API
-  const context = new AudioContext();
-  const cacophony = new Cacophony(context);
+  const cacophony = new Cacophony();
   
   // Create and play a sound with 3D positioning
   const sound = await cacophony.createSound('path/to/audio.mp3');
