@@ -1,19 +1,9 @@
-import {
-  AudioContext,
-  AudioWorkletNode,
-  IAudioListener,
-  IMediaStreamAudioSourceNode,
-  IPannerNode,
-  IPannerOptions,
-} from "standardized-audio-context";
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
 import { AudioCache, ICache } from "./cache";
-import { AudioBuffer, GainNode } from "./context";
 import { Group } from "./group";
 import { MicrophoneStream } from "./microphone";
 import type { Playback } from "./playback";
 import { Sound } from "./sound";
-import { createStream } from "./stream";
 import { Synth } from "./synth";
 
 export enum SoundType {
@@ -22,10 +12,6 @@ export enum SoundType {
   Buffer = "Buffer",
   Oscillator = "oscillator",
 }
-
-type PannerNode = IPannerNode<AudioContext>;
-
-type MediaStreamAudioSourceNode = IMediaStreamAudioSourceNode<AudioContext>;
 
 /**
  * Represents a 3D position in space.
@@ -82,7 +68,7 @@ export interface BaseSound {
 export class Cacophony {
   context: AudioContext;
   globalGainNode: GainNode;
-  listener: IAudioListener;
+  listener: AudioListener;
   private prevVolume: number = 1;
   private finalizationRegistry: FinalizationRegistry<Playback>;
   private cache: ICache;
@@ -181,9 +167,6 @@ export class Cacophony {
     }
     const url = bufferOrUrl;
     if (soundType === SoundType.HTML) {
-      const audio = new Audio();
-      audio.src = url;
-      audio.crossOrigin = "anonymous";
       return new Sound(
         url,
         undefined,
@@ -252,8 +235,7 @@ export class Cacophony {
     filter.frequency.value = frequency;
     filter.gain.value = gain || 0;
     filter.Q.value = Q || 1;
-    // @ts-expect-error
-    return filter as BiquadFilterNode;
+    return filter;
   };
 
   /**
@@ -289,7 +271,7 @@ export class Cacophony {
     orientationX,
     orientationY,
     orientationZ,
-  }: Partial<IPannerOptions>): PannerNode {
+  }: Partial<PannerOptions>): PannerNode {
     const panner = this.context.createPanner();
     panner.coneInnerAngle = coneInnerAngle || 360;
     panner.coneOuterAngle = coneOuterAngle || 360;

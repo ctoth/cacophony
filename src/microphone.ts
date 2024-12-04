@@ -1,7 +1,3 @@
-import type { GainNode, MediaStreamAudioSourceNode } from './context';
-
-import type { AudioContext, PannerNode } from "./context";
-
 import type { BaseSound, LoopCount, Position } from "./cacophony";
 import { FilterManager } from "./filters";
 

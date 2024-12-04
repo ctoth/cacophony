@@ -34,6 +34,8 @@ enum PlaybackState {
   Stopped,
 }
 
+export type SourceNode = AudioBufferSourceNode | MediaElementAudioSourceNode;
+
 export class Playback extends BasePlayback implements BaseSound {
   private context: AudioContext;
   public declare source?: SourceNode;
@@ -59,7 +61,7 @@ export class Playback extends BasePlayback implements BaseSound {
     this.loopCount = origin.loopCount;
     this.setPanType(origin.panType, origin.context);
     this.source = source;
-    if ("buffer" in source && source.buffer) {
+    if (source.buffer) {
       this.buffer = source.buffer;
     }
     this.setupSourceNode(source);
@@ -481,4 +483,14 @@ export class Playback extends BasePlayback implements BaseSound {
 
     return clone;
   }
+}
+
+function isMediaSourceNode(
+  source: SourceNode
+): source is MediaElementAudioSourceNode {
+  return "mediaElement" in source && source.mediaElement !== undefined || source instanceof HTMLMediaElement;
+}
+
+function isBufferSource(source: SourceNode): source is AudioBufferSourceNode {
+  return "buffer" in source && source.buffer !== undefined || source instanceof AudioBuffer;
 }

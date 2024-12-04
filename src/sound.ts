@@ -30,7 +30,7 @@ import {
 import { PlaybackContainer } from "./container";
 import { FilterManager } from "./filters";
 import type { PanCloneOverrides } from "./pannerMixin";
-import { Playback } from "./playback";
+import { Playback, SourceNode } from "./playback";
 import type { VolumeCloneOverrides } from "./volumeMixin";
 
 type SoundCloneOverrides = PanCloneOverrides &
@@ -128,12 +128,13 @@ export class Sound
       source.buffer = this.buffer;
     } else {
       const audio = new Audio();
-      audio.crossOrigin = "anonymous";
+      // audio.crossOrigin = "anonymous";
       audio.src = this.url;
-      audio.preload = "auto";
+      // audio.preload = "auto";
       // we have the audio, let's make a buffer source node out of it
       source = this.context.createMediaElementSource(audio);
     }
+    console.log("preplay source", source);  
     const gainNode = this.context.createGain();
     gainNode.connect(this.globalGainNode);
     const playback = new Playback(this, source, gainNode);

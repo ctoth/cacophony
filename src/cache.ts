@@ -1,5 +1,3 @@
-import type { AudioContext } from "./context";
-
 class LRUCache<K, V> {
   private maxSize: number;
   private cache: Map<K, V>;
@@ -41,11 +39,11 @@ interface CacheMetadata {
 
 const DEFAULT_CACHE_SIZE = 100;
 export interface ICache {
-    getAudioBuffer(context: AudioContext, url: string): Promise<AudioBuffer>;
-    clearMemoryCache(): void;
+  getAudioBuffer(context: AudioContext, url: string): Promise<AudioBuffer>;
+  clearMemoryCache(): void;
 }
 
-export class AudioCache  implements ICache {
+export class AudioCache implements ICache {
   private static pendingRequests = new Map<string, Promise<AudioBuffer>>();
   private static decodedBuffers = new LRUCache<string, AudioBuffer>(
     DEFAULT_CACHE_SIZE
