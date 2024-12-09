@@ -216,7 +216,7 @@ export class Cacophony {
       undefined,
       this.context,
       this.globalGainNode,
-      SoundType.Streaming
+      SoundType.HTML
     );
     return sound;
   }

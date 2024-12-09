@@ -125,7 +125,7 @@ describe("Cacophony advanced features", () => {
       "https://example.com/audio.mp3"
     );
     expect(streamSound).toBeInstanceOf(Sound);
-    expect(streamSound.soundType).toBe(SoundType.Streaming);
+    expect(streamSound.soundType).toBe(SoundType.HTML);
   });
 
   it("createGroupFromUrls creates a Group with Sound instances", async () => {

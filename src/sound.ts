@@ -128,9 +128,9 @@ export class Sound
       source.buffer = this.buffer;
     } else {
       const audio = new Audio();
-      // audio.crossOrigin = "anonymous";
+      audio.crossOrigin = "anonymous";
       audio.src = this.url;
-      // audio.preload = "auto";
+      audio.preload = "auto";
       // we have the audio, let's make a buffer source node out of it
       source = this.context.createMediaElementSource(audio);
     }
