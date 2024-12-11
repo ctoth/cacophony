@@ -1,20 +1,20 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
+
 import {
+  afterAll,
   afterEach,
+  beforeAll,
+  beforeEach,
   describe,
   expect,
   it,
   test,
   vi,
-  beforeEach,
-  afterAll,
-  beforeAll,
 } from "vitest";
+import { SoundType } from "./cacophony";
+import { Group } from "./group";
 import { audioContextMock, cacophony, mockCache } from "./setupTests";
 import { Sound } from "./sound";
-import { Group } from "./group";
-import { SoundType } from "./cacophony";
-import { MicrophoneStream } from "./microphone";
 beforeAll(() => {
   vi.useFakeTimers();
 });

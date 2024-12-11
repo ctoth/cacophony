@@ -1,6 +1,8 @@
 import { SoundType, type BaseSound, type PanType } from "./cacophony";
 import { PlaybackContainer } from "./container";
 import type { AudioContext, GainNode } from "./context";
+import { TypedEventEmitter } from "./eventEmitter";
+import { SynthEvents } from "./events";
 import type { FilterCloneOverrides } from "./filters";
 import { FilterManager } from "./filters";
 import type { OscillatorCloneOverrides } from "./oscillatorMixin";
@@ -19,6 +21,28 @@ export class Synth
 {
   _oscillatorOptions: Partial<OscillatorOptions>;
   playbacks: SynthPlayback[] = [];
+  private eventEmitter: TypedEventEmitter<SynthEvents> = new TypedEventEmitter<SynthEvents>();
+
+  on<K extends keyof SynthEvents>(
+    event: K,
+    listener: (data: SynthEvents[K]) => void
+  ): void {
+    this.eventEmitter.on(event, listener);
+  }
+
+  off<K extends keyof SynthEvents>(
+    event: K,
+    listener: (data: SynthEvents[K]) => void
+  ): void {
+    this.eventEmitter.off(event, listener);
+  }
+
+  protected emit<K extends keyof SynthEvents>(
+    event: K,
+    data: SynthEvents[K]
+  ): void {
+    this.eventEmitter.emit(event, data);
+  }
 
   constructor(
     public context: AudioContext,
@@ -87,6 +111,11 @@ export class Synth
    */
   preplay(): SynthPlayback[] {
     const oscillator = this.context.createOscillator();
+    const playbacks = this.createPlayback(oscillator);
+    return playbacks;
+  }
+
+  private createPlayback(oscillator: OscillatorNode): SynthPlayback[] {
     if (this.oscillatorOptions.detune)
       oscillator.detune.value = this.oscillatorOptions.detune;
     if (this.oscillatorOptions.frequency)
@@ -107,6 +136,22 @@ export class Synth
     }
     this.playbacks.push(playback);
     return [playback];
+  }
+
+  play(): ReturnType<this["preplay"]> {
+    const playbacks = super.play() as ReturnType<this["preplay"]>;
+    this.emit("play", playbacks[0]);
+    return playbacks;
+  }
+
+  stop(): void {
+    super.stop();
+    this.emit("stop", undefined);
+  }
+
+  pause(): void {
+    super.pause();
+    this.emit("pause", undefined);
   }
 
   get oscillatorOptions(): Partial<OscillatorOptions> {
@@ -134,6 +179,7 @@ export class Synth
   set frequency(frequency: number) {
     this._oscillatorOptions.frequency = frequency;
     this.playbacks.forEach((p) => (p.frequency = frequency));
+    this.emit("frequencyChange", frequency);
   }
 
   get detune(): number {
@@ -143,6 +189,7 @@ export class Synth
   set detune(detune: number) {
     this._oscillatorOptions.detune = detune;
     this.playbacks.forEach((p) => (p.detune = detune));
+    this.emit("detuneChange", detune);
   }
 
   get type(): OscillatorType {
@@ -152,5 +199,6 @@ export class Synth
   set type(type: OscillatorType) {
     this._oscillatorOptions.type = type;
     this.playbacks.forEach((p) => (p.type = type));
+    this.emit("typeChange", type);
   }
 }
