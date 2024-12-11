@@ -339,11 +339,28 @@ export class Playback extends BasePlayback implements BaseSound {
    */
 
   cleanup(): void {
-    if (this.source) {
-      this.source.disconnect();
-      this.source = undefined;
+    if (!this.source) {
+      return; // Already cleaned up
     }
+    this.source.disconnect();
+    this.source = undefined;
     super.cleanup();
+  }
+
+  private assertNotCleanedUp(): void {
+    if (!this.source || !this.gainNode || !this.panner) {
+      throw new Error('Cannot perform operation on a sound that has been cleaned up');
+    }
+  }
+
+  addFilter(filter: BiquadFilterNode): void {
+    this.assertNotCleanedUp();
+    super.addFilter(filter);
+  }
+
+  removeFilter(filter: BiquadFilterNode): void {
+    this.assertNotCleanedUp();
+    super.removeFilter(filter);
   }
 
   /**

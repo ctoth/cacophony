@@ -43,11 +43,7 @@ export abstract class BasePlayback extends PannerMixin(
   }
 
   cleanup(): void {
-    super.cleanup();
-    if (this.source) {
-      this.source.disconnect();
-      this.source = undefined;
-    }
     this.eventEmitter.removeAllListeners();
+    super.cleanup();
   }
 }

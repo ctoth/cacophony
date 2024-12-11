@@ -43,6 +43,8 @@ export abstract class FilterManager {
   }
 
   cleanup(): void {
-    this.removeFilters(this._filters);
+    // Disconnect all filters before removing them
+    this._filters.forEach(filter => filter.disconnect());
+    this._filters = [];
   }
 }

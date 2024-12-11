@@ -15,6 +15,14 @@ export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
             this.gainNode = gainNode;
         }
 
+        cleanup(): void {
+            if (this.gainNode) {
+                this.gainNode.disconnect();
+                this.gainNode = undefined;
+            }
+            super.cleanup();
+        }
+
         /**
         * Gets the current volume of the audio.
         * @throws {Error} Throws an error if the sound has been cleaned up.
