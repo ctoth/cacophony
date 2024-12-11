@@ -1,5 +1,6 @@
 import { BasePlayback } from "basePlayback";
 import { Playback } from "playback";
+import { SynthPlayback } from "./synthPlayback";
 
 export interface BaseAudioEvents {
   play: BasePlayback;
