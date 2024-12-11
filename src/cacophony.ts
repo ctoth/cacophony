@@ -7,7 +7,7 @@ import {
   IPannerOptions,
 } from "standardized-audio-context";
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
-import { AudioCache } from "./cache";
+import { AudioCache, ICache } from "./cache";
 import { AudioBuffer, GainNode } from "./context";
 import { Group } from "./group";
 import { MicrophoneStream } from "./microphone";
@@ -85,12 +85,14 @@ export class Cacophony {
   listener: IAudioListener;
   private prevVolume: number = 1;
   private finalizationRegistry: FinalizationRegistry<Playback>;
+  private cache: ICache;
 
-  constructor(context?: AudioContext) {
+  constructor(context?: AudioContext, cache?: ICache) {
     this.context = context || new AudioContext();
     this.listener = this.context.listener;
     this.globalGainNode = this.context.createGain();
     this.globalGainNode.connect(this.context.destination);
+    this.cache = cache || new AudioCache();
 
     this.finalizationRegistry = new FinalizationRegistry((heldValue) => {
       // Cleanup callback for Playbacks
@@ -131,7 +133,7 @@ export class Cacophony {
   }
 
   clearMemoryCache(): void {
-    AudioCache.clearMemoryCache();
+    this.cache.clearMemoryCache();
   }
 
   createOscillator(
@@ -191,17 +193,19 @@ export class Cacophony {
         panType
       );
     }
-    return AudioCache.getAudioBuffer(this.context, url).then(
-      (buffer) =>
-        new Sound(
-          url as string,
-          buffer,
-          this.context,
-          this.globalGainNode,
-          soundType,
-          panType
-        )
-    );
+    return this.cache
+      .getAudioBuffer(this.context, url)
+      .then(
+        (buffer) =>
+          new Sound(
+            url as string,
+            buffer,
+            this.context,
+            this.globalGainNode,
+            soundType,
+            panType
+          )
+      );
   }
 
   async createGroup(sounds: Sound[]): Promise<Group> {
@@ -224,7 +228,6 @@ export class Cacophony {
   }
 
   async createStream(url: string): Promise<Sound> {
-    const stream = await createStream(url, this.context);
     const sound = new Sound(
       url,
       undefined,

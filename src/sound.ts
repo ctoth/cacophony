@@ -131,9 +131,7 @@ export class Sound
     const volume =
       overrides.volume !== undefined ? overrides.volume : this.volume;
     const position =
-      overrides.position && overrides.position.length
-        ? overrides.position
-        : this.position;
+      overrides.position !== undefined ? overrides.position : this.position;
     const filters =
       overrides.filters && overrides.filters.length
         ? overrides.filters
@@ -147,12 +145,15 @@ export class Sound
       this.soundType,
       panType
     );
-    clone.loopCount = loopCount;
-    clone._playbackRate = playbackRate;
-    clone._volume = volume;
-    clone._position = position;
-    clone._stereoPan = stereoPan as number;
-    clone._threeDOptions = threeDOptions;
+    clone.loop(loopCount);
+    clone.playbackRate = playbackRate;
+    clone.volume = volume;
+    if (panType === "HRTF") {
+      clone.threeDOptions = threeDOptions;
+      clone.position = position;
+    } else {
+      clone.stereoPan = stereoPan as number;
+    }
     clone.addFilters(filters);
     return clone;
   }
@@ -223,12 +224,15 @@ export class Sound
   /**
    * Retrieves the duration of the sound in seconds.
    * If the sound is based on an AudioBuffer, it returns the duration of the buffer.
-   * Otherwise, it returns 0, indicating that the duration is unknown or not applicable.
+   * Otherwise, if the sound has not been played and is a MediaElementSource, it returns NaN, indicating that the duration is unknown or not applicable.
    * @returns { number } The duration of the sound in seconds.
    */
 
   get duration() {
-    return this.buffer?.duration || 0;
+    if (this.playbacks.length > 0) {
+      return this.playbacks[0].duration;
+    }
+    return this.buffer?.duration || NaN;
   }
 
   /**

@@ -15,24 +15,24 @@ export class Group implements BaseSound {
    * @returns The playback object representing the prepared sound.
    * @throws Error if the group is empty and there are no sounds to prepare.
    */
-  preplayRandom(): Playback {
+  preplayRandom(): Playback | undefined {
     if (this.sounds.length === 0) {
-      throw new Error("Cannot prepare a random sound from an empty group");
+      return undefined;
     }
-    const randomIndex = Math.floor(Math.random() * this.sounds.length);
-    const randomSound = this.sounds[randomIndex] as Sound;
-    const playback = randomSound.preplay();
-    return playback[0];
+    const randomSound = this.randomSound();
+    const playbacks = randomSound.preplay();
+    return playbacks.length > 0 ? playbacks[0] : undefined;
   }
 
   /**
    * Plays a random sound from the group.
-   * @returns The playback object representing the played sound.
-   * @throws Error if the group is empty and there are no sounds to play.
+   * @returns The playback object representing the played sound, or undefined if the group is empty.
    */
-  playRandom(): Playback {
+  playRandom(): Playback | undefined {
     const playback = this.preplayRandom();
-    playback.play();
+    if (playback) {
+      playback.play();
+    }
     return playback;
   }
 
@@ -40,36 +40,35 @@ export class Group implements BaseSound {
    * Prepares the sounds in the group for playback in a specific order.
    *
    * @param shouldLoop - Indicates whether the sounds should be prepared for looping.
-   * @returns The playback object representing the first sound being prepared.
-   * @throws Error if the group is empty.
+   * @returns The playback object representing the first sound being prepared, or undefined if the group is empty.
    */
-  preplayOrdered(shouldLoop: boolean = true): Playback {
+  preplayOrdered(shouldLoop: boolean = true): Playback | undefined {
     if (this.sounds.length === 0) {
-      throw new Error("Cannot prepare an ordered sound from an empty group");
+      return undefined;
     }
-    const sound = this.sounds[this.playIndex] as Sound;
-    const playback = sound.preplay()[0];
-    this.playIndex++;
-    if (this.playIndex >= this.sounds.length) {
-      if (shouldLoop) {
-        this.playIndex = 0;
-      } else {
-        this.playIndex = this.sounds.length; // Set to length to indicate end of list
-      }
+    const sound = this.sounds[this.playIndex];
+    const playbacks = sound.preplay();
+    if (playbacks.length === 0) {
+      return undefined;
     }
-    return playback;
+    this.playIndex = (this.playIndex + 1) % this.sounds.length;
+    if (!shouldLoop && this.playIndex === 0) {
+      this.playIndex = this.sounds.length;
+    }
+    return playbacks[0];
   }
 
   /**
    * Plays the sounds in the group in a specific order.
    *
    * @param shouldLoop - Indicates whether the sounds should be played in a loop.
-   * @returns The playback object representing the first sound being played.
-   * @throws Error if the group is empty.
+   * @returns The playback object representing the first sound being played, or undefined if the group is empty.
    */
-  playOrdered(shouldLoop: boolean = true): Playback {
+  playOrdered(shouldLoop: boolean = true): Playback | undefined {
     const playback = this.preplayOrdered(shouldLoop);
-    playback.play();
+    if (playback) {
+      playback.play();
+    }
     return playback;
   }
 
@@ -87,11 +86,22 @@ export class Group implements BaseSound {
     this.sounds.push(sound);
   }
 
+  /**
+   * Returns a random sound from the group.
+   * @returns A random Sound object from the group.
+   * @throws Error if the group is empty.
+   */
+  randomSound(): Sound {
+    if (this.sounds.length === 0) {
+      throw new Error("Cannot get a random sound from an empty group");
+    }
+    const randomIndex = Math.floor(Math.random() * this.sounds.length);
+    return this.sounds[randomIndex];
+  }
+
   preplay(): Playback[] {
-    return this.sounds.reduce<Playback[]>((playbacks, sound) => {
-      sound.loop && sound.loop(this.loopCount);
-      return playbacks.concat(sound.preplay());
-    }, []);
+    const playbacks = this.sounds.map((sound) => sound.preplay());
+    return playbacks.flat();
   }
 
   /***
@@ -100,7 +110,13 @@ export class Group implements BaseSound {
    */
 
   play(): Playback[] {
-    const playbacks = this.preplay().map((playback) => playback.play()[0]);
+    // const playbacks = this.preplay().map((playback) => playback.play()[0]);
+    const playbacks: Playback[] = [];
+    // preplay returns an array, and then play on each of those also returns an array, and we only want one array of playbacks
+    this.preplay().forEach((playback) => {
+      playback.play();
+      playbacks.push(playback);
+    });
     return playbacks;
   }
 

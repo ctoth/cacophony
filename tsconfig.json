@@ -8,7 +8,7 @@
     "moduleResolution": "Node",
     "types": [
       "vite/client",
-      "node",
+      "node"
     ],
     "lib": [
       "ESNext",
@@ -32,10 +32,11 @@
   },
   "exclude": [
     "node_modules",
-    "src/*.test.ts"
+    "src/*.test.ts",
+    "src/setupTests.ts"
   ],
   "include": [
-    "src/**/*.ts",
+    "src/**/*.ts"
   ],
   "references": [
     {

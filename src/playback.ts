@@ -34,6 +34,7 @@ type PlaybackCloneOverrides = {
   loopCount: LoopCount;
   panType: PanType;
 };
+
 enum PlaybackState {
   Unplayed,
   Playing,
@@ -47,10 +48,10 @@ export class Playback extends BasePlayback implements BaseSound {
   loopCount: LoopCount = 0;
   currentLoop: number = 0;
   private buffer?: AudioBuffer;
-  private _startTime: number = 0;
   private _offset: number = 0;
+  private _startTime: number = 0;
   private _state: PlaybackState = PlaybackState.Unplayed;
-  private _pauseTime: number = 0;
+  private _playbackRate: number = 1;
 
   /**
    * Creates an instance of the Playback class.
@@ -69,17 +70,21 @@ export class Playback extends BasePlayback implements BaseSound {
     if ("buffer" in source && source.buffer) {
       this.buffer = source.buffer;
     }
-    if ("mediaElement" in source && source.mediaElement) {
-      source.mediaElement.onended = this.handleLoop;
-    } else if ("onended" in source) {
-      source.onended = this.handleLoop;
-    } else {
-      throw new Error("Unsupported source type");
-    }
+    this.setupSourceNode(source);
     this.source.connect(this.panner!);
     this.setGainNode(gainNode);
     this.panner!.connect(this.gainNode!);
     this.refreshFilters();
+  }
+
+  private setupSourceNode(source: SourceNode) {
+    if ("mediaElement" in source && source.mediaElement) {
+      source.mediaElement.onended = this.loopEnded;
+    } else if ("onended" in source) {
+      source.onended = this.loopEnded;
+    } else {
+      throw new Error("Unsupported source type");
+    }
   }
 
   get isPlaying(): boolean {
@@ -88,38 +93,32 @@ export class Playback extends BasePlayback implements BaseSound {
 
   /**
    * Gets the duration of the audio in seconds.
-   * @returns {number} The duration of the audio.
+   * @returns {number} The duration of the audio or NaN if the duration is unknown.
    * @throws {Error} Throws an error if the sound has been cleaned up.
    */
 
   get duration() {
-    if (!this.buffer) {
+    if (!this.source) {
       throw new Error(
         "Cannot get duration of a sound that has been cleaned up"
       );
     }
-    return this.buffer.duration;
+    if ("mediaElement" in this.source && this.source.mediaElement) {
+      return this.source.mediaElement.duration;
+    }
+    if (!this.buffer) {
+      return NaN;
+    }
+    return this.buffer.duration || NaN;
   }
 
   /**
    * Gets the current playback rate of the audio.
    * @returns {number} The current playback rate.
-   * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
    */
 
   get playbackRate() {
-    if (!this.source) {
-      throw new Error(
-        "Cannot get playback rate of a sound that has been cleaned up"
-      );
-    }
-    if ("playbackRate" in this.source) {
-      return this.source.playbackRate.value;
-    }
-    if ("mediaElement" in this.source && this.source.mediaElement) {
-      return this.source.mediaElement.playbackRate;
-    }
-    throw new Error("Unsupported source type");
+    return this._playbackRate;
   }
 
   /**
@@ -129,10 +128,18 @@ export class Playback extends BasePlayback implements BaseSound {
    */
 
   set playbackRate(rate: number) {
+    if (rate <= 0) {
+      throw new Error("Playback rate must be greater than 0");
+    }
+    if (this._state === PlaybackState.Playing) {
+      const elapsed =
+        (this.context.currentTime - this._startTime) * this._playbackRate;
+      this._offset += elapsed;
+      this._startTime = this.context.currentTime;
+    }
+    this._playbackRate = rate;
     if (!this.source) {
-      throw new Error(
-        "Cannot set playback rate of a sound that has been cleaned up"
-      );
+      return;
     }
     if ("playbackRate" in this.source) {
       this.source.playbackRate.value = rate;
@@ -147,30 +154,23 @@ export class Playback extends BasePlayback implements BaseSound {
    * This method is bound to the 'onended' event of the audio source.
    * It manages looping logic and restarts playback if necessary.
    */
-
-  handleLoop = () => {
-    if (!this.source) {
+  loopEnded = () => {
+    if (!this.source || this._state !== PlaybackState.Playing) {
       return;
     }
+
     this.currentLoop++;
+
     if (this.loopCount !== "infinite" && this.currentLoop > this.loopCount) {
-      this._playing = false;
       this.stop();
-    }
-    if (this.loopCount === "infinite" || this.currentLoop < this.loopCount) {
-      if (this.buffer) {
-        this.recreateSource();
-        if (this._playing) {
-          (this.source as AudioBufferSourceNode).start(0);
-          this._playing = true;
-        }
-      } else {
-        if (this._playing) {
-          this.seek(0);
-        }
-      }
     } else {
-      this._playing = false;
+      this.seek(0);
+      this._state = PlaybackState.Playing;
+      if ("start" in this.source && this.source.start) {
+        this.source.start(0, this._offset);
+      } else if ("mediaElement" in this.source && this.source.mediaElement) {
+        this.source.mediaElement.play();
+      }
     }
   };
 
@@ -185,21 +185,34 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Cannot play a sound that has been cleaned up");
     }
 
+    if (this._state === PlaybackState.Playing) {
+      return [this];
+    }
+
     if (this._state === PlaybackState.Paused) {
-      // Resume from paused state
-      this._offset += this.context.currentTime - this._pauseTime;
-    } else if (this._state !== PlaybackState.Playing) {
-      this.recreateSource();
+      // If we're resuming from a paused state
+      if ("mediaElement" in this.source && this.source.mediaElement) {
+        this.source.mediaElement.play();
+      } else {
+        // For non-mediaElement sources, we need to recreate and start the source
+        this.recreateSource();
+        if ("start" in this.source && this.source.start) {
+          this.source.start(0, this._offset);
+        }
+      }
+    } else {
+      // If we're starting from the beginning or a stopped state
+
+      if ("mediaElement" in this.source && this.source.mediaElement) {
+        this.source.mediaElement.currentTime = this._offset;
+        this.source.mediaElement.play();
+      } else if ("start" in this.source && this.source.start) {
+        this.recreateSource();
+        this.source.start(0, this._offset);
+      }
     }
 
-    if ("mediaElement" in this.source && this.source.mediaElement) {
-      this.source.mediaElement.currentTime = this._offset;
-      this.source.mediaElement.play();
-    } else if ("start" in this.source && this.source.start) {
-      this.source.start(0, this._offset);
-    }
-
-    this._startTime = this.context.currentTime - this._offset;
+    this._startTime = this.context.currentTime;
     this._state = PlaybackState.Playing;
     this.emit("play", this);
     return [this];
@@ -210,28 +223,66 @@ export class Playback extends BasePlayback implements BaseSound {
       return;
     }
 
-    this._state = PlaybackState.Paused;
-    this._pauseTime = this.context.currentTime;
+    const elapsed =
+      (this.context.currentTime - this._startTime) * this._playbackRate;
+    this._offset += elapsed;
 
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this.source.mediaElement.pause();
-    } else if ("stop" in this.source) {
+    } else {
+      // For non-mediaElement sources, we disconnect the source
+      // instead of stopping it
+      this.recreateSource();
+    }
+
+    this._state = PlaybackState.Paused;
+  }
+
+  stop(): void {
+    if (!this.source) {
+      throw new Error("Cannot stop a sound that has been cleaned up");
+    }
+    if (
+      this._state === PlaybackState.Stopped ||
+      this._state === PlaybackState.Unplayed
+    ) {
+      return;
+    }
+
+    if ("stop" in this.source && this._state === PlaybackState.Playing) {
       this.source.stop();
     }
-    this.emit("pause", undefined);
+    if ("mediaElement" in this.source && this.source.mediaElement) {
+      this.source.mediaElement.pause();
+      this.source.mediaElement.currentTime = 0;
+    }
+
+    this._offset = 0;
+    this._startTime = 0;
+    this._state = PlaybackState.Stopped;
+    this.emit("stop", undefined);
   }
 
   seek(time: number): void {
     if (!this.source || !this.gainNode || !this.panner) {
       throw new Error("Cannot seek a sound that has been cleaned up");
     }
+    if (!isFinite(time) || time < 0) {
+      throw new Error("Invalid time value for seek");
+    }
 
-    const wasPlaying = this.isPlaying;
+    const wasPlaying = this._state === PlaybackState.Playing;
     if (wasPlaying) {
-      this.stop();
+      this.pause();
     }
 
     this._offset = time;
+
+    if ("mediaElement" in this.source && this.source.mediaElement) {
+      this.source.mediaElement.currentTime = time;
+    } else {
+      this.recreateSource();
+    }
 
     if (wasPlaying) {
       this.play();
@@ -239,14 +290,12 @@ export class Playback extends BasePlayback implements BaseSound {
   }
 
   get currentTime(): number {
-    switch (this._state) {
-      case PlaybackState.Unplayed:
-      case PlaybackState.Stopped:
-        return this._offset;
-      case PlaybackState.Paused:
-        return this._pauseTime - this._startTime + this._offset;
-      case PlaybackState.Playing:
-        return this.context.currentTime - this._startTime + this._offset;
+    if (this._state === PlaybackState.Playing) {
+      const elapsed =
+        (this.context.currentTime - this._startTime) * this._playbackRate;
+      return this._offset + elapsed;
+    } else {
+      return this._offset;
     }
   }
 
@@ -262,7 +311,8 @@ export class Playback extends BasePlayback implements BaseSound {
     this.source = this.context.createBufferSource();
     this.source.buffer = this.buffer;
     this.source.connect(this.panner);
-    this.source.onended = this.handleLoop;
+    this.source.onended = this.loopEnded;
+    this.playbackRate = this._playbackRate;
     this.refreshFilters();
   }
 
@@ -317,54 +367,24 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source) {
       throw new Error("Cannot loop a sound that has been cleaned up");
     }
+    if (loopCount !== undefined) {
+      this.loopCount =
+        loopCount === "infinite" ? "infinite" : Math.max(0, loopCount);
+      this.currentLoop = 0;
+    }
     if ("mediaElement" in this.source && this.source.mediaElement) {
       const mediaElement = this.source.mediaElement;
-      if (loopCount === undefined) {
-        return mediaElement.loop === true ? "infinite" : 0;
-      }
-      mediaElement.loop = true;
-      // Looping for HTMLMediaElement is controlled by the 'loop' attribute, no need for loopStart or loopEnd
-      return mediaElement.loop === true ? "infinite" : 0;
+      mediaElement.loop = this.loopCount === "infinite";
     } else if ("loop" in this.source) {
-      if (loopCount === undefined) {
-        return this.source.loop === true ? "infinite" : 0;
+      this.source.loop = this.loopCount === "infinite";
+      if (this.source.buffer) {
+        this.source.loopEnd = this.source.buffer.duration;
+        this.source.loopStart = 0;
       }
-      this.source.loop = true;
-      this.source.loopEnd = this.source.buffer?.duration || 0;
-      this.source.loopStart = 0;
-      return this.source.loop === true ? "infinite" : 0;
+    } else {
+      throw new Error("Unsupported source type");
     }
-
-    throw new Error("Unsupported source type");
-  }
-
-  /**
-   * Stops the audio playback immediately.
-   * @throws {Error} Throws an error if the sound has been cleaned up.
-   */
-
-  stop(): void {
-    if (!this.source) {
-      throw new Error("Cannot stop a sound that has been cleaned up");
-    }
-    if (
-      this._state === PlaybackState.Stopped ||
-      this._state === PlaybackState.Unplayed
-    ) {
-      return;
-    }
-    try {
-      if ("stop" in this.source) {
-        this.source.stop();
-      }
-      if ("mediaElement" in this.source && this.source.mediaElement) {
-        this.source.mediaElement.pause();
-        this.source.mediaElement.currentTime = 0;
-      }
-    } catch (e) {}
-    this._state = PlaybackState.Stopped;
-    this._offset = 0;
-    this._pauseTime = 0;
+    return this.loopCount;
   }
 
   /**
@@ -373,12 +393,13 @@ export class Playback extends BasePlayback implements BaseSound {
    */
 
   addFilter(filter: BiquadFilterNode): void {
-    // we have to clone the filter to avoid reusing the same filter node
-    const newFilter = filter.context.createBiquadFilter();
+    // Clone and add the new filter
+    const newFilter = this.context.createBiquadFilter();
     newFilter.type = filter.type;
     newFilter.frequency.value = filter.frequency.value;
     newFilter.Q.value = filter.Q.value;
-    super.addFilter(newFilter);
+    newFilter.gain.value = filter.gain.value;
+    this._filters.push(newFilter as unknown as BiquadFilterNode);
     this.refreshFilters();
   }
 
@@ -388,7 +409,11 @@ export class Playback extends BasePlayback implements BaseSound {
    */
 
   removeFilter(filter: BiquadFilterNode): void {
-    super.removeFilter(filter);
+    const index = this._filters.indexOf(filter);
+    if (index !== -1) {
+      const removedFilter = this._filters.splice(index, 1)[0];
+      removedFilter.disconnect();
+    }
     this.refreshFilters();
   }
 
@@ -439,9 +464,31 @@ export class Playback extends BasePlayback implements BaseSound {
     const loopCount =
       overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
     const clone = new Playback(this.origin, source, gainNode);
+
+    // Copy all relevant properties
     clone.loopCount = loopCount;
+    clone.currentLoop = this.currentLoop;
     clone.setPanType(panType, this.context);
     clone.volume = this.volume;
+    clone.playbackRate = this._playbackRate;
+    clone._offset = this._offset;
+    clone._state = this._state;
+
+    // Deep clone filters
+    this._filters.forEach((filter) => {
+      const clonedFilter = this.context.createBiquadFilter();
+      clonedFilter.type = filter.type;
+      clonedFilter.frequency.value = filter.frequency.value;
+      clonedFilter.Q.value = filter.Q.value;
+      clonedFilter.gain.value = filter.gain.value;
+      clone.addFilter(clonedFilter as unknown as BiquadFilterNode);
+    });
+
+    // If the original is playing, start the clone
+    if (this._state === PlaybackState.Playing) {
+      clone.play();
+    }
+
     return clone;
   }
 }
