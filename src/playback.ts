@@ -353,6 +353,7 @@ export class Playback extends BasePlayback implements BaseSound {
         filter.disconnect();
       }
     });
+    this.eventEmitter.removeAllListeners();
     this._filters = [];
   }
 

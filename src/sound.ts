@@ -268,4 +268,10 @@ export class Sound
     this.playbacks.forEach((p) => (p.volume = volume));
     this.emit("volumeChange", volume);
   }
+
+  cleanup(): void {
+    this.playbacks.forEach((p) => p.cleanup());
+    this.playbacks = [];
+    this.eventEmitter.removeAllListeners();
+  }
 }

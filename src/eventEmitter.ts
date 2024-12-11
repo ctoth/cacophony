@@ -44,4 +44,8 @@ export class TypedEventEmitter<T extends EventMap> {
     }
     return Promise.resolve();
   }
+
+  removeAllListeners() {
+    this.listeners = {};
+  }
 }
