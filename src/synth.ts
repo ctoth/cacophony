@@ -1,6 +1,6 @@
 import { SoundType, type BaseSound, type PanType } from "./cacophony";
 import { PlaybackContainer } from "./container";
-import type { AudioContext, GainNode } from "./context";
+import type { AudioContext, GainNode, OscillatorNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
 import { SynthEvents } from "./events";
 import type { FilterCloneOverrides } from "./filters";
