@@ -228,6 +228,72 @@ describe("Playback cloning", () => {
   });
 });
 
+describe("Playback cleanup functionality", () => {
+  let playback: Playback;
+  let buffer: AudioBuffer;
+  let source: AudioBufferSourceNode;
+  let gainNode: GainNode;
+  let sound: Sound;
+
+  beforeEach(() => {
+    buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    source = audioContextMock.createBufferSource();
+    source.buffer = buffer;
+    gainNode = audioContextMock.createGain();
+    sound = new Sound("test-url", buffer, audioContextMock, gainNode);
+    playback = new Playback(sound, source, gainNode);
+  });
+
+  it("disconnects all nodes when cleaned up", () => {
+    const sourceSpy = vi.spyOn(source, "disconnect");
+    const gainSpy = vi.spyOn(gainNode, "disconnect");
+    
+    // Add a filter to test filter cleanup
+    const filter = audioContextMock.createBiquadFilter();
+    const filterSpy = vi.spyOn(filter, "disconnect");
+    playback.addFilter(filter as unknown as BiquadFilterNode);
+    
+    playback.cleanup();
+    
+    expect(sourceSpy).toHaveBeenCalled();
+    expect(gainSpy).toHaveBeenCalled();
+    expect(filterSpy).toHaveBeenCalled();
+  });
+
+  it("removes all event listeners when cleaned up", () => {
+    const removeAllListenersSpy = vi.spyOn(playback["eventEmitter"], "removeAllListeners");
+    
+    playback.cleanup();
+    
+    expect(removeAllListenersSpy).toHaveBeenCalled();
+  });
+
+  it("clears internal references when cleaned up", () => {
+    playback.cleanup();
+    
+    expect(playback.source).toBeUndefined();
+    expect(playback["gainNode"]).toBeUndefined();
+    expect(playback["_filters"]).toHaveLength(0);
+  });
+
+  it("can be cleaned up multiple times without error", () => {
+    playback.cleanup();
+    expect(() => playback.cleanup()).not.toThrow();
+  });
+
+  it("maintains cleaned up state after multiple operations", () => {
+    playback.cleanup();
+    
+    // Try cleaning up again
+    playback.cleanup();
+    
+    // Verify state remains cleaned up
+    expect(playback.source).toBeUndefined();
+    expect(playback["gainNode"]).toBeUndefined();
+    expect(playback["_filters"]).toHaveLength(0);
+  });
+});
+
 describe("Playback error cases", () => {
   let playback: Playback;
   let buffer: AudioBuffer;
