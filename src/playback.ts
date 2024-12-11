@@ -339,22 +339,11 @@ export class Playback extends BasePlayback implements BaseSound {
    */
 
   cleanup(): void {
-    // Ensure cleanup is idempotent
     if (this.source) {
       this.source.disconnect();
       this.source = undefined;
     }
-    if (this.gainNode) {
-      this.gainNode.disconnect();
-      this.gainNode = undefined;
-    }
-    this._filters.forEach((filter) => {
-      if (filter) {
-        filter.disconnect();
-      }
-    });
-    this.eventEmitter.removeAllListeners();
-    this._filters = [];
+    super.cleanup();
   }
 
   /**
