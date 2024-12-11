@@ -248,11 +248,15 @@ describe("Playback cleanup functionality", () => {
     const sourceSpy = vi.spyOn(source, "disconnect");
     const gainSpy = vi.spyOn(gainNode, "disconnect");
     
-    // Add a filter to test filter cleanup
+    // Mock createBiquadFilter to return a spied filter
     const filter = audioContextMock.createBiquadFilter();
     const filterSpy = vi.spyOn(filter, "disconnect");
-    playback.addFilter(filter as unknown as BiquadFilterNode);
+    vi.spyOn(audioContextMock, "createBiquadFilter").mockReturnValue({
+      ...filter,
+      disconnect: filterSpy
+    });
     
+    playback.addFilter(filter as unknown as BiquadFilterNode);
     playback.cleanup();
     
     expect(sourceSpy).toHaveBeenCalled();
