@@ -2,7 +2,7 @@ import { BasePlayback } from "basePlayback";
 import { Playback } from "playback";
 
 export interface BaseAudioEvents {
-  play: Playback;
+  play: BasePlayback;
   stop: void;
   pause: void;
   resume: void;
@@ -19,9 +19,11 @@ export interface PlaybackEvents extends BaseAudioEvents {
   seek: number;
 }
 
-export interface SynthEvents extends BaseAudioEvents {
+export interface SynthEvents extends Omit<BaseAudioEvents, 'play'> {
+  play: SynthPlayback;
   frequencyChange: number;
   typeChange: OscillatorType;
+  detuneChange: number;
 }
 
 export interface CacophonyEvents {
