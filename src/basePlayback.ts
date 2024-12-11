@@ -41,4 +41,13 @@ export abstract class BasePlayback extends PannerMixin(
   protected emit<K extends keyof PlaybackEvents>(event: K, data: PlaybackEvents[K]): void {
     this.eventEmitter.emit(event, data);
   }
+
+  cleanup(): void {
+    super.cleanup();
+    if (this.source) {
+      this.source.disconnect();
+      this.source = undefined;
+    }
+    this.eventEmitter.removeAllListeners();
+  }
 }
