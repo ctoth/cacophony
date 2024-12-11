@@ -34,12 +34,12 @@ import type {
   GainNode,
   SourceNode,
 } from "./context";
+import { TypedEventEmitter } from "./eventEmitter";
+import { SoundEvents } from "./events";
 import { FilterManager } from "./filters";
 import type { PanCloneOverrides } from "./pannerMixin";
 import { Playback } from "./playback";
 import type { VolumeCloneOverrides } from "./volumeMixin";
-import { TypedEventEmitter } from "./eventEmitter";
-import { SoundEvents } from "./events";
 
 type SoundCloneOverrides = PanCloneOverrides &
   VolumeCloneOverrides & {
