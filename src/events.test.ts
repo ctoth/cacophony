@@ -1,11 +1,10 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
-import { beforeAll, afterAll, describe, expect, it, vi, beforeEach } from "vitest";
-import { audioContextMock, mockCache } from "./setupTests";
-import { Sound, Playback } from "./sound";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Cacophony } from "./cacophony";
+import { Sound } from "./sound";
+import { Playback } from "./playback";
+import { audioContextMock, cacophony, mockCache } from "./setupTests";
 
-let audioContextInstance: AudioContext;
-let cacophonyInstance: Cacophony;
 
 beforeAll(() => {
   vi.useFakeTimers();
@@ -15,10 +14,6 @@ afterAll(() => {
   vi.useRealTimers();
 });
 
-beforeEach(() => {
-  audioContextInstance = new AudioContext();
-  cacophonyInstance = new Cacophony(audioContextInstance);
-});
 
 describe("Event system", () => {
   let sound: Sound;
@@ -26,7 +21,7 @@ describe("Event system", () => {
 
   beforeEach(async () => {
     buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    sound = await cacophonyInstance.createSound(buffer);
+    sound = await cacophony.createSound(buffer);
   });
 
   it("emits play event when sound is played", async () => {

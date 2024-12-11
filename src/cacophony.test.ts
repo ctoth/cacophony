@@ -8,12 +8,16 @@ import {
   vi,
   beforeEach,
   afterAll,
+  beforeAll,
 } from "vitest";
 import { audioContextMock, cacophony, mockCache } from "./setupTests";
 import { Sound } from "./sound";
 import { Group } from "./group";
 import { SoundType } from "./cacophony";
 import { MicrophoneStream } from "./microphone";
+beforeAll(() => {
+  vi.useFakeTimers();
+});
 
 afterAll(() => {
   vi.useRealTimers();
