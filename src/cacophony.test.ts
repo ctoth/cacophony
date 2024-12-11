@@ -1,10 +1,9 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
-import { afterEach, describe, expect, it, test, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, test, vi } from "vitest";
+import { SoundType } from "./cacophony";
+import { Group } from "./group";
 import { audioContextMock, cacophony, mockCache } from "./setupTests";
 import { Sound } from "./sound";
-import { Group } from "./group";
-import { SoundType } from "./cacophony";
-import { MicrophoneStream } from "./microphone";
 
 describe("Cacophony core", () => {
   test("Cacophony is created with the correct context", () => {
