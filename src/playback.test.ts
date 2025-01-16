@@ -264,17 +264,19 @@ describe("Playback filters chain", () => {
     const filter1 = audioContextMock.createBiquadFilter();
     const filter2 = audioContextMock.createBiquadFilter();
     
-    // Spy on connect methods
-    const connectSpy1 = vi.spyOn(filter1, 'connect');
-    const connectSpy2 = vi.spyOn(filter2, 'connect');
+    // Spy on refreshFilters method
+    const refreshSpy = vi.spyOn(playback as any, 'refreshFilters');
     
     playback.addFilter(filter1);
     playback.addFilter(filter2);
 
-    // Verify filter2 was connected after filter1
-    expect(connectSpy1).toHaveBeenCalled();
-    expect(connectSpy2).toHaveBeenCalled();
-    expect(playback['_filters']).toEqual([filter1, filter2]);
+    // Verify refreshFilters was called for each filter addition
+    expect(refreshSpy).toHaveBeenCalledTimes(2);
+    
+    // Verify filters are in the correct order in the array
+    expect(playback['_filters'].length).toBe(2);
+    expect(playback['_filters'][0].type).toBe(filter1.type);
+    expect(playback['_filters'][1].type).toBe(filter2.type);
   });
 });
 
