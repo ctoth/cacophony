@@ -82,6 +82,22 @@ describe("Playback class", () => {
     expect(playback.isPlaying).toBe(false);
   });
 
+  it("handles repeated play calls gracefully", () => {
+    playback.play(); // First call to play
+    expect(playback.isPlaying).toBe(true);
+
+    playback.play(); // Second call without stopping
+    // Should still be playing without throwing errors or re-initializing inappropriately 
+    expect(playback.isPlaying).toBe(true);
+  });
+
+  it("stop right after play does not cause errors", () => {
+    playback.play();
+    expect(playback.isPlaying).toBe(true);
+    playback.stop();
+    expect(playback.isPlaying).toBe(false);
+  });
+
   it("can play after seeking", () => {
     const seekTime = 2;
     playback.seek(seekTime);
