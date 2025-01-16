@@ -244,6 +244,35 @@ describe("Playback cloning", () => {
   });
 });
 
+describe("Playback filters chain", () => {
+  let playback: Playback;
+  let buffer: AudioBuffer;
+  let source: AudioBufferSourceNode;
+  let gainNode: GainNode;
+  let sound: Sound;
+
+  beforeEach(() => {
+    buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    source = audioContextMock.createBufferSource();
+    source.buffer = buffer;
+    gainNode = audioContextMock.createGain();
+    sound = new Sound("test-url", buffer, audioContextMock, gainNode);
+    playback = new Playback(sound, source, gainNode);
+  });
+
+  it("connects multiple filters in order", () => {
+    // add first filter
+    const filter1 = audioContextMock.createBiquadFilter();
+    playback.addFilter(filter1);
+    // add second filter
+    const filter2 = audioContextMock.createBiquadFilter();
+    playback.addFilter(filter2);
+
+    // The last added filter should be the final node in the chain
+    expect(playback['_filters'][playback['_filters'].length - 1]).toBe(filter2);
+  });
+});
+
 describe("Playback error cases", () => {
   let playback: Playback;
   let buffer: AudioBuffer;
