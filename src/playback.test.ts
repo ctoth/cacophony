@@ -261,15 +261,20 @@ describe("Playback filters chain", () => {
   });
 
   it("connects multiple filters in order", () => {
-    // add first filter
     const filter1 = audioContextMock.createBiquadFilter();
-    playback.addFilter(filter1);
-    // add second filter
     const filter2 = audioContextMock.createBiquadFilter();
+    
+    // Spy on connect methods
+    const connectSpy1 = vi.spyOn(filter1, 'connect');
+    const connectSpy2 = vi.spyOn(filter2, 'connect');
+    
+    playback.addFilter(filter1);
     playback.addFilter(filter2);
 
-    // The last added filter should be the final node in the chain
-    expect(playback['_filters'][playback['_filters'].length - 1]).toBe(filter2);
+    // Verify filter2 was connected after filter1
+    expect(connectSpy1).toHaveBeenCalled();
+    expect(connectSpy2).toHaveBeenCalled();
+    expect(playback['_filters']).toEqual([filter1, filter2]);
   });
 });
 
