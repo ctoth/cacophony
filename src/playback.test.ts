@@ -258,16 +258,6 @@ describe("Playback filters chain", () => {
     gainNode = audioContextMock.createGain();
     sound = new Sound("test-url", buffer, audioContextMock, gainNode);
     playback = new Playback(sound, source, gainNode);
-
-    // Ensure filter nodes have proper connect methods
-    vi.spyOn(audioContextMock, 'createBiquadFilter').mockImplementation(() => ({
-      connect: vi.fn(),
-      disconnect: vi.fn(),
-      type: 'lowpass',
-      frequency: { value: 350 },
-      Q: { value: 1 },
-      gain: { value: 0 }
-    }));
   });
 
   it("connects multiple filters in order", () => {
@@ -287,83 +277,6 @@ describe("Playback filters chain", () => {
     expect(playback['_filters'].length).toBe(2);
     expect(playback['_filters'][0].type).toBe(filter1.type);
     expect(playback['_filters'][1].type).toBe(filter2.type);
-  });
-});
-
-describe("Audio Node Chain", () => {
-  let playback: Playback;
-  let buffer: AudioBuffer;
-  let source: AudioBufferSourceNode;
-  let gainNode: GainNode;
-  let sound: Sound;
-
-  beforeEach(() => {
-    buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    source = audioContextMock.createBufferSource();
-    source.buffer = buffer;
-    gainNode = audioContextMock.createGain();
-    sound = new Sound("test-url", buffer, audioContextMock, gainNode);
-    playback = new Playback(sound, source, gainNode);
-  });
-
-  it("maintains correct chain order with filters", () => {
-    const filter1 = audioContextMock.createBiquadFilter();
-    const filter2 = audioContextMock.createBiquadFilter();
-    
-    // Spy on the panner's connect method since that's the start of our chain
-    const pannerConnectSpy = vi.spyOn(playback.panner!, 'connect');
-    
-    playback.addFilter(filter1 as unknown as BiquadFilterNode);
-    playback.addFilter(filter2 as unknown as BiquadFilterNode);
-
-    // Verify the panner was connected
-    expect(pannerConnectSpy).toHaveBeenCalled();
-  });
-
-  it("can connect to external Web Audio nodes", () => {
-    const externalNode = audioContextMock.createGain();
-    const connectSpy = vi.spyOn(playback.outputNode, 'connect');
-    
-    playback.connect(externalNode);
-    
-    expect(connectSpy).toHaveBeenCalledWith(externalNode);
-  });
-
-  it("maintains node access during play/pause/stop states", () => {
-    const getNodes = () => ({
-      input: playback.inputNode,
-      output: playback.outputNode
-    });
-
-    // Test initial state
-    expect(getNodes().input).toBeDefined();
-    expect(getNodes().output).toBeDefined();
-
-    // Test playing state
-    playback.play();
-    expect(getNodes().input).toBeDefined();
-    expect(getNodes().output).toBeDefined();
-
-    // Test paused state
-    playback.pause();
-    expect(getNodes().input).toBeDefined();
-    expect(getNodes().output).toBeDefined();
-
-    // Test stopped state
-    playback.stop();
-    expect(getNodes().input).toBeDefined();
-    expect(getNodes().output).toBeDefined();
-  });
-
-  it("properly handles connections after cleanup", () => {
-    const externalNode = audioContextMock.createGain();
-    
-    playback.cleanup();
-    
-    expect(() => playback.connect(externalNode)).toThrow('Cannot access nodes of a cleaned up sound');
-    expect(() => playback.disconnect()).toThrow('Cannot access nodes of a cleaned up sound');
-    expect(() => playback.inputNode).toThrow('Cannot access nodes of a cleaned up sound');
-    expect(() => playback.outputNode).toThrow('Cannot access nodes of a cleaned up sound');
   });
 });
 

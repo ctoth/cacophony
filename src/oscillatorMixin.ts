@@ -12,20 +12,6 @@ export function OscillatorMixin<TBase extends Constructor>(Base: TBase) {
         _oscillatorOptions: Partial<OscillatorOptions> = {};
         declare public source?: OscillatorNode;
 
-        get inputNode(): AudioNode {
-            if (!this.source) {
-                throw new Error('Cannot access nodes of a cleaned up sound');
-            }
-            return this.source;
-        }
-
-        get outputNode(): AudioNode {
-            if (!this.source) {
-                throw new Error('Cannot access nodes of a cleaned up sound');
-            }
-            return this.source;
-        }
-
         get oscillatorOptions(): Partial<OscillatorOptions> {
             return this._oscillatorOptions;
         }
