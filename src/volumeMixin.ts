@@ -1,4 +1,4 @@
-import { AudioNode, GainNode } from "./context";
+import { GainNode } from "./context";
 import { FilterManager } from "./filters";
 
 export type VolumeCloneOverrides = {
@@ -10,20 +10,6 @@ type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
 export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
     abstract class VolumeMixin extends Base {
         gainNode?: GainNode;
-
-        get inputNode(): AudioNode {
-            if (!this.gainNode) {
-                throw new Error('Cannot access nodes of a cleaned up sound');
-            }
-            return this.gainNode;
-        }
-
-        get outputNode(): AudioNode {
-            if (!this.gainNode) {
-                throw new Error('Cannot access nodes of a cleaned up sound');
-            }
-            return this.gainNode;
-        }
 
         setGainNode(gainNode: GainNode) {
             this.gainNode = gainNode;

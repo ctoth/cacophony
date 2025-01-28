@@ -16,20 +16,6 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
         panner?: PannerNode | StereoPannerNode;
         _panType: PanType = 'stereo';
 
-        get inputNode(): AudioNode {
-            if (!this.panner) {
-                throw new Error('Cannot access nodes of a cleaned up sound');
-            }
-            return this.panner;
-        }
-
-        get outputNode(): AudioNode {
-            if (!this.panner) {
-                throw new Error('Cannot access nodes of a cleaned up sound');
-            }
-            return this.panner;
-        }
-
         get panType(): PanType {
             return this._panType;
         }

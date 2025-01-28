@@ -421,20 +421,6 @@ export class Playback extends BasePlayback implements BaseSound {
    * @throws {Error} Throws an error if the sound has been cleaned up.
    */
 
-  get inputNode(): AudioNode {
-    if (!this.source) {
-      throw new Error('Cannot access nodes of a cleaned up sound');
-    }
-    return super.inputNode;
-  }
-
-  get outputNode(): AudioNode {
-    if (!this.source) {
-      throw new Error('Cannot access nodes of a cleaned up sound');
-    }
-    return super.outputNode;
-  }
-
   private refreshFilters(): void {
     if (!this.panner || !this.gainNode) {
       throw new Error(

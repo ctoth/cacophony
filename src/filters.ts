@@ -5,14 +5,6 @@ export type FilterCloneOverrides = {
 export abstract class FilterManager {
     _filters: BiquadFilterNode[] = [];
 
-    get inputNode(): AudioNode {
-        return this._filters[0] || this.source!;
-    }
-
-    get outputNode(): AudioNode {
-        return this._filters[this._filters.length - 1] || this.source!;
-    }
-
     addFilter(filter: BiquadFilterNode) {
         this._filters.push(filter);
     }
