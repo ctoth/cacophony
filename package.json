@@ -3,9 +3,16 @@
   "version": "0.13.6",
   "description": "Typescript audio library with caching",
   "type": "module",
-  "main": "dist/cacophony.cjs.js",
-  "module": "dist/cacophony.es.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
   "files": [
     "dist",
     "docs",
@@ -40,6 +47,7 @@
     "@rollup/plugin-node-resolve": "^15.3.0",
     "@rollup/plugin-replace": "^5.0.7",
     "@rollup/plugin-typescript": "^11.1.6",
+    "@types/node": "^22.13.1",
     "rimraf": "^5.0.10",
     "rollup": "^4.24.2",
     "standardized-audio-context-mock": "^9.7.13",
