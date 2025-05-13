@@ -1,5 +1,5 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
-import { beforeEach, describe, expect, it, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, test, vi } from "vitest";
 import { audioContextMock, cacophony } from "./setupTests";
 
 import { SoundType } from "./cacophony";
@@ -12,6 +12,14 @@ describe("Sound playback and state management", () => {
   beforeEach(async () => {
     buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
     sound = await cacophony.createSound(buffer);
+  });
+
+  afterEach(() => {
+    if (sound) {
+      sound.stop();
+    }
+    cacophony.clearMemoryCache();
+    vi.restoreAllMocks();
   });
 
   it("can play, stop, and play again", () => {
@@ -125,6 +133,14 @@ describe("Sound cloning", () => {
     originalSound.addFilter(audioContextMock.createBiquadFilter());
   });
 
+  afterEach(() => {
+    if (originalSound) {
+      originalSound.stop();
+    }
+    cacophony.clearMemoryCache();
+    vi.restoreAllMocks();
+  });
+
   it("clones a Sound instance with default settings", () => {
     const clonedSound = originalSound.clone();
 
@@ -225,6 +241,14 @@ describe("Sound class", () => {
       audioContextMock,
       audioContextMock.createGain()
     );
+  });
+
+  afterEach(() => {
+    if (sound) {
+      sound.stop();
+    }
+    cacophony.clearMemoryCache();
+    vi.restoreAllMocks();
   });
 
   it("is created with correct properties", () => {

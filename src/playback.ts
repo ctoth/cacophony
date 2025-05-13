@@ -164,12 +164,19 @@ export class Playback extends BasePlayback implements BaseSound {
     if (this.loopCount !== "infinite" && this.currentLoop > this.loopCount) {
       this.stop();
     } else {
-      this.seek(0);
-      this._state = PlaybackState.Playing;
-      if ("start" in this.source && this.source.start) {
-        this.source.start(0, this._offset);
-      } else if ("mediaElement" in this.source && this.source.mediaElement) {
+      this.seek(0); // Resets offset and handles play/pause state internally.
+                     // If it was playing, seek will call play() again.
+
+      // Ensure playback resumes/starts after seeking for the loop.
+      if ("mediaElement" in this.source && this.source.mediaElement) {
+        // Media elements need an explicit play call after their currentTime is set.
         this.source.mediaElement.play();
+      } else {
+        // For AudioBufferSourceNode:
+        // If seek() already called play(), this.play() will return early (idempotent).
+        // If seek() did not call play() (e.g., if state wasn't Playing before seek),
+        // this will start playback from the new offset.
+        this.play();
       }
     }
   };
@@ -228,10 +235,10 @@ export class Playback extends BasePlayback implements BaseSound {
 
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this.source.mediaElement.pause();
-    } else {
-      // For non-mediaElement sources, we disconnect the source
-      // instead of stopping it
-      this.recreateSource();
+    } else if ("stop" in this.source) {
+      // For AudioBufferSourceNode and OscillatorNode, stop the source.
+      // It cannot be restarted; a new one will be created on play().
+      this.source.stop();
     }
 
     this._state = PlaybackState.Paused;
@@ -278,9 +285,8 @@ export class Playback extends BasePlayback implements BaseSound {
 
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this.source.mediaElement.currentTime = time;
-    } else {
-      this.recreateSource();
     }
+    // For non-media elements, play() will handle recreating the source if needed.
 
     if (wasPlaying) {
       this.play();
@@ -304,6 +310,12 @@ export class Playback extends BasePlayback implements BaseSound {
       );
     }
     if (this.source) {
+      // It's crucial to nullify onended of the old source if it's an AudioBufferSourceNode (or similar non-restartable source),
+      // as its onended event could otherwise interfere with the new source created for seek/resume.
+      // MediaElementAudioSourceNode is handled differently as its underlying element can be paused/played.
+      if (!("mediaElement" in this.source) && "onended" in this.source) {
+        this.source.onended = null;
+      }
       this.source.disconnect();
     }
     this.source = this.context.createBufferSource();
