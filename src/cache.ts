@@ -47,6 +47,28 @@ export interface ICache {
   clearMemoryCache(): void;
 }
 
+/**
+ * AudioCache provides efficient caching of audio resources using HTTP caching standards.
+ * 
+ * Features:
+ * - Three-layer caching: Memory (LRU) → Browser Cache API → Network
+ * - HTTP conditional requests with ETag and Last-Modified support
+ * - Robust error handling with cache inconsistency recovery
+ * 
+ * Caching Strategy:
+ * - Always makes conditional requests when validation tokens (ETag/Last-Modified) are available
+ * - Uses TTL as fallback only when no validation tokens exist
+ * - Conditional requests are lightweight (304 responses have no body)
+ * 
+ * @example
+ * ```typescript
+ * const cache = new AudioCache();
+ * const audioBuffer = await cache.getAudioBuffer(audioContext, 'audio.mp3');
+ * 
+ * // Optional: Configure TTL for when no validation tokens exist
+ * AudioCache.setCacheExpirationTime(60 * 60 * 1000); // 1 hour
+ * ```
+ */
 export class AudioCache implements ICache {
   private static pendingRequests = new Map<string, Promise<AudioBuffer>>();
   private static decodedBuffers = new LRUCache<string, AudioBuffer>(
@@ -148,6 +170,39 @@ export class AudioCache implements ICache {
           lastModified,
         });
         return await cachedResponse.arrayBuffer();
+      } else {
+        // Cache inconsistency: 304 response but no cached body
+        // This can happen if cache was partially corrupted or cleared
+        // Fall back to re-fetching without validation headers
+        console.warn(`Cache inconsistency detected for ${url}: 304 response but no cached body. Re-fetching.`);
+        
+        // Re-fetch without validation headers to get fresh content
+        const freshResponse = await fetch(url);
+        if (freshResponse.status === 200) {
+          const responseClone = freshResponse.clone();
+          const newEtag = freshResponse.headers.get("ETag");
+          const newLastModified = freshResponse.headers.get("Last-Modified");
+
+          try {
+            await Promise.all([
+              cache.put(url, responseClone),
+              this.updateMetadata(cache, url, {
+                timestamp: Date.now(),
+                etag: newEtag || undefined,
+                lastModified: newLastModified || undefined,
+              }),
+            ]);
+          } catch (error) {
+            // Clean up partial cache entries on error
+            await cache.delete(url);
+            await cache.delete(`${url}:meta`);
+            throw error;
+          }
+          
+          return await freshResponse.arrayBuffer();
+        } else {
+          throw new Error(`Failed to fetch resource after cache inconsistency: ${freshResponse.status} ${freshResponse.statusText}`);
+        }
       }
     }
 
@@ -204,11 +259,28 @@ export class AudioCache implements ICache {
     }
   }
 
+  /**
+   * Get an AudioBuffer for the specified URL, using intelligent caching strategies.
+   * 
+   * Caching Flow:
+   * 1. Check memory cache (LRU) for decoded AudioBuffer
+   * 2. Check persistent cache for raw ArrayBuffer and metadata
+   * 3. Make conditional HTTP request if validation tokens available
+   * 4. Decode audio data and cache at all levels
+   * 
+   * The cache prioritizes HTTP conditional requests (ETag/Last-Modified) over TTL
+   * to ensure content freshness while maintaining performance through 304 responses.
+   * 
+   * @param context - AudioContext for decoding audio data
+   * @param url - URL of the audio resource to fetch
+   * @returns Promise that resolves to decoded AudioBuffer
+   * @throws Error if audio cannot be fetched or decoded
+   */
   public async getAudioBuffer(
     context: AudioContext,
     url: string
   ): Promise<AudioBuffer> {
-    // Check if the decoded buffer is already available
+    // Check if the decoded buffer is already available in memory cache
     if (AudioCache.decodedBuffers.has(url)) {
       return AudioCache.decodedBuffers.get(url)!;
     }
@@ -227,9 +299,18 @@ export class AudioCache implements ICache {
     const cache = await AudioCache.openCache();
 
     const metadata = await AudioCache.getMetadataFromCache(url, cache);
+    
+    // Determine if we should make a network request
+    // This logic implements HTTP caching best practices:
+    // - Always make conditional requests when validation tokens (ETag/Last-Modified) are available
+    // - This allows servers to respond with lightweight 304 responses if content unchanged
+    // - Only fall back to TTL when no validation tokens exist
     const shouldFetch =
       !metadata ||
-      (!metadata.etag && !metadata.lastModified) ||
+      // Always make conditional requests when we have validation tokens (ETags/Last-Modified)
+      metadata.etag ||
+      metadata.lastModified ||
+      // Only use TTL fallback when no validation tokens exist
       Date.now() - metadata.timestamp > AudioCache.cacheExpirationTime;
 
     return AudioCache.getOrCreatePendingRequest(url, async () => {
