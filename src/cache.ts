@@ -53,8 +53,20 @@ function parseMaxAge(cacheControlHeader: string | undefined): number | null {
   if (!cacheControlHeader) {
     return null;
   }
-  const match = cacheControlHeader.match(/max-age=(\d+)/);
+  const match = cacheControlHeader.match(/max-age\s*=\s*"?(\d+)"?/i);
   return match ? parseInt(match[1], 10) : null;
+}
+
+/**
+ * Check if Cache-Control header contains directives that require revalidation
+ * @param cacheControlHeader - The Cache-Control header value
+ * @returns true if revalidation is required regardless of age
+ */
+function requiresRevalidation(cacheControlHeader: string | undefined): boolean {
+  if (!cacheControlHeader) {
+    return false;
+  }
+  return /(?:^|,)\s*(no-cache|no-store|must-revalidate)\s*(?:,|$)/i.test(cacheControlHeader);
 }
 
 export interface ICache {
@@ -193,12 +205,13 @@ export class AudioCache implements ICache {
       if (cachedResponse) {
         // Update metadata timestamp on revalidation
         const timestamp = Date.now();
-        const cacheControl = fetchResponse.headers?.get("Cache-Control");
+        const newCacheControl = fetchResponse.headers?.get("Cache-Control");
         await this.updateMetadata(cache, url, {
           timestamp,
           etag,
           lastModified,
-          cacheControl: cacheControl || undefined,
+          // Only update cacheControl if present in response, otherwise preserve existing
+          ...(newCacheControl ? { cacheControl: newCacheControl } : {}),
         });
         return await cachedResponse.arrayBuffer();
       } else {
@@ -347,6 +360,11 @@ export class AudioCache implements ICache {
     const shouldFetch = (() => {
       if (!metadata) {
         return true; // Must fetch if nothing is cached
+      }
+
+      // Check for directives that require revalidation
+      if (requiresRevalidation(metadata.cacheControl)) {
+        return true; // Must revalidate due to no-cache, no-store, or must-revalidate
       }
 
       // Check Cache-Control freshness

@@ -815,6 +815,117 @@ describe("AudioCache", () => {
       expect(mockFetch).not.toHaveBeenCalled(); // Should use cache due to fresh TTL
     });
 
+    it("respects no-cache directive regardless of freshness", async () => {
+      const url = "https://example.com/audio.mp3";
+      const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const mockArrayBuffer = new ArrayBuffer(8);
+      const etag = '"version-1"';
+
+      // Mock cache with no-cache directive but fresh timestamp
+      const mockCache = {
+        match: vi.fn().mockImplementation((key) => {
+          if (key === `${url}:meta`) {
+            return Promise.resolve(new Response(JSON.stringify({
+              url,
+              etag,
+              cacheControl: "public, max-age=3600, no-cache", // Fresh but no-cache
+              timestamp: Date.now() - 1000 // 1 second ago (would be fresh)
+            })));
+          }
+          return Promise.resolve(new Response(mockArrayBuffer));
+        }),
+        put: vi.fn(),
+        delete: vi.fn(),
+      };
+      mockCaches.open.mockResolvedValue(mockCache);
+
+      // Mock 304 response
+      mockFetch.mockResolvedValueOnce({
+        status: 304,
+        ok: false,
+        headers: new Headers(),
+      } as Response);
+
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
+
+      const result = await cache.getAudioBuffer(audioContextMock, url);
+      
+      expect(result).toBe(mockAudioBuffer);
+      expect(mockFetch).toHaveBeenCalledTimes(1); // Should fetch due to no-cache directive
+      const fetchCall = mockFetch.mock.calls[0];
+      const headers = fetchCall[1].headers as Headers;
+      expect(headers.get('If-None-Match')).toBe(etag);
+    });
+
+    it("respects must-revalidate directive", async () => {
+      const url = "https://example.com/audio.mp3";
+      const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const mockArrayBuffer = new ArrayBuffer(8);
+
+      // Mock cache with must-revalidate directive
+      const mockCache = {
+        match: vi.fn().mockImplementation((key) => {
+          if (key === `${url}:meta`) {
+            return Promise.resolve(new Response(JSON.stringify({
+              url,
+              cacheControl: "public, max-age=3600, must-revalidate", // Fresh but must revalidate
+              timestamp: Date.now() - 1000 // 1 second ago (would be fresh)
+            })));
+          }
+          return Promise.resolve(new Response(mockArrayBuffer));
+        }),
+        put: vi.fn(),
+        delete: vi.fn(),
+      };
+      mockCaches.open.mockResolvedValue(mockCache);
+
+      // Mock 200 response (no validation headers available)
+      mockFetch.mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        clone: () => ({ arrayBuffer: () => Promise.resolve(mockArrayBuffer) }),
+        arrayBuffer: () => Promise.resolve(mockArrayBuffer),
+        headers: new Headers(),
+      } as Response);
+
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
+
+      const result = await cache.getAudioBuffer(audioContextMock, url);
+      
+      expect(result).toBe(mockAudioBuffer);
+      expect(mockFetch).toHaveBeenCalledTimes(1); // Should fetch due to must-revalidate directive
+    });
+
+    it("handles improved max-age parsing with quotes and whitespace", async () => {
+      const url = "https://example.com/audio.mp3";
+      const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const mockArrayBuffer = new ArrayBuffer(8);
+
+      // Mock cache with quoted max-age and whitespace
+      const mockCache = {
+        match: vi.fn().mockImplementation((key) => {
+          if (key === `${url}:meta`) {
+            return Promise.resolve(new Response(JSON.stringify({
+              url,
+              cacheControl: 'public, max-age = "3600"', // Quoted with whitespace
+              timestamp: Date.now() - 1000 // 1 second ago (fresh)
+            })));
+          }
+          return Promise.resolve(new Response(mockArrayBuffer));
+        }),
+        put: vi.fn(),
+        delete: vi.fn(),
+      };
+      mockCaches.open.mockResolvedValue(mockCache);
+
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
+
+      const result = await cache.getAudioBuffer(audioContextMock, url);
+      
+      expect(result).toBe(mockAudioBuffer);
+      expect(mockFetch).not.toHaveBeenCalled(); // Should not fetch because content is fresh
+    });
+
     it("throws error when recovery fetch fails after cache inconsistency", async () => {
       const url = "https://example.com/audio.mp3";
       const etag = '"version-1"';
