@@ -38,15 +38,66 @@ interface CacheMetadata {
   url: string;
   etag?: string;
   lastModified?: string;
+  cacheControl?: string;
   timestamp: number;
 }
 
 const DEFAULT_CACHE_SIZE = 100;
+
+/**
+ * Parse max-age value from Cache-Control header
+ * @param cacheControlHeader - The Cache-Control header value
+ * @returns max-age in seconds, or null if not found
+ */
+function parseMaxAge(cacheControlHeader: string | undefined): number | null {
+  if (!cacheControlHeader) {
+    return null;
+  }
+  const match = cacheControlHeader.match(/max-age\s*=\s*"?(\d+)"?/i);
+  return match ? parseInt(match[1], 10) : null;
+}
+
+/**
+ * Check if Cache-Control header contains directives that require revalidation
+ * @param cacheControlHeader - The Cache-Control header value
+ * @returns true if revalidation is required regardless of age
+ */
+function requiresRevalidation(cacheControlHeader: string | undefined): boolean {
+  if (!cacheControlHeader) {
+    return false;
+  }
+  return /(?:^|,)\s*(no-cache|no-store|must-revalidate)\s*(?:,|$)/i.test(
+    cacheControlHeader
+  );
+}
+
 export interface ICache {
   getAudioBuffer(context: AudioContext, url: string): Promise<AudioBuffer>;
   clearMemoryCache(): void;
 }
 
+/**
+ * AudioCache provides efficient caching of audio resources using HTTP caching standards.
+ *
+ * Features:
+ * - Three-layer caching: Memory (LRU) → Browser Cache API → Network
+ * - HTTP conditional requests with ETag and Last-Modified support
+ * - Robust error handling with cache inconsistency recovery
+ *
+ * Caching Strategy:
+ * - Always makes conditional requests when validation tokens (ETag/Last-Modified) are available
+ * - Uses TTL as fallback only when no validation tokens exist
+ * - Conditional requests are lightweight (304 responses have no body)
+ *
+ * @example
+ * ```typescript
+ * const cache = new AudioCache();
+ * const audioBuffer = await cache.getAudioBuffer(audioContext, 'audio.mp3');
+ *
+ * // Optional: Configure TTL for when no validation tokens exist
+ * AudioCache.setCacheExpirationTime(60 * 60 * 1000); // 1 hour
+ * ```
+ */
 export class AudioCache implements ICache {
   private static pendingRequests = new Map<string, Promise<AudioBuffer>>();
   private static decodedBuffers = new LRUCache<string, AudioBuffer>(
@@ -135,19 +186,75 @@ export class AudioCache implements ICache {
     if (etag) headers.append("If-None-Match", etag);
     if (lastModified) headers.append("If-Modified-Since", lastModified);
 
+    console.debug(`[AudioCache] Fetching ${url}`, {
+      headers: Object.fromEntries(headers.entries()),
+      hasEtag: !!etag,
+      hasLastModified: !!lastModified,
+    });
+
     const fetchResponse = await fetch(url, { headers });
+
+    console.debug(`[AudioCache] Response ${url}`, {
+      status: fetchResponse.status,
+      statusText: fetchResponse.statusText,
+      etag: fetchResponse.headers?.get("ETag"),
+      lastModified: fetchResponse.headers?.get("Last-Modified"),
+      cacheControl: fetchResponse.headers?.get("Cache-Control"),
+    });
 
     if (fetchResponse.status === 304) {
       const cachedResponse = await cache.match(url);
       if (cachedResponse) {
         // Update metadata timestamp on revalidation
         const timestamp = Date.now();
+        const newCacheControl = fetchResponse.headers?.get("Cache-Control");
         await this.updateMetadata(cache, url, {
           timestamp,
           etag,
           lastModified,
+          // Only update cacheControl if present in response, otherwise preserve existing
+          ...(newCacheControl ? { cacheControl: newCacheControl } : {}),
         });
         return await cachedResponse.arrayBuffer();
+      } else {
+        // Cache inconsistency: 304 response but no cached body
+        // This can happen if cache was partially corrupted or cleared
+        // Fall back to re-fetching without validation headers
+        console.warn(
+          `Cache inconsistency detected for ${url}: 304 response but no cached body. Re-fetching.`
+        );
+
+        // Re-fetch without validation headers to get fresh content
+        const freshResponse = await fetch(url);
+        if (freshResponse.status === 200) {
+          const responseClone = freshResponse.clone();
+          const newEtag = freshResponse.headers.get("ETag");
+          const newLastModified = freshResponse.headers.get("Last-Modified");
+          const newCacheControl = freshResponse.headers.get("Cache-Control");
+
+          try {
+            await Promise.all([
+              cache.put(url, responseClone),
+              this.updateMetadata(cache, url, {
+                timestamp: Date.now(),
+                etag: newEtag || undefined,
+                lastModified: newLastModified || undefined,
+                cacheControl: newCacheControl || undefined,
+              }),
+            ]);
+          } catch (error) {
+            // Clean up partial cache entries on error
+            await cache.delete(url);
+            await cache.delete(`${url}:meta`);
+            throw error;
+          }
+
+          return await freshResponse.arrayBuffer();
+        } else {
+          throw new Error(
+            `Failed to fetch resource after cache inconsistency: ${freshResponse.status} ${freshResponse.statusText}`
+          );
+        }
       }
     }
 
@@ -155,6 +262,7 @@ export class AudioCache implements ICache {
       const responseClone = fetchResponse.clone();
       const newEtag = fetchResponse.headers.get("ETag");
       const newLastModified = fetchResponse.headers.get("Last-Modified");
+      const newCacheControl = fetchResponse.headers.get("Cache-Control");
 
       try {
         await Promise.all([
@@ -163,6 +271,7 @@ export class AudioCache implements ICache {
             timestamp: Date.now(),
             etag: newEtag || undefined,
             lastModified: newLastModified || undefined,
+            cacheControl: newCacheControl || undefined,
           }),
         ]);
       } catch (error) {
@@ -204,11 +313,28 @@ export class AudioCache implements ICache {
     }
   }
 
+  /**
+   * Get an AudioBuffer for the specified URL, using intelligent caching strategies.
+   *
+   * Caching Flow:
+   * 1. Check memory cache (LRU) for decoded AudioBuffer
+   * 2. Check persistent cache for raw ArrayBuffer and metadata
+   * 3. Make conditional HTTP request if validation tokens available
+   * 4. Decode audio data and cache at all levels
+   *
+   * The cache prioritizes HTTP conditional requests (ETag/Last-Modified) over TTL
+   * to ensure content freshness while maintaining performance through 304 responses.
+   *
+   * @param context - AudioContext for decoding audio data
+   * @param url - URL of the audio resource to fetch
+   * @returns Promise that resolves to decoded AudioBuffer
+   * @throws Error if audio cannot be fetched or decoded
+   */
   public async getAudioBuffer(
     context: AudioContext,
     url: string
   ): Promise<AudioBuffer> {
-    // Check if the decoded buffer is already available
+    // Check if the decoded buffer is already available in memory cache
     if (AudioCache.decodedBuffers.has(url)) {
       return AudioCache.decodedBuffers.get(url)!;
     }
@@ -227,10 +353,40 @@ export class AudioCache implements ICache {
     const cache = await AudioCache.openCache();
 
     const metadata = await AudioCache.getMetadataFromCache(url, cache);
-    const shouldFetch =
-      !metadata ||
-      (!metadata.etag && !metadata.lastModified) ||
-      Date.now() - metadata.timestamp > AudioCache.cacheExpirationTime;
+
+    // Determine if we should make a network request
+    // This logic implements HTTP caching best practices:
+    // 1. Check Cache-Control freshness first (RFC-compliant behavior)
+    // 2. If stale, use validation headers for conditional requests
+    // 3. Fall back to TTL when no validation tokens exist
+    const shouldFetch = (() => {
+      if (!metadata) {
+        return true; // Must fetch if nothing is cached
+      }
+
+      // Check for directives that require revalidation
+      if (requiresRevalidation(metadata.cacheControl)) {
+        return true; // Must revalidate due to no-cache, no-store, or must-revalidate
+      }
+
+      // Check Cache-Control freshness
+      const maxAge = parseMaxAge(metadata.cacheControl);
+      if (maxAge !== null) {
+        const age = (Date.now() - metadata.timestamp) / 1000;
+        if (maxAge > 0 && age < maxAge) {
+          return false; // Fresh content, serve from cache
+        }
+        // If max-age=0 or content is stale, proceed to validation
+      }
+
+      // Content is stale (or max-age=0), check if we can revalidate
+      if (metadata.etag || metadata.lastModified) {
+        return true; // Stale but can be validated with conditional request
+      }
+
+      // No validation headers available, fall back to TTL
+      return Date.now() - metadata.timestamp > AudioCache.cacheExpirationTime;
+    })();
 
     return AudioCache.getOrCreatePendingRequest(url, async () => {
       if (shouldFetch) {
@@ -252,6 +408,20 @@ export class AudioCache implements ICache {
           const audioBuffer = await AudioCache.decodeAudioData(
             context,
             cachedBuffer
+          );
+          AudioCache.decodedBuffers.set(url, audioBuffer);
+          return audioBuffer;
+        } else {
+          // Fallback to network if body missing but metadata is fresh
+          const arrayBuffer = await AudioCache.fetchAndCacheBuffer(
+            url,
+            cache,
+            metadata?.etag,
+            metadata?.lastModified
+          );
+          const audioBuffer = await AudioCache.decodeAudioData(
+            context,
+            arrayBuffer
           );
           AudioCache.decodedBuffers.set(url, audioBuffer);
           return audioBuffer;
