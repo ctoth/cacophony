@@ -1,13 +1,14 @@
 import { AudioContext, AudioBuffer } from "standardized-audio-context-mock";
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from "vitest";
 import { Cacophony } from "./cacophony";
-import { ICache } from './interfaces/ICache';
 
 export let cacophony: Cacophony;
 export let audioContextMock: AudioContext;
 
-const mockCache: ICache = {
-  getAudioBuffer: vi.fn().mockResolvedValue(new AudioBuffer({ length: 100, sampleRate: 44100 })),
+const mockCache = {
+  getAudioBuffer: vi
+    .fn()
+    .mockResolvedValue(new AudioBuffer({ length: 100, sampleRate: 44100 })),
   clearMemoryCache: vi.fn(),
 };
 

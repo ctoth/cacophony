@@ -66,7 +66,9 @@ function requiresRevalidation(cacheControlHeader: string | undefined): boolean {
   if (!cacheControlHeader) {
     return false;
   }
-  return /(?:^|,)\s*(no-cache|no-store|must-revalidate)\s*(?:,|$)/i.test(cacheControlHeader);
+  return /(?:^|,)\s*(no-cache|no-store|must-revalidate)\s*(?:,|$)/i.test(
+    cacheControlHeader
+  );
 }
 
 export interface ICache {
