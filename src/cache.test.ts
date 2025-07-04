@@ -112,6 +112,171 @@ describe("AudioCache", () => {
     expect(headers.get('If-None-Match')).toBe(etag);
   });
 
+  it("respects Cache-Control max-age for fresh content", async () => {
+    const url = "https://example.com/audio.mp3";
+    const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    const mockArrayBuffer = new ArrayBuffer(8);
+
+    // Mock cache to return fresh metadata with max-age
+    const mockCache = {
+      match: vi.fn().mockImplementation((key) => {
+        if (key === `${url}:meta`) {
+          return Promise.resolve(new Response(JSON.stringify({
+            url,
+            cacheControl: "public, max-age=3600", // 1 hour
+            timestamp: Date.now() - 1000 // 1 second ago (fresh)
+          })));
+        }
+        return Promise.resolve(new Response(mockArrayBuffer));
+      }),
+      put: vi.fn(),
+      delete: vi.fn(),
+    };
+    mockCaches.open.mockResolvedValue(mockCache);
+
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
+
+    const result = await cache.getAudioBuffer(audioContextMock, url);
+    
+    expect(result).toBe(mockAudioBuffer);
+    expect(mockFetch).not.toHaveBeenCalled(); // Should not fetch because content is fresh
+  });
+
+  it("fetches when Cache-Control max-age=0", async () => {
+    const url = "https://example.com/audio.mp3";
+    const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    const mockArrayBuffer = new ArrayBuffer(8);
+    const etag = '"123456"';
+
+    // Mock cache to return metadata with max-age=0
+    const mockCache = {
+      match: vi.fn().mockImplementation((key) => {
+        if (key === `${url}:meta`) {
+          return Promise.resolve(new Response(JSON.stringify({
+            url,
+            etag,
+            cacheControl: "public, max-age=0",
+            timestamp: Date.now() - 1000
+          })));
+        }
+        return Promise.resolve(new Response(mockArrayBuffer));
+      }),
+      put: vi.fn(),
+      delete: vi.fn(),
+    };
+    mockCaches.open.mockResolvedValue(mockCache);
+
+    // Mock 304 response
+    mockFetch.mockResolvedValueOnce({
+      status: 304,
+      ok: false,
+    } as Response);
+
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
+
+    const result = await cache.getAudioBuffer(audioContextMock, url);
+    
+    expect(result).toBe(mockAudioBuffer);
+    expect(mockFetch).toHaveBeenCalledTimes(1); // Should fetch because max-age=0
+    const fetchCall = mockFetch.mock.calls[0];
+    const headers = fetchCall[1].headers as Headers;
+    expect(headers.get('If-None-Match')).toBe(etag);
+  });
+
+
+  it("handles missing cache body with fresh metadata (fallback to network)", async () => {
+    const url = "https://example.com/audio.mp3";
+    const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    const mockArrayBuffer = new ArrayBuffer(8);
+
+    // Mock cache to return fresh metadata but no body
+    const mockCache = {
+      match: vi.fn().mockImplementation((key) => {
+        if (key === `${url}:meta`) {
+          return Promise.resolve(new Response(JSON.stringify({
+            url,
+            cacheControl: "public, max-age=3600", // Fresh for 1 hour
+            timestamp: Date.now() - 1000 // 1 second ago (fresh)
+          })));
+        }
+        // Return null for body - simulates missing cache body
+        return Promise.resolve(null);
+      }),
+      put: vi.fn(),
+      delete: vi.fn(),
+    };
+    mockCaches.open.mockResolvedValue(mockCache);
+
+    // Mock network response for fallback
+    mockFetch.mockResolvedValueOnce({
+      status: 200,
+      ok: true,
+      clone: () => ({ arrayBuffer: () => Promise.resolve(mockArrayBuffer) }),
+      arrayBuffer: () => Promise.resolve(mockArrayBuffer),
+      headers: new Headers({
+        "Cache-Control": "public, max-age=3600",
+        "ETag": '"fresh-version"'
+      }),
+    } as Response);
+
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
+
+    const result = await cache.getAudioBuffer(audioContextMock, url);
+    
+    expect(result).toBe(mockAudioBuffer);
+    expect(mockFetch).toHaveBeenCalledTimes(1); // Should fetch as fallback
+  });
+
+  it("preserves Cache-Control on 304 responses", async () => {
+    const url = "https://example.com/audio.mp3";
+    const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    const mockArrayBuffer = new ArrayBuffer(8);
+    const etag = '"version-1"';
+    const originalCacheControl = "public, max-age=3600";
+
+    // Mock cache with existing metadata
+    const mockCache = {
+      match: vi.fn().mockImplementation((key) => {
+        if (key === `${url}:meta`) {
+          return Promise.resolve(new Response(JSON.stringify({
+            url,
+            etag,
+            cacheControl: originalCacheControl,
+            timestamp: Date.now() - 7200000 // 2 hours ago (stale)
+          })));
+        }
+        return Promise.resolve(new Response(mockArrayBuffer));
+      }),
+      put: vi.fn(),
+      delete: vi.fn(),
+    };
+    mockCaches.open.mockResolvedValue(mockCache);
+
+    // Mock 304 response with Cache-Control
+    mockFetch.mockResolvedValueOnce({
+      status: 304,
+      ok: false,
+      headers: new Headers({
+        "Cache-Control": "public, max-age=7200", // Updated Cache-Control
+      }),
+    } as Response);
+
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
+
+    const result = await cache.getAudioBuffer(audioContextMock, url);
+    
+    expect(result).toBe(mockAudioBuffer);
+    
+    // Verify Cache-Control was updated in metadata
+    const updateMetadataCall = mockCache.put.mock.calls.find(call => 
+      call[0].includes(':meta')
+    );
+    expect(updateMetadataCall).toBeDefined();
+    const metadataResponse = updateMetadataCall[1];
+    const updatedMetadata = JSON.parse(await metadataResponse.text());
+    expect(updatedMetadata.cacheControl).toBe("public, max-age=7200");
+  });
+
   it("handles cache expiration", async () => {
     const url = "https://example.com/audio.mp3";
     const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
@@ -502,8 +667,152 @@ describe("AudioCache", () => {
       // Verify fresh content was cached
       expect(mockCache.put).toHaveBeenCalledWith(url, expect.any(Object));
       expect(mockCache.put).toHaveBeenCalledWith(`${url}:meta`, expect.any(Response));
-
+      
       consoleWarnSpy.mockRestore();
+    });
+
+    it("handles malformed Cache-Control headers gracefully", async () => {
+      const url = "https://example.com/audio.mp3";
+      const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const mockArrayBuffer = new ArrayBuffer(8);
+
+      // Mock cache with malformed Cache-Control
+      const mockCache = {
+        match: vi.fn().mockImplementation((key) => {
+          if (key === `${url}:meta`) {
+            return Promise.resolve(new Response(JSON.stringify({
+              url,
+              cacheControl: "invalid-directive", // Invalid Cache-Control
+              timestamp: Date.now() - 1000
+            })));
+          }
+          return Promise.resolve(new Response(mockArrayBuffer));
+        }),
+        put: vi.fn(),
+        delete: vi.fn(),
+      };
+      mockCaches.open.mockResolvedValue(mockCache);
+
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
+
+      const result = await cache.getAudioBuffer(audioContextMock, url);
+      
+      expect(result).toBe(mockAudioBuffer);
+      expect(mockFetch).not.toHaveBeenCalled(); // Should use cached content since max-age parse failed
+    });
+
+    it("handles concurrent requests with fresh cache correctly", async () => {
+      const url = "https://example.com/audio.mp3";
+      const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const mockArrayBuffer = new ArrayBuffer(8);
+
+      // Mock cache with fresh metadata
+      const mockCache = {
+        match: vi.fn().mockImplementation((key) => {
+          if (key === `${url}:meta`) {
+            return Promise.resolve(new Response(JSON.stringify({
+              url,
+              cacheControl: "public, max-age=3600", // Fresh
+              timestamp: Date.now() - 1000
+            })));
+          }
+          return Promise.resolve(new Response(mockArrayBuffer));
+        }),
+        put: vi.fn(),
+        delete: vi.fn(),
+      };
+      mockCaches.open.mockResolvedValue(mockCache);
+
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValue(mockAudioBuffer);
+
+      // Make concurrent requests
+      const [result1, result2, result3] = await Promise.all([
+        cache.getAudioBuffer(audioContextMock, url),
+        cache.getAudioBuffer(audioContextMock, url),
+        cache.getAudioBuffer(audioContextMock, url)
+      ]);
+      
+      expect(result1).toBe(mockAudioBuffer);
+      expect(result2).toBe(mockAudioBuffer);
+      expect(result3).toBe(mockAudioBuffer);
+      expect(mockFetch).not.toHaveBeenCalled(); // Should all use fresh cache
+    });
+
+    it("handles max-age=0 with missing validation headers", async () => {
+      const url = "https://example.com/audio.mp3";
+      const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const mockArrayBuffer = new ArrayBuffer(8);
+
+      // Mock cache with max-age=0 but no validation headers and no cached body
+      const mockCache = {
+        match: vi.fn().mockImplementation((key) => {
+          if (key === `${url}:meta`) {
+            return Promise.resolve(new Response(JSON.stringify({
+              url,
+              cacheControl: "public, max-age=0", // Always stale
+              // No etag or lastModified
+              timestamp: Date.now() - 1000
+            })));
+          }
+          return Promise.resolve(null); // No cached body, forcing network
+        }),
+        put: vi.fn(),
+        delete: vi.fn(),
+      };
+      mockCaches.open.mockResolvedValue(mockCache);
+
+      // Mock unconditional fetch (no validation headers)
+      mockFetch.mockResolvedValueOnce({
+        status: 200,
+        ok: true,
+        clone: () => ({ arrayBuffer: () => Promise.resolve(mockArrayBuffer) }),
+        arrayBuffer: () => Promise.resolve(mockArrayBuffer),
+        headers: new Headers(),
+      } as Response);
+
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
+
+      const result = await cache.getAudioBuffer(audioContextMock, url);
+      
+      expect(result).toBe(mockAudioBuffer);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const fetchCall = mockFetch.mock.calls[0];
+      const headers = fetchCall[1].headers as Headers;
+      expect(headers.get('If-None-Match')).toBeNull();
+      expect(headers.get('If-Modified-Since')).toBeNull();
+    });
+
+    it("falls back to TTL when Cache-Control is missing", async () => {
+      const url = "https://example.com/audio.mp3";
+      const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const mockArrayBuffer = new ArrayBuffer(8);
+
+      // Set TTL for testing
+      AudioCache.setCacheExpirationTime(1000); // 1 second
+
+      // Mock cache without Cache-Control but with fresh TTL
+      const mockCache = {
+        match: vi.fn().mockImplementation((key) => {
+          if (key === `${url}:meta`) {
+            return Promise.resolve(new Response(JSON.stringify({
+              url,
+              // No cacheControl field
+              timestamp: Date.now() - 500 // 0.5 seconds ago (fresh by TTL)
+            })));
+          }
+          return Promise.resolve(new Response(mockArrayBuffer));
+        }),
+        put: vi.fn(),
+        delete: vi.fn(),
+      };
+      mockCaches.open.mockResolvedValue(mockCache);
+
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
+
+      const result = await cache.getAudioBuffer(audioContextMock, url);
+      
+      expect(result).toBe(mockAudioBuffer);
+      expect(mockFetch).not.toHaveBeenCalled(); // Should use cache due to fresh TTL
     });
 
     it("throws error when recovery fetch fails after cache inconsistency", async () => {
