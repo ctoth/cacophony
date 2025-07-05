@@ -368,11 +368,13 @@ export class Playback extends BasePlayback implements BaseSound {
   addFilter(filter: BiquadFilterNode): void {
     this.assertNotCleanedUp();
     super.addFilter(filter);
+    this.refreshFilters();
   }
 
   removeFilter(filter: BiquadFilterNode): void {
     this.assertNotCleanedUp();
     super.removeFilter(filter);
+    this.refreshFilters();
   }
 
   /**
@@ -406,35 +408,6 @@ export class Playback extends BasePlayback implements BaseSound {
     return this.loopCount;
   }
 
-  /**
-   * Adds a filter to the audio signal chain.
-   * @param {BiquadFilterNode} filter - The filter to add.
-   */
-
-  addFilter(filter: BiquadFilterNode): void {
-    // Clone and add the new filter
-    const newFilter = this.context.createBiquadFilter();
-    newFilter.type = filter.type;
-    newFilter.frequency.value = filter.frequency.value;
-    newFilter.Q.value = filter.Q.value;
-    newFilter.gain.value = filter.gain.value;
-    this._filters.push(newFilter as unknown as BiquadFilterNode);
-    this.refreshFilters();
-  }
-
-  /**
-   * Removes a filter from the audio signal chain.
-   * @param {BiquadFilterNode} filter - The filter to remove.
-   */
-
-  removeFilter(filter: BiquadFilterNode): void {
-    const index = this._filters.indexOf(filter);
-    if (index !== -1) {
-      const removedFilter = this._filters.splice(index, 1)[0];
-      removedFilter.disconnect();
-    }
-    this.refreshFilters();
-  }
 
   /**
    * Refreshes the audio filters by re-applying them to the audio signal chain.

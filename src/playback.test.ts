@@ -445,7 +445,7 @@ describe("Playback error cases", () => {
     const filter = audioContextMock.createBiquadFilter();
     expect(() =>
       playback.addFilter(filter as unknown as BiquadFilterNode)
-    ).toThrow("Cannot update filters on a sound that has been cleaned up");
+    ).toThrow("Cannot perform operation on a sound that has been cleaned up");
   });
 
   it("throws an error when trying to remove a filter from a cleaned-up sound", () => {
@@ -454,7 +454,7 @@ describe("Playback error cases", () => {
     playback.cleanup();
     expect(() =>
       playback.removeFilter(filter as unknown as BiquadFilterNode)
-    ).toThrow("Cannot update filters on a sound that has been cleaned up");
+    ).toThrow("Cannot perform operation on a sound that has been cleaned up");
   });
 });
 
