@@ -184,4 +184,159 @@ describe("Cacophony advanced features", () => {
     cacophony.setGlobalVolume(0.5);
     expect(cacophony.globalGainNode.gain.value).toBe(0.5);
   });
+
+  describe("AbortSignal support", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it("createSound with buffer ignores AbortSignal (immediate resolution)", async () => {
+      const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const controller = new AbortController();
+      
+      // Should work even with aborted signal since it's immediate
+      controller.abort();
+      
+      const sound = await cacophony.createSound(buffer, SoundType.Buffer, 'HRTF', controller.signal);
+      expect(sound.buffer).toBe(buffer);
+      expect(sound.soundType).toBe(SoundType.Buffer);
+    });
+
+    it("createSound with URL passes AbortSignal to cache", async () => {
+      const url = "https://example.com/audio.mp3";
+      const controller = new AbortController();
+      const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+
+      // Mock the cache to verify signal is passed through
+      const getAudioBufferSpy = vi.spyOn(mockCache, 'getAudioBuffer')
+        .mockResolvedValueOnce(mockBuffer);
+
+      const sound = await cacophony.createSound(url, SoundType.Buffer, 'HRTF', controller.signal);
+
+      expect(getAudioBufferSpy).toHaveBeenCalledWith(
+        audioContextMock,
+        url,
+        controller.signal
+      );
+      expect(sound.buffer).toBe(mockBuffer);
+      expect(sound.url).toBe(url);
+    });
+
+    it("createSound with URL throws AbortError when signal is aborted", async () => {
+      const url = "https://example.com/audio.mp3";
+      const controller = new AbortController();
+
+      // Mock the cache to throw AbortError
+      vi.spyOn(mockCache, 'getAudioBuffer')
+        .mockRejectedValueOnce(new DOMException("Operation was aborted", "AbortError"));
+
+      controller.abort();
+
+      await expect(
+        cacophony.createSound(url, SoundType.Buffer, 'HRTF', controller.signal)
+      ).rejects.toMatchObject({
+        name: "AbortError",
+        message: "Operation was aborted"
+      });
+    });
+
+    it("createSound works without AbortSignal (backward compatibility)", async () => {
+      const url = "https://example.com/audio.mp3";
+      const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+
+      const getAudioBufferSpy = vi.spyOn(mockCache, 'getAudioBuffer')
+        .mockResolvedValueOnce(mockBuffer);
+
+      const sound = await cacophony.createSound(url, SoundType.Buffer);
+
+      expect(getAudioBufferSpy).toHaveBeenCalledWith(
+        audioContextMock,
+        url,
+        undefined // No signal should be passed
+      );
+      expect(sound.buffer).toBe(mockBuffer);
+    });
+
+    it("createSound with different SoundTypes handles AbortSignal correctly", async () => {
+      const url = "https://example.com/audio.mp3";
+      const controller = new AbortController();
+
+      // Test HTML sound type - should not call cache at all
+      const htmlSound = await cacophony.createSound(url, SoundType.HTML, 'HRTF', controller.signal);
+      expect(htmlSound.soundType).toBe(SoundType.HTML);
+      expect(htmlSound.url).toBe(url);
+
+      // Test streaming sound type - cache should not be called
+      const streamSound = await cacophony.createSound(url, SoundType.Streaming, 'HRTF', controller.signal);
+      expect(streamSound.soundType).toBe(SoundType.Streaming);
+      expect(streamSound.url).toBe(url);
+
+      // Verify cache was not called for HTML or Streaming types
+      expect(mockCache.getAudioBuffer).not.toHaveBeenCalled();
+    });
+
+    it("createGroupFromUrls passes AbortSignal to all createSound calls", async () => {
+      const urls = ["audio1.mp3", "audio2.mp3", "audio3.mp3"];
+      const controller = new AbortController();
+      const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+
+      // Mock cache to return buffer for all calls
+      vi.spyOn(mockCache, 'getAudioBuffer')
+        .mockResolvedValue(mockBuffer);
+
+      const group = await cacophony.createGroupFromUrls(urls, SoundType.Buffer, 'HRTF', controller.signal);
+
+      expect(group).toBeInstanceOf(Group);
+      expect(group.sounds.length).toBe(3);
+
+      // Verify cache was called with signal for each URL
+      expect(mockCache.getAudioBuffer).toHaveBeenCalledTimes(3);
+      urls.forEach(url => {
+        expect(mockCache.getAudioBuffer).toHaveBeenCalledWith(
+          audioContextMock,
+          url,
+          controller.signal
+        );
+      });
+    });
+
+    it("createGroupFromUrls fails completely when AbortSignal is aborted", async () => {
+      const urls = ["audio1.mp3", "audio2.mp3"];
+      const controller = new AbortController();
+
+      // Mock cache to throw AbortError
+      vi.spyOn(mockCache, 'getAudioBuffer')
+        .mockRejectedValue(new DOMException("Operation was aborted", "AbortError"));
+
+      controller.abort();
+
+      await expect(
+        cacophony.createGroupFromUrls(urls, SoundType.Buffer, 'HRTF', controller.signal)
+      ).rejects.toMatchObject({
+        name: "AbortError"
+      });
+    });
+
+    it("createGroupFromUrls works without AbortSignal (backward compatibility)", async () => {
+      const urls = ["audio1.mp3", "audio2.mp3"];
+      const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+
+      vi.spyOn(mockCache, 'getAudioBuffer')
+        .mockResolvedValue(mockBuffer);
+
+      const group = await cacophony.createGroupFromUrls(urls);
+
+      expect(group.sounds.length).toBe(2);
+      expect(mockCache.getAudioBuffer).toHaveBeenCalledTimes(2);
+      
+      // Verify no signal was passed
+      urls.forEach(url => {
+        expect(mockCache.getAudioBuffer).toHaveBeenCalledWith(
+          audioContextMock,
+          url,
+          undefined
+        );
+      });
+    });
+  });
 });

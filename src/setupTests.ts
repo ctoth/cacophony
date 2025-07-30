@@ -14,6 +14,20 @@ const mockCache = {
 
 beforeAll(() => {
   vi.useFakeTimers();
+  
+  // Mock Audio constructor for HTML audio tests
+  global.Audio = vi.fn().mockImplementation(() => ({
+    src: '',
+    crossOrigin: null,
+    load: vi.fn(),
+    play: vi.fn().mockResolvedValue(undefined),
+    pause: vi.fn(),
+    currentTime: 0,
+    duration: 0,
+    loop: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  }));
 });
 
 afterAll(() => {

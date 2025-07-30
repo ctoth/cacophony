@@ -153,19 +153,22 @@ export class Cacophony {
   async createSound(
     buffer: AudioBuffer,
     soundType?: SoundType,
-    panType?: PanType
+    panType?: PanType,
+    signal?: AbortSignal
   ): Promise<Sound>;
 
   async createSound(
     url: string,
     soundType?: SoundType,
-    panType?: PanType
+    panType?: PanType,
+    signal?: AbortSignal
   ): Promise<Sound>;
 
   async createSound(
     bufferOrUrl: AudioBuffer | string,
     soundType: SoundType = SoundType.Buffer,
-    panType: PanType = "HRTF"
+    panType: PanType = "HRTF",
+    signal?: AbortSignal
   ): Promise<Sound> {
     if (typeof bufferOrUrl === "object") {
       return Promise.resolve(
@@ -184,17 +187,31 @@ export class Cacophony {
       const audio = new Audio();
       audio.src = url;
       audio.crossOrigin = "anonymous";
-      return new Sound(
-        url,
-        undefined,
-        this.context,
-        this.globalGainNode,
-        SoundType.HTML,
-        panType
+      return Promise.resolve(
+        new Sound(
+          url,
+          undefined,
+          this.context,
+          this.globalGainNode,
+          SoundType.HTML,
+          panType
+        )
+      );
+    }
+    if (soundType === SoundType.Streaming) {
+      return Promise.resolve(
+        new Sound(
+          url,
+          undefined,
+          this.context,
+          this.globalGainNode,
+          SoundType.Streaming,
+          panType
+        )
       );
     }
     return this.cache
-      .getAudioBuffer(this.context, url)
+      .getAudioBuffer(this.context, url, signal)
       .then(
         (buffer) =>
           new Sound(
@@ -217,11 +234,12 @@ export class Cacophony {
   async createGroupFromUrls(
     urls: string[],
     soundType: SoundType = SoundType.Buffer,
-    panType: PanType = "HRTF"
+    panType: PanType = "HRTF",
+    signal?: AbortSignal
   ): Promise<Group> {
     const group = new Group();
     const sounds = await Promise.all(
-      urls.map((url) => this.createSound(url, soundType, panType))
+      urls.map((url) => this.createSound(url, soundType, panType, signal))
     );
     sounds.forEach((sound) => group.addSound(sound));
     return group;
