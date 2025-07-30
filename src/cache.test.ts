@@ -1129,4 +1129,250 @@ describe("AudioCache", () => {
       consoleWarnSpy.mockRestore();
     });
   });
+
+  describe("AbortSignal support", () => {
+    it("passes AbortSignal to fetch requests", async () => {
+      const url = "https://example.com/audio.mp3";
+      const mockArrayBuffer = new ArrayBuffer(8);
+      const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const controller = new AbortController();
+
+      const mockResponse = {
+        status: 200,
+        ok: true,
+        headers: new Map([
+          ["ETag", '"abc123"'],
+          ["Last-Modified", "Wed, 21 Oct 2015 07:28:00 GMT"],
+        ]),
+        clone: vi.fn().mockReturnValue({
+          arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
+        }),
+        arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
+      };
+
+      mockFetch.mockResolvedValueOnce(mockResponse);
+
+      const mockCache = {
+        match: vi.fn().mockResolvedValue(null),
+        put: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue(undefined),
+      };
+      mockCaches.open.mockResolvedValueOnce(mockCache);
+
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
+        mockAudioBuffer
+      );
+
+      await cache.getAudioBuffer(audioContextMock, url, controller.signal);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        url,
+        expect.objectContaining({
+          signal: controller.signal,
+        })
+      );
+    });
+
+    it("throws AbortError when signal is already aborted", async () => {
+      const url = "https://example.com/audio.mp3";
+      const controller = new AbortController();
+      controller.abort();
+
+      await expect(
+        cache.getAudioBuffer(audioContextMock, url, controller.signal)
+      ).rejects.toThrow(DOMException);
+
+      await expect(
+        cache.getAudioBuffer(audioContextMock, url, controller.signal)
+      ).rejects.toMatchObject({
+        name: "AbortError",
+        message: "Operation was aborted",
+      });
+
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it("throws AbortError when signal is aborted during fetch", async () => {
+      const url = "https://example.com/audio.mp3";
+      const controller = new AbortController();
+
+      mockFetch.mockImplementationOnce(() => {
+        return new Promise((_, reject) => {
+          // Simulate abort by immediately rejecting with AbortError
+          reject(new DOMException("Operation was aborted", "AbortError"));
+        });
+      });
+
+      const mockCache = {
+        match: vi.fn().mockResolvedValue(null),
+        put: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue(undefined),
+      };
+      mockCaches.open.mockResolvedValueOnce(mockCache);
+
+      // Abort immediately
+      controller.abort();
+
+      await expect(
+        cache.getAudioBuffer(audioContextMock, url, controller.signal)
+      ).rejects.toThrow(DOMException);
+
+      await expect(
+        cache.getAudioBuffer(audioContextMock, url, controller.signal)
+      ).rejects.toMatchObject({
+        name: "AbortError",
+      });
+    });
+
+    it("cleans up pending requests when aborted", async () => {
+      const url = "https://example.com/audio.mp3";
+      const controller = new AbortController();
+
+      const mockCache = {
+        match: vi.fn().mockResolvedValue(null),
+        put: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue(undefined),
+      };
+      
+      // Mock cache opens for both requests
+      mockCaches.open
+        .mockResolvedValueOnce(mockCache)
+        .mockResolvedValueOnce(mockCache);
+
+      // Abort before starting the request
+      controller.abort();
+
+      // First request should fail immediately with AbortError
+      try {
+        await cache.getAudioBuffer(audioContextMock, url, controller.signal);
+        expect.fail("Expected AbortError to be thrown");
+      } catch (error) {
+        expect(error).toBeInstanceOf(DOMException);
+        expect(error.name).toBe("AbortError");
+      }
+
+      // Verify that a second request would not reuse the aborted pending request
+      const controller2 = new AbortController();
+      const mockArrayBuffer = new ArrayBuffer(8);
+      const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+
+      const mockResponse = {
+        status: 200,
+        ok: true,
+        headers: new Map(),
+        clone: vi.fn().mockReturnValue({
+          arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
+        }),
+        arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
+      };
+
+      mockFetch.mockResolvedValueOnce(mockResponse);
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
+        mockAudioBuffer
+      );
+
+      const result = await cache.getAudioBuffer(audioContextMock, url, controller2.signal);
+      expect(result).toBe(mockAudioBuffer);
+      expect(mockFetch).toHaveBeenCalledTimes(1); // Only the successful request
+    });
+
+    it("passes AbortSignal to recovery fetch on cache inconsistency", async () => {
+      const url = "https://example.com/audio.mp3";
+      const controller = new AbortController();
+      const mockArrayBuffer = new ArrayBuffer(8);
+      const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+
+      const mockCache = {
+        match: vi.fn()
+          .mockResolvedValueOnce({ // Metadata exists
+            json: vi.fn().mockResolvedValue({
+              url,
+              etag: '"abc123"',
+              lastModified: "Wed, 21 Oct 2015 07:28:00 GMT",
+              timestamp: Date.now(),
+            }),
+          })
+          .mockResolvedValueOnce(null) // But cached body is missing
+          .mockResolvedValueOnce(null), // Still missing after 304
+        put: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue(undefined),
+      };
+      mockCaches.open.mockResolvedValueOnce(mockCache);
+
+      // First fetch returns 304 Not Modified
+      const mock304Response = {
+        status: 304,
+        headers: new Map(),
+      };
+
+      // Second fetch (recovery) returns fresh content
+      const mockRecoveryResponse = {
+        status: 200,
+        ok: true,
+        headers: new Map(),
+        clone: vi.fn().mockReturnValue({
+          arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
+        }),
+        arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
+      };
+
+      mockFetch
+        .mockResolvedValueOnce(mock304Response)
+        .mockResolvedValueOnce(mockRecoveryResponse);
+
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
+        mockAudioBuffer
+      );
+
+      await cache.getAudioBuffer(audioContextMock, url, controller.signal);
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenNthCalledWith(1, url, expect.objectContaining({
+        signal: controller.signal,
+      }));
+      expect(mockFetch).toHaveBeenNthCalledWith(2, url, expect.objectContaining({
+        signal: controller.signal,
+      }));
+    });
+
+    it("works without AbortSignal (backward compatibility)", async () => {
+      const url = "https://example.com/audio.mp3";
+      const mockArrayBuffer = new ArrayBuffer(8);
+      const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+
+      const mockResponse = {
+        status: 200,
+        ok: true,
+        headers: new Map(),
+        clone: vi.fn().mockReturnValue({
+          arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
+        }),
+        arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
+      };
+
+      mockFetch.mockResolvedValueOnce(mockResponse);
+
+      const mockCache = {
+        match: vi.fn().mockResolvedValue(null),
+        put: vi.fn().mockResolvedValue(undefined),
+        delete: vi.fn().mockResolvedValue(undefined),
+      };
+      mockCaches.open.mockResolvedValueOnce(mockCache);
+
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
+        mockAudioBuffer
+      );
+
+      // Call without AbortSignal
+      const result = await cache.getAudioBuffer(audioContextMock, url);
+
+      expect(result).toBe(mockAudioBuffer);
+      expect(mockFetch).toHaveBeenCalledWith(
+        url,
+        expect.objectContaining({
+          signal: undefined,
+        })
+      );
+    });
+  });
 });
