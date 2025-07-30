@@ -28,6 +28,16 @@ beforeAll(() => {
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
   }));
+
+  // Mock AudioWorkletNode constructor for worklet tests
+  global.AudioWorkletNode = vi.fn().mockImplementation(() => ({
+    connect: vi.fn(),
+    disconnect: vi.fn(),
+    port: {
+      postMessage: vi.fn(),
+      addEventListener: vi.fn(),
+    },
+  }));
 });
 
 afterAll(() => {

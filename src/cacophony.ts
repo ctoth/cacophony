@@ -100,18 +100,19 @@ export class Cacophony {
     });
   }
 
-  async loadWorklets() {
+  async loadWorklets(signal?: AbortSignal) {
     if (this.context.audioWorklet) {
       await this.createWorkletNode(
         "phase-vocoder",
-        phaseVocoderProcessorWorkletUrl
+        phaseVocoderProcessorWorkletUrl,
+        signal
       );
     } else {
       console.warn("AudioWorklet not supported");
     }
   }
 
-  async createWorkletNode(name: string, url: string) {
+  async createWorkletNode(name: string, url: string, signal?: AbortSignal) {
     // ensure audioWorklet has been loaded
     if (!this.context.audioWorklet) {
       throw new Error("AudioWorklet not supported");
@@ -122,10 +123,13 @@ export class Cacophony {
       console.error(err);
       console.log("Loading worklet from url", url);
       try {
-        await this.context.audioWorklet.addModule(url);
+        await this.context.audioWorklet.addModule(url, { 
+          credentials: "same-origin",
+          ...(signal && { signal })
+        });
       } catch (err) {
         console.error(err);
-        throw new Error(`Could not load worklet from url ${url}`);
+        throw err; // Preserve original error (including AbortError)
       }
 
       return new AudioWorkletNode!(this.context, name);

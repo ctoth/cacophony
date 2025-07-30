@@ -339,4 +339,161 @@ describe("Cacophony advanced features", () => {
       });
     });
   });
+
+  describe("Worklet operations with AbortSignal", () => {
+    let mockAudioWorklet: any;
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      
+      // Mock AudioWorklet
+      mockAudioWorklet = {
+        addModule: vi.fn().mockResolvedValue(undefined)
+      };
+      
+      // Mock the audioWorklet property with defineProperty since it's read-only
+      Object.defineProperty(audioContextMock, 'audioWorklet', {
+        value: mockAudioWorklet,
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    it("loadWorklets passes AbortSignal to createWorkletNode", async () => {
+      const controller = new AbortController();
+      const createWorkletSpy = vi.spyOn(cacophony, 'createWorkletNode')
+        .mockResolvedValue({} as any);
+
+      await cacophony.loadWorklets(controller.signal);
+
+      expect(createWorkletSpy).toHaveBeenCalledWith(
+        "phase-vocoder",
+        expect.any(String),
+        controller.signal
+      );
+    });
+
+    it("createWorkletNode passes AbortSignal to addModule when needed", async () => {
+      const controller = new AbortController();
+      
+      // Mock AudioWorkletNode constructor to throw first, then succeed
+      const mockConstructor = vi.fn()
+        .mockImplementationOnce(() => {
+          throw new Error("Worklet not loaded");
+        })
+        .mockImplementationOnce(() => ({}));
+      
+      global.AudioWorkletNode = mockConstructor;
+
+      await cacophony.createWorkletNode("test-worklet", "https://example.com/worklet.js", controller.signal);
+
+      expect(mockAudioWorklet.addModule).toHaveBeenCalledWith(
+        "https://example.com/worklet.js",
+        { credentials: "same-origin", signal: controller.signal }
+      );
+    });
+
+    it("createWorkletNode handles AbortError during addModule", async () => {
+      const controller = new AbortController();
+      
+      // Mock AudioWorkletNode constructor to throw 
+      global.AudioWorkletNode = vi.fn().mockImplementation(() => {
+        throw new Error("Worklet not loaded");
+      });
+      
+      // Mock addModule to throw AbortError
+      mockAudioWorklet.addModule.mockRejectedValue(
+        new DOMException("Operation was aborted", "AbortError")
+      );
+
+      controller.abort();
+
+      await expect(
+        cacophony.createWorkletNode("test-worklet", "https://example.com/worklet.js", controller.signal)
+      ).rejects.toMatchObject({
+        name: "AbortError"
+      });
+
+      expect(mockAudioWorklet.addModule).toHaveBeenCalledWith(
+        "https://example.com/worklet.js",
+        { credentials: "same-origin", signal: controller.signal }
+      );
+    });
+
+    it("createWorkletNode works without AbortSignal (backward compatibility)", async () => {
+      // Mock AudioWorkletNode constructor to throw first, then succeed
+      const mockConstructor = vi.fn()
+        .mockImplementationOnce(() => {
+          throw new Error("Worklet not loaded");
+        })
+        .mockImplementationOnce(() => ({}));
+      
+      global.AudioWorkletNode = mockConstructor;
+
+      await cacophony.createWorkletNode("test-worklet", "https://example.com/worklet.js");
+
+      expect(mockAudioWorklet.addModule).toHaveBeenCalledWith(
+        "https://example.com/worklet.js",
+        { credentials: "same-origin" }
+      );
+    });
+
+    it("createWorkletNode returns immediately if worklet already loaded", async () => {
+      const controller = new AbortController();
+      
+      // Mock AudioWorkletNode constructor to succeed immediately
+      global.AudioWorkletNode = vi.fn().mockImplementation(() => ({}));
+
+      const result = await cacophony.createWorkletNode("loaded-worklet", "https://example.com/worklet.js", controller.signal);
+
+      expect(result).toBeDefined();
+      expect(mockAudioWorklet.addModule).not.toHaveBeenCalled();
+    });
+
+    it("loadWorklets works without AbortSignal (backward compatibility)", async () => {
+      const createWorkletSpy = vi.spyOn(cacophony, 'createWorkletNode')
+        .mockResolvedValue({} as any);
+
+      await cacophony.loadWorklets();
+
+      expect(createWorkletSpy).toHaveBeenCalledWith(
+        "phase-vocoder",
+        expect.any(String),
+        undefined
+      );
+    });
+
+    it("loadWorklets handles missing audioWorklet gracefully", async () => {
+      const controller = new AbortController();
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      // Remove audioWorklet from context
+      Object.defineProperty(audioContextMock, 'audioWorklet', {
+        value: null,
+        writable: true,
+        configurable: true,
+      });
+
+      await cacophony.loadWorklets(controller.signal);
+
+      expect(consoleSpy).toHaveBeenCalledWith("AudioWorklet not supported");
+      
+      consoleSpy.mockRestore();
+    });
+
+    it("createWorkletNode throws error when audioWorklet not supported", async () => {
+      const controller = new AbortController();
+      
+      // Remove audioWorklet from context
+      Object.defineProperty(audioContextMock, 'audioWorklet', {
+        value: null,
+        writable: true,
+        configurable: true,
+      });
+
+      await expect(
+        cacophony.createWorkletNode("test-worklet", "https://example.com/worklet.js", controller.signal)
+      ).rejects.toThrow("AudioWorklet not supported");
+    });
+  });
 });
