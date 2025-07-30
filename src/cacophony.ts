@@ -245,7 +245,10 @@ export class Cacophony {
     return group;
   }
 
-  async createStream(url: string): Promise<Sound> {
+  async createStream(url: string, signal?: AbortSignal): Promise<Sound> {
+    // Start the streaming process with AbortSignal support
+    createStream(url, this.context, signal);
+    
     const sound = new Sound(
       url,
       undefined,
