@@ -20,9 +20,7 @@ export function createStream(url: string, context: AudioContext, signal?: AbortS
         return;
     }
 
-    const fetchOptions = signal ? { signal } : undefined;
-    
-    fetch(url, fetchOptions).then(function (response) {
+    fetch(url, { signal }).then(function (response) {
         if (!response.ok) {
             throw new Error('HTTP error, status = ' + response.status);
         }
@@ -35,6 +33,7 @@ export function createStream(url: string, context: AudioContext, signal?: AbortS
 
         // Set up abort listener to cancel the reader
         const abortListener = () => {
+            audioStack.length = 0; // Clear decoded buffers to free memory
             if (reader) {
                 reader.cancel('Stream aborted').catch(() => {
                     // Ignore cancel errors - reader might already be closed

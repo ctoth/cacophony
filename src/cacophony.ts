@@ -154,6 +154,15 @@ export class Cacophony {
     return synth;
   }
 
+  /**
+   * Creates a Sound instance from an AudioBuffer or URL.
+   * 
+   * @param bufferOrUrl - AudioBuffer instance or URL string to create sound from
+   * @param soundType - Type of sound (Buffer, HTML, Streaming)
+   * @param panType - Type of panning (HRTF or stereo)
+   * @param signal - Optional AbortSignal to cancel the operation
+   * @returns Promise that resolves to a Sound instance
+   */
   async createSound(
     buffer: AudioBuffer,
     soundType?: SoundType,
@@ -235,6 +244,15 @@ export class Cacophony {
     return group;
   }
 
+  /**
+   * Creates a Group containing Sound instances loaded from multiple URLs.
+   * 
+   * @param urls - Array of URL strings to load as sounds
+   * @param soundType - Type of sound (Buffer, HTML, Streaming)
+   * @param panType - Type of panning (HRTF or stereo)
+   * @param signal - Optional AbortSignal to cancel the operation
+   * @returns Promise that resolves to a Group containing all loaded sounds
+   */
   async createGroupFromUrls(
     urls: string[],
     soundType: SoundType = SoundType.Buffer,
@@ -249,6 +267,13 @@ export class Cacophony {
     return group;
   }
 
+  /**
+   * Creates a streaming Sound instance from a URL.
+   * 
+   * @param url - URL string to stream audio from
+   * @param signal - Optional AbortSignal to cancel the operation
+   * @returns Promise that resolves to a Sound instance for streaming
+   */
   async createStream(url: string, signal?: AbortSignal): Promise<Sound> {
     // Start the streaming process with AbortSignal support
     createStream(url, this.context, signal);

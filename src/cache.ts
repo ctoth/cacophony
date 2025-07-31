@@ -143,8 +143,10 @@ export class AudioCache implements ICache {
       
       // Clean up on abort
       signal?.addEventListener('abort', () => {
-        this.pendingRequests.delete(url);
-      });
+        if (signal.aborted) {
+          this.pendingRequests.delete(url);
+        }
+      }, { once: true });
       
       this.pendingRequests.set(url, requestPromise);
       return requestPromise;
@@ -343,6 +345,7 @@ export class AudioCache implements ICache {
    *
    * @param context - AudioContext for decoding audio data
    * @param url - URL of the audio resource to fetch
+   * @param signal - Optional AbortSignal to cancel the operation
    * @returns Promise that resolves to decoded AudioBuffer
    * @throws Error if audio cannot be fetched or decoded
    */

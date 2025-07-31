@@ -14,6 +14,7 @@ describe("Stream operations with AbortController", () => {
     
     // Mock console to avoid test output noise
     consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
     
     // Mock fetch and response body reader
     mockReader = {
