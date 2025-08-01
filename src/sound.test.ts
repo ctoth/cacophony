@@ -438,3 +438,180 @@ describe("Sound class", () => {
     expect(playback.isPlaying).toBe(false);
   });
 });
+
+describe("Loading Events", () => {
+  let mockCallbacks: any;
+
+  beforeEach(() => {
+    mockCallbacks = {
+      onLoadingStart: vi.fn(),
+      onLoadingProgress: vi.fn(),
+      onLoadingComplete: vi.fn(),
+      onLoadingError: vi.fn(),
+    };
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    cacophony.clearMemoryCache();
+  });
+
+  it("should emit loading start event when beginning to load audio", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+      headers: new Map(),
+    });
+
+    const audioContextDecodeAudioData = vi.fn().mockResolvedValue(
+      new AudioBuffer({ length: 100, sampleRate: 44100 })
+    );
+    audioContextMock.decodeAudioData = audioContextDecodeAudioData;
+
+    await cacophony.createSound("test-url.mp3", { callbacks: mockCallbacks });
+
+    expect(mockCallbacks.onLoadingStart).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "test-url.mp3",
+        timestamp: expect.any(Number),
+      })
+    );
+  });
+
+  it("should emit loading progress events during fetch with progress info", async () => {
+    const mockReadableStream = {
+      getReader: () => ({
+        read: vi.fn()
+          .mockResolvedValueOnce({
+            done: false,
+            value: new Uint8Array(512),
+          })
+          .mockResolvedValueOnce({
+            done: false, 
+            value: new Uint8Array(512),
+          })
+          .mockResolvedValueOnce({
+            done: true,
+            value: undefined,
+          }),
+      }),
+    };
+
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      body: mockReadableStream,
+      headers: new Map([['content-length', '1024']]),
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+    });
+
+    const audioContextDecodeAudioData = vi.fn().mockResolvedValue(
+      new AudioBuffer({ length: 100, sampleRate: 44100 })
+    );
+    audioContextMock.decodeAudioData = audioContextDecodeAudioData;
+
+    await cacophony.createSound("test-url.mp3", { callbacks: mockCallbacks });
+
+    expect(mockCallbacks.onLoadingProgress).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "test-url.mp3",
+        loaded: expect.any(Number),
+        total: 1024,
+        progress: expect.any(Number),
+        timestamp: expect.any(Number),
+      })
+    );
+  });
+
+  it("should emit loading complete event on successful load", async () => {
+    const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+      headers: new Map(),
+    });
+
+    const audioContextDecodeAudioData = vi.fn().mockResolvedValue(buffer);
+    audioContextMock.decodeAudioData = audioContextDecodeAudioData;
+
+    await cacophony.createSound("test-url.mp3", { callbacks: mockCallbacks });
+
+    expect(mockCallbacks.onLoadingComplete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "test-url.mp3",
+        duration: expect.any(Number),
+        size: 1024,
+        timestamp: expect.any(Number),
+      })
+    );
+  });
+
+  it("should emit loading error event on network failure", async () => {
+    global.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
+
+    await expect(
+      cacophony.createSound("test-url.mp3", { callbacks: mockCallbacks })
+    ).rejects.toThrow("Network error");
+
+    expect(mockCallbacks.onLoadingError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "test-url.mp3",
+        error: expect.any(Error),
+        errorType: "network",
+        timestamp: expect.any(Number),
+      })
+    );
+  });
+
+  it("should emit loading error event on decode failure", async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
+      headers: new Map(),
+    });
+
+    const audioContextDecodeAudioData = vi.fn().mockRejectedValue(
+      new Error("Invalid audio format")
+    );
+    audioContextMock.decodeAudioData = audioContextDecodeAudioData;
+
+    await expect(
+      cacophony.createSound("test-url.mp3", { callbacks: mockCallbacks })
+    ).rejects.toThrow("Invalid audio format");
+
+    expect(mockCallbacks.onLoadingError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "test-url.mp3",
+        error: expect.any(Error),
+        errorType: "decode",
+        timestamp: expect.any(Number),
+      })
+    );
+  });
+
+  it("should emit loading error event on abort", async () => {
+    const controller = new AbortController();
+    
+    global.fetch = vi.fn().mockImplementation(() => {
+      return Promise.reject(new DOMException("Aborted", "AbortError"));
+    });
+
+    setTimeout(() => controller.abort(), 10);
+
+    await expect(
+      cacophony.createSound("test-url.mp3", { 
+        callbacks: mockCallbacks,
+        abortSignal: controller.signal 
+      })
+    ).rejects.toThrow("Aborted");
+
+    expect(mockCallbacks.onLoadingError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "test-url.mp3",
+        error: expect.any(DOMException),
+        errorType: "abort",
+        timestamp: expect.any(Number),
+      })
+    );
+  });
+});
