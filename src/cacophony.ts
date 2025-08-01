@@ -117,11 +117,46 @@ export class Cacophony {
     this.eventEmitter.off(event, listener);
   }
 
+  onAsync<K extends keyof CacophonyEvents>(
+    event: K,
+    listener: (data: CacophonyEvents[K]) => void | Promise<void>
+  ): () => void {
+    return this.eventEmitter.onAsync(event, listener);
+  }
+
+  onceAsync<K extends keyof CacophonyEvents>(
+    event: K,
+    listener: (data: CacophonyEvents[K]) => void | Promise<void>
+  ): () => void {
+    return this.eventEmitter.onceAsync(event, listener);
+  }
+
+  offAsync<K extends keyof CacophonyEvents>(
+    event: K,
+    listener: (data: CacophonyEvents[K]) => void | Promise<void>
+  ): void {
+    return this.eventEmitter.offAsync(event, listener);
+  }
+
   protected emit<K extends keyof CacophonyEvents>(
     event: K,
     data: CacophonyEvents[K]
   ): void {
     this.eventEmitter.emit(event, data);
+  }
+
+  protected async emitAsync<K extends keyof CacophonyEvents>(
+    event: K,
+    data: CacophonyEvents[K]
+  ): Promise<PromiseSettledResult<void>[]> {
+    return this.eventEmitter.emitAsync(event, data);
+  }
+
+  protected emitAsyncOnly<K extends keyof CacophonyEvents>(
+    event: K,
+    data: CacophonyEvents[K]
+  ): Promise<void> {
+    return this.eventEmitter.emitAsyncOnly(event, data);
   }
 
   async loadWorklets(signal?: AbortSignal) {
@@ -249,13 +284,13 @@ export class Cacophony {
     }
     return this.cache
       .getAudioBuffer(this.context, url, signal, {
-        onLoadingStart: (event) => this.emit('loadingStart', event),
-        onLoadingProgress: (event) => this.emit('loadingProgress', event),
-        onLoadingComplete: (event) => this.emit('loadingComplete', event),
-        onLoadingError: (event) => this.emit('loadingError', event),
-        onCacheHit: (event) => this.emit('cacheHit', event),
-        onCacheMiss: (event) => this.emit('cacheMiss', event),
-        onCacheError: (event) => this.emit('cacheError', event),
+        onLoadingStart: (event) => this.emitAsyncOnly('loadingStart', event),
+        onLoadingProgress: (event) => this.emitAsyncOnly('loadingProgress', event),
+        onLoadingComplete: (event) => this.emitAsyncOnly('loadingComplete', event),
+        onLoadingError: (event) => this.emitAsyncOnly('loadingError', event),
+        onCacheHit: (event) => this.emitAsyncOnly('cacheHit', event),
+        onCacheMiss: (event) => this.emitAsyncOnly('cacheMiss', event),
+        onCacheError: (event) => this.emitAsyncOnly('cacheError', event),
       })
       .then(
         (buffer) =>
