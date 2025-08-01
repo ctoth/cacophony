@@ -207,7 +207,7 @@ describe("Cacophony advanced features", () => {
     expect(suspendSpy).toHaveBeenCalled();
 
     cacophony.resume();
-    expect(resumeSpy).toHaveBeenCalled();
+    expect(resumeSpy).toHaveBeenCalledTimes(1);
   });
 
   it("setGlobalVolume sets the global gain node value", () => {
