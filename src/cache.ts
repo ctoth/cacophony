@@ -442,22 +442,63 @@ export class AudioCache implements ICache {
 
     return AudioCache.getOrCreatePendingRequest(url, async () => {
       if (shouldFetch) {
-        const arrayBuffer = await AudioCache.fetchAndCacheBuffer(
-          url,
-          cache,
-          metadata?.etag,
-          metadata?.lastModified,
-          signal
-        );
-        const audioBuffer = await AudioCache.decodeAudioData(
-          context,
-          arrayBuffer
-        );
-        AudioCache.decodedBuffers.set(url, audioBuffer);
-        return audioBuffer;
+        // Cache miss - need to fetch from network
+        if (callbacks?.onCacheMiss) {
+          callbacks.onCacheMiss({
+            url,
+            reason: metadata ? 'expired' : 'not-found',
+            timestamp: Date.now(),
+          });
+        }
+
+        try {
+          const arrayBuffer = await AudioCache.fetchAndCacheBuffer(
+            url,
+            cache,
+            metadata?.etag,
+            metadata?.lastModified,
+            signal
+          );
+          
+          if (callbacks?.onLoadingComplete) {
+            callbacks.onLoadingComplete({
+              url,
+              duration: 0, // Will be filled when buffer is decoded
+              size: arrayBuffer.byteLength,
+              timestamp: Date.now(),
+            });
+          }
+
+          const audioBuffer = await AudioCache.decodeAudioData(
+            context,
+            arrayBuffer
+          );
+          AudioCache.decodedBuffers.set(url, audioBuffer);
+          return audioBuffer;
+        } catch (error) {
+          if (callbacks?.onCacheError) {
+            callbacks.onCacheError({
+              url,
+              error: error as Error,
+              operation: 'get',
+              timestamp: Date.now(),
+            });
+          }
+          throw error;
+        }
       } else {
+        // Content should be fresh in cache
         const cachedBuffer = await AudioCache.getBufferFromCache(url, cache);
         if (cachedBuffer) {
+          // Cache hit from browser cache
+          if (callbacks?.onCacheHit) {
+            callbacks.onCacheHit({
+              url,
+              cacheType: 'browser' as const,
+              timestamp: Date.now(),
+            });
+          }
+
           const audioBuffer = await AudioCache.decodeAudioData(
             context,
             cachedBuffer
@@ -465,6 +506,16 @@ export class AudioCache implements ICache {
           AudioCache.decodedBuffers.set(url, audioBuffer);
           return audioBuffer;
         } else {
+          // Cache inconsistency - metadata exists but body is missing
+          if (callbacks?.onCacheError) {
+            callbacks.onCacheError({
+              url,
+              error: new Error('Cache inconsistency: metadata exists but body is missing'),
+              operation: 'get',
+              timestamp: Date.now(),
+            });
+          }
+
           // Fallback to network if body missing but metadata is fresh
           const arrayBuffer = await AudioCache.fetchAndCacheBuffer(
             url,
