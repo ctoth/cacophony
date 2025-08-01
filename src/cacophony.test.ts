@@ -11,6 +11,17 @@ import {
   test,
   vi,
 } from "vitest";
+
+// Mock standardized-audio-context to provide a mockable AudioWorkletNode
+vi.mock("standardized-audio-context", async () => {
+  const actual = await vi.importActual("standardized-audio-context");
+  return {
+    ...actual,
+    AudioWorkletNode: vi.fn(),
+  };
+});
+
+import { AudioWorkletNode } from "standardized-audio-context";
 import { SoundType } from "./cacophony";
 import { Group } from "./group";
 import { audioContextMock, cacophony, mockCache } from "./setupTests";
@@ -396,13 +407,18 @@ describe("Cacophony advanced features", () => {
       const controller = new AbortController();
       
       // Mock AudioWorkletNode constructor to throw first, then succeed
-      const mockConstructor = vi.fn()
+      vi.mocked(AudioWorkletNode)
         .mockImplementationOnce(() => {
           throw new Error("Worklet not loaded");
         })
-        .mockImplementationOnce(() => ({}));
-      
-      global.AudioWorkletNode = mockConstructor;
+        .mockImplementationOnce(() => ({
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+          port: {
+            postMessage: vi.fn(),
+            addEventListener: vi.fn(),
+          },
+        }) as any);
 
       await cacophony.createWorkletNode("test-worklet", "https://example.com/worklet.js", controller.signal);
 
@@ -415,8 +431,8 @@ describe("Cacophony advanced features", () => {
     it("createWorkletNode handles AbortError during addModule", async () => {
       const controller = new AbortController();
       
-      // Mock AudioWorkletNode constructor to throw 
-      global.AudioWorkletNode = vi.fn().mockImplementation(() => {
+      // Mock AudioWorkletNode constructor to always throw (simulating worklet not loaded)
+      vi.mocked(AudioWorkletNode).mockImplementation(() => {
         throw new Error("Worklet not loaded");
       });
       
@@ -441,13 +457,18 @@ describe("Cacophony advanced features", () => {
 
     it("createWorkletNode works without AbortSignal (backward compatibility)", async () => {
       // Mock AudioWorkletNode constructor to throw first, then succeed
-      const mockConstructor = vi.fn()
+      vi.mocked(AudioWorkletNode)
         .mockImplementationOnce(() => {
           throw new Error("Worklet not loaded");
         })
-        .mockImplementationOnce(() => ({}));
-      
-      global.AudioWorkletNode = mockConstructor;
+        .mockImplementationOnce(() => ({
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+          port: {
+            postMessage: vi.fn(),
+            addEventListener: vi.fn(),
+          },
+        }) as any);
 
       await cacophony.createWorkletNode("test-worklet", "https://example.com/worklet.js");
 
@@ -461,7 +482,14 @@ describe("Cacophony advanced features", () => {
       const controller = new AbortController();
       
       // Mock AudioWorkletNode constructor to succeed immediately
-      global.AudioWorkletNode = vi.fn().mockImplementation(() => ({}));
+      vi.mocked(AudioWorkletNode).mockImplementation(() => ({
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+        port: {
+          postMessage: vi.fn(),
+          addEventListener: vi.fn(),
+        },
+      }) as any);
 
       const result = await cacophony.createWorkletNode("loaded-worklet", "https://example.com/worklet.js", controller.signal);
 

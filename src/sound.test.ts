@@ -619,3 +619,207 @@ describe("Loading Events", () => {
     );
   });
 });
+
+describe("Sound Error Events", () => {
+  let sound: Sound;
+  let buffer: AudioBuffer;
+  let mockCallbacks: any;
+
+  beforeEach(() => {
+    buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
+
+    mockCallbacks = {
+      onSoundError: vi.fn(),
+      onError: vi.fn(),
+    };
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    if (sound) {
+      sound.stop();
+    }
+    cacophony.clearMemoryCache();
+  });
+
+  it("should emit soundError event on sound loading failures", async () => {
+    const loadError = new Error("Failed to load sound");
+
+    sound.on('soundError', mockCallbacks.onSoundError);
+
+    // Simulate load error
+    sound.emit('soundError', {
+      url: "test-url",
+      error: loadError,
+      errorType: 'load',
+      timestamp: Date.now(),
+      recoverable: false,
+    });
+
+    expect(mockCallbacks.onSoundError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "test-url",
+        error: loadError,
+        errorType: 'load',
+        timestamp: expect.any(Number),
+        recoverable: false,
+      })
+    );
+  });
+
+  it("should emit soundError event on playback initialization failures", async () => {
+    const playbackError = new Error("Failed to initialize playback");
+
+    sound.on('soundError', mockCallbacks.onSoundError);
+
+    // Simulate playback error
+    sound.emit('soundError', {
+      url: "test-url",
+      error: playbackError,
+      errorType: 'playback',
+      timestamp: Date.now(),
+      recoverable: true,
+    });
+
+    expect(mockCallbacks.onSoundError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "test-url",
+        error: playbackError,
+        errorType: 'playback',
+        timestamp: expect.any(Number),
+        recoverable: true,
+      })
+    );
+  });
+
+  it("should emit soundError event on context-related failures", async () => {
+    const contextError = new Error("AudioContext is not available");
+
+    sound.on('soundError', mockCallbacks.onSoundError);
+
+    // Simulate context error
+    sound.emit('soundError', {
+      error: contextError,
+      errorType: 'context',
+      timestamp: Date.now(),
+      recoverable: false,
+    });
+
+    expect(mockCallbacks.onSoundError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: contextError,
+        errorType: 'context',
+        timestamp: expect.any(Number),
+        recoverable: false,
+      })
+    );
+  });
+
+  it("should emit soundError event on unknown sound failures", async () => {
+    const unknownError = new Error("Unknown sound error");
+
+    sound.on('soundError', mockCallbacks.onSoundError);
+
+    // Simulate unknown error
+    sound.emit('soundError', {
+      url: "test-url",
+      error: unknownError,
+      errorType: 'unknown',
+      timestamp: Date.now(),
+      recoverable: true,
+    });
+
+    expect(mockCallbacks.onSoundError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "test-url",
+        error: unknownError,
+        errorType: 'unknown',
+        timestamp: expect.any(Number),
+        recoverable: true,
+      })
+    );
+  });
+
+  it("should propagate playback errors as sound errors", async () => {
+    const playbacks = sound.play();
+    const playback = playbacks[0];
+    const playbackError = new Error("Playback source failed");
+
+    sound.on('soundError', mockCallbacks.onSoundError);
+
+    // Simulate playback error propagating to sound
+    playback.emit('error', {
+      error: playbackError,
+      errorType: 'source',
+      timestamp: Date.now(),
+      recoverable: true,
+    });
+
+    // Should trigger soundError with playback errorType
+    expect(mockCallbacks.onSoundError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: playbackError,
+        errorType: 'playback',
+        recoverable: true,
+      })
+    );
+  });
+
+  it("should handle error event inheritance from BaseAudioEvents", async () => {
+    const baseError = new Error("Base audio error");
+
+    sound.on('error', mockCallbacks.onError);
+
+    // Emit base error event
+    sound.emit('error', {
+      error: baseError,
+      errorType: 'context',
+      timestamp: Date.now(),
+      recoverable: false,
+    });
+
+    expect(mockCallbacks.onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: baseError,
+        errorType: 'context',
+        timestamp: expect.any(Number),
+        recoverable: false,
+      })
+    );
+  });
+
+  it("should handle multiple error event listeners", async () => {
+    const mockCallback2 = vi.fn();
+    const testError = new Error("Test sound error");
+
+    sound.on('soundError', mockCallbacks.onSoundError);
+    sound.on('soundError', mockCallback2);
+
+    // Emit error
+    sound.emit('soundError', {
+      url: "test-url",
+      error: testError,
+      errorType: 'load',
+      timestamp: Date.now(),
+      recoverable: false,
+    });
+
+    expect(mockCallbacks.onSoundError).toHaveBeenCalledTimes(1);
+    expect(mockCallback2).toHaveBeenCalledTimes(1);
+
+    // Both should receive the same error event
+    expect(mockCallbacks.onSoundError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: testError,
+        errorType: 'load',
+      })
+    );
+    expect(mockCallback2).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: testError,
+        errorType: 'load',
+      })
+    );
+  });
+});

@@ -9,11 +9,13 @@ export interface BaseAudioEvents {
   resume: void;
   ended: void;
   volumeChange: number;
+  error: PlaybackErrorEvent;
 }
 
 export interface SoundEvents extends BaseAudioEvents {
   loopEnd: void;
   rateChange: number;
+  soundError: SoundErrorEvent;
 }
 
 export interface PlaybackEvents extends BaseAudioEvents {
