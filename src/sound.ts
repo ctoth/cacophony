@@ -57,7 +57,6 @@ export class Sound
   context: AudioContext;
   loopCount: LoopCount = 0;
   private _playbackRate: number = 1;
-  _volume: number = 1;
   private eventEmitter: TypedEventEmitter<SoundEvents> =
     new TypedEventEmitter<SoundEvents>();
 
@@ -83,7 +82,7 @@ export class Sound
   }
 
   get volume(): number {
-    return this._volume;
+    return super.volume;
   }
 
   on<K extends keyof SoundEvents>(
@@ -316,8 +315,7 @@ export class Sound
   }
 
   set volume(volume: number) {
-    this._volume = volume;
-    this.playbacks.forEach((p) => (p.volume = volume));
+    super.volume = volume;
     this.emit("volumeChange", volume);
   }
 
