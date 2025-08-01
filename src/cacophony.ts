@@ -100,18 +100,19 @@ export class Cacophony {
     });
   }
 
-  async loadWorklets() {
+  async loadWorklets(signal?: AbortSignal) {
     if (this.context.audioWorklet) {
       await this.createWorkletNode(
         "phase-vocoder",
-        phaseVocoderProcessorWorkletUrl
+        phaseVocoderProcessorWorkletUrl,
+        signal
       );
     } else {
       console.warn("AudioWorklet not supported");
     }
   }
 
-  async createWorkletNode(name: string, url: string) {
+  async createWorkletNode(name: string, url: string, signal?: AbortSignal) {
     // ensure audioWorklet has been loaded
     if (!this.context.audioWorklet) {
       throw new Error("AudioWorklet not supported");
@@ -122,10 +123,13 @@ export class Cacophony {
       console.error(err);
       console.log("Loading worklet from url", url);
       try {
-        await this.context.audioWorklet.addModule(url);
+        await this.context.audioWorklet.addModule(url, { 
+          credentials: "same-origin",
+          ...(signal && { signal })
+        });
       } catch (err) {
         console.error(err);
-        throw new Error(`Could not load worklet from url ${url}`);
+        throw err; // Preserve original error (including AbortError)
       }
 
       return new AudioWorkletNode!(this.context, name);
@@ -150,22 +154,34 @@ export class Cacophony {
     return synth;
   }
 
+  /**
+   * Creates a Sound instance from an AudioBuffer or URL.
+   * 
+   * @param bufferOrUrl - AudioBuffer instance or URL string to create sound from
+   * @param soundType - Type of sound (Buffer, HTML, Streaming)
+   * @param panType - Type of panning (HRTF or stereo)
+   * @param signal - Optional AbortSignal to cancel the operation
+   * @returns Promise that resolves to a Sound instance
+   */
   async createSound(
     buffer: AudioBuffer,
     soundType?: SoundType,
-    panType?: PanType
+    panType?: PanType,
+    signal?: AbortSignal
   ): Promise<Sound>;
 
   async createSound(
     url: string,
     soundType?: SoundType,
-    panType?: PanType
+    panType?: PanType,
+    signal?: AbortSignal
   ): Promise<Sound>;
 
   async createSound(
     bufferOrUrl: AudioBuffer | string,
     soundType: SoundType = SoundType.Buffer,
-    panType: PanType = "HRTF"
+    panType: PanType = "HRTF",
+    signal?: AbortSignal
   ): Promise<Sound> {
     if (typeof bufferOrUrl === "object") {
       return Promise.resolve(
@@ -184,17 +200,31 @@ export class Cacophony {
       const audio = new Audio();
       audio.src = url;
       audio.crossOrigin = "anonymous";
-      return new Sound(
-        url,
-        undefined,
-        this.context,
-        this.globalGainNode,
-        SoundType.HTML,
-        panType
+      return Promise.resolve(
+        new Sound(
+          url,
+          undefined,
+          this.context,
+          this.globalGainNode,
+          SoundType.HTML,
+          panType
+        )
+      );
+    }
+    if (soundType === SoundType.Streaming) {
+      return Promise.resolve(
+        new Sound(
+          url,
+          undefined,
+          this.context,
+          this.globalGainNode,
+          SoundType.Streaming,
+          panType
+        )
       );
     }
     return this.cache
-      .getAudioBuffer(this.context, url)
+      .getAudioBuffer(this.context, url, signal)
       .then(
         (buffer) =>
           new Sound(
@@ -214,20 +244,40 @@ export class Cacophony {
     return group;
   }
 
+  /**
+   * Creates a Group containing Sound instances loaded from multiple URLs.
+   * 
+   * @param urls - Array of URL strings to load as sounds
+   * @param soundType - Type of sound (Buffer, HTML, Streaming)
+   * @param panType - Type of panning (HRTF or stereo)
+   * @param signal - Optional AbortSignal to cancel the operation
+   * @returns Promise that resolves to a Group containing all loaded sounds
+   */
   async createGroupFromUrls(
     urls: string[],
     soundType: SoundType = SoundType.Buffer,
-    panType: PanType = "HRTF"
+    panType: PanType = "HRTF",
+    signal?: AbortSignal
   ): Promise<Group> {
     const group = new Group();
     const sounds = await Promise.all(
-      urls.map((url) => this.createSound(url, soundType, panType))
+      urls.map((url) => this.createSound(url, soundType, panType, signal))
     );
     sounds.forEach((sound) => group.addSound(sound));
     return group;
   }
 
-  async createStream(url: string): Promise<Sound> {
+  /**
+   * Creates a streaming Sound instance from a URL.
+   * 
+   * @param url - URL string to stream audio from
+   * @param signal - Optional AbortSignal to cancel the operation
+   * @returns Promise that resolves to a Sound instance for streaming
+   */
+  async createStream(url: string, signal?: AbortSignal): Promise<Sound> {
+    // Start the streaming process with AbortSignal support
+    createStream(url, this.context, signal);
+    
     const sound = new Sound(
       url,
       undefined,

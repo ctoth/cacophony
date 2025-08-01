@@ -15,6 +15,7 @@ import { SoundType } from "./cacophony";
 import { Group } from "./group";
 import { audioContextMock, cacophony, mockCache } from "./setupTests";
 import { Sound } from "./sound";
+
 beforeAll(() => {
   vi.useFakeTimers();
 });
@@ -196,5 +197,322 @@ describe("Cacophony advanced features", () => {
 
     cacophony.resume();
     expect(resumeSpy).toHaveBeenCalled();
+  });
+
+  it("setGlobalVolume sets the global gain node value", () => {
+    cacophony.setGlobalVolume(0.5);
+    expect(cacophony.globalGainNode.gain.value).toBe(0.5);
+  });
+
+  describe("AbortSignal support", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    it("createSound with buffer ignores AbortSignal (immediate resolution)", async () => {
+      const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const controller = new AbortController();
+      
+      // Should work even with aborted signal since it's immediate
+      controller.abort();
+      
+      const sound = await cacophony.createSound(buffer, SoundType.Buffer, 'HRTF', controller.signal);
+      expect(sound.buffer).toBe(buffer);
+      expect(sound.soundType).toBe(SoundType.Buffer);
+    });
+
+    it("createSound with URL passes AbortSignal to cache", async () => {
+      const url = "https://example.com/audio.mp3";
+      const controller = new AbortController();
+      const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+
+      // Mock the cache to verify signal is passed through
+      const getAudioBufferSpy = vi.spyOn(mockCache, 'getAudioBuffer')
+        .mockResolvedValueOnce(mockBuffer);
+
+      const sound = await cacophony.createSound(url, SoundType.Buffer, 'HRTF', controller.signal);
+
+      expect(getAudioBufferSpy).toHaveBeenCalledWith(
+        audioContextMock,
+        url,
+        controller.signal
+      );
+      expect(sound.buffer).toBe(mockBuffer);
+      expect(sound.url).toBe(url);
+    });
+
+    it("createSound with URL throws AbortError when signal is aborted", async () => {
+      const url = "https://example.com/audio.mp3";
+      const controller = new AbortController();
+
+      // Mock the cache to throw AbortError
+      vi.spyOn(mockCache, 'getAudioBuffer')
+        .mockRejectedValueOnce(new DOMException("Operation was aborted", "AbortError"));
+
+      controller.abort();
+
+      await expect(
+        cacophony.createSound(url, SoundType.Buffer, 'HRTF', controller.signal)
+      ).rejects.toMatchObject({
+        name: "AbortError",
+        message: "Operation was aborted"
+      });
+    });
+
+    it("createSound works without AbortSignal (backward compatibility)", async () => {
+      const url = "https://example.com/audio.mp3";
+      const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+
+      const getAudioBufferSpy = vi.spyOn(mockCache, 'getAudioBuffer')
+        .mockResolvedValueOnce(mockBuffer);
+
+      const sound = await cacophony.createSound(url, SoundType.Buffer);
+
+      expect(getAudioBufferSpy).toHaveBeenCalledWith(
+        audioContextMock,
+        url,
+        undefined // No signal should be passed
+      );
+      expect(sound.buffer).toBe(mockBuffer);
+    });
+
+    it("createSound with different SoundTypes handles AbortSignal correctly", async () => {
+      const url = "https://example.com/audio.mp3";
+      const controller = new AbortController();
+
+      // Test HTML sound type - should not call cache at all
+      const htmlSound = await cacophony.createSound(url, SoundType.HTML, 'HRTF', controller.signal);
+      expect(htmlSound.soundType).toBe(SoundType.HTML);
+      expect(htmlSound.url).toBe(url);
+
+      // Test streaming sound type - cache should not be called
+      const streamSound = await cacophony.createSound(url, SoundType.Streaming, 'HRTF', controller.signal);
+      expect(streamSound.soundType).toBe(SoundType.Streaming);
+      expect(streamSound.url).toBe(url);
+
+      // Verify cache was not called for HTML or Streaming types
+      expect(mockCache.getAudioBuffer).not.toHaveBeenCalled();
+    });
+
+    it("createGroupFromUrls passes AbortSignal to all createSound calls", async () => {
+      const urls = ["audio1.mp3", "audio2.mp3", "audio3.mp3"];
+      const controller = new AbortController();
+      const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+
+      // Mock cache to return buffer for all calls
+      vi.spyOn(mockCache, 'getAudioBuffer')
+        .mockResolvedValue(mockBuffer);
+
+      const group = await cacophony.createGroupFromUrls(urls, SoundType.Buffer, 'HRTF', controller.signal);
+
+      expect(group).toBeInstanceOf(Group);
+      expect(group.sounds.length).toBe(3);
+
+      // Verify cache was called with signal for each URL
+      expect(mockCache.getAudioBuffer).toHaveBeenCalledTimes(3);
+      urls.forEach(url => {
+        expect(mockCache.getAudioBuffer).toHaveBeenCalledWith(
+          audioContextMock,
+          url,
+          controller.signal
+        );
+      });
+    });
+
+    it("createGroupFromUrls fails completely when AbortSignal is aborted", async () => {
+      const urls = ["audio1.mp3", "audio2.mp3"];
+      const controller = new AbortController();
+
+      // Mock cache to throw AbortError
+      vi.spyOn(mockCache, 'getAudioBuffer')
+        .mockRejectedValue(new DOMException("Operation was aborted", "AbortError"));
+
+      controller.abort();
+
+      await expect(
+        cacophony.createGroupFromUrls(urls, SoundType.Buffer, 'HRTF', controller.signal)
+      ).rejects.toMatchObject({
+        name: "AbortError"
+      });
+    });
+
+    it("createGroupFromUrls works without AbortSignal (backward compatibility)", async () => {
+      const urls = ["audio1.mp3", "audio2.mp3"];
+      const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+
+      vi.spyOn(mockCache, 'getAudioBuffer')
+        .mockResolvedValue(mockBuffer);
+
+      const group = await cacophony.createGroupFromUrls(urls);
+
+      expect(group.sounds.length).toBe(2);
+      expect(mockCache.getAudioBuffer).toHaveBeenCalledTimes(2);
+      
+      // Verify no signal was passed
+      urls.forEach(url => {
+        expect(mockCache.getAudioBuffer).toHaveBeenCalledWith(
+          audioContextMock,
+          url,
+          undefined
+        );
+      });
+    });
+  });
+
+  describe("Worklet operations with AbortSignal", () => {
+    let mockAudioWorklet: any;
+
+    beforeEach(() => {
+      vi.clearAllMocks();
+      
+      // Mock AudioWorklet
+      mockAudioWorklet = {
+        addModule: vi.fn().mockResolvedValue(undefined)
+      };
+      
+      // Mock the audioWorklet property with defineProperty since it's read-only
+      Object.defineProperty(audioContextMock, 'audioWorklet', {
+        value: mockAudioWorklet,
+        writable: true,
+        configurable: true,
+      });
+    });
+
+    it("loadWorklets passes AbortSignal to createWorkletNode", async () => {
+      const controller = new AbortController();
+      const createWorkletSpy = vi.spyOn(cacophony, 'createWorkletNode')
+        .mockResolvedValue({} as any);
+
+      await cacophony.loadWorklets(controller.signal);
+
+      expect(createWorkletSpy).toHaveBeenCalledWith(
+        "phase-vocoder",
+        expect.any(String),
+        controller.signal
+      );
+    });
+
+    it("createWorkletNode passes AbortSignal to addModule when needed", async () => {
+      const controller = new AbortController();
+      
+      // Mock AudioWorkletNode constructor to throw first, then succeed
+      const mockConstructor = vi.fn()
+        .mockImplementationOnce(() => {
+          throw new Error("Worklet not loaded");
+        })
+        .mockImplementationOnce(() => ({}));
+      
+      global.AudioWorkletNode = mockConstructor;
+
+      await cacophony.createWorkletNode("test-worklet", "https://example.com/worklet.js", controller.signal);
+
+      expect(mockAudioWorklet.addModule).toHaveBeenCalledWith(
+        "https://example.com/worklet.js",
+        { credentials: "same-origin", signal: controller.signal }
+      );
+    });
+
+    it("createWorkletNode handles AbortError during addModule", async () => {
+      const controller = new AbortController();
+      
+      // Mock AudioWorkletNode constructor to throw 
+      global.AudioWorkletNode = vi.fn().mockImplementation(() => {
+        throw new Error("Worklet not loaded");
+      });
+      
+      // Mock addModule to throw AbortError
+      mockAudioWorklet.addModule.mockRejectedValue(
+        new DOMException("Operation was aborted", "AbortError")
+      );
+
+      controller.abort();
+
+      await expect(
+        cacophony.createWorkletNode("test-worklet", "https://example.com/worklet.js", controller.signal)
+      ).rejects.toMatchObject({
+        name: "AbortError"
+      });
+
+      expect(mockAudioWorklet.addModule).toHaveBeenCalledWith(
+        "https://example.com/worklet.js",
+        { credentials: "same-origin", signal: controller.signal }
+      );
+    });
+
+    it("createWorkletNode works without AbortSignal (backward compatibility)", async () => {
+      // Mock AudioWorkletNode constructor to throw first, then succeed
+      const mockConstructor = vi.fn()
+        .mockImplementationOnce(() => {
+          throw new Error("Worklet not loaded");
+        })
+        .mockImplementationOnce(() => ({}));
+      
+      global.AudioWorkletNode = mockConstructor;
+
+      await cacophony.createWorkletNode("test-worklet", "https://example.com/worklet.js");
+
+      expect(mockAudioWorklet.addModule).toHaveBeenCalledWith(
+        "https://example.com/worklet.js",
+        { credentials: "same-origin" }
+      );
+    });
+
+    it("createWorkletNode returns immediately if worklet already loaded", async () => {
+      const controller = new AbortController();
+      
+      // Mock AudioWorkletNode constructor to succeed immediately
+      global.AudioWorkletNode = vi.fn().mockImplementation(() => ({}));
+
+      const result = await cacophony.createWorkletNode("loaded-worklet", "https://example.com/worklet.js", controller.signal);
+
+      expect(result).toBeDefined();
+      expect(mockAudioWorklet.addModule).not.toHaveBeenCalled();
+    });
+
+    it("loadWorklets works without AbortSignal (backward compatibility)", async () => {
+      const createWorkletSpy = vi.spyOn(cacophony, 'createWorkletNode')
+        .mockResolvedValue({} as any);
+
+      await cacophony.loadWorklets();
+
+      expect(createWorkletSpy).toHaveBeenCalledWith(
+        "phase-vocoder",
+        expect.any(String),
+        undefined
+      );
+    });
+
+    it("loadWorklets handles missing audioWorklet gracefully", async () => {
+      const controller = new AbortController();
+      const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      // Remove audioWorklet from context
+      Object.defineProperty(audioContextMock, 'audioWorklet', {
+        value: null,
+        writable: true,
+        configurable: true,
+      });
+
+      await cacophony.loadWorklets(controller.signal);
+
+      expect(consoleSpy).toHaveBeenCalledWith("AudioWorklet not supported");
+      
+      consoleSpy.mockRestore();
+    });
+
+    it("createWorkletNode throws error when audioWorklet not supported", async () => {
+      const controller = new AbortController();
+      
+      // Remove audioWorklet from context
+      Object.defineProperty(audioContextMock, 'audioWorklet', {
+        value: null,
+        writable: true,
+        configurable: true,
+      });
+
+      await expect(
+        cacophony.createWorkletNode("test-worklet", "https://example.com/worklet.js", controller.signal)
+      ).rejects.toThrow("AudioWorklet not supported");
+    });
   });
 });

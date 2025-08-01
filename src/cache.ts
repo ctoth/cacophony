@@ -72,7 +72,7 @@ function requiresRevalidation(cacheControlHeader: string | undefined): boolean {
 }
 
 export interface ICache {
-  getAudioBuffer(context: AudioContext, url: string): Promise<AudioBuffer>;
+  getAudioBuffer(context: AudioContext, url: string, signal?: AbortSignal): Promise<AudioBuffer>;
   clearMemoryCache(): void;
 }
 
@@ -120,8 +120,13 @@ export class AudioCache implements ICache {
 
   private static async getOrCreatePendingRequest(
     url: string,
-    createRequest: () => Promise<AudioBuffer | undefined>
+    createRequest: () => Promise<AudioBuffer | undefined>,
+    signal?: AbortSignal
   ): Promise<AudioBuffer> {
+    if (signal?.aborted) {
+      throw new DOMException('Operation was aborted', 'AbortError');
+    }
+    
     let pendingRequest = this.pendingRequests.get(url);
     if (!pendingRequest) {
       const requestPromise = (async () => {
@@ -135,6 +140,14 @@ export class AudioCache implements ICache {
           this.pendingRequests.delete(url);
         }
       })();
+      
+      // Clean up on abort
+      signal?.addEventListener('abort', () => {
+        if (signal.aborted) {
+          this.pendingRequests.delete(url);
+        }
+      }, { once: true });
+      
       this.pendingRequests.set(url, requestPromise);
       return requestPromise;
     }
@@ -180,7 +193,8 @@ export class AudioCache implements ICache {
     url: string,
     cache: Cache,
     etag?: string,
-    lastModified?: string
+    lastModified?: string,
+    signal?: AbortSignal
   ): Promise<ArrayBuffer> {
     const headers = new Headers();
     if (etag) headers.append("If-None-Match", etag);
@@ -192,7 +206,7 @@ export class AudioCache implements ICache {
       hasLastModified: !!lastModified,
     });
 
-    const fetchResponse = await fetch(url, { headers });
+    const fetchResponse = await fetch(url, { headers, signal });
 
     console.debug(`[AudioCache] Response ${url}`, {
       status: fetchResponse.status,
@@ -225,7 +239,7 @@ export class AudioCache implements ICache {
         );
 
         // Re-fetch without validation headers to get fresh content
-        const freshResponse = await fetch(url);
+        const freshResponse = await fetch(url, { signal });
         if (freshResponse.status === 200) {
           const responseClone = freshResponse.clone();
           const newEtag = freshResponse.headers.get("ETag");
@@ -282,6 +296,10 @@ export class AudioCache implements ICache {
       }
     }
 
+    if (signal?.aborted) {
+      throw new DOMException('Operation was aborted', 'AbortError');
+    }
+
     return await fetchResponse.arrayBuffer();
   }
 
@@ -327,12 +345,14 @@ export class AudioCache implements ICache {
    *
    * @param context - AudioContext for decoding audio data
    * @param url - URL of the audio resource to fetch
+   * @param signal - Optional AbortSignal to cancel the operation
    * @returns Promise that resolves to decoded AudioBuffer
    * @throws Error if audio cannot be fetched or decoded
    */
   public async getAudioBuffer(
     context: AudioContext,
-    url: string
+    url: string,
+    signal?: AbortSignal
   ): Promise<AudioBuffer> {
     // Check if the decoded buffer is already available in memory cache
     if (AudioCache.decodedBuffers.has(url)) {
@@ -394,7 +414,8 @@ export class AudioCache implements ICache {
           url,
           cache,
           metadata?.etag,
-          metadata?.lastModified
+          metadata?.lastModified,
+          signal
         );
         const audioBuffer = await AudioCache.decodeAudioData(
           context,
@@ -417,7 +438,8 @@ export class AudioCache implements ICache {
             url,
             cache,
             metadata?.etag,
-            metadata?.lastModified
+            metadata?.lastModified,
+            signal
           );
           const audioBuffer = await AudioCache.decodeAudioData(
             context,
@@ -427,7 +449,7 @@ export class AudioCache implements ICache {
           return audioBuffer;
         }
       }
-    });
+    }, signal);
   }
 
   public clearMemoryCache(): void {
