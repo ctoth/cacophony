@@ -1,6 +1,6 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, test, vi } from "vitest";
-import { audioContextMock, cacophony } from "./setupTests";
+import { audioContextMock, cacophony, mockCache } from "./setupTests";
 
 import { SoundType } from "./cacophony";
 import { Sound } from "./sound";
@@ -457,6 +457,7 @@ describe("Loading Events", () => {
   });
 
   it("should emit loading start event when beginning to load audio", async () => {
+
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
