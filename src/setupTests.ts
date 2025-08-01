@@ -5,12 +5,41 @@ import { Cacophony } from "./cacophony";
 export let cacophony: Cacophony;
 export let audioContextMock: AudioContext;
 
+// Track which URLs have been loaded to simulate cache behavior
+const loadedUrls = new Set<string>();
+
 const mockCache = {
   getAudioBuffer: vi.fn((context, url, signal, callbacks) => {
     
     // Call loading start callback immediately
     if (callbacks?.onLoadingStart) {
       callbacks.onLoadingStart({ url, timestamp: Date.now() });
+    }
+
+    // Check if this URL has been loaded before (memory cache simulation)
+    const isMemoryCacheHit = loadedUrls.has(url);
+    
+    if (isMemoryCacheHit) {
+      // Cache hit - return immediately
+      if (callbacks?.onCacheHit) {
+        callbacks.onCacheHit({
+          url,
+          cacheType: 'memory',
+          timestamp: Date.now(),
+        });
+      }
+      
+      const audioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      return Promise.resolve(audioBuffer);
+    }
+
+    // Cache miss - need to "fetch" and load
+    if (callbacks?.onCacheMiss) {
+      callbacks.onCacheMiss({
+        url,
+        reason: 'not-found',
+        timestamp: Date.now(),
+      });
     }
 
     // Simulate async loading behavior
@@ -67,7 +96,7 @@ const mockCache = {
             try {
               await context.decodeAudioData(new ArrayBuffer(1024));
               
-              // Decode succeeded - call complete callback
+              // Decode succeeded - call complete callback and mark as loaded
               if (callbacks?.onLoadingComplete) {
                 callbacks.onLoadingComplete({ 
                   url, 
@@ -76,6 +105,9 @@ const mockCache = {
                   timestamp: Date.now() 
                 });
               }
+              
+              // Add to loaded URLs for future cache hits
+              loadedUrls.add(url);
               
               resolve(audioBuffer);
             } catch (decodeError) {
@@ -101,6 +133,9 @@ const mockCache = {
               });
             }
             
+            // Add to loaded URLs for future cache hits
+            loadedUrls.add(url);
+            
             resolve(audioBuffer);
           }
         } else {
@@ -114,6 +149,9 @@ const mockCache = {
             });
           }
           
+          // Add to loaded URLs for future cache hits
+          loadedUrls.add(url);
+          
           const audioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
           resolve(audioBuffer);
         }
@@ -122,7 +160,9 @@ const mockCache = {
       }
     });
   }),
-  clearMemoryCache: vi.fn(),
+  clearMemoryCache: vi.fn(() => {
+    loadedUrls.clear();
+  }),
 };
 
 beforeAll(() => {
