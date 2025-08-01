@@ -9,6 +9,8 @@ import {
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
 import { AudioCache, ICache } from "./cache";
 import { AudioBuffer, GainNode } from "./context";
+import { CacophonyEvents } from "./events";
+import { TypedEventEmitter } from "./eventEmitter";
 import { Group } from "./group";
 import { MicrophoneStream } from "./microphone";
 import type { Playback } from "./playback";
@@ -85,6 +87,7 @@ export class Cacophony {
   listener: IAudioListener;
   private prevVolume: number = 1;
   private finalizationRegistry: FinalizationRegistry<Playback>;
+  private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
 
   constructor(context?: AudioContext, cache?: ICache) {
@@ -98,6 +101,27 @@ export class Cacophony {
       // Cleanup callback for Playbacks
       heldValue.cleanup();
     });
+  }
+
+  on<K extends keyof CacophonyEvents>(
+    event: K,
+    listener: (data: CacophonyEvents[K]) => void
+  ): void {
+    this.eventEmitter.on(event, listener);
+  }
+
+  off<K extends keyof CacophonyEvents>(
+    event: K,
+    listener: (data: CacophonyEvents[K]) => void
+  ): void {
+    this.eventEmitter.off(event, listener);
+  }
+
+  protected emit<K extends keyof CacophonyEvents>(
+    event: K,
+    data: CacophonyEvents[K]
+  ): void {
+    this.eventEmitter.emit(event, data);
   }
 
   async loadWorklets(signal?: AbortSignal) {
@@ -224,7 +248,15 @@ export class Cacophony {
       );
     }
     return this.cache
-      .getAudioBuffer(this.context, url, signal)
+      .getAudioBuffer(this.context, url, signal, {
+        onLoadingStart: (event) => this.emit('loadingStart', event),
+        onLoadingProgress: (event) => this.emit('loadingProgress', event),
+        onLoadingComplete: (event) => this.emit('loadingComplete', event),
+        onLoadingError: (event) => this.emit('loadingError', event),
+        onCacheHit: (event) => this.emit('cacheHit', event),
+        onCacheMiss: (event) => this.emit('cacheMiss', event),
+        onCacheError: (event) => this.emit('cacheError', event),
+      })
       .then(
         (buffer) =>
           new Sound(

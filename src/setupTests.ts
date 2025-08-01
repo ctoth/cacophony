@@ -8,7 +8,23 @@ export let audioContextMock: AudioContext;
 const mockCache = {
   getAudioBuffer: vi
     .fn()
-    .mockResolvedValue(new AudioBuffer({ length: 100, sampleRate: 44100 })),
+    .mockImplementation((context, url, signal, callbacks) => {
+      // Call the callbacks if provided
+      if (callbacks?.onLoadingStart) {
+        callbacks.onLoadingStart({ url, timestamp: Date.now() });
+      }
+      if (callbacks?.onLoadingComplete) {
+        setTimeout(() => {
+          callbacks.onLoadingComplete({ 
+            url, 
+            duration: 2.27, 
+            size: 1024, 
+            timestamp: Date.now() 
+          });
+        }, 0);
+      }
+      return Promise.resolve(new AudioBuffer({ length: 100, sampleRate: 44100 }));
+    }),
   clearMemoryCache: vi.fn(),
 };
 

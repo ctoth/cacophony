@@ -468,7 +468,8 @@ describe("Loading Events", () => {
     );
     audioContextMock.decodeAudioData = audioContextDecodeAudioData;
 
-    await cacophony.createSound("test-url.mp3", { callbacks: mockCallbacks });
+    cacophony.on('loadingStart', mockCallbacks.onLoadingStart);
+    await cacophony.createSound("test-url.mp3");
 
     expect(mockCallbacks.onLoadingStart).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -509,7 +510,8 @@ describe("Loading Events", () => {
     );
     audioContextMock.decodeAudioData = audioContextDecodeAudioData;
 
-    await cacophony.createSound("test-url.mp3", { callbacks: mockCallbacks });
+    cacophony.on('loadingProgress', mockCallbacks.onLoadingProgress);
+    await cacophony.createSound("test-url.mp3");
 
     expect(mockCallbacks.onLoadingProgress).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -534,7 +536,8 @@ describe("Loading Events", () => {
     const audioContextDecodeAudioData = vi.fn().mockResolvedValue(buffer);
     audioContextMock.decodeAudioData = audioContextDecodeAudioData;
 
-    await cacophony.createSound("test-url.mp3", { callbacks: mockCallbacks });
+    cacophony.on('loadingComplete', mockCallbacks.onLoadingComplete);
+    await cacophony.createSound("test-url.mp3");
 
     expect(mockCallbacks.onLoadingComplete).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -549,8 +552,9 @@ describe("Loading Events", () => {
   it("should emit loading error event on network failure", async () => {
     global.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
 
+    cacophony.on('loadingError', mockCallbacks.onLoadingError);
     await expect(
-      cacophony.createSound("test-url.mp3", { callbacks: mockCallbacks })
+      cacophony.createSound("test-url.mp3")
     ).rejects.toThrow("Network error");
 
     expect(mockCallbacks.onLoadingError).toHaveBeenCalledWith(
@@ -575,8 +579,9 @@ describe("Loading Events", () => {
     );
     audioContextMock.decodeAudioData = audioContextDecodeAudioData;
 
+    cacophony.on('loadingError', mockCallbacks.onLoadingError);
     await expect(
-      cacophony.createSound("test-url.mp3", { callbacks: mockCallbacks })
+      cacophony.createSound("test-url.mp3")
     ).rejects.toThrow("Invalid audio format");
 
     expect(mockCallbacks.onLoadingError).toHaveBeenCalledWith(
@@ -598,11 +603,9 @@ describe("Loading Events", () => {
 
     setTimeout(() => controller.abort(), 10);
 
+    cacophony.on('loadingError', mockCallbacks.onLoadingError);
     await expect(
-      cacophony.createSound("test-url.mp3", { 
-        callbacks: mockCallbacks,
-        abortSignal: controller.signal 
-      })
+      cacophony.createSound("test-url.mp3", undefined, undefined, controller.signal)
     ).rejects.toThrow("Aborted");
 
     expect(mockCallbacks.onLoadingError).toHaveBeenCalledWith(

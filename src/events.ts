@@ -33,6 +33,13 @@ export interface CacophonyEvents {
   unmute: void;
   suspend: void;
   resume: void;
+  loadingStart: LoadingStartEvent;
+  loadingProgress: LoadingProgressEvent;
+  loadingComplete: LoadingCompleteEvent;
+  loadingError: LoadingErrorEvent;
+  cacheHit: CacheHitEvent;
+  cacheMiss: CacheMissEvent;
+  cacheError: CacheErrorEvent;
 }
 
 // Loading Event Types

@@ -72,7 +72,15 @@ function requiresRevalidation(cacheControlHeader: string | undefined): boolean {
 }
 
 export interface ICache {
-  getAudioBuffer(context: AudioContext, url: string, signal?: AbortSignal): Promise<AudioBuffer>;
+  getAudioBuffer(context: AudioContext, url: string, signal?: AbortSignal, callbacks?: {
+    onLoadingStart?: (event: any) => void;
+    onLoadingProgress?: (event: any) => void; 
+    onLoadingComplete?: (event: any) => void;
+    onLoadingError?: (event: any) => void;
+    onCacheHit?: (event: any) => void;
+    onCacheMiss?: (event: any) => void;
+    onCacheError?: (event: any) => void;
+  }): Promise<AudioBuffer>;
   clearMemoryCache(): void;
 }
 
@@ -352,10 +360,34 @@ export class AudioCache implements ICache {
   public async getAudioBuffer(
     context: AudioContext,
     url: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    callbacks?: {
+      onLoadingStart?: (event: any) => void;
+      onLoadingProgress?: (event: any) => void; 
+      onLoadingComplete?: (event: any) => void;
+      onLoadingError?: (event: any) => void;
+      onCacheHit?: (event: any) => void;
+      onCacheMiss?: (event: any) => void;
+      onCacheError?: (event: any) => void;
+    }
   ): Promise<AudioBuffer> {
+    // Call loading start callback
+    if (callbacks?.onLoadingStart) {
+      callbacks.onLoadingStart({
+        url,
+        timestamp: Date.now(),
+      });
+    }
+
     // Check if the decoded buffer is already available in memory cache
     if (AudioCache.decodedBuffers.has(url)) {
+      if (callbacks?.onCacheHit) {
+        callbacks.onCacheHit({
+          url,
+          cacheType: 'memory' as const,
+          timestamp: Date.now(),
+        });
+      }
       return AudioCache.decodedBuffers.get(url)!;
     }
 
