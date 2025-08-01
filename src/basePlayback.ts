@@ -14,6 +14,19 @@ export abstract class BasePlayback extends PannerMixin(
   public origin!: IPlaybackContainer;
   protected eventEmitter: TypedEventEmitter<PlaybackEvents> = new TypedEventEmitter<PlaybackEvents>();
 
+  constructor() {
+    super();
+    
+    // Mark sync-only events for dev warnings
+    this.eventEmitter.markEventAsSyncOnly('play');
+    this.eventEmitter.markEventAsSyncOnly('stop');
+    this.eventEmitter.markEventAsSyncOnly('pause');
+    this.eventEmitter.markEventAsSyncOnly('resume');
+    this.eventEmitter.markEventAsSyncOnly('ended');
+    this.eventEmitter.markEventAsSyncOnly('volumeChange');
+    this.eventEmitter.markEventAsSyncOnly('seek');
+  }
+
   abstract play(): [this];
   abstract pause(): void;
   abstract stop(): void;
@@ -38,8 +51,36 @@ export abstract class BasePlayback extends PannerMixin(
     this.eventEmitter.off(event, listener);
   }
 
+  onAsync<K extends keyof PlaybackEvents>(
+    event: K,
+    listener: (data: PlaybackEvents[K]) => void | Promise<void>
+  ): () => void {
+    return this.eventEmitter.onAsync(event, listener);
+  }
+
+  onceAsync<K extends keyof PlaybackEvents>(
+    event: K,
+    listener: (data: PlaybackEvents[K]) => void | Promise<void>
+  ): () => void {
+    return this.eventEmitter.onceAsync(event, listener);
+  }
+
   protected emit<K extends keyof PlaybackEvents>(event: K, data: PlaybackEvents[K]): void {
     this.eventEmitter.emit(event, data);
+  }
+
+  protected async emitAsync<K extends keyof PlaybackEvents>(
+    event: K,
+    data: PlaybackEvents[K]
+  ): Promise<PromiseSettledResult<void>[]> {
+    return this.eventEmitter.emitAsync(event, data);
+  }
+
+  protected emitAsyncOnly<K extends keyof PlaybackEvents>(
+    event: K,
+    data: PlaybackEvents[K]
+  ): Promise<void> {
+    return this.eventEmitter.emitAsyncOnly(event, data);
   }
 
   cleanup(): void {

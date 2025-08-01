@@ -4,8 +4,10 @@ type EventListener<T> = (params: T) => void | Promise<void>;
 
 // Development mode detection for warnings
 declare const __DEV__: boolean | undefined;
-const isDev = (typeof __DEV__ !== 'undefined' && __DEV__) ||
-  (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development');
+function isDev(): boolean {
+  return (typeof __DEV__ !== 'undefined' && __DEV__) ||
+    (typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'development');
+}
 
 export class TypedEventEmitter<T extends EventMap> {
   private listeners: Partial<Record<keyof T, Array<{ fn: EventListener<any>, once: boolean }>>> = {};
@@ -17,7 +19,7 @@ export class TypedEventEmitter<T extends EventMap> {
     this.listeners[eventName]!.push({ fn, once: false });
     
     // Development warning for async listeners on sync events
-    if (isDev && (options?.warnOnAsync !== false)) {
+    if (isDev() && (options?.warnOnAsync !== false)) {
       if (this.syncOnlyEvents.has(eventName) && this.isAsyncFunction(fn)) {
         console.warn(
           `🎵 Cacophony Warning: Async listener detected on sync event '${String(eventName)}'. ` +
@@ -52,9 +54,9 @@ export class TypedEventEmitter<T extends EventMap> {
   }
 
   /**
-   * Enhanced emitAsync with better error handling and timeout
+   * Enhanced emitAsync with better error handling and optional per-listener timeout
    */
-  emitAsync<K extends EventKey<T>>(eventName: K, params: T[K], timeoutMs: number = 5000): Promise<PromiseSettledResult<void>[]> {
+  emitAsync<K extends EventKey<T>>(eventName: K, params: T[K], timeoutMs?: number): Promise<PromiseSettledResult<void>[]> {
     const syncListeners = this.listeners[eventName] || [];
     const asyncListeners = this.asyncListeners[eventName] || [];
     const allListeners = [...syncListeners, ...asyncListeners];
@@ -64,13 +66,17 @@ export class TypedEventEmitter<T extends EventMap> {
     }
 
     const promises = allListeners.map(listener => {
-      const timeoutPromise = new Promise<void>((_, reject) => {
-        setTimeout(() => reject(new Error(`Listener timeout after ${timeoutMs}ms`)), timeoutMs);
-      });
-      
       const listenerPromise = Promise.resolve().then(() => listener.fn(params));
       
-      return Promise.race([listenerPromise, timeoutPromise]);
+      // Only apply timeout if specified, to avoid starvation
+      if (timeoutMs && timeoutMs > 0) {
+        const timeoutPromise = new Promise<void>((_, reject) => {
+          setTimeout(() => reject(new Error(`Listener timeout after ${timeoutMs}ms`)), timeoutMs);
+        });
+        return Promise.race([listenerPromise, timeoutPromise]);
+      }
+      
+      return listenerPromise;
     });
 
     // Clean up one-time listeners
@@ -137,14 +143,10 @@ export class TypedEventEmitter<T extends EventMap> {
   }
 
   /**
-   * Detect if function is likely async
+   * Detect if function is actually async (not just contains async-like strings)
+   * Only relies on constructor.name to avoid false positives from transpiled code
    */
   private isAsyncFunction(fn: Function): boolean {
-    const fnString = fn.toString();
-    return fnString.includes('async ') || 
-           fnString.includes('await ') || 
-           fnString.includes('Promise') ||
-           fnString.includes('.then(') ||
-           fn.constructor.name === 'AsyncFunction';
+    return fn.constructor.name === 'AsyncFunction';
   }
 }

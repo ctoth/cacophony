@@ -225,7 +225,7 @@ export class Playback extends BasePlayback implements BaseSound {
       this.emit("play", this);
       return [this];
     } catch (error) {
-      this.emit("error", {
+      this.emitAsyncOnly("error", {
         error: error as Error,
         errorType: 'source',
         timestamp: Date.now(),
@@ -338,7 +338,7 @@ export class Playback extends BasePlayback implements BaseSound {
       this.playbackRate = this._playbackRate;
       this.refreshFilters();
     } catch (error) {
-      this.emit("error", {
+      this.emitAsyncOnly("error", {
         error: error as Error,
         errorType: 'source',
         timestamp: Date.now(),

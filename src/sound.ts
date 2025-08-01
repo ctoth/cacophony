@@ -72,6 +72,14 @@ export class Sound
     super();
     this.buffer = buffer;
     this.context = context;
+
+    // Mark sync-only events for dev warnings
+    this.eventEmitter.markEventAsSyncOnly('play');
+    this.eventEmitter.markEventAsSyncOnly('stop');
+    this.eventEmitter.markEventAsSyncOnly('pause');
+    this.eventEmitter.markEventAsSyncOnly('resume');
+    this.eventEmitter.markEventAsSyncOnly('volumeChange');
+    this.eventEmitter.markEventAsSyncOnly('rateChange');
   }
 
   get volume(): number {
@@ -92,6 +100,20 @@ export class Sound
     this.eventEmitter.off(event, listener);
   }
 
+  onAsync<K extends keyof SoundEvents>(
+    event: K,
+    listener: (data: SoundEvents[K]) => void | Promise<void>
+  ): () => void {
+    return this.eventEmitter.onAsync(event, listener);
+  }
+
+  onceAsync<K extends keyof SoundEvents>(
+    event: K,
+    listener: (data: SoundEvents[K]) => void | Promise<void>
+  ): () => void {
+    return this.eventEmitter.onceAsync(event, listener);
+  }
+
   protected emit<K extends keyof SoundEvents>(
     event: K,
     data: SoundEvents[K]
@@ -102,8 +124,15 @@ export class Sound
   protected async emitAsync<K extends keyof SoundEvents>(
     event: K,
     data: SoundEvents[K]
-  ): Promise<void> {
+  ): Promise<PromiseSettledResult<void>[]> {
     return this.eventEmitter.emitAsync(event, data);
+  }
+
+  protected emitAsyncOnly<K extends keyof SoundEvents>(
+    event: K,
+    data: SoundEvents[K]
+  ): Promise<void> {
+    return this.eventEmitter.emitAsyncOnly(event, data);
   }
 
   /**
@@ -193,8 +222,8 @@ export class Sound
       playback.stereoPan = this.stereoPan as number;
     }
       // Set up error propagation from playback to sound
-      playback.on('error', (errorEvent) => {
-        this.emit('soundError', {
+      playback.onAsync('error', (errorEvent) => {
+        this.emitAsyncOnly('soundError', {
           url: this.url,
           error: errorEvent.error,
           errorType: 'playback',
@@ -213,7 +242,7 @@ export class Sound
         timestamp: Date.now(),
         recoverable: true,
       };
-      this.emit('soundError', errorEvent);
+      this.emitAsyncOnly('soundError', errorEvent);
       throw error;
     }
   }
