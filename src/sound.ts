@@ -165,7 +165,8 @@ export class Sound
    */
 
   preplay(): Playback[] {
-    let source: SourceNode;
+    try {
+      let source: SourceNode;
     if (this.buffer) {
       source = this.context.createBufferSource();
       source.buffer = this.buffer;
@@ -191,8 +192,30 @@ export class Sound
     } else if (this.panType === "stereo") {
       playback.stereoPan = this.stereoPan as number;
     }
-    this.playbacks.push(playback);
-    return [playback];
+      // Set up error propagation from playback to sound
+      playback.on('error', (errorEvent) => {
+        this.emit('soundError', {
+          url: this.url,
+          error: errorEvent.error,
+          errorType: 'playback',
+          timestamp: errorEvent.timestamp,
+          recoverable: errorEvent.recoverable,
+        });
+      });
+
+      this.playbacks.push(playback);
+      return [playback];
+    } catch (error) {
+      const errorEvent = {
+        url: this.url,
+        error: error as Error,
+        errorType: 'playback' as const,
+        timestamp: Date.now(),
+        recoverable: true,
+      };
+      this.emit('soundError', errorEvent);
+      throw error;
+    }
   }
 
   play(): ReturnType<this["preplay"]> {

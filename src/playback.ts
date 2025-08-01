@@ -196,33 +196,43 @@ export class Playback extends BasePlayback implements BaseSound {
       return [this];
     }
 
-    if (this._state === PlaybackState.Paused) {
-      // If we're resuming from a paused state
-      if ("mediaElement" in this.source && this.source.mediaElement) {
-        this.source.mediaElement.play();
+    try {
+      if (this._state === PlaybackState.Paused) {
+        // If we're resuming from a paused state
+        if ("mediaElement" in this.source && this.source.mediaElement) {
+          this.source.mediaElement.play();
+        } else {
+          // For non-mediaElement sources, we need to recreate and start the source
+          this.recreateSource();
+          if ("start" in this.source && this.source.start) {
+            this.source.start(0, this._offset);
+          }
+        }
       } else {
-        // For non-mediaElement sources, we need to recreate and start the source
-        this.recreateSource();
-        if ("start" in this.source && this.source.start) {
+        // If we're starting from the beginning or a stopped state
+
+        if ("mediaElement" in this.source && this.source.mediaElement) {
+          this.source.mediaElement.currentTime = this._offset;
+          this.source.mediaElement.play();
+        } else if ("start" in this.source && this.source.start) {
+          this.recreateSource();
           this.source.start(0, this._offset);
         }
       }
-    } else {
-      // If we're starting from the beginning or a stopped state
 
-      if ("mediaElement" in this.source && this.source.mediaElement) {
-        this.source.mediaElement.currentTime = this._offset;
-        this.source.mediaElement.play();
-      } else if ("start" in this.source && this.source.start) {
-        this.recreateSource();
-        this.source.start(0, this._offset);
-      }
+      this._startTime = this.context.currentTime;
+      this._state = PlaybackState.Playing;
+      this.emit("play", this);
+      return [this];
+    } catch (error) {
+      this.emit("error", {
+        error: error as Error,
+        errorType: 'source',
+        timestamp: Date.now(),
+        recoverable: true,
+      });
+      throw error;
     }
-
-    this._startTime = this.context.currentTime;
-    this._state = PlaybackState.Playing;
-    this.emit("play", this);
-    return [this];
   }
 
   pause(): void {
@@ -311,21 +321,31 @@ export class Playback extends BasePlayback implements BaseSound {
         "Cannot recreate source of a sound that has been cleaned up"
       );
     }
-    if (this.source) {
-      // It's crucial to nullify onended of the old source if it's an AudioBufferSourceNode (or similar non-restartable source),
-      // as its onended event could otherwise interfere with the new source created for seek/resume.
-      // MediaElementAudioSourceNode is handled differently as its underlying element can be paused/played.
-      if (!("mediaElement" in this.source) && "onended" in this.source) {
-        this.source.onended = null;
+    try {
+      if (this.source) {
+        // It's crucial to nullify onended of the old source if it's an AudioBufferSourceNode (or similar non-restartable source),
+        // as its onended event could otherwise interfere with the new source created for seek/resume.
+        // MediaElementAudioSourceNode is handled differently as its underlying element can be paused/played.
+        if (!("mediaElement" in this.source) && "onended" in this.source) {
+          this.source.onended = null;
+        }
+        this.source.disconnect();
       }
-      this.source.disconnect();
+      this.source = this.context.createBufferSource();
+      this.source.buffer = this.buffer;
+      this.source.connect(this.panner);
+      this.source.onended = this.loopEnded;
+      this.playbackRate = this._playbackRate;
+      this.refreshFilters();
+    } catch (error) {
+      this.emit("error", {
+        error: error as Error,
+        errorType: 'source',
+        timestamp: Date.now(),
+        recoverable: false,
+      });
+      throw error;
     }
-    this.source = this.context.createBufferSource();
-    this.source.buffer = this.buffer;
-    this.source.connect(this.panner);
-    this.source.onended = this.loopEnded;
-    this.playbackRate = this._playbackRate;
-    this.refreshFilters();
   }
 
   /**

@@ -622,3 +622,175 @@ describe("Playback looping and seeking with AudioBufferSourceNode (Bug Catching)
     expect(firstSourceInstance.start).not.toHaveBeenCalled();
   });
 });
+
+describe("Playback Error Events", () => {
+  let playback: Playback;
+  let buffer: AudioBuffer;
+  let source: AudioBufferSourceNode;
+  let gainNode: GainNode;
+  let sound: Sound;
+  let mockCallbacks: any;
+
+  beforeEach(() => {
+    buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    source = audioContextMock.createBufferSource();
+    source.buffer = buffer;
+    gainNode = audioContextMock.createGain();
+    sound = new Sound("test-url", buffer, audioContextMock, gainNode);
+    playback = new Playback(sound, source, gainNode);
+
+    mockCallbacks = {
+      onError: vi.fn(),
+    };
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    if (playback) {
+      playback.stop();
+    }
+  });
+
+  it("should emit error event on source node failure during play", async () => {
+    // Mock source.start to throw an error
+    const sourceError = new Error("AudioBufferSourceNode start failed");
+    
+    // Mock createBufferSource to return a source that will throw on start
+    vi.spyOn(audioContextMock, 'createBufferSource').mockImplementation(() => {
+      return {
+        buffer: null,
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+        start: vi.fn(() => {
+          throw sourceError;
+        }),
+        stop: vi.fn(),
+        onended: null,
+        loop: false,
+        loopStart: 0,
+        loopEnd: 0,
+        playbackRate: { value: 1, setValueAtTime: vi.fn() } as any,
+      } as unknown as AudioBufferSourceNode;
+    });
+
+    playback.on('error', mockCallbacks.onError);
+    
+    // Attempt to play should trigger error event
+    expect(() => playback.play()).toThrow("AudioBufferSourceNode start failed");
+
+    expect(mockCallbacks.onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: sourceError,
+        errorType: 'source',
+        timestamp: expect.any(Number),
+        recoverable: true,
+      })
+    );
+  });
+
+  it("should emit error event on context state issues", async () => {
+    // Mock context to be in an error state
+    const contextError = new Error("AudioContext suspended");
+    Object.defineProperty(audioContextMock, 'state', {
+      get: () => 'suspended'
+    });
+
+    playback.on('error', mockCallbacks.onError);
+    
+    // Simulate context error during playback
+    playback.emit('error', {
+      error: contextError,
+      errorType: 'context',
+      timestamp: Date.now(),
+      recoverable: false,
+    });
+
+    expect(mockCallbacks.onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: contextError,
+        errorType: 'context',
+        timestamp: expect.any(Number),
+        recoverable: false,
+      })
+    );
+  });
+
+  it("should emit error event on decode failures", async () => {
+    const decodeError = new Error("Failed to decode audio data");
+    
+    playback.on('error', mockCallbacks.onError);
+    
+    // Simulate decode error
+    playback.emit('error', {
+      error: decodeError,
+      errorType: 'decode',
+      timestamp: Date.now(),
+      recoverable: false,
+    });
+
+    expect(mockCallbacks.onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: decodeError,
+        errorType: 'decode',
+        timestamp: expect.any(Number),
+        recoverable: false,
+      })
+    );
+  });
+
+  it("should emit error event on unknown playback failures", async () => {
+    const unknownError = new Error("Unknown playback error");
+    
+    playback.on('error', mockCallbacks.onError);
+    
+    // Simulate unknown error
+    playback.emit('error', {
+      error: unknownError,
+      errorType: 'unknown',
+      timestamp: Date.now(),
+      recoverable: true,
+    });
+
+    expect(mockCallbacks.onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: unknownError,
+        errorType: 'unknown',
+        timestamp: expect.any(Number),
+        recoverable: true,
+      })
+    );
+  });
+
+  it("should handle multiple error listeners correctly", async () => {
+    const mockCallback2 = vi.fn();
+    const testError = new Error("Test error");
+    
+    playback.on('error', mockCallbacks.onError);
+    playback.on('error', mockCallback2);
+    
+    // Emit error
+    playback.emit('error', {
+      error: testError,
+      errorType: 'source',
+      timestamp: Date.now(),
+      recoverable: true,
+    });
+
+    expect(mockCallbacks.onError).toHaveBeenCalledTimes(1);
+    expect(mockCallback2).toHaveBeenCalledTimes(1);
+    
+    // Both should receive the same error event
+    expect(mockCallbacks.onError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: testError,
+        errorType: 'source',
+      })
+    );
+    expect(mockCallback2).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: testError,
+        errorType: 'source',
+      })
+    );
+  });
+});
