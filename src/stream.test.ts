@@ -65,7 +65,7 @@ describe("Stream operations with AbortController", () => {
 
     createStream("https://example.com/audio.wav", audioContextMock);
 
-    expect(mockFetch).toHaveBeenCalledWith("https://example.com/audio.wav", undefined);
+    expect(mockFetch).toHaveBeenCalledWith("https://example.com/audio.wav", { signal: undefined });
   });
 
   it("should return early when signal is already aborted", () => {

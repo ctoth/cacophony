@@ -246,7 +246,8 @@ describe("Cacophony advanced features", () => {
       expect(getAudioBufferSpy).toHaveBeenCalledWith(
         audioContextMock,
         url,
-        controller.signal
+        controller.signal,
+        expect.any(Object) // Event callbacks
       );
       expect(sound.buffer).toBe(mockBuffer);
       expect(sound.url).toBe(url);
@@ -282,7 +283,8 @@ describe("Cacophony advanced features", () => {
       expect(getAudioBufferSpy).toHaveBeenCalledWith(
         audioContextMock,
         url,
-        undefined // No signal should be passed
+        undefined, // No signal should be passed
+        expect.any(Object) // Event callbacks
       );
       expect(sound.buffer).toBe(mockBuffer);
     });
@@ -325,7 +327,8 @@ describe("Cacophony advanced features", () => {
         expect(mockCache.getAudioBuffer).toHaveBeenCalledWith(
           audioContextMock,
           url,
-          controller.signal
+          controller.signal,
+          expect.any(Object) // Event callbacks
         );
       });
     });
@@ -364,7 +367,8 @@ describe("Cacophony advanced features", () => {
         expect(mockCache.getAudioBuffer).toHaveBeenCalledWith(
           audioContextMock,
           url,
-          undefined
+          undefined,
+          expect.any(Object) // Event callbacks
         );
       });
     });
