@@ -9,11 +9,18 @@ const appendBuffer = (buffer1: ArrayBuffer, buffer2: ArrayBuffer): ArrayBuffer =
 }
 
 
-export function createStream(url: string, context: AudioContext) {
+export function createStream(url: string, context: AudioContext, signal?: AbortSignal) {
     const audioStack: IAudioBuffer[] = [];
     let nextTime = 0;
+    let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
-    fetch(url).then(function (response) {
+    // Check if already aborted
+    if (signal?.aborted) {
+        console.error('Stream error:', new DOMException('Operation was aborted', 'AbortError'));
+        return;
+    }
+
+    fetch(url, { signal }).then(function (response) {
         if (!response.ok) {
             throw new Error('HTTP error, status = ' + response.status);
         }
@@ -21,11 +28,33 @@ export function createStream(url: string, context: AudioContext) {
             throw new Error('Missing body');
         }
 
-        var reader = response.body.getReader();
+        reader = response.body.getReader();
         let header = new ArrayBuffer(0);//first 44bytes
 
+        // Set up abort listener to cancel the reader
+        const abortListener = () => {
+            audioStack.length = 0; // Clear decoded buffers to free memory
+            if (reader) {
+                reader.cancel('Stream aborted').catch(() => {
+                    // Ignore cancel errors - reader might already be closed
+                });
+            }
+        };
+
+        signal?.addEventListener('abort', abortListener);
+
         function read() {
-            return reader.read().then(({ value, done }) => {
+            if (signal?.aborted) {
+                abortListener();
+                return Promise.resolve();
+            }
+
+            return reader!.read().then(({ value, done }) => {
+                if (signal?.aborted) {
+                    abortListener();
+                    return;
+                }
+
                 let audioBuffer = null;
                 if (!value) {
                     return;
@@ -40,6 +69,9 @@ export function createStream(url: string, context: AudioContext) {
                 }
 
                 context.decodeAudioData(audioBuffer, function (buffer) {
+                    if (signal?.aborted) {
+                        return;
+                    }
 
                     audioStack.push(buffer);
                     if (audioStack.length) {
@@ -50,13 +82,22 @@ export function createStream(url: string, context: AudioContext) {
                 });
                 if (done) {
                     console.log('done');
+                    signal?.removeEventListener('abort', abortListener);
                     return;
                 }
                 //read next buffer
                 read();
+            }).catch(error => {
+                if (signal?.aborted || error.name === 'AbortError') {
+                    // Expected abort, cleanup handled by abort listener
+                    return;
+                }
+                console.error('Stream read error:', error);
             });
         }
         read();
+    }).catch(function (error) {
+        console.error('Stream error:', error);
     })
 
     function scheduleBuffers() {
