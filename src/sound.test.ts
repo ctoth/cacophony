@@ -469,7 +469,7 @@ describe("Loading Events", () => {
     );
     audioContextMock.decodeAudioData = audioContextDecodeAudioData;
 
-    cacophony.onAsync('loadingStart', mockCallbacks.onLoadingStart);
+    cacophony.on('loadingStart', mockCallbacks.onLoadingStart);
     await cacophony.createSound("test-url.mp3");
 
     expect(mockCallbacks.onLoadingStart).toHaveBeenCalledWith(
@@ -511,7 +511,7 @@ describe("Loading Events", () => {
     );
     audioContextMock.decodeAudioData = audioContextDecodeAudioData;
 
-    cacophony.onAsync('loadingProgress', mockCallbacks.onLoadingProgress);
+    cacophony.on('loadingProgress', mockCallbacks.onLoadingProgress);
     await cacophony.createSound("test-url.mp3");
 
     expect(mockCallbacks.onLoadingProgress).toHaveBeenCalledWith(
@@ -537,7 +537,7 @@ describe("Loading Events", () => {
     const audioContextDecodeAudioData = vi.fn().mockResolvedValue(buffer);
     audioContextMock.decodeAudioData = audioContextDecodeAudioData;
 
-    cacophony.onAsync('loadingComplete', mockCallbacks.onLoadingComplete);
+    cacophony.on('loadingComplete', mockCallbacks.onLoadingComplete);
     await cacophony.createSound("test-url.mp3");
 
     expect(mockCallbacks.onLoadingComplete).toHaveBeenCalledWith(
@@ -553,7 +553,7 @@ describe("Loading Events", () => {
   it("should emit loading error event on network failure", async () => {
     global.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
 
-    cacophony.onAsync('loadingError', mockCallbacks.onLoadingError);
+    cacophony.on('loadingError', mockCallbacks.onLoadingError);
     await expect(
       cacophony.createSound("test-url.mp3")
     ).rejects.toThrow("Network error");
@@ -580,7 +580,7 @@ describe("Loading Events", () => {
     );
     audioContextMock.decodeAudioData = audioContextDecodeAudioData;
 
-    cacophony.onAsync('loadingError', mockCallbacks.onLoadingError);
+    cacophony.on('loadingError', mockCallbacks.onLoadingError);
     await expect(
       cacophony.createSound("test-url.mp3")
     ).rejects.toThrow("Invalid audio format");
@@ -604,7 +604,7 @@ describe("Loading Events", () => {
 
     setTimeout(() => controller.abort(), 10);
 
-    cacophony.onAsync('loadingError', mockCallbacks.onLoadingError);
+    cacophony.on('loadingError', mockCallbacks.onLoadingError);
     await expect(
       cacophony.createSound("test-url.mp3", undefined, undefined, controller.signal)
     ).rejects.toThrow("Aborted");
@@ -646,10 +646,10 @@ describe("Sound Error Events", () => {
   it("should emit soundError event on sound loading failures", async () => {
     const loadError = new Error("Failed to load sound");
 
-    sound.onAsync('soundError', mockCallbacks.onSoundError);
+    sound.on('soundError', mockCallbacks.onSoundError);
 
     // Simulate load error
-    await sound.emitAsyncOnly('soundError', {
+    await sound.emitAsync('soundError', {
       url: "test-url",
       error: loadError,
       errorType: 'load',
@@ -671,10 +671,10 @@ describe("Sound Error Events", () => {
   it("should emit soundError event on playback initialization failures", async () => {
     const playbackError = new Error("Failed to initialize playback");
 
-    sound.onAsync('soundError', mockCallbacks.onSoundError);
+    sound.on('soundError', mockCallbacks.onSoundError);
 
     // Simulate playback error
-    await sound.emitAsyncOnly('soundError', {
+    await sound.emitAsync('soundError', {
       url: "test-url",
       error: playbackError,
       errorType: 'playback',
@@ -696,10 +696,10 @@ describe("Sound Error Events", () => {
   it("should emit soundError event on context-related failures", async () => {
     const contextError = new Error("AudioContext is not available");
 
-    sound.onAsync('soundError', mockCallbacks.onSoundError);
+    sound.on('soundError', mockCallbacks.onSoundError);
 
     // Simulate context error
-    await sound.emitAsyncOnly('soundError', {
+    await sound.emitAsync('soundError', {
       error: contextError,
       errorType: 'context',
       timestamp: Date.now(),
@@ -719,10 +719,10 @@ describe("Sound Error Events", () => {
   it("should emit soundError event on unknown sound failures", async () => {
     const unknownError = new Error("Unknown sound error");
 
-    sound.onAsync('soundError', mockCallbacks.onSoundError);
+    sound.on('soundError', mockCallbacks.onSoundError);
 
     // Simulate unknown error
-    await sound.emitAsyncOnly('soundError', {
+    await sound.emitAsync('soundError', {
       url: "test-url",
       error: unknownError,
       errorType: 'unknown',
@@ -746,10 +746,10 @@ describe("Sound Error Events", () => {
     const playback = playbacks[0];
     const playbackError = new Error("Playback source failed");
 
-    sound.onAsync('soundError', mockCallbacks.onSoundError);
+    sound.on('soundError', mockCallbacks.onSoundError);
 
     // Simulate playback error propagating to sound
-    await playback.emitAsyncOnly('error', {
+    await playback.emitAsync('error', {
       error: playbackError,
       errorType: 'source',
       timestamp: Date.now(),
@@ -769,10 +769,10 @@ describe("Sound Error Events", () => {
   it("should handle error event inheritance from BaseAudioEvents", async () => {
     const baseError = new Error("Base audio error");
 
-    sound.onAsync('error', mockCallbacks.onError);
+    sound.on('error', mockCallbacks.onError);
 
     // Emit base error event
-    await sound.emitAsyncOnly('error', {
+    await sound.emitAsync('error', {
       error: baseError,
       errorType: 'context',
       timestamp: Date.now(),
@@ -793,11 +793,11 @@ describe("Sound Error Events", () => {
     const mockCallback2 = vi.fn();
     const testError = new Error("Test sound error");
 
-    sound.onAsync('soundError', mockCallbacks.onSoundError);
-    sound.onAsync('soundError', mockCallback2);
+    sound.on('soundError', mockCallbacks.onSoundError);
+    sound.on('soundError', mockCallback2);
 
     // Emit error
-    await sound.emitAsyncOnly('soundError', {
+    await sound.emitAsync('soundError', {
       url: "test-url",
       error: testError,
       errorType: 'load',
