@@ -117,26 +117,6 @@ export class Cacophony {
     this.eventEmitter.off(event, listener);
   }
 
-  onAsync<K extends keyof CacophonyEvents>(
-    event: K,
-    listener: (data: CacophonyEvents[K]) => void | Promise<void>
-  ): () => void {
-    return this.eventEmitter.onAsync(event, listener);
-  }
-
-  onceAsync<K extends keyof CacophonyEvents>(
-    event: K,
-    listener: (data: CacophonyEvents[K]) => void | Promise<void>
-  ): () => void {
-    return this.eventEmitter.onceAsync(event, listener);
-  }
-
-  offAsync<K extends keyof CacophonyEvents>(
-    event: K,
-    listener: (data: CacophonyEvents[K]) => void | Promise<void>
-  ): void {
-    return this.eventEmitter.offAsync(event, listener);
-  }
 
   protected emit<K extends keyof CacophonyEvents>(
     event: K,
