@@ -152,12 +152,6 @@ export class Cacophony {
     return this.eventEmitter.emitAsync(event, data);
   }
 
-  protected emitAsyncOnly<K extends keyof CacophonyEvents>(
-    event: K,
-    data: CacophonyEvents[K]
-  ): Promise<void> {
-    return this.eventEmitter.emitAsyncOnly(event, data);
-  }
 
   async loadWorklets(signal?: AbortSignal) {
     if (this.context.audioWorklet) {
@@ -284,13 +278,13 @@ export class Cacophony {
     }
     return this.cache
       .getAudioBuffer(this.context, url, signal, {
-        onLoadingStart: (event) => this.emitAsyncOnly('loadingStart', event),
-        onLoadingProgress: (event) => this.emitAsyncOnly('loadingProgress', event),
-        onLoadingComplete: (event) => this.emitAsyncOnly('loadingComplete', event),
-        onLoadingError: (event) => this.emitAsyncOnly('loadingError', event),
-        onCacheHit: (event) => this.emitAsyncOnly('cacheHit', event),
-        onCacheMiss: (event) => this.emitAsyncOnly('cacheMiss', event),
-        onCacheError: (event) => this.emitAsyncOnly('cacheError', event),
+        onLoadingStart: (event) => this.emitAsync('loadingStart', event),
+        onLoadingProgress: (event) => this.emitAsync('loadingProgress', event),
+        onLoadingComplete: (event) => this.emitAsync('loadingComplete', event),
+        onLoadingError: (event) => this.emitAsync('loadingError', event),
+        onCacheHit: (event) => this.emitAsync('cacheHit', event),
+        onCacheMiss: (event) => this.emitAsync('cacheMiss', event),
+        onCacheError: (event) => this.emitAsync('cacheError', event),
       })
       .then(
         (buffer) =>
