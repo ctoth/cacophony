@@ -128,7 +128,7 @@ export class Cacophony {
   protected async emitAsync<K extends keyof CacophonyEvents>(
     event: K,
     data: CacophonyEvents[K]
-  ): Promise<PromiseSettledResult<void>[]> {
+  ): Promise<void> {
     return this.eventEmitter.emitAsync(event, data);
   }
 

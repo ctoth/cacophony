@@ -51,7 +51,7 @@ export abstract class BasePlayback extends PannerMixin(
   protected async emitAsync<K extends keyof PlaybackEvents>(
     event: K,
     data: PlaybackEvents[K]
-  ): Promise<PromiseSettledResult<void>[]> {
+  ): Promise<void> {
     return this.eventEmitter.emitAsync(event, data);
   }
 

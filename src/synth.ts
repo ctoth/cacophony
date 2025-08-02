@@ -48,7 +48,7 @@ export class Synth
   protected async emitAsync<K extends keyof SynthEvents>(
     event: K,
     data: SynthEvents[K]
-  ): Promise<PromiseSettledResult<void>[]> {
+  ): Promise<void> {
     return this.eventEmitter.emitAsync(event, data);
   }
 

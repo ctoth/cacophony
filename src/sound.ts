@@ -103,7 +103,7 @@ export class Sound
   protected async emitAsync<K extends keyof SoundEvents>(
     event: K,
     data: SoundEvents[K]
-  ): Promise<PromiseSettledResult<void>[]> {
+  ): Promise<void> {
     return this.eventEmitter.emitAsync(event, data);
   }
 
