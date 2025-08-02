@@ -329,7 +329,7 @@ describe("Event System Integration Tests", () => {
       expect(listener2).toHaveBeenCalledTimes(1);
 
       // Remove one listener
-      cacophony.offAsync('loadingStart', listener1);
+      cacophony.off('loadingStart', listener1);
 
       // Clear cache and trigger again
       cacophony.clearMemoryCache();

@@ -149,9 +149,9 @@ describe('TypedEventEmitter', () => {
       expect(regularListener).toHaveBeenCalledTimes(2);
     });
 
-    it('should return empty array when no listeners', async () => {
+    it('should return undefined when no listeners', async () => {
       const result = await emitter.emitAsync('testEvent', 'test');
-      expect(result).toEqual([]);
+      expect(result).toBeUndefined();
     });
 
     it('should handle mixed sync and async listeners', async () => {
