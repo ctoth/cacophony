@@ -37,19 +37,6 @@ export class Synth
     this.eventEmitter.off(event, listener);
   }
 
-  onAsync<K extends keyof SynthEvents>(
-    event: K,
-    listener: (data: SynthEvents[K]) => void | Promise<void>
-  ): () => void {
-    return this.eventEmitter.onAsync(event, listener);
-  }
-
-  onceAsync<K extends keyof SynthEvents>(
-    event: K,
-    listener: (data: SynthEvents[K]) => void | Promise<void>
-  ): () => void {
-    return this.eventEmitter.onceAsync(event, listener);
-  }
 
   protected emit<K extends keyof SynthEvents>(
     event: K,
@@ -65,12 +52,6 @@ export class Synth
     return this.eventEmitter.emitAsync(event, data);
   }
 
-  protected emitAsyncOnly<K extends keyof SynthEvents>(
-    event: K,
-    data: SynthEvents[K]
-  ): Promise<void> {
-    return this.eventEmitter.emitAsyncOnly(event, data);
-  }
 
   constructor(
     public context: AudioContext,
@@ -83,13 +64,6 @@ export class Synth
     this.context = context;
     this._oscillatorOptions = oscillatorOptions;
 
-    // Mark sync-only events for dev warnings
-    this.eventEmitter.markEventAsSyncOnly('play');
-    this.eventEmitter.markEventAsSyncOnly('stop');
-    this.eventEmitter.markEventAsSyncOnly('pause');
-    this.eventEmitter.markEventAsSyncOnly('frequencyChange');
-    this.eventEmitter.markEventAsSyncOnly('detuneChange');
-    this.eventEmitter.markEventAsSyncOnly('typeChange');
   }
 
   /**
