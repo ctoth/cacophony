@@ -76,12 +76,6 @@ export abstract class BasePlayback extends PannerMixin(
     return this.eventEmitter.emitAsync(event, data);
   }
 
-  protected emitAsyncOnly<K extends keyof PlaybackEvents>(
-    event: K,
-    data: PlaybackEvents[K]
-  ): Promise<void> {
-    return this.eventEmitter.emitAsyncOnly(event, data);
-  }
 
   cleanup(): void {
     this.eventEmitter.removeAllListeners();
