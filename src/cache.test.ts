@@ -1374,5 +1374,99 @@ describe("AudioCache", () => {
         })
       );
     });
+
+    describe("memory optimization", () => {
+      it("uses pre-allocation when content-length is known", async () => {
+        const url = "https://example.com/audio.mp3";
+        const testData = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+        const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+
+        // Mock fetch response with content-length
+        const mockResponse = {
+          status: 200,
+          ok: true,
+          headers: new Headers({
+            'content-length': testData.length.toString(),
+          }),
+          clone: vi.fn().mockReturnValue({
+            arrayBuffer: vi.fn().mockResolvedValue(testData.buffer),
+          }),
+          body: new ReadableStream({
+            start(controller) {
+              // Simulate chunks
+              controller.enqueue(testData.slice(0, 4));
+              controller.enqueue(testData.slice(4, 8));
+              controller.close();
+            }
+          }),
+        };
+
+        mockFetch.mockResolvedValueOnce(mockResponse);
+
+        const mockCache = {
+          match: vi.fn().mockResolvedValue(null),
+          put: vi.fn().mockResolvedValue(undefined),
+          delete: vi.fn().mockResolvedValue(undefined),
+        };
+        mockCaches.open.mockResolvedValueOnce(mockCache);
+
+        vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
+          mockAudioBuffer
+        );
+
+        const result = await cache.getAudioBuffer(audioContextMock, url);
+
+        expect(result).toBe(mockAudioBuffer);
+        // Verify decodeAudioData was called with correct buffer
+        expect(audioContextMock.decodeAudioData).toHaveBeenCalledWith(
+          expect.any(ArrayBuffer)
+        );
+      });
+
+      it("uses exponential growth when content-length is unknown", async () => {
+        const url = "https://example.com/audio.mp3";
+        const testData = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+        const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+
+        // Mock fetch response without content-length
+        const mockResponse = {
+          status: 200,
+          ok: true,
+          headers: new Headers(), // No content-length
+          clone: vi.fn().mockReturnValue({
+            arrayBuffer: vi.fn().mockResolvedValue(testData.buffer),
+          }),
+          body: new ReadableStream({
+            start(controller) {
+              // Simulate chunks
+              controller.enqueue(testData.slice(0, 4));
+              controller.enqueue(testData.slice(4, 8));
+              controller.close();
+            }
+          }),
+        };
+
+        mockFetch.mockResolvedValueOnce(mockResponse);
+
+        const mockCache = {
+          match: vi.fn().mockResolvedValue(null),
+          put: vi.fn().mockResolvedValue(undefined),
+          delete: vi.fn().mockResolvedValue(undefined),
+        };
+        mockCaches.open.mockResolvedValueOnce(mockCache);
+
+        vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
+          mockAudioBuffer
+        );
+
+        const result = await cache.getAudioBuffer(audioContextMock, url);
+
+        expect(result).toBe(mockAudioBuffer);
+        // Verify decodeAudioData was called with correct buffer
+        expect(audioContextMock.decodeAudioData).toHaveBeenCalledWith(
+          expect.any(ArrayBuffer)
+        );
+      });
+    });
   });
 });

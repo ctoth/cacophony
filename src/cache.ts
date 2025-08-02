@@ -324,8 +324,8 @@ export class AudioCache implements ICache {
 
           // Use progress tracking for cache recovery scenario if body exists
           if (freshResponse.body) {
-            const { stream } = this.createProgressTrackingStream(freshResponse, url);
-            return await this.collectStreamToArrayBuffer(stream);
+            const { stream, total } = this.createProgressTrackingStream(freshResponse, url);
+            return await this.collectStreamToArrayBuffer(stream, total || undefined);
           } else {
             // Fallback for mock responses without body (testing scenario)
             return await freshResponse.arrayBuffer();
@@ -368,8 +368,8 @@ export class AudioCache implements ICache {
 
     // Use progress tracking for the main response if body exists
     if (fetchResponse.body) {
-      const { stream } = this.createProgressTrackingStream(fetchResponse, url);
-      return await this.collectStreamToArrayBuffer(stream);
+      const { stream, total } = this.createProgressTrackingStream(fetchResponse, url);
+      return await this.collectStreamToArrayBuffer(stream, total || undefined);
     } else {
       // Fallback for mock responses without body (testing scenario)
       return await fetchResponse.arrayBuffer();
@@ -457,37 +457,61 @@ export class AudioCache implements ICache {
    * @returns Promise that resolves to the complete ArrayBuffer
    */
   private static async collectStreamToArrayBuffer(
-    stream: ReadableStream<Uint8Array>
+    stream: ReadableStream<Uint8Array>,
+    knownLength?: number
   ): Promise<ArrayBuffer> {
     const reader = stream.getReader();
-    const chunks: Uint8Array[] = [];
-    let totalLength = 0;
     
     try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
+      if (knownLength !== undefined && knownLength > 0) {
+        // Pre-allocation path: we know the exact size
+        const result = new ArrayBuffer(knownLength);
+        const uint8View = new Uint8Array(result);
+        let offset = 0;
         
-        if (value) {
-          chunks.push(value);
-          totalLength += value.byteLength;
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          if (value) {
+            uint8View.set(value, offset);
+            offset += value.byteLength;
+          }
         }
+        
+        return result;
+      } else {
+        // Exponential growth path: unknown size
+        let buffer = new Uint8Array(8192); // Start with 8KB
+        let totalLength = 0;
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          if (value) {
+            // Grow buffer if needed
+            if (totalLength + value.byteLength > buffer.length) {
+              const newSize = Math.max(
+                buffer.length * 2,
+                totalLength + value.byteLength
+              );
+              const newBuffer = new Uint8Array(newSize);
+              newBuffer.set(buffer.subarray(0, totalLength));
+              buffer = newBuffer;
+            }
+            
+            buffer.set(value, totalLength);
+            totalLength += value.byteLength;
+          }
+        }
+        
+        // Return exact-sized ArrayBuffer
+        return buffer.slice(0, totalLength).buffer;
       }
     } finally {
       reader.releaseLock();
     }
-    
-    // Combine all chunks into a single ArrayBuffer
-    const result = new ArrayBuffer(totalLength);
-    const uint8View = new Uint8Array(result);
-    let offset = 0;
-    
-    for (const chunk of chunks) {
-      uint8View.set(chunk, offset);
-      offset += chunk.byteLength;
-    }
-    
-    return result;
   }
 
   private static async decodeAudioData(
