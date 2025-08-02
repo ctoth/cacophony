@@ -684,10 +684,10 @@ describe("Playback Error Events", () => {
       get: () => 'suspended'
     });
 
-    playback.onAsync('error', mockCallbacks.onError);
+    playback.on('error', mockCallbacks.onError);
     
     // Simulate context error during playback
-    await playback.emitAsyncOnly('error', {
+    await playback.emitAsync('error', {
       error: contextError,
       errorType: 'context',
       timestamp: Date.now(),
@@ -707,10 +707,10 @@ describe("Playback Error Events", () => {
   it("should emit error event on decode failures", async () => {
     const decodeError = new Error("Failed to decode audio data");
     
-    playback.onAsync('error', mockCallbacks.onError);
+    playback.on('error', mockCallbacks.onError);
     
     // Simulate decode error
-    await playback.emitAsyncOnly('error', {
+    await playback.emitAsync('error', {
       error: decodeError,
       errorType: 'decode',
       timestamp: Date.now(),
@@ -730,10 +730,10 @@ describe("Playback Error Events", () => {
   it("should emit error event on unknown playback failures", async () => {
     const unknownError = new Error("Unknown playback error");
     
-    playback.onAsync('error', mockCallbacks.onError);
+    playback.on('error', mockCallbacks.onError);
     
     // Simulate unknown error
-    await playback.emitAsyncOnly('error', {
+    await playback.emitAsync('error', {
       error: unknownError,
       errorType: 'unknown',
       timestamp: Date.now(),
@@ -754,11 +754,11 @@ describe("Playback Error Events", () => {
     const mockCallback2 = vi.fn();
     const testError = new Error("Test error");
     
-    playback.onAsync('error', mockCallbacks.onError);
-    playback.onAsync('error', mockCallback2);
+    playback.on('error', mockCallbacks.onError);
+    playback.on('error', mockCallback2);
     
     // Emit error
-    await playback.emitAsyncOnly('error', {
+    await playback.emitAsync('error', {
       error: testError,
       errorType: 'source',
       timestamp: Date.now(),

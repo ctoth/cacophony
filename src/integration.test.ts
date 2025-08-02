@@ -46,10 +46,10 @@ describe("Event System Integration Tests", () => {
       audioContextMock.decodeAudioData = vi.fn().mockResolvedValue(mockAudioBuffer);
 
       // Register all event listeners
-      cacophony.onAsync('loadingStart', mockCallbacks.onLoadingStart);
-      cacophony.onAsync('loadingProgress', mockCallbacks.onLoadingProgress);
-      cacophony.onAsync('loadingComplete', mockCallbacks.onLoadingComplete);
-      cacophony.onAsync('cacheMiss', mockCallbacks.onCacheMiss);
+      cacophony.on('loadingStart', mockCallbacks.onLoadingStart);
+      cacophony.on('loadingProgress', mockCallbacks.onLoadingProgress);
+      cacophony.on('loadingComplete', mockCallbacks.onLoadingComplete);
+      cacophony.on('cacheMiss', mockCallbacks.onCacheMiss);
 
       // Trigger loading
       const sound = await cacophony.createSound(testUrl);
@@ -110,8 +110,8 @@ describe("Event System Integration Tests", () => {
       audioContextMock.decodeAudioData = vi.fn().mockResolvedValue(mockAudioBuffer);
 
       // Register event listeners
-      cacophony.onAsync('cacheHit', mockCallbacks.onCacheHit);
-      cacophony.onAsync('cacheMiss', mockCallbacks.onCacheMiss);
+      cacophony.on('cacheHit', mockCallbacks.onCacheHit);
+      cacophony.on('cacheMiss', mockCallbacks.onCacheMiss);
 
       // First load - should be cache miss
       await cacophony.createSound(testUrl);
@@ -155,9 +155,9 @@ describe("Event System Integration Tests", () => {
       audioContextMock.decodeAudioData = vi.fn().mockResolvedValue(mockAudioBuffer);
 
       // Register event listeners
-      cacophony.onAsync('loadingStart', mockCallbacks.onLoadingStart);
-      cacophony.onAsync('loadingError', mockCallbacks.onLoadingError);
-      cacophony.onAsync('loadingComplete', mockCallbacks.onLoadingComplete);
+      cacophony.on('loadingStart', mockCallbacks.onLoadingStart);
+      cacophony.on('loadingError', mockCallbacks.onLoadingError);
+      cacophony.on('loadingComplete', mockCallbacks.onLoadingComplete);
 
       // First attempt should fail
       await expect(cacophony.createSound(testUrl)).rejects.toThrow("Network timeout");
@@ -205,7 +205,7 @@ describe("Event System Integration Tests", () => {
       const sound = await cacophony.createSound(testUrl);
 
       // Register error listeners
-      sound.onAsync('soundError', mockCallbacks.onSoundError);
+      sound.on('soundError', mockCallbacks.onSoundError);
 
       // Mock createBufferSource to fail on play
       const playbackError = new Error("AudioBufferSourceNode start failed");
@@ -267,11 +267,11 @@ describe("Event System Integration Tests", () => {
       audioContextMock.decodeAudioData = vi.fn().mockResolvedValue(mockAudioBuffer);
 
       // Register all event listeners
-      cacophony.onAsync('loadingStart', mockCallbacks.onLoadingStart);
-      cacophony.onAsync('loadingComplete', mockCallbacks.onLoadingComplete);
-      cacophony.onAsync('loadingError', mockCallbacks.onLoadingError);
-      cacophony.onAsync('cacheMiss', mockCallbacks.onCacheMiss);
-      cacophony.onAsync('cacheHit', mockCallbacks.onCacheHit);
+      cacophony.on('loadingStart', mockCallbacks.onLoadingStart);
+      cacophony.on('loadingComplete', mockCallbacks.onLoadingComplete);
+      cacophony.on('loadingError', mockCallbacks.onLoadingError);
+      cacophony.on('cacheMiss', mockCallbacks.onCacheMiss);
+      cacophony.on('cacheHit', mockCallbacks.onCacheHit);
 
       // Load sounds with different outcomes
       const results = await Promise.allSettled([
@@ -319,8 +319,8 @@ describe("Event System Integration Tests", () => {
       const listener2 = vi.fn();
 
       // Add multiple listeners
-      cacophony.onAsync('loadingStart', listener1);
-      cacophony.onAsync('loadingStart', listener2);
+      cacophony.on('loadingStart', listener1);
+      cacophony.on('loadingStart', listener2);
 
       // Trigger event
       await cacophony.createSound(testUrl);
