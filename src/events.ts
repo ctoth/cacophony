@@ -2,6 +2,9 @@ import { BasePlayback } from "./basePlayback";
 import { Playback } from "./playback";
 import { SynthPlayback } from "./synthPlayback";
 
+/**
+ * Base events for all audio objects.
+ */
 export interface BaseAudioEvents {
   play: BasePlayback;
   stop: void;
@@ -12,16 +15,25 @@ export interface BaseAudioEvents {
   error: PlaybackErrorEvent;
 }
 
+/**
+ * Sound-specific events.
+ */
 export interface SoundEvents extends BaseAudioEvents {
   loopEnd: void;
   rateChange: number;
   soundError: SoundErrorEvent;
 }
 
+/**
+ * Playback-specific events.
+ */
 export interface PlaybackEvents extends BaseAudioEvents {
   seek: number;
 }
 
+/**
+ * Synthesizer-specific events.
+ */
 export interface SynthEvents extends Omit<BaseAudioEvents, 'play'> {
   play: SynthPlayback;
   frequencyChange: number;
@@ -29,6 +41,9 @@ export interface SynthEvents extends Omit<BaseAudioEvents, 'play'> {
   detuneChange: number;
 }
 
+/**
+ * Global Cacophony events including loading and cache operations.
+ */
 export interface CacophonyEvents {
   volumeChange: number;
   mute: void;
@@ -44,12 +59,18 @@ export interface CacophonyEvents {
   cacheError: CacheErrorEvent;
 }
 
-// Loading Event Types
+/**
+ * Fired when loading starts. Use for loading spinners.
+ */
 export interface LoadingStartEvent {
   url: string;
   timestamp: number;
 }
 
+/**
+ * Progress updates. total=null means unknown size.
+ * progress=-1 means indeterminate.
+ */
 export interface LoadingProgressEvent {
   url: string;
   loaded: number;
@@ -58,6 +79,9 @@ export interface LoadingProgressEvent {
   timestamp: number;
 }
 
+/**
+ * Fired when loading completes successfully.
+ */
 export interface LoadingCompleteEvent {
   url: string;
   duration: number;
@@ -65,6 +89,9 @@ export interface LoadingCompleteEvent {
   timestamp: number;
 }
 
+/**
+ * Fired when loading fails.
+ */
 export interface LoadingErrorEvent {
   url: string;
   error: Error;
@@ -72,7 +99,9 @@ export interface LoadingErrorEvent {
   timestamp: number;
 }
 
-// Error Event Types
+/**
+ * Playback error with recovery information.
+ */
 export interface PlaybackErrorEvent {
   error: Error;
   errorType: 'context' | 'source' | 'decode' | 'unknown';
@@ -80,6 +109,9 @@ export interface PlaybackErrorEvent {
   recoverable: boolean;
 }
 
+/**
+ * Sound error with recovery information.
+ */
 export interface SoundErrorEvent {
   url?: string;
   error: Error;
@@ -88,19 +120,27 @@ export interface SoundErrorEvent {
   recoverable: boolean;
 }
 
-// Cache Event Types
+/**
+ * Cache hit from memory, browser cache, or 304 response.
+ */
 export interface CacheHitEvent {
   url: string;
   cacheType: 'memory' | 'browser' | 'conditional';
   timestamp: number;
 }
 
+/**
+ * Cache miss requiring network fetch.
+ */
 export interface CacheMissEvent {
   url: string;
   reason: 'not-found' | 'expired' | 'invalid';
   timestamp: number;
 }
 
+/**
+ * Cache operation error.
+ */
 export interface CacheErrorEvent {
   url: string;
   error: Error;
@@ -108,7 +148,9 @@ export interface CacheErrorEvent {
   timestamp: number;
 }
 
-// Event Callback Types
+/**
+ * Loading event callbacks for cache operations.
+ */
 export type LoadingEventCallback = {
   onLoadingStart?: (event: LoadingStartEvent) => void;
   onLoadingProgress?: (event: LoadingProgressEvent) => void;
@@ -116,16 +158,24 @@ export type LoadingEventCallback = {
   onLoadingError?: (event: LoadingErrorEvent) => void;
 };
 
+/**
+ * Error event callbacks.
+ */
 export type ErrorEventCallback = {
   onPlaybackError?: (event: PlaybackErrorEvent) => void;
   onSoundError?: (event: SoundErrorEvent) => void;
 };
 
+/**
+ * Cache event callbacks.
+ */
 export type CacheEventCallback = {
   onCacheHit?: (event: CacheHitEvent) => void;
   onCacheMiss?: (event: CacheMissEvent) => void;
   onCacheError?: (event: CacheErrorEvent) => void;
 };
 
-// Combined Event Callback Interface
+/**
+ * Combined event callbacks for cache operations.
+ */
 export interface AudioEventCallbacks extends LoadingEventCallback, ErrorEventCallback, CacheEventCallback {}

@@ -23,6 +23,10 @@ export class Synth
   playbacks: SynthPlayback[] = [];
   private eventEmitter: TypedEventEmitter<SynthEvents> = new TypedEventEmitter<SynthEvents>();
 
+  /**
+   * Register event listener.
+   * @returns Cleanup function
+   */
   on<K extends keyof SynthEvents>(
     event: K,
     listener: (data: SynthEvents[K]) => void
@@ -30,6 +34,9 @@ export class Synth
     this.eventEmitter.on(event, listener);
   }
 
+  /**
+   * Remove event listener.
+   */
   off<K extends keyof SynthEvents>(
     event: K,
     listener: (data: SynthEvents[K]) => void

@@ -35,10 +35,17 @@ export abstract class BasePlayback extends PannerMixin(
     return this._playing;
   }
 
+  /**
+   * Register event listener.
+   * @returns Cleanup function
+   */
   on<K extends keyof PlaybackEvents>(event: K, listener: (data: PlaybackEvents[K]) => void): void {
     this.eventEmitter.on(event, listener);
   }
 
+  /**
+   * Remove event listener.
+   */
   off<K extends keyof PlaybackEvents>(event: K, listener: (data: PlaybackEvents[K]) => void): void {
     this.eventEmitter.off(event, listener);
   }

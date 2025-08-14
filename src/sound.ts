@@ -78,6 +78,10 @@ export class Sound
     return super.volume;
   }
 
+  /**
+   * Register event listener.
+   * @returns Cleanup function
+   */
   on<K extends keyof SoundEvents>(
     event: K,
     listener: (data: SoundEvents[K]) => void
@@ -85,6 +89,9 @@ export class Sound
     this.eventEmitter.on(event, listener);
   }
 
+  /**
+   * Remove event listener.
+   */
   off<K extends keyof SoundEvents>(
     event: K,
     listener: (data: SoundEvents[K]) => void

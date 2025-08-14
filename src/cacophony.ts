@@ -103,6 +103,10 @@ export class Cacophony {
     });
   }
 
+  /**
+   * Register event listener.
+   * @returns Cleanup function
+   */
   on<K extends keyof CacophonyEvents>(
     event: K,
     listener: (data: CacophonyEvents[K]) => void
@@ -110,6 +114,9 @@ export class Cacophony {
     this.eventEmitter.on(event, listener);
   }
 
+  /**
+   * Remove event listener.
+   */
   off<K extends keyof CacophonyEvents>(
     event: K,
     listener: (data: CacophonyEvents[K]) => void
