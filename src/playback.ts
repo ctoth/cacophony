@@ -196,32 +196,43 @@ export class Playback extends BasePlayback implements BaseSound {
       return [this];
     }
 
-    if (this._state === PlaybackState.Paused) {
-      // If we're resuming from a paused state
-      if ("mediaElement" in this.source && this.source.mediaElement) {
-        this.source.mediaElement.play();
+    try {
+      if (this._state === PlaybackState.Paused) {
+        // If we're resuming from a paused state
+        if ("mediaElement" in this.source && this.source.mediaElement) {
+          this.source.mediaElement.play();
+        } else {
+          // For non-mediaElement sources, we need to recreate and start the source
+          this.recreateSource();
+          if ("start" in this.source && this.source.start) {
+            this.source.start(0, this._offset);
+          }
+        }
       } else {
-        // For non-mediaElement sources, we need to recreate and start the source
-        this.recreateSource();
-        if ("start" in this.source && this.source.start) {
+        // If we're starting from the beginning or a stopped state
+
+        if ("mediaElement" in this.source && this.source.mediaElement) {
+          this.source.mediaElement.currentTime = this._offset;
+          this.source.mediaElement.play();
+        } else if ("start" in this.source && this.source.start) {
+          this.recreateSource();
           this.source.start(0, this._offset);
         }
       }
-    } else {
-      // If we're starting from the beginning or a stopped state
 
-      if ("mediaElement" in this.source && this.source.mediaElement) {
-        this.source.mediaElement.currentTime = this._offset;
-        this.source.mediaElement.play();
-      } else if ("start" in this.source && this.source.start) {
-        this.recreateSource();
-        this.source.start(0, this._offset);
-      }
+      this._startTime = this.context.currentTime;
+      this._state = PlaybackState.Playing;
+      this.emit("play", this);
+      return [this];
+    } catch (error) {
+      this.emitAsync("error", {
+        error: error as Error,
+        errorType: 'source',
+        timestamp: Date.now(),
+        recoverable: true,
+      });
+      throw error;
     }
-
-    this._startTime = this.context.currentTime;
-    this._state = PlaybackState.Playing;
-    return [this];
   }
 
   pause(): void {
@@ -266,6 +277,7 @@ export class Playback extends BasePlayback implements BaseSound {
     this._offset = 0;
     this._startTime = 0;
     this._state = PlaybackState.Stopped;
+    this.emit("stop", undefined);
   }
 
   seek(time: number): void {
@@ -309,21 +321,31 @@ export class Playback extends BasePlayback implements BaseSound {
         "Cannot recreate source of a sound that has been cleaned up"
       );
     }
-    if (this.source) {
-      // It's crucial to nullify onended of the old source if it's an AudioBufferSourceNode (or similar non-restartable source),
-      // as its onended event could otherwise interfere with the new source created for seek/resume.
-      // MediaElementAudioSourceNode is handled differently as its underlying element can be paused/played.
-      if (!("mediaElement" in this.source) && "onended" in this.source) {
-        this.source.onended = null;
+    try {
+      if (this.source) {
+        // It's crucial to nullify onended of the old source if it's an AudioBufferSourceNode (or similar non-restartable source),
+        // as its onended event could otherwise interfere with the new source created for seek/resume.
+        // MediaElementAudioSourceNode is handled differently as its underlying element can be paused/played.
+        if (!("mediaElement" in this.source) && "onended" in this.source) {
+          this.source.onended = null;
+        }
+        this.source.disconnect();
       }
-      this.source.disconnect();
+      this.source = this.context.createBufferSource();
+      this.source.buffer = this.buffer;
+      this.source.connect(this.panner);
+      this.source.onended = this.loopEnded;
+      this.playbackRate = this._playbackRate;
+      this.refreshFilters();
+    } catch (error) {
+      this.emitAsync("error", {
+        error: error as Error,
+        errorType: 'source',
+        timestamp: Date.now(),
+        recoverable: false,
+      });
+      throw error;
     }
-    this.source = this.context.createBufferSource();
-    this.source.buffer = this.buffer;
-    this.source.connect(this.panner);
-    this.source.onended = this.loopEnded;
-    this.playbackRate = this._playbackRate;
-    this.refreshFilters();
   }
 
   /**
@@ -349,21 +371,30 @@ export class Playback extends BasePlayback implements BaseSound {
    */
 
   cleanup(): void {
-    // Ensure cleanup is idempotent
-    if (this.source) {
-      this.source.disconnect();
-      this.source = undefined;
+    if (!this.source) {
+      return; // Already cleaned up
     }
-    if (this.gainNode) {
-      this.gainNode.disconnect();
-      this.gainNode = undefined;
+    this.source.disconnect();
+    this.source = undefined;
+    super.cleanup();
+  }
+
+  private assertNotCleanedUp(): void {
+    if (!this.source || !this.gainNode || !this.panner) {
+      throw new Error('Cannot perform operation on a sound that has been cleaned up');
     }
-    this._filters.forEach((filter) => {
-      if (filter) {
-        filter.disconnect();
-      }
-    });
-    this._filters = [];
+  }
+
+  addFilter(filter: BiquadFilterNode): void {
+    this.assertNotCleanedUp();
+    super.addFilter(filter);
+    this.refreshFilters();
+  }
+
+  removeFilter(filter: BiquadFilterNode): void {
+    this.assertNotCleanedUp();
+    super.removeFilter(filter);
+    this.refreshFilters();
   }
 
   /**
@@ -397,35 +428,6 @@ export class Playback extends BasePlayback implements BaseSound {
     return this.loopCount;
   }
 
-  /**
-   * Adds a filter to the audio signal chain.
-   * @param {BiquadFilterNode} filter - The filter to add.
-   */
-
-  addFilter(filter: BiquadFilterNode): void {
-    // Clone and add the new filter
-    const newFilter = this.context.createBiquadFilter();
-    newFilter.type = filter.type;
-    newFilter.frequency.value = filter.frequency.value;
-    newFilter.Q.value = filter.Q.value;
-    newFilter.gain.value = filter.gain.value;
-    this._filters.push(newFilter as unknown as BiquadFilterNode);
-    this.refreshFilters();
-  }
-
-  /**
-   * Removes a filter from the audio signal chain.
-   * @param {BiquadFilterNode} filter - The filter to remove.
-   */
-
-  removeFilter(filter: BiquadFilterNode): void {
-    const index = this._filters.indexOf(filter);
-    if (index !== -1) {
-      const removedFilter = this._filters.splice(index, 1)[0];
-      removedFilter.disconnect();
-    }
-    this.refreshFilters();
-  }
 
   /**
    * Refreshes the audio filters by re-applying them to the audio signal chain.

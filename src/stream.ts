@@ -20,7 +20,7 @@ export function createStream(url: string, context: AudioContext, signal?: AbortS
         return;
     }
 
-    fetch(url, { signal }).then(function (response) {
+    fetch(url, signal ? { signal } : undefined).then(function (response) {
         if (!response.ok) {
             throw new Error('HTTP error, status = ' + response.status);
         }

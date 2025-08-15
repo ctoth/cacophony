@@ -72,7 +72,15 @@ function requiresRevalidation(cacheControlHeader: string | undefined): boolean {
 }
 
 export interface ICache {
-  getAudioBuffer(context: AudioContext, url: string, signal?: AbortSignal): Promise<AudioBuffer>;
+  getAudioBuffer(context: AudioContext, url: string, signal?: AbortSignal, callbacks?: {
+    onLoadingStart?: (event: any) => void;
+    onLoadingProgress?: (event: any) => void; 
+    onLoadingComplete?: (event: any) => void;
+    onLoadingError?: (event: any) => void;
+    onCacheHit?: (event: any) => void;
+    onCacheMiss?: (event: any) => void;
+    onCacheError?: (event: any) => void;
+  }): Promise<AudioBuffer>;
   clearMemoryCache(): void;
 }
 
@@ -100,6 +108,7 @@ export interface ICache {
  */
 export class AudioCache implements ICache {
   private static pendingRequests = new Map<string, Promise<AudioBuffer>>();
+  private static pendingCallbacks = new Map<string, Array<{ onLoadingProgress?: (event: any) => void; }>>();
   private static decodedBuffers = new LRUCache<string, AudioBuffer>(
     DEFAULT_CACHE_SIZE
   );
@@ -118,15 +127,51 @@ export class AudioCache implements ICache {
     }
   }
 
+  /**
+   * Calls all registered callbacks for a specific event type on a URL
+   * @param url - The URL to get callbacks for
+   * @param callbackName - Name of the callback method to invoke
+   * @param eventData - Data to pass to the callbacks
+   */
+  private static callAllCallbacks(
+    url: string,
+    callbackName: keyof { onLoadingProgress?: (event: any) => void; },
+    eventData: any
+  ): void {
+    const callbacks = this.pendingCallbacks.get(url);
+    if (callbacks) {
+      callbacks.forEach(callbackSet => {
+        const callback = callbackSet[callbackName];
+        if (callback) {
+          try {
+            callback(eventData);
+          } catch (error) {
+            console.error(`Error in ${callbackName} callback:`, error);
+          }
+        }
+      });
+    }
+  }
+
   private static async getOrCreatePendingRequest(
     url: string,
     createRequest: () => Promise<AudioBuffer | undefined>,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    callbacks?: {
+      onLoadingProgress?: (event: any) => void;
+    }
   ): Promise<AudioBuffer> {
     if (signal?.aborted) {
       throw new DOMException('Operation was aborted', 'AbortError');
     }
     
+    // Add callbacks to aggregation if provided
+    if (callbacks) {
+      const existingCallbacks = this.pendingCallbacks.get(url) || [];
+      existingCallbacks.push(callbacks);
+      this.pendingCallbacks.set(url, existingCallbacks);
+    }
+
     let pendingRequest = this.pendingRequests.get(url);
     if (!pendingRequest) {
       const requestPromise = (async () => {
@@ -138,6 +183,7 @@ export class AudioCache implements ICache {
           return result;
         } finally {
           this.pendingRequests.delete(url);
+          this.pendingCallbacks.delete(url); // Clean up callbacks too
         }
       })();
       
@@ -145,6 +191,7 @@ export class AudioCache implements ICache {
       signal?.addEventListener('abort', () => {
         if (signal.aborted) {
           this.pendingRequests.delete(url);
+          this.pendingCallbacks.delete(url); // Clean up callbacks too
         }
       }, { once: true });
       
@@ -194,7 +241,10 @@ export class AudioCache implements ICache {
     cache: Cache,
     etag?: string,
     lastModified?: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    callbacks?: {
+      onCacheHit?: (event: any) => void;
+    }
   ): Promise<ArrayBuffer> {
     const headers = new Headers();
     if (etag) headers.append("If-None-Match", etag);
@@ -219,6 +269,15 @@ export class AudioCache implements ICache {
     if (fetchResponse.status === 304) {
       const cachedResponse = await cache.match(url);
       if (cachedResponse) {
+        // Emit cache hit for 304 responses
+        if (callbacks?.onCacheHit) {
+          callbacks.onCacheHit({
+            url,
+            cacheType: 'browser' as const,
+            timestamp: Date.now(),
+          });
+        }
+        
         // Update metadata timestamp on revalidation
         const timestamp = Date.now();
         const newCacheControl = fetchResponse.headers?.get("Cache-Control");
@@ -263,7 +322,14 @@ export class AudioCache implements ICache {
             throw error;
           }
 
-          return await freshResponse.arrayBuffer();
+          // Use progress tracking for cache recovery scenario if body exists
+          if (freshResponse.body) {
+            const { stream, total } = this.createProgressTrackingStream(freshResponse, url);
+            return await this.collectStreamToArrayBuffer(stream, total || undefined);
+          } else {
+            // Fallback for mock responses without body (testing scenario)
+            return await freshResponse.arrayBuffer();
+          }
         } else {
           throw new Error(
             `Failed to fetch resource after cache inconsistency: ${freshResponse.status} ${freshResponse.statusText}`
@@ -300,7 +366,152 @@ export class AudioCache implements ICache {
       throw new DOMException('Operation was aborted', 'AbortError');
     }
 
-    return await fetchResponse.arrayBuffer();
+    // Use progress tracking for the main response if body exists
+    if (fetchResponse.body) {
+      const { stream, total } = this.createProgressTrackingStream(fetchResponse, url);
+      return await this.collectStreamToArrayBuffer(stream, total || undefined);
+    } else {
+      // Fallback for mock responses without body (testing scenario)
+      return await fetchResponse.arrayBuffer();
+    }
+  }
+
+  /**
+   * Creates a ReadableStream wrapper that tracks download progress
+   * Uses the callback aggregation system to emit progress to all registered listeners
+   * @param response - The fetch Response object with ReadableStream body
+   * @param url - URL being downloaded (for progress event data and callback lookup)
+   * @returns Object containing the progress-tracking stream and total size
+   */
+  private static createProgressTrackingStream(
+    response: Response,
+    url: string
+  ): { stream: ReadableStream<Uint8Array>; total: number | null } {
+    // Extract Content-Length from response headers
+    const contentLengthHeader = response.headers.get('content-length');
+    const total = contentLengthHeader ? parseInt(contentLengthHeader, 10) : null;
+    
+    let loaded = 0;
+    
+    if (!response.body) {
+      // Fallback for responses without body - shouldn't happen for audio files
+      throw new Error('Response body is null');
+    }
+    
+    const reader = response.body.getReader();
+    
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        function pump(): Promise<void> {
+          return reader.read().then(({ done, value }) => {
+            if (done) {
+              // Emit final progress event at 100%
+              AudioCache.callAllCallbacks(url, 'onLoadingProgress', {
+                url,
+                loaded,
+                total,
+                progress: total ? 1 : -1, // 100% if total known, -1 if unknown
+                timestamp: Date.now()
+              });
+              controller.close();
+              return;
+            }
+            
+            if (value) {
+              loaded += value.byteLength;
+              
+              // Emit progress event
+              const progress = total ? loaded / total : -1;
+              AudioCache.callAllCallbacks(url, 'onLoadingProgress', {
+                url,
+                loaded,
+                total,
+                progress,
+                timestamp: Date.now()
+              });
+              
+              controller.enqueue(value);
+            }
+            
+            return pump();
+          }).catch(error => {
+            controller.error(error);
+          });
+        }
+        
+        return pump();
+      },
+      
+      cancel(reason) {
+        // Clean up reader when stream is cancelled
+        return reader.cancel(reason);
+      }
+    });
+    
+    return { stream, total };
+  }
+
+  /**
+   * Collects all chunks from a ReadableStream into a single ArrayBuffer
+   * @param stream - The ReadableStream to collect from
+   * @returns Promise that resolves to the complete ArrayBuffer
+   */
+  private static async collectStreamToArrayBuffer(
+    stream: ReadableStream<Uint8Array>,
+    knownLength?: number
+  ): Promise<ArrayBuffer> {
+    const reader = stream.getReader();
+    
+    try {
+      if (knownLength !== undefined && knownLength > 0) {
+        // Pre-allocation path: we know the exact size
+        const result = new ArrayBuffer(knownLength);
+        const uint8View = new Uint8Array(result);
+        let offset = 0;
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          if (value) {
+            uint8View.set(value, offset);
+            offset += value.byteLength;
+          }
+        }
+        
+        return result;
+      } else {
+        // Exponential growth path: unknown size
+        let buffer = new Uint8Array(8192); // Start with 8KB
+        let totalLength = 0;
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          if (value) {
+            // Grow buffer if needed
+            if (totalLength + value.byteLength > buffer.length) {
+              const newSize = Math.max(
+                buffer.length * 2,
+                totalLength + value.byteLength
+              );
+              const newBuffer = new Uint8Array(newSize);
+              newBuffer.set(buffer.subarray(0, totalLength));
+              buffer = newBuffer;
+            }
+            
+            buffer.set(value, totalLength);
+            totalLength += value.byteLength;
+          }
+        }
+        
+        // Return exact-sized ArrayBuffer
+        return buffer.slice(0, totalLength).buffer;
+      }
+    } finally {
+      reader.releaseLock();
+    }
   }
 
   private static async decodeAudioData(
@@ -352,10 +563,34 @@ export class AudioCache implements ICache {
   public async getAudioBuffer(
     context: AudioContext,
     url: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    callbacks?: {
+      onLoadingStart?: (event: any) => void;
+      onLoadingProgress?: (event: any) => void; 
+      onLoadingComplete?: (event: any) => void;
+      onLoadingError?: (event: any) => void;
+      onCacheHit?: (event: any) => void;
+      onCacheMiss?: (event: any) => void;
+      onCacheError?: (event: any) => void;
+    }
   ): Promise<AudioBuffer> {
+    // Call loading start callback
+    if (callbacks?.onLoadingStart) {
+      callbacks.onLoadingStart({
+        url,
+        timestamp: Date.now(),
+      });
+    }
+
     // Check if the decoded buffer is already available in memory cache
     if (AudioCache.decodedBuffers.has(url)) {
+      if (callbacks?.onCacheHit) {
+        callbacks.onCacheHit({
+          url,
+          cacheType: 'memory' as const,
+          timestamp: Date.now(),
+        });
+      }
       return AudioCache.decodedBuffers.get(url)!;
     }
 
@@ -410,22 +645,64 @@ export class AudioCache implements ICache {
 
     return AudioCache.getOrCreatePendingRequest(url, async () => {
       if (shouldFetch) {
-        const arrayBuffer = await AudioCache.fetchAndCacheBuffer(
-          url,
-          cache,
-          metadata?.etag,
-          metadata?.lastModified,
-          signal
-        );
-        const audioBuffer = await AudioCache.decodeAudioData(
-          context,
-          arrayBuffer
-        );
-        AudioCache.decodedBuffers.set(url, audioBuffer);
-        return audioBuffer;
+        // Cache miss - need to fetch from network
+        if (callbacks?.onCacheMiss) {
+          callbacks.onCacheMiss({
+            url,
+            reason: metadata ? 'expired' : 'not-found',
+            timestamp: Date.now(),
+          });
+        }
+
+        try {
+          const arrayBuffer = await AudioCache.fetchAndCacheBuffer(
+            url,
+            cache,
+            metadata?.etag,
+            metadata?.lastModified,
+            signal,
+            { onCacheHit: callbacks?.onCacheHit }
+          );
+          
+          if (callbacks?.onLoadingComplete) {
+            callbacks.onLoadingComplete({
+              url,
+              duration: 0, // Will be filled when buffer is decoded
+              size: arrayBuffer.byteLength,
+              timestamp: Date.now(),
+            });
+          }
+
+          const audioBuffer = await AudioCache.decodeAudioData(
+            context,
+            arrayBuffer
+          );
+          AudioCache.decodedBuffers.set(url, audioBuffer);
+          return audioBuffer;
+        } catch (error) {
+          if (callbacks?.onCacheError) {
+            callbacks.onCacheError({
+              url,
+              error: error as Error,
+              operation: 'get',
+              timestamp: Date.now(),
+            });
+          }
+          throw error;
+        }
       } else {
+        // Content should be fresh in cache
         const cachedBuffer = await AudioCache.getBufferFromCache(url, cache);
         if (cachedBuffer) {
+          // Cache hit from browser cache
+          if (callbacks?.onCacheHit) {
+            callbacks.onCacheHit({
+              url,
+              cacheType: 'browser' as const,
+              timestamp: Date.now(),
+            });
+          }
+
           const audioBuffer = await AudioCache.decodeAudioData(
             context,
             cachedBuffer
@@ -433,13 +710,24 @@ export class AudioCache implements ICache {
           AudioCache.decodedBuffers.set(url, audioBuffer);
           return audioBuffer;
         } else {
+          // Cache inconsistency - metadata exists but body is missing
+          if (callbacks?.onCacheError) {
+            callbacks.onCacheError({
+              url,
+              error: new Error('Cache inconsistency: metadata exists but body is missing'),
+              operation: 'get',
+              timestamp: Date.now(),
+            });
+          }
+
           // Fallback to network if body missing but metadata is fresh
           const arrayBuffer = await AudioCache.fetchAndCacheBuffer(
             url,
             cache,
             metadata?.etag,
             metadata?.lastModified,
-            signal
+            signal,
+            { onCacheHit: callbacks?.onCacheHit }
           );
           const audioBuffer = await AudioCache.decodeAudioData(
             context,
@@ -449,7 +737,7 @@ export class AudioCache implements ICache {
           return audioBuffer;
         }
       }
-    }, signal);
+    }, signal, { onLoadingProgress: callbacks?.onLoadingProgress });
   }
 
   public clearMemoryCache(): void {

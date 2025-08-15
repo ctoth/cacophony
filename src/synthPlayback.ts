@@ -1,4 +1,4 @@
-import type { BaseSound, PanType } from "./cacophony";
+import type { BaseSound } from "./cacophony";
 import type { AudioContext, GainNode, OscillatorNode } from "./context";
 import { FilterManager } from "./filters";
 import { OscillatorMixin } from "./oscillatorMixin";
@@ -28,7 +28,7 @@ export class SynthPlayback
   /**
    * Refreshes the audio filters by re-applying them to the audio signal chain.
    * This method is called internally whenever filters are added or removed.
-   * @throws {Error} Throws an error if the sound has been cleaned up.
+   * @throws {Error} Throws an error if the synth has been cleaned up.
    */
 
   private refreshFilters(): void {
@@ -41,5 +41,14 @@ export class SynthPlayback
     connection.disconnect();
     connection = this.applyFilters(connection);
     connection.connect(this.gainNode);
+  }
+
+  cleanup(): void {
+    if (this.panner && this.gainNode) {
+      this.source.disconnect(this.panner);
+      this.panner.disconnect();
+      this.gainNode.disconnect();
+    }
+    this.eventEmitter.removeAllListeners();
   }
 }

@@ -110,6 +110,7 @@ export class Group implements BaseSound {
    */
 
   play(): Playback[] {
+    // const playbacks = this.preplay().map((playback) => playback.play()[0]);
     const playbacks: Playback[] = [];
     // preplay returns an array, and then play on each of those also returns an array, and we only want one array of playbacks
     this.preplay().forEach((playback) => {

@@ -179,7 +179,13 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
             return [panner.positionX.value, panner.positionY.value, panner.positionZ.value];
         }
 
-
+        cleanup(): void {
+            if (this.panner) {
+                this.panner.disconnect();
+                this.panner = undefined;
+            }
+            super.cleanup();
+        }
     }
 
     return PannerMixin;

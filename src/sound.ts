@@ -34,6 +34,8 @@ import type {
   GainNode,
   SourceNode,
 } from "./context";
+import { TypedEventEmitter } from "./eventEmitter";
+import { SoundEvents } from "./events";
 import { FilterManager } from "./filters";
 import type { PanCloneOverrides } from "./pannerMixin";
 import { Playback } from "./playback";
@@ -55,6 +57,8 @@ export class Sound
   context: AudioContext;
   loopCount: LoopCount = 0;
   private _playbackRate: number = 1;
+  private eventEmitter: TypedEventEmitter<SoundEvents> =
+    new TypedEventEmitter<SoundEvents>();
 
   constructor(
     public url: string,
@@ -67,7 +71,49 @@ export class Sound
     super();
     this.buffer = buffer;
     this.context = context;
+
   }
+
+  get volume(): number {
+    return super.volume;
+  }
+
+  /**
+   * Register event listener.
+   * @returns Cleanup function
+   */
+  on<K extends keyof SoundEvents>(
+    event: K,
+    listener: (data: SoundEvents[K]) => void
+  ): void {
+    this.eventEmitter.on(event, listener);
+  }
+
+  /**
+   * Remove event listener.
+   */
+  off<K extends keyof SoundEvents>(
+    event: K,
+    listener: (data: SoundEvents[K]) => void
+  ): void {
+    this.eventEmitter.off(event, listener);
+  }
+
+
+  protected emit<K extends keyof SoundEvents>(
+    event: K,
+    data: SoundEvents[K]
+  ): void {
+    this.eventEmitter.emit(event, data);
+  }
+
+  protected async emitAsync<K extends keyof SoundEvents>(
+    event: K,
+    data: SoundEvents[K]
+  ): Promise<void> {
+    return this.eventEmitter.emitAsync(event, data);
+  }
+
 
   /**
    * Clones the current Sound instance, creating a deep copy with the option to override specific properties.
@@ -128,7 +174,8 @@ export class Sound
    */
 
   preplay(): Playback[] {
-    let source: SourceNode;
+    try {
+      let source: SourceNode;
     if (this.buffer) {
       source = this.context.createBufferSource();
       source.buffer = this.buffer;
@@ -154,8 +201,46 @@ export class Sound
     } else if (this.panType === "stereo") {
       playback.stereoPan = this.stereoPan as number;
     }
-    this.playbacks.push(playback);
-    return [playback];
+      // Set up error propagation from playback to sound
+      playback.on('error', (errorEvent) => {
+        this.emitAsync('soundError', {
+          url: this.url,
+          error: errorEvent.error,
+          errorType: 'playback',
+          timestamp: errorEvent.timestamp,
+          recoverable: errorEvent.recoverable,
+        });
+      });
+
+      this.playbacks.push(playback);
+      return [playback];
+    } catch (error) {
+      const errorEvent = {
+        url: this.url,
+        error: error as Error,
+        errorType: 'playback' as const,
+        timestamp: Date.now(),
+        recoverable: true,
+      };
+      this.emitAsync('soundError', errorEvent);
+      throw error;
+    }
+  }
+
+  play(): ReturnType<this["preplay"]> {
+    const playbacks = super.play() as ReturnType<this["preplay"]>;
+    this.emit("play", playbacks[0]);
+    return playbacks;
+  }
+
+  stop(): void {
+    super.stop();
+    this.emit("stop", undefined);
+  }
+
+  pause(): void {
+    super.pause();
+    this.emit("pause", undefined);
   }
 
   /**
@@ -207,5 +292,17 @@ export class Sound
   set playbackRate(rate: number) {
     this._playbackRate = rate;
     this.playbacks.forEach((p) => (p.playbackRate = rate));
+    this.emit("rateChange", rate);
+  }
+
+  set volume(volume: number) {
+    super.volume = volume;
+    this.emit("volumeChange", volume);
+  }
+
+  cleanup(): void {
+    this.playbacks.forEach((p) => p.cleanup());
+    this.playbacks = [];
+    this.eventEmitter.removeAllListeners();
   }
 }

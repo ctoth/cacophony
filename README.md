@@ -84,6 +84,94 @@ synth.addFilter(lowpassFilter);
 synth.play();
 ```
 
+## Event System
+
+Cacophony provides a comprehensive event system for monitoring loading progress, cache performance, and audio playback state:
+
+### Loading Progress
+
+Track download progress with real-time updates:
+
+```typescript
+const cacophony = new Cacophony();
+
+// Show loading progress
+cacophony.on('loadingStart', (event) => {
+  console.log(`Started loading: ${event.url}`);
+  showSpinner();
+});
+
+cacophony.on('loadingProgress', (event) => {
+  const percent = event.progress * 100;
+  console.log(`Progress: ${percent.toFixed(1)}%`);
+  updateProgressBar(event.progress);
+});
+
+cacophony.on('loadingComplete', (event) => {
+  console.log(`Loaded: ${event.url} (${event.size} bytes)`);
+  hideSpinner();
+});
+
+const sound = await cacophony.createSound('large-audio-file.mp3');
+```
+
+### Error Handling
+
+Handle loading and playback errors:
+
+```typescript
+// Global error handling
+cacophony.on('loadingError', (event) => {
+  console.error(`Failed to load ${event.url}:`, event.error);
+  showErrorToast(`Failed to load audio: ${event.errorType}`);
+});
+
+// Sound-specific error handling
+sound.on('soundError', (event) => {
+  if (event.recoverable) {
+    console.log('Retrying...');
+    sound.play(); // Retry playback
+  } else {
+    console.error('Unrecoverable error:', event.error);
+  }
+});
+```
+
+### Cache Monitoring
+
+Monitor cache performance:
+
+```typescript
+cacophony.on('cacheHit', (event) => {
+  console.log(`Cache hit: ${event.url} (${event.cacheType})`);
+});
+
+cacophony.on('cacheMiss', (event) => {
+  console.log(`Cache miss: ${event.url} (${event.reason})`);
+});
+```
+
+### Playback Events
+
+React to playback state changes:
+
+```typescript
+const sound = await cacophony.createSound('audio.mp3');
+
+sound.on('play', (playback) => {
+  console.log('Playing:', playback);
+  updatePlayButton('pause');
+});
+
+sound.on('pause', () => {
+  updatePlayButton('play');
+});
+
+sound.on('volumeChange', (volume) => {
+  updateVolumeSlider(volume);
+});
+```
+
 ## Synthesizer Functionality
 
 Create and manipulate synthesized sounds with advanced control:
