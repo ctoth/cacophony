@@ -293,6 +293,9 @@ describe("Cacophony advanced features", () => {
       const url = "https://example.com/audio.mp3";
       const controller = new AbortController();
 
+      // Set up spy to track cache calls
+      const getAudioBufferSpy = vi.spyOn(mockCache, 'getAudioBuffer');
+
       // Test HTML sound type - should not call cache at all
       const htmlSound = await cacophony.createSound(url, SoundType.HTML, 'HRTF', controller.signal);
       expect(htmlSound.soundType).toBe(SoundType.HTML);
@@ -304,7 +307,7 @@ describe("Cacophony advanced features", () => {
       expect(streamSound.url).toBe(url);
 
       // Verify cache was not called for HTML or Streaming types
-      expect(mockCache.getAudioBuffer).not.toHaveBeenCalled();
+      expect(getAudioBufferSpy).not.toHaveBeenCalled();
     });
 
     it("createGroupFromUrls passes AbortSignal to all createSound calls", async () => {

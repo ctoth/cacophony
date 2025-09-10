@@ -198,7 +198,7 @@ afterAll(() => {
 });
 
 beforeEach(() => {
-  vi.resetAllMocks();
+  vi.clearAllMocks();
   audioContextMock = new AudioContext();
   cacophony = new Cacophony(audioContextMock, mockCache);
 });
