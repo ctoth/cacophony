@@ -22,6 +22,7 @@
  */
 
 import {
+  Cacophony,
   SoundType,
   type BaseSound,
   type LoopCount,
@@ -66,7 +67,8 @@ export class Sound
     context: AudioContext,
     private globalGainNode: GainNode,
     public soundType: SoundType = SoundType.Buffer,
-    public panType: PanType = "HRTF"
+    public panType: PanType = "HRTF",
+    private cacophony?: Cacophony
   ) {
     super();
     this.buffer = buffer;
@@ -152,7 +154,8 @@ export class Sound
       this.context,
       this.globalGainNode,
       this.soundType,
-      panType
+      panType,
+      this.cacophony
     );
     clone.loop(loopCount);
     clone.playbackRate = playbackRate;
@@ -230,17 +233,20 @@ export class Sound
   play(): ReturnType<this["preplay"]> {
     const playbacks = super.play() as ReturnType<this["preplay"]>;
     this.emit("play", playbacks[0]);
+    this.cacophony?.emit("globalPlay", { source: this, timestamp: Date.now() });
     return playbacks;
   }
 
   stop(): void {
     super.stop();
     this.emit("stop", undefined);
+    this.cacophony?.emit("globalStop", { source: this, timestamp: Date.now() });
   }
 
   pause(): void {
     super.pause();
     this.emit("pause", undefined);
+    this.cacophony?.emit("globalPause", { source: this, timestamp: Date.now() });
   }
 
   /**

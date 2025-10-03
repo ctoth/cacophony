@@ -151,6 +151,35 @@ cacophony.on('cacheMiss', (event) => {
 });
 ```
 
+### Global Playback Events
+
+Track all audio activity across your application:
+
+```typescript
+// Monitor all playback globally
+cacophony.on('globalPlay', (event) => {
+  console.log('Audio started:', event.source);
+  showGlobalAudioIndicator();
+});
+
+cacophony.on('globalStop', (event) => {
+  console.log('Audio stopped:', event.source);
+  hideGlobalAudioIndicator();
+});
+
+cacophony.on('globalPause', (event) => {
+  console.log('Audio paused:', event.source);
+});
+
+// Use case: pause all audio when app backgrounds
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // Global events let you track what's playing without manual state management
+    console.log('App backgrounded - track via global events');
+  }
+});
+```
+
 ### Playback Events
 
 React to playback state changes:
@@ -187,6 +216,9 @@ The main Cacophony instance emits global events for loading, caching, and errors
 | `cacheHit` | `CacheHitEvent` | Fired on cache hit. Contains `url`, `cacheType` ('memory'\|'browser'\|'conditional'), `timestamp`. |
 | `cacheMiss` | `CacheMissEvent` | Fired on cache miss. Contains `url`, `reason` ('not-found'\|'expired'\|'invalid'), `timestamp`. |
 | `cacheError` | `CacheErrorEvent` | Fired on cache operation error. Contains `url`, `error`, `operation`, `timestamp`. |
+| `globalPlay` | `GlobalPlaybackEvent` | Fired when any Sound or Synth starts playing. Contains `source`, `timestamp`. |
+| `globalStop` | `GlobalPlaybackEvent` | Fired when any Sound or Synth stops. Contains `source`, `timestamp`. |
+| `globalPause` | `GlobalPlaybackEvent` | Fired when any Sound or Synth pauses. Contains `source`, `timestamp`. |
 
 #### Sound Events
 

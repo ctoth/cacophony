@@ -1,6 +1,8 @@
 import { BasePlayback } from "./basePlayback";
 import { Playback } from "./playback";
 import { SynthPlayback } from "./synthPlayback";
+import type { Sound } from "./sound";
+import type { Synth } from "./synth";
 
 /**
  * Base events for all audio objects.
@@ -42,6 +44,14 @@ export interface SynthEvents extends Omit<BaseAudioEvents, 'play'> {
 }
 
 /**
+ * Global playback event fired when any Sound or Synth plays/stops/pauses.
+ */
+export interface GlobalPlaybackEvent {
+  source: Sound | Synth;
+  timestamp: number;
+}
+
+/**
  * Global Cacophony events including loading and cache operations.
  */
 export interface CacophonyEvents {
@@ -57,6 +67,9 @@ export interface CacophonyEvents {
   cacheHit: CacheHitEvent;
   cacheMiss: CacheMissEvent;
   cacheError: CacheErrorEvent;
+  globalPlay: GlobalPlaybackEvent;
+  globalStop: GlobalPlaybackEvent;
+  globalPause: GlobalPlaybackEvent;
 }
 
 /**

@@ -550,4 +550,125 @@ describe("Cacophony advanced features", () => {
       ).rejects.toThrow("AudioWorklet not supported");
     });
   });
+
+  describe("Global playback events", () => {
+    it("emits globalPlay event when a Sound plays", async () => {
+      const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const sound = await cacophony.createSound(buffer);
+
+      const globalPlaySpy = vi.fn();
+      cacophony.on('globalPlay', globalPlaySpy);
+
+      sound.play();
+
+      expect(globalPlaySpy).toHaveBeenCalledTimes(1);
+      expect(globalPlaySpy).toHaveBeenCalledWith({
+        source: sound,
+        timestamp: expect.any(Number)
+      });
+    });
+
+    it("emits globalStop event when a Sound stops", async () => {
+      const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const sound = await cacophony.createSound(buffer);
+
+      const globalStopSpy = vi.fn();
+      cacophony.on('globalStop', globalStopSpy);
+
+      sound.play();
+      sound.stop();
+
+      expect(globalStopSpy).toHaveBeenCalledTimes(1);
+      expect(globalStopSpy).toHaveBeenCalledWith({
+        source: sound,
+        timestamp: expect.any(Number)
+      });
+    });
+
+    it("emits globalPause event when a Sound pauses", async () => {
+      const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const sound = await cacophony.createSound(buffer);
+
+      const globalPauseSpy = vi.fn();
+      cacophony.on('globalPause', globalPauseSpy);
+
+      sound.play();
+      sound.pause();
+
+      expect(globalPauseSpy).toHaveBeenCalledTimes(1);
+      expect(globalPauseSpy).toHaveBeenCalledWith({
+        source: sound,
+        timestamp: expect.any(Number)
+      });
+    });
+
+    it("emits globalPlay event when a Synth plays", () => {
+      const synth = cacophony.createOscillator({ frequency: 440, type: 'sine' });
+
+      const globalPlaySpy = vi.fn();
+      cacophony.on('globalPlay', globalPlaySpy);
+
+      synth.play();
+
+      expect(globalPlaySpy).toHaveBeenCalledTimes(1);
+      expect(globalPlaySpy).toHaveBeenCalledWith({
+        source: synth,
+        timestamp: expect.any(Number)
+      });
+    });
+
+    it("emits globalStop event when a Synth stops", () => {
+      const synth = cacophony.createOscillator({ frequency: 440, type: 'sine' });
+
+      const globalStopSpy = vi.fn();
+      cacophony.on('globalStop', globalStopSpy);
+
+      synth.play();
+      synth.stop();
+
+      expect(globalStopSpy).toHaveBeenCalledTimes(1);
+      expect(globalStopSpy).toHaveBeenCalledWith({
+        source: synth,
+        timestamp: expect.any(Number)
+      });
+    });
+
+    it("emits globalPause event when a Synth pauses", () => {
+      const synth = cacophony.createOscillator({ frequency: 440, type: 'sine' });
+
+      const globalPauseSpy = vi.fn();
+      cacophony.on('globalPause', globalPauseSpy);
+
+      synth.play();
+      synth.pause();
+
+      expect(globalPauseSpy).toHaveBeenCalledTimes(1);
+      expect(globalPauseSpy).toHaveBeenCalledWith({
+        source: synth,
+        timestamp: expect.any(Number)
+      });
+    });
+
+    it("emits multiple global events for multiple sounds", async () => {
+      const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const sound1 = await cacophony.createSound(buffer);
+      const sound2 = await cacophony.createSound(buffer);
+
+      const globalPlaySpy = vi.fn();
+      cacophony.on('globalPlay', globalPlaySpy);
+
+      sound1.play();
+      sound2.play();
+
+      expect(globalPlaySpy).toHaveBeenCalledTimes(2);
+      expect(globalPlaySpy).toHaveBeenNthCalledWith(1, {
+        source: sound1,
+        timestamp: expect.any(Number)
+      });
+      expect(globalPlaySpy).toHaveBeenNthCalledWith(2, {
+        source: sound2,
+        timestamp: expect.any(Number)
+      });
+    });
+  });
 });

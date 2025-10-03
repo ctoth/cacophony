@@ -1,4 +1,4 @@
-import { SoundType, type BaseSound, type PanType } from "./cacophony";
+import { Cacophony, SoundType, type BaseSound, type PanType } from "./cacophony";
 import { PlaybackContainer } from "./container";
 import type { AudioContext, GainNode, OscillatorNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
@@ -65,7 +65,8 @@ export class Synth
     private globalGainNode: GainNode,
     public soundType: SoundType = SoundType.Oscillator,
     public panType: PanType = "HRTF",
-    oscillatorOptions: Partial<OscillatorOptions> = {}
+    oscillatorOptions: Partial<OscillatorOptions> = {},
+    private cacophony?: Cacophony
   ) {
     super();
     this.context = context;
@@ -111,7 +112,8 @@ export class Synth
       this.globalGainNode,
       this.soundType,
       panType,
-      oscillatorOptions
+      oscillatorOptions,
+      this.cacophony
     );
     clone._volume = volume;
     clone._position = position;
@@ -158,17 +160,20 @@ export class Synth
   play(): ReturnType<this["preplay"]> {
     const playbacks = super.play() as ReturnType<this["preplay"]>;
     this.emit("play", playbacks[0]);
+    this.cacophony?.emit("globalPlay", { source: this, timestamp: Date.now() });
     return playbacks;
   }
 
   stop(): void {
     super.stop();
     this.emit("stop", undefined);
+    this.cacophony?.emit("globalStop", { source: this, timestamp: Date.now() });
   }
 
   pause(): void {
     super.pause();
     this.emit("pause", undefined);
+    this.cacophony?.emit("globalPause", { source: this, timestamp: Date.now() });
   }
 
   get oscillatorOptions(): Partial<OscillatorOptions> {

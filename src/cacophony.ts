@@ -125,14 +125,14 @@ export class Cacophony {
   }
 
 
-  protected emit<K extends keyof CacophonyEvents>(
+  emit<K extends keyof CacophonyEvents>(
     event: K,
     data: CacophonyEvents[K]
   ): void {
     this.eventEmitter.emit(event, data);
   }
 
-  protected async emitAsync<K extends keyof CacophonyEvents>(
+  async emitAsync<K extends keyof CacophonyEvents>(
     event: K,
     data: CacophonyEvents[K]
   ): Promise<void> {
@@ -189,7 +189,8 @@ export class Cacophony {
       this.globalGainNode,
       SoundType.Oscillator,
       panType,
-      options
+      options,
+      this
     );
     return synth;
   }
@@ -231,7 +232,8 @@ export class Cacophony {
           this.context,
           this.globalGainNode,
           SoundType.Buffer,
-          panType
+          panType,
+          this
         )
       );
     }
@@ -247,7 +249,8 @@ export class Cacophony {
           this.context,
           this.globalGainNode,
           SoundType.HTML,
-          panType
+          panType,
+          this
         )
       );
     }
@@ -259,7 +262,8 @@ export class Cacophony {
           this.context,
           this.globalGainNode,
           SoundType.Streaming,
-          panType
+          panType,
+          this
         )
       );
     }
@@ -281,7 +285,8 @@ export class Cacophony {
             this.context,
             this.globalGainNode,
             soundType,
-            panType
+            panType,
+            this
           )
       );
   }
@@ -325,13 +330,15 @@ export class Cacophony {
   async createStream(url: string, signal?: AbortSignal): Promise<Sound> {
     // Start the streaming process with AbortSignal support
     createStream(url, this.context, signal);
-    
+
     const sound = new Sound(
       url,
       undefined,
       this.context,
       this.globalGainNode,
-      SoundType.Streaming
+      SoundType.Streaming,
+      "HRTF",
+      this
     );
     return sound;
   }
