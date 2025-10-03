@@ -172,6 +172,93 @@ sound.on('volumeChange', (volume) => {
 });
 ```
 
+### Complete Event Reference
+
+#### Cacophony Events
+
+The main Cacophony instance emits global events for loading, caching, and errors:
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `loadingStart` | `LoadingStartEvent` | Fired when audio loading begins. Contains `url` and `timestamp`. |
+| `loadingProgress` | `LoadingProgressEvent` | Fired during download. Contains `url`, `loaded`, `total`, `progress` (0-1), `timestamp`. |
+| `loadingComplete` | `LoadingCompleteEvent` | Fired when loading succeeds. Contains `url`, `duration`, `size`, `timestamp`. |
+| `loadingError` | `LoadingErrorEvent` | Fired when loading fails. Contains `url`, `error`, `errorType`, `timestamp`. |
+| `cacheHit` | `CacheHitEvent` | Fired on cache hit. Contains `url`, `cacheType` ('memory'\|'browser'\|'conditional'), `timestamp`. |
+| `cacheMiss` | `CacheMissEvent` | Fired on cache miss. Contains `url`, `reason` ('not-found'\|'expired'\|'invalid'), `timestamp`. |
+| `cacheError` | `CacheErrorEvent` | Fired on cache operation error. Contains `url`, `error`, `operation`, `timestamp`. |
+
+#### Sound Events
+
+Sound instances emit events for playback state and property changes:
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `play` | `Playback` | Fired when sound starts playing. Receives the Playback instance. |
+| `stop` | `void` | Fired when sound stops. |
+| `pause` | `void` | Fired when sound pauses. |
+| `volumeChange` | `number` | Fired when volume changes. Receives new volume value. |
+| `rateChange` | `number` | Fired when playback rate changes. Receives new rate value. |
+| `soundError` | `SoundErrorEvent` | Fired on playback errors. Contains `url`, `error`, `errorType`, `timestamp`, `recoverable`. |
+
+#### Playback Events
+
+Individual Playback instances emit fine-grained playback events:
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `play` | `BasePlayback` | Fired when playback starts. Receives the Playback instance. |
+| `stop` | `void` | Fired when playback stops. |
+| `error` | `PlaybackErrorEvent` | Fired on playback errors. Contains `error`, `errorType`, `timestamp`, `recoverable`. |
+
+```typescript
+const sound = await cacophony.createSound('audio.mp3');
+const [playback] = sound.play();
+
+playback.on('play', (pb) => {
+  console.log('Playback started:', pb.currentTime);
+});
+
+playback.on('error', (event) => {
+  if (event.recoverable) {
+    console.log('Recoverable error, retrying...');
+    playback.play();
+  }
+});
+```
+
+#### Synth Events
+
+Synth instances emit events for synthesis parameter changes:
+
+| Event | Payload | Description |
+|-------|---------|-------------|
+| `play` | `SynthPlayback` | Fired when synth starts playing. Receives the SynthPlayback instance. |
+| `stop` | `void` | Fired when synth stops. |
+| `pause` | `void` | Fired when synth pauses. |
+| `frequencyChange` | `number` | Fired when frequency changes. Receives new frequency in Hz. |
+| `typeChange` | `OscillatorType` | Fired when waveform type changes. Receives new type ('sine'\|'square'\|'sawtooth'\|'triangle'). |
+| `detuneChange` | `number` | Fired when detune changes. Receives new detune value in cents. |
+| `volumeChange` | `number` | Fired when volume changes. Receives new volume value. |
+| `error` | `PlaybackErrorEvent` | Fired on playback errors. Contains `error`, `errorType`, `timestamp`, `recoverable`. |
+
+```typescript
+const synth = cacophony.createOscillator({ frequency: 440, type: 'sine' });
+
+synth.on('frequencyChange', (freq) => {
+  console.log('Frequency changed to:', freq, 'Hz');
+  updateFrequencyDisplay(freq);
+});
+
+synth.on('typeChange', (type) => {
+  console.log('Waveform changed to:', type);
+  updateWaveformDisplay(type);
+});
+
+synth.frequency = 880; // Triggers frequencyChange event
+synth.type = 'square'; // Triggers typeChange event
+```
+
 ## Synthesizer Functionality
 
 Create and manipulate synthesized sounds with advanced control:
