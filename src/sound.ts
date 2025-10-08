@@ -68,12 +68,16 @@ export class Sound
     private globalGainNode: GainNode,
     public soundType: SoundType = SoundType.Buffer,
     public panType: PanType = "HRTF",
-    private cacophony?: Cacophony
+    private _cacophony?: Cacophony
   ) {
     super();
     this.buffer = buffer;
     this.context = context;
 
+  }
+
+  get cacophony(): Cacophony | undefined {
+    return this._cacophony;
   }
 
   get volume(): number {
@@ -233,20 +237,17 @@ export class Sound
   play(): ReturnType<this["preplay"]> {
     const playbacks = super.play() as ReturnType<this["preplay"]>;
     this.emit("play", playbacks[0]);
-    this.cacophony?.emit("globalPlay", { source: this, timestamp: Date.now() });
     return playbacks;
   }
 
   stop(): void {
     super.stop();
     this.emit("stop", undefined);
-    this.cacophony?.emit("globalStop", { source: this, timestamp: Date.now() });
   }
 
   pause(): void {
     super.pause();
     this.emit("pause", undefined);
-    this.cacophony?.emit("globalPause", { source: this, timestamp: Date.now() });
   }
 
   /**

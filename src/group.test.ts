@@ -129,4 +129,115 @@ describe("Group class", () => {
     expect(emptyGroup.playOrdered()).toBeUndefined();
     expect(emptyGroup.play()).toEqual([]);
   });
+
+  describe("Global events", () => {
+    it("emits globalPlay when using Group.play()", () => {
+      const globalPlayListener = vi.fn();
+      cacophony.on("globalPlay", globalPlayListener);
+
+      group.play();
+
+      // Should emit globalPlay for each sound in the group
+      expect(globalPlayListener).toHaveBeenCalledTimes(2);
+      expect(globalPlayListener).toHaveBeenCalledWith({
+        source: sound1,
+        timestamp: expect.any(Number),
+      });
+      expect(globalPlayListener).toHaveBeenCalledWith({
+        source: sound2,
+        timestamp: expect.any(Number),
+      });
+
+      cacophony.off("globalPlay", globalPlayListener);
+    });
+
+    it("emits globalPlay when using Group.playOrdered()", () => {
+      const globalPlayListener = vi.fn();
+      cacophony.on("globalPlay", globalPlayListener);
+
+      // Play first sound
+      group.playOrdered();
+      expect(globalPlayListener).toHaveBeenCalledTimes(1);
+      expect(globalPlayListener).toHaveBeenCalledWith({
+        source: sound1,
+        timestamp: expect.any(Number),
+      });
+
+      // Play second sound
+      group.playOrdered();
+      expect(globalPlayListener).toHaveBeenCalledTimes(2);
+      expect(globalPlayListener).toHaveBeenCalledWith({
+        source: sound2,
+        timestamp: expect.any(Number),
+      });
+
+      cacophony.off("globalPlay", globalPlayListener);
+    });
+
+    it("emits globalPlay when using Group.playRandom()", () => {
+      const globalPlayListener = vi.fn();
+      cacophony.on("globalPlay", globalPlayListener);
+
+      // Mock random to always select the second sound
+      vi.spyOn(Math, "random").mockReturnValue(0.7);
+
+      group.playRandom();
+
+      expect(globalPlayListener).toHaveBeenCalledTimes(1);
+      expect(globalPlayListener).toHaveBeenCalledWith({
+        source: sound2,
+        timestamp: expect.any(Number),
+      });
+
+      cacophony.off("globalPlay", globalPlayListener);
+    });
+
+    it("emits globalStop when using Group.stop()", () => {
+      const globalStopListener = vi.fn();
+      cacophony.on("globalStop", globalStopListener);
+
+      // First play the sounds
+      group.play();
+
+      // Then stop them
+      group.stop();
+
+      // Should emit globalStop for each sound in the group
+      expect(globalStopListener).toHaveBeenCalledTimes(2);
+      expect(globalStopListener).toHaveBeenCalledWith({
+        source: sound1,
+        timestamp: expect.any(Number),
+      });
+      expect(globalStopListener).toHaveBeenCalledWith({
+        source: sound2,
+        timestamp: expect.any(Number),
+      });
+
+      cacophony.off("globalStop", globalStopListener);
+    });
+
+    it("emits globalPause when using Group.pause()", () => {
+      const globalPauseListener = vi.fn();
+      cacophony.on("globalPause", globalPauseListener);
+
+      // First play the sounds
+      group.play();
+
+      // Then pause them
+      group.pause();
+
+      // Should emit globalPause for each sound in the group
+      expect(globalPauseListener).toHaveBeenCalledTimes(2);
+      expect(globalPauseListener).toHaveBeenCalledWith({
+        source: sound1,
+        timestamp: expect.any(Number),
+      });
+      expect(globalPauseListener).toHaveBeenCalledWith({
+        source: sound2,
+        timestamp: expect.any(Number),
+      });
+
+      cacophony.off("globalPause", globalPauseListener);
+    });
+  });
 });

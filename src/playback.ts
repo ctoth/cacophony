@@ -223,6 +223,13 @@ export class Playback extends BasePlayback implements BaseSound {
       this._startTime = this.context.currentTime;
       this._state = PlaybackState.Playing;
       this.emit("play", this);
+
+      // Emit globalPlay for all playback
+      this.origin.cacophony?.emit("globalPlay", {
+        source: this.origin,
+        timestamp: Date.now()
+      });
+
       return [this];
     } catch (error) {
       this.emitAsync("error", {
@@ -253,6 +260,13 @@ export class Playback extends BasePlayback implements BaseSound {
     }
 
     this._state = PlaybackState.Paused;
+    this.emit("pause", undefined);
+
+    // Emit globalPause for all playback
+    this.origin.cacophony?.emit("globalPause", {
+      source: this.origin,
+      timestamp: Date.now()
+    });
   }
 
   stop(): void {
@@ -278,6 +292,12 @@ export class Playback extends BasePlayback implements BaseSound {
     this._startTime = 0;
     this._state = PlaybackState.Stopped;
     this.emit("stop", undefined);
+
+    // Emit globalStop for all playback
+    this.origin.cacophony?.emit("globalStop", {
+      source: this.origin,
+      timestamp: Date.now()
+    });
   }
 
   seek(time: number): void {
