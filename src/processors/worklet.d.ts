@@ -18,7 +18,7 @@ interface AudioParamDescriptor {
 
 declare var AudioWorkletProcessor: {
   prototype: AudioWorkletProcessor;
-  new(options?: AudioWorkletNodeOptions): AudioWorkletProcessor;
+  new (options?: AudioWorkletNodeOptions): AudioWorkletProcessor;
 };
 
 declare function registerProcessor(
@@ -31,5 +31,12 @@ declare function registerProcessor(
 ): void;
 
 interface AudioParamMap {
-  forEach(callbackfn: (value: AudioParam, key: string, parent: AudioParamMap) => void, thisArg?: any): void;
+  forEach(
+    callbackfn: (value: AudioParam, key: string, parent: AudioParamMap) => void,
+    thisArg?: any
+  ): void;
 }
+
+// sample rate is 44100 Hz, buffer size is 128 frames
+declare const BUFFER_SIZE = 128;
+declare const sampleRate= 44100;
