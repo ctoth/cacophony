@@ -165,7 +165,7 @@ export class Playback extends BasePlayback implements BaseSound {
       this.stop();
     } else {
       this.seek(0); // Resets offset and handles play/pause state internally.
-                     // If it was playing, seek will call play() again.
+      // If it was playing, seek will call play() again.
 
       // Ensure playback resumes/starts after seeking for the loop.
       if ("mediaElement" in this.source && this.source.mediaElement) {
@@ -227,14 +227,14 @@ export class Playback extends BasePlayback implements BaseSound {
       // Emit globalPlay for all playback
       this.origin.cacophony?.emit("globalPlay", {
         source: this.origin,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
 
       return [this];
     } catch (error) {
       this.emitAsync("error", {
         error: error as Error,
-        errorType: 'source',
+        errorType: "source",
         timestamp: Date.now(),
         recoverable: true,
       });
@@ -265,7 +265,7 @@ export class Playback extends BasePlayback implements BaseSound {
     // Emit globalPause for all playback
     this.origin.cacophony?.emit("globalPause", {
       source: this.origin,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
@@ -296,7 +296,7 @@ export class Playback extends BasePlayback implements BaseSound {
     // Emit globalStop for all playback
     this.origin.cacophony?.emit("globalStop", {
       source: this.origin,
-      timestamp: Date.now()
+      timestamp: Date.now(),
     });
   }
 
@@ -360,7 +360,7 @@ export class Playback extends BasePlayback implements BaseSound {
     } catch (error) {
       this.emitAsync("error", {
         error: error as Error,
-        errorType: 'source',
+        errorType: "source",
         timestamp: Date.now(),
         recoverable: false,
       });
@@ -401,7 +401,9 @@ export class Playback extends BasePlayback implements BaseSound {
 
   private assertNotCleanedUp(): void {
     if (!this.source || !this.gainNode || !this.panner) {
-      throw new Error('Cannot perform operation on a sound that has been cleaned up');
+      throw new Error(
+        "Cannot perform operation on a sound that has been cleaned up"
+      );
     }
   }
 
@@ -447,7 +449,6 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     return this.loopCount;
   }
-
 
   /**
    * Refreshes the audio filters by re-applying them to the audio signal chain.
