@@ -766,29 +766,398 @@ synth.type = 'square'; // Triggers typeChange event
 
 ## Synthesizer Functionality
 
-Create and manipulate synthesized sounds with advanced control:
+Create and manipulate synthesized sounds with advanced control over waveforms, pitch, and modulation.
+
+### Oscillator Types
+
+Cacophony supports four standard waveform types, each with distinct harmonic characteristics:
+
+#### Sine Wave
+Pure tone with no harmonics. Smooth, soft sound.
 
 ```typescript
-const cacophony = new Cacophony();
+const sine = cacophony.createOscillator({ frequency: 440, type: 'sine' });
+sine.play();
+```
 
-// Create a simple sine wave oscillator
-const sineOsc = cacophony.createOscillator({ frequency: 440, type: 'sine' });
-sineOsc.play();
+**Characteristics:**
+- Single frequency, no overtones
+- Smooth, flute-like quality
+- **Use cases:** Sub-bass, pure tones, smooth pads, sine bass
 
-// Create a complex sound with multiple oscillators
-const complexSynth = cacophony.createOscillator({ frequency: 220, type: 'sawtooth' });
-const subOsc = cacophony.createOscillator({ frequency: 110, type: 'sine' });
-complexSynth.addFilter(cacophony.createBiquadFilter({ type: 'lowpass', frequency: 1000 }));
-complexSynth.play();
-subOsc.play();
+#### Square Wave
+Rich in odd harmonics. Hollow, clarinet-like sound.
 
-// Modulate frequency over time
+```typescript
+const square = cacophony.createOscillator({ frequency: 440, type: 'square' });
+square.play();
+```
+
+**Characteristics:**
+- Contains only odd harmonics (1st, 3rd, 5th, etc.)
+- Hollow, reed-like quality
+- **Use cases:** Chip-tune leads, retro game sounds, bass, organ-like tones
+
+#### Sawtooth Wave
+Richest waveform with all harmonics. Bright, buzzy sound.
+
+```typescript
+const sawtooth = cacophony.createOscillator({ frequency: 440, type: 'sawtooth' });
+sawtooth.play();
+```
+
+**Characteristics:**
+- Contains all harmonics (odd and even)
+- Bright, brassy quality
+- **Use cases:** Synth leads, brass sounds, rich basses, string-like pads
+
+#### Triangle Wave
+Softer than square, contains odd harmonics at lower levels.
+
+```typescript
+const triangle = cacophony.createOscillator({ frequency: 440, type: 'triangle' });
+triangle.play();
+```
+
+**Characteristics:**
+- Odd harmonics only, but quieter than square
+- Mellow, woody quality
+- **Use cases:** Soft pads, mellow leads, wind-like sounds
+
+### Frequency Control
+
+Set and modulate the pitch of oscillators:
+
+```typescript
+const synth = cacophony.createOscillator({ frequency: 440, type: 'sine' });
+synth.play();
+
+// Change frequency (pitch)
+synth.frequency = 880;  // A5 (one octave up)
+synth.frequency = 220;  // A3 (one octave down)
+
+// Musical notes (A4 = 440Hz)
+const notes = {
+  C4: 261.63,
+  D4: 293.66,
+  E4: 329.63,
+  F4: 349.23,
+  G4: 392.00,
+  A4: 440.00,
+  B4: 493.88
+};
+
+synth.frequency = notes.E4;  // Play E4
+```
+
+### Detune Parameter
+
+Detune adjusts pitch in **cents** (1/100th of a semitone) without changing the base frequency:
+
+```typescript
+const synth = cacophony.createOscillator({ frequency: 440, type: 'sawtooth' });
+
+// Detune by +50 cents (quarter-tone sharp)
+synth.detune = 50;
+
+// Detune by -100 cents (one semitone flat)
+synth.detune = -100;
+
+// Perfect tuning
+synth.detune = 0;
+```
+
+**Common Uses:**
+- **Chorus Effect**: Slightly detune cloned oscillators (±5-15 cents)
+- **Detuned Unison**: Create thickness by layering with ±10-30 cents
+- **Microtuning**: Fine-tune for non-Western scales
+- **Vibrato**: Modulate detune over time for pitch wobble
+
+### Dynamic Parameter Changes
+
+All synth parameters can be changed in real-time and emit events:
+
+```typescript
+const synth = cacophony.createOscillator({ frequency: 440, type: 'sine' });
+synth.play();
+
+// Listen to parameter changes
+synth.on('frequencyChange', (freq) => {
+  console.log(`Frequency: ${freq} Hz`);
+  updateFrequencyDisplay(freq);
+});
+
+synth.on('typeChange', (type) => {
+  console.log(`Waveform: ${type}`);
+  updateWaveformDisplay(type);
+});
+
+synth.on('detuneChange', (cents) => {
+  console.log(`Detune: ${cents} cents`);
+});
+
+synth.on('volumeChange', (volume) => {
+  console.log(`Volume: ${volume}`);
+});
+
+// Change parameters - triggers events
+synth.frequency = 880;     // Triggers frequencyChange
+synth.type = 'sawtooth';   // Triggers typeChange
+synth.detune = 10;         // Triggers detuneChange
+synth.volume = 0.5;        // Triggers volumeChange
+```
+
+### Advanced Synthesis Examples
+
+#### LFO (Low-Frequency Oscillator) Modulation
+
+Create vibrato and tremolo effects:
+
+```typescript
+const carrier = cacophony.createOscillator({ frequency: 440, type: 'sine' });
+carrier.volume = 0.5;
+carrier.play();
+
+// Vibrato: modulate frequency
+let time = 0;
+const vibratoRate = 5;      // 5Hz vibrato
+const vibratoDepth = 10;    // ±10 cents
+
+setInterval(() => {
+  const detune = Math.sin(time * vibratoRate * 2 * Math.PI) * vibratoDepth;
+  carrier.detune = detune;
+  time += 0.02;  // 50ms interval = 0.02s
+}, 20);
+
+// Tremolo: modulate volume
+let tremoloTime = 0;
+const tremoloRate = 4;      // 4Hz tremolo
+const tremoloDepth = 0.3;   // 30% volume change
+
+setInterval(() => {
+  const volumeMod = 0.5 + Math.sin(tremoloTime * tremoloRate * 2 * Math.PI) * tremoloDepth;
+  carrier.volume = volumeMod;
+  tremoloTime += 0.02;
+}, 20);
+```
+
+#### Detuned Unison (Supersaw Effect)
+
+Layer multiple oscillators with slight detuning for a thick, rich sound:
+
+```typescript
+const baseFreq = 220;  // A3
+const detuneAmount = 10;  // cents
+
+// Create 5 detuned sawtooth oscillators
+const oscillators = [
+  cacophony.createOscillator({ frequency: baseFreq, type: 'sawtooth', detune: -detuneAmount * 2 }),
+  cacophony.createOscillator({ frequency: baseFreq, type: 'sawtooth', detune: -detuneAmount }),
+  cacophony.createOscillator({ frequency: baseFreq, type: 'sawtooth', detune: 0 }),  // Center
+  cacophony.createOscillator({ frequency: baseFreq, type: 'sawtooth', detune: detuneAmount }),
+  cacophony.createOscillator({ frequency: baseFreq, type: 'sawtooth', detune: detuneAmount * 2 })
+];
+
+// Pan for stereo width
+oscillators[0].stereoPan = -0.8;
+oscillators[1].stereoPan = -0.4;
+oscillators[2].stereoPan = 0;
+oscillators[3].stereoPan = 0.4;
+oscillators[4].stereoPan = 0.8;
+
+// Reduce volume to prevent clipping
+oscillators.forEach(osc => {
+  osc.volume = 0.2;
+  osc.play();
+});
+
+// Apply filter to entire sound
+const filter = cacophony.createBiquadFilter({ type: 'lowpass', frequency: 2000, Q: 2 });
+oscillators.forEach(osc => osc.addFilter(filter));
+```
+
+#### FM (Frequency Modulation) Synthesis
+
+Modulate one oscillator's frequency with another for complex timbres:
+
+```typescript
+// Carrier oscillator (what we hear)
+const carrier = cacophony.createOscillator({ frequency: 440, type: 'sine' });
+carrier.play();
+
+// Modulator frequency and depth
+const modulatorFreq = 220;  // Frequency of modulation
+const modulationDepth = 100; // ±100 Hz modulation
+
 let time = 0;
 setInterval(() => {
-  const frequency = 440 + Math.sin(time) * 100;
-  sineOsc.frequency = frequency;
-  time += 0.1;
-}, 50);
+  // Calculate modulated frequency
+  const modulation = Math.sin(time * modulatorFreq * 2 * Math.PI) * modulationDepth;
+  carrier.frequency = 440 + modulation;
+  time += 0.01;
+}, 10);
+
+// For harmonic FM, use integer ratios
+// modulatorFreq = carrierFreq * 2  (octave above)
+// modulatorFreq = carrierFreq * 3  (perfect fifth above octave)
+```
+
+#### Chord Generator
+
+Create musical chords from a base synth:
+
+```typescript
+function playChord(rootFreq: number, chordType: 'major' | 'minor' | 'seventh') {
+  const intervals = {
+    major: [0, 4, 7],        // Root, major third, perfect fifth
+    minor: [0, 3, 7],        // Root, minor third, perfect fifth
+    seventh: [0, 4, 7, 10]   // Root, major third, fifth, minor seventh
+  };
+
+  const semitones = intervals[chordType];
+  const oscillators: Synth[] = [];
+
+  semitones.forEach((semitone, index) => {
+    const freq = rootFreq * Math.pow(2, semitone / 12);
+    const osc = cacophony.createOscillator({
+      frequency: freq,
+      type: 'sawtooth'
+    });
+
+    osc.volume = 0.2;
+    osc.addFilter(cacophony.createBiquadFilter({ type: 'lowpass', frequency: 1500 }));
+    osc.play();
+
+    oscillators.push(osc);
+  });
+
+  return oscillators;
+}
+
+// Play a C major chord (C4 = 261.63 Hz)
+const chord = playChord(261.63, 'major');
+
+// Stop all oscillators after 2 seconds
+setTimeout(() => {
+  chord.forEach(osc => osc.stop());
+}, 2000);
+```
+
+#### Arpeggiator
+
+Cycle through chord notes:
+
+```typescript
+const notes = [261.63, 329.63, 392.00, 523.25];  // C major arpeggio (C4, E4, G4, C5)
+let currentNote = 0;
+
+const arp = cacophony.createOscillator({ frequency: notes[0], type: 'square' });
+arp.volume = 0.3;
+arp.addFilter(cacophony.createBiquadFilter({ type: 'lowpass', frequency: 2000, Q: 5 }));
+arp.play();
+
+// Cycle through notes
+setInterval(() => {
+  currentNote = (currentNote + 1) % notes.length;
+  arp.frequency = notes[currentNote];
+}, 200);  // 200ms per note = fast arpeggio
+```
+
+#### Interactive Synthesizer
+
+Complete keyboard-controlled synth:
+
+```typescript
+class SimpleSynth {
+  private activeNotes: Map<string, Synth> = new Map();
+  private waveform: OscillatorType = 'sawtooth';
+  private filterFreq: number = 2000;
+
+  constructor(private cacophony: Cacophony) {}
+
+  noteOn(note: string, frequency: number) {
+    if (this.activeNotes.has(note)) return;  // Already playing
+
+    const synth = this.cacophony.createOscillator({
+      frequency,
+      type: this.waveform
+    });
+
+    synth.volume = 0.3;
+    synth.addFilter(
+      this.cacophony.createBiquadFilter({
+        type: 'lowpass',
+        frequency: this.filterFreq,
+        Q: 2
+      })
+    );
+
+    synth.play();
+    this.activeNotes.set(note, synth);
+  }
+
+  noteOff(note: string) {
+    const synth = this.activeNotes.get(note);
+    if (synth) {
+      synth.stop();
+      this.activeNotes.delete(note);
+    }
+  }
+
+  setWaveform(type: OscillatorType) {
+    this.waveform = type;
+  }
+
+  setFilterCutoff(freq: number) {
+    this.filterFreq = freq;
+    // Update filter on all active notes
+    this.activeNotes.forEach(synth => {
+      if (synth.playbacks[0]) {
+        // Access filter through playback's filter list
+        const filters = (synth.playbacks[0] as any)._filters;
+        if (filters.length > 0) {
+          filters[0].frequency.value = freq;
+        }
+      }
+    });
+  }
+}
+
+// Usage
+const synth = new SimpleSynth(cacophony);
+
+// Keyboard mapping
+const keyMap = {
+  'a': { note: 'C4', freq: 261.63 },
+  'w': { note: 'C#4', freq: 277.18 },
+  's': { note: 'D4', freq: 293.66 },
+  'e': { note: 'D#4', freq: 311.13 },
+  'd': { note: 'E4', freq: 329.63 },
+  'f': { note: 'F4', freq: 349.23 }
+};
+
+document.addEventListener('keydown', (e) => {
+  const key = keyMap[e.key];
+  if (key) {
+    synth.noteOn(key.note, key.freq);
+  }
+});
+
+document.addEventListener('keyup', (e) => {
+  const key = keyMap[e.key];
+  if (key) {
+    synth.noteOff(key.note);
+  }
+});
+
+// UI controls
+waveformSelector.addEventListener('change', (e) => {
+  synth.setWaveform(e.target.value as OscillatorType);
+});
+
+filterSlider.addEventListener('input', (e) => {
+  synth.setFilterCutoff(Number(e.target.value));
+});
 ```
 
 ## Group Functionality
