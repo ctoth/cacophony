@@ -352,52 +352,48 @@ Create immersive soundscapes with precise spatial audio control using HRTF (Head
 ```typescript
 const cacophony = new Cacophony();
 
-async function create3DAudioScene() {
-  // Create sounds with HRTF panning
-  const ambience = await cacophony.createSound('forest_ambience.mp3', SoundType.Buffer, 'HRTF');
-  const birdSound = await cacophony.createSound('bird_chirp.mp3', SoundType.Buffer, 'HRTF');
-  const footsteps = await cacophony.createSound('footsteps.mp3', SoundType.Buffer, 'HRTF');
+// Create sounds with HRTF panning
+const ambience = await cacophony.createSound('forest_ambience.mp3', SoundType.Buffer, 'HRTF');
+const birdSound = await cacophony.createSound('bird_chirp.mp3', SoundType.Buffer, 'HRTF');
+const footsteps = await cacophony.createSound('footsteps.mp3', SoundType.Buffer, 'HRTF');
 
-  // Position sounds in 3D space
-  // Coordinate system: X (left- to right+), Y (down- to up+), Z (front+ to back-)
-  ambience.position = [0, 0, -5];  // Slightly behind the listener
-  birdSound.position = [10, 5, 0];  // To the right and above
-  footsteps.position = [-2, -1, 2];  // Slightly to the left and in front
+// Position sounds in 3D space
+// Coordinate system: X (left- to right+), Y (down- to up+), Z (front+ to back-)
+ambience.position = [0, 0, -5];  // Slightly behind the listener
+birdSound.position = [10, 5, 0];  // To the right and above
+footsteps.position = [-2, -1, 2];  // Slightly to the left and in front
 
-  // Configure distance attenuation
-  birdSound.threeDOptions = {
-    distanceModel: 'inverse',  // 'linear', 'inverse', or 'exponential'
-    refDistance: 1,
-    rolloffFactor: 1
-  };
+// Configure distance attenuation
+birdSound.threeDOptions = {
+  distanceModel: 'inverse',  // 'linear', 'inverse', or 'exponential'
+  refDistance: 1,
+  rolloffFactor: 1
+};
 
-  // Play the sounds
-  ambience.play();
-  birdSound.play();
-  footsteps.play();
+// Play the sounds
+ambience.play();
+birdSound.play();
+footsteps.play();
 
-  // Set listener position and orientation
-  cacophony.listenerPosition = [0, 0, 0];
-  cacophony.listenerOrientation = {
-    forward: [0, 0, -1],  // Looking towards negative Z
-    up: [0, 1, 0]
-  };
+// Set listener position and orientation
+cacophony.listenerPosition = [0, 0, 0];
+cacophony.listenerOrientation = {
+  forward: [0, 0, -1],  // Looking towards negative Z
+  up: [0, 1, 0]
+};
 
-  // Animate bird sound position
-  let time = 0;
-  setInterval(() => {
-    const x = Math.sin(time) * 10;
-    birdSound.position = [x, 5, 0];
-    time += 0.05;
-  }, 50);
+// Animate bird sound position
+let time = 0;
+setInterval(() => {
+  const x = Math.sin(time) * 10;
+  birdSound.position = [x, 5, 0];
+  time += 0.05;
+}, 50);
 
-  // Stereo panning (simple left-right)
-  const stereoSound = await cacophony.createSound('audio.mp3', SoundType.Buffer, 'stereo');
-  stereoSound.stereoPan = 0.5;  // -1 (left) to 1 (right)
-  stereoSound.play();
-}
-
-create3DAudioScene();
+// Stereo panning (simple left-right)
+const stereoSound = await cacophony.createSound('audio.mp3', SoundType.Buffer, 'stereo');
+stereoSound.stereoPan = 0.5;  // -1 (left) to 1 (right)
+stereoSound.play();
 ```
 
 See [TypeDoc](https://cacophony.js.org) for distance models, cone effects, and advanced 3D audio options.
@@ -409,30 +405,26 @@ Capture, process, and manipulate live audio input:
 ```typescript
 const cacophony = new Cacophony();
 
-async function setupMicrophone() {
-  try {
-    const micStream = await cacophony.getMicrophoneStream();
-    micStream.play();
+try {
+  const micStream = await cacophony.getMicrophoneStream();
+  micStream.play();
 
-    // Apply filters to microphone input
-    const lowPassFilter = cacophony.createBiquadFilter({ type: 'lowpass', frequency: 1000 });
-    micStream.addFilter(lowPassFilter);
+  // Apply filters to microphone input
+  const lowPassFilter = cacophony.createBiquadFilter({ type: 'lowpass', frequency: 1000 });
+  micStream.addFilter(lowPassFilter);
 
-    // Control microphone volume
-    micStream.volume = 0.8;
+  // Control microphone volume
+  micStream.volume = 0.8;
 
-    // Pause and resume
-    setTimeout(() => {
-      micStream.pause();
-      setTimeout(() => micStream.resume(), 2000);
-    }, 5000);
+  // Pause and resume
+  setTimeout(() => {
+    micStream.pause();
+    setTimeout(() => micStream.resume(), 2000);
+  }, 5000);
 
-  } catch (error) {
-    console.error("Error accessing microphone:", error);
-  }
+} catch (error) {
+  console.error("Error accessing microphone:", error);
 }
-
-setupMicrophone();
 ```
 
 ## Audio Streaming
@@ -442,27 +434,23 @@ Stream audio content efficiently:
 ```typescript
 const cacophony = new Cacophony();
 
-async function streamAudio() {
-  try {
-    const streamedSound = await cacophony.createStream('https://example.com/live_radio_stream');
-    streamedSound.play();
+try {
+  const streamedSound = await cacophony.createStream('https://example.com/live_radio_stream');
+  streamedSound.play();
 
-    // Apply real-time effects to the stream
-    const highPassFilter = cacophony.createBiquadFilter({ type: 'highpass', frequency: 500 });
-    streamedSound.addFilter(highPassFilter);
+  // Apply real-time effects to the stream
+  const highPassFilter = cacophony.createBiquadFilter({ type: 'highpass', frequency: 500 });
+  streamedSound.addFilter(highPassFilter);
 
-    // Control streaming playback
-    setTimeout(() => {
-      streamedSound.pause();
-      setTimeout(() => streamedSound.play(), 5000);
-    }, 10000);
+  // Control streaming playback
+  setTimeout(() => {
+    streamedSound.pause();
+    setTimeout(() => streamedSound.play(), 5000);
+  }, 10000);
 
-  } catch (error) {
-    console.error("Error streaming audio:", error);
-  }
+} catch (error) {
+  console.error("Error streaming audio:", error);
 }
-
-streamAudio();
 ```
 
 ## Event System
@@ -509,18 +497,6 @@ sound.on('soundError', (event) => {
   } else {
     console.error('Unrecoverable error:', event.error);
   }
-});
-```
-
-### Cache Monitoring
-
-```typescript
-cacophony.on('cacheHit', (event) => {
-  console.log(`Cache hit: ${event.url} (${event.cacheType})`);
-});
-
-cacophony.on('cacheMiss', (event) => {
-  console.log(`Cache miss: ${event.url} (${event.reason})`);
 });
 ```
 
@@ -679,46 +655,6 @@ AudioCache.setCacheExpirationTime(60 * 60 * 1000); // 1 hour
 
 The caching system requires no configuration in most cases. It automatically optimizes for performance while respecting HTTP standards.
 
-## Resource Management
-
-Call `cleanup()` when done with sounds to free resources:
-
-```typescript
-const sound = await cacophony.createSound('temp.mp3');
-sound.play();
-sound.cleanup();  // Disconnects nodes, removes playbacks, clears listeners
-
-// Clear memory cache
-cacophony.clearMemoryCache();
-```
-
-Cacophony uses `FinalizationRegistry` for automatic cleanup when objects are garbage collected, but explicit cleanup is recommended for large applications.
-
-### Audio Context Control
-
-Suspend and resume the entire audio context to pause all audio processing. Useful for mobile apps when entering background mode or for performance optimization:
-
-```typescript
-const cacophony = new Cacophony();
-
-// Suspend audio context (pauses ALL audio, saves battery)
-cacophony.pause();
-
-// Resume audio context
-cacophony.resume();
-
-// Example: pause when app goes to background
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    cacophony.pause();
-  } else {
-    cacophony.resume();
-  }
-});
-```
-
-Note: This is different from `sound.pause()` which pauses individual sounds. `cacophony.pause()` suspends the entire audio engine.
-
 ## Cancellation with AbortSignal
 
 Cancel audio loading operations:
@@ -753,6 +689,46 @@ const group = await cacophony.createGroupFromUrls(
   controller.signal
 );
 ```
+
+## Resource Management
+
+Call `cleanup()` when done with sounds to free resources:
+
+```typescript
+const sound = await cacophony.createSound('temp.mp3');
+sound.play();
+sound.cleanup();  // Disconnects nodes, removes playbacks, clears listeners
+
+// Clear memory cache
+cacophony.clearMemoryCache();
+```
+
+Cacophony uses `FinalizationRegistry` for automatic cleanup when objects are garbage collected, but explicit cleanup is recommended for large applications.
+
+## Audio Context Control
+
+Suspend and resume the entire audio context to pause all audio processing. Useful for mobile apps when entering background mode or for performance optimization:
+
+```typescript
+const cacophony = new Cacophony();
+
+// Suspend audio context (pauses ALL audio, saves battery)
+cacophony.pause();
+
+// Resume audio context
+cacophony.resume();
+
+// Example: pause when app goes to background
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    cacophony.pause();
+  } else {
+    cacophony.resume();
+  }
+});
+```
+
+Note: This is different from `sound.pause()` which pauses individual sounds. `cacophony.pause()` suspends the entire audio engine.
 
 ## API Documentation
 
