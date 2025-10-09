@@ -641,6 +641,44 @@ synth.type = 'square';  // Triggers typeChange event
 | `volumeChange` | `number` | Fired when volume changes. Receives new volume value. |
 | `error` | `PlaybackErrorEvent` | Fired on playback errors. Contains `error`, `errorType`, `timestamp`, `recoverable`. |
 
+## Caching
+
+Cacophony implements intelligent three-layer caching for optimal performance:
+
+**Memory Cache (LRU)** → **Browser Cache API** → **Network**
+
+The cache system is fully automatic and HTTP-compliant, respecting standard cache headers (ETag, Last-Modified). When cache validation tokens are available, Cacophony makes lightweight conditional requests (304 responses have no body). When tokens are unavailable, it falls back to TTL-based caching (24 hours default).
+
+```typescript
+const cacophony = new Cacophony();
+
+// First load - fetches from network, stores in cache
+const sound1 = await cacophony.createSound('audio.mp3');
+
+// Second load - instant from memory cache
+const sound2 = await cacophony.createSound('audio.mp3');
+
+// Monitor cache performance via events
+cacophony.on('cacheHit', (event) => {
+  console.log(`${event.cacheType} cache hit: ${event.url}`);
+  // cacheType: 'memory' | 'browser' | 'conditional'
+});
+
+cacophony.on('cacheMiss', (event) => {
+  console.log(`Cache miss: ${event.url} - ${event.reason}`);
+  // reason: 'not-found' | 'expired' | 'invalid'
+});
+
+// Clear memory cache (browser cache persists)
+cacophony.clearMemoryCache();
+
+// Optional: configure TTL for when no validation tokens exist
+import { AudioCache } from 'cacophony';
+AudioCache.setCacheExpirationTime(60 * 60 * 1000); // 1 hour
+```
+
+The caching system requires no configuration in most cases. It automatically optimizes for performance while respecting HTTP standards.
+
 ## Resource Management
 
 Call `cleanup()` when done with sounds to free resources:
@@ -655,6 +693,31 @@ cacophony.clearMemoryCache();
 ```
 
 Cacophony uses `FinalizationRegistry` for automatic cleanup when objects are garbage collected, but explicit cleanup is recommended for large applications.
+
+### Audio Context Control
+
+Suspend and resume the entire audio context to pause all audio processing. Useful for mobile apps when entering background mode or for performance optimization:
+
+```typescript
+const cacophony = new Cacophony();
+
+// Suspend audio context (pauses ALL audio, saves battery)
+cacophony.pause();
+
+// Resume audio context
+cacophony.resume();
+
+// Example: pause when app goes to background
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    cacophony.pause();
+  } else {
+    cacophony.resume();
+  }
+});
+```
+
+Note: This is different from `sound.pause()` which pauses individual sounds. `cacophony.pause()` suspends the entire audio engine.
 
 ## Cancellation with AbortSignal
 
