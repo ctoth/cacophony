@@ -274,6 +274,12 @@ const cacophony = new Cacophony();
 // Create from URLs
 const soundGroup = await cacophony.createGroupFromUrls(['drum.mp3', 'bass.mp3', 'synth.mp3']);
 
+// Or create from existing Sound instances
+const sound1 = await cacophony.createSound('drum.mp3');
+const sound2 = await cacophony.createSound('bass.mp3');
+const sound3 = await cacophony.createSound('synth.mp3');
+const soundGroup2 = await cacophony.createGroup([sound1, sound2, sound3]);
+
 // Play all sounds simultaneously
 soundGroup.play();
 
@@ -309,6 +315,9 @@ synthGroup.addSynth(synth1);
 synthGroup.addSynth(synth2);
 synthGroup.play();
 synthGroup.setVolume(0.5);
+
+// Remove a synth from the group
+synthGroup.removeSynth(synth1);
 ```
 
 ## Synthesizer Functionality
@@ -584,6 +593,11 @@ synth.type = 'square';  // Triggers typeChange event
 | `globalPlay` | `GlobalPlaybackEvent` | Fired when any Sound or Synth starts playing. Contains `source`, `timestamp`. |
 | `globalStop` | `GlobalPlaybackEvent` | Fired when any Sound or Synth stops. Contains `source`, `timestamp`. |
 | `globalPause` | `GlobalPlaybackEvent` | Fired when any Sound or Synth pauses. Contains `source`, `timestamp`. |
+| `volumeChange` | `number` | Fired when global volume changes. Receives new volume value. |
+| `mute` | `void` | Fired when audio is muted globally. |
+| `unmute` | `void` | Fired when audio is unmuted globally. |
+| `suspend` | `void` | Fired when audio context is suspended. |
+| `resume` | `void` | Fired when audio context is resumed. |
 
 #### Sound Events
 
@@ -592,6 +606,9 @@ synth.type = 'square';  // Triggers typeChange event
 | `play` | `Playback` | Fired when sound starts playing. Receives the Playback instance. |
 | `stop` | `void` | Fired when sound stops. |
 | `pause` | `void` | Fired when sound pauses. |
+| `resume` | `void` | Fired when sound resumes after being paused. |
+| `ended` | `void` | Fired when sound playback ends naturally. |
+| `loopEnd` | `void` | Fired when a loop iteration completes. |
 | `volumeChange` | `number` | Fired when volume changes. Receives new volume value. |
 | `rateChange` | `number` | Fired when playback rate changes. Receives new rate value. |
 | `soundError` | `SoundErrorEvent` | Fired on playback errors. Contains `url`, `error`, `errorType`, `timestamp`, `recoverable`. |
@@ -602,6 +619,11 @@ synth.type = 'square';  // Triggers typeChange event
 |-------|---------|-------------|
 | `play` | `BasePlayback` | Fired when playback starts. Receives the Playback instance. |
 | `stop` | `void` | Fired when playback stops. |
+| `pause` | `void` | Fired when playback pauses. |
+| `resume` | `void` | Fired when playback resumes after being paused. |
+| `ended` | `void` | Fired when playback ends naturally. |
+| `seek` | `number` | Fired when playback position changes. Receives new time in seconds. |
+| `volumeChange` | `number` | Fired when playback volume changes. Receives new volume value. |
 | `error` | `PlaybackErrorEvent` | Fired on playback errors. Contains `error`, `errorType`, `timestamp`, `recoverable`. |
 
 #### Synth Events
@@ -611,6 +633,8 @@ synth.type = 'square';  // Triggers typeChange event
 | `play` | `SynthPlayback` | Fired when synth starts playing. Receives the SynthPlayback instance. |
 | `stop` | `void` | Fired when synth stops. |
 | `pause` | `void` | Fired when synth pauses. |
+| `resume` | `void` | Fired when synth resumes after being paused. |
+| `ended` | `void` | Fired when synth playback ends naturally. |
 | `frequencyChange` | `number` | Fired when frequency changes. Receives new frequency in Hz. |
 | `typeChange` | `OscillatorType` | Fired when waveform type changes. Receives new type ('sine'\|'square'\|'sawtooth'\|'triangle'). |
 | `detuneChange` | `number` | Fired when detune changes. Receives new detune value in cents. |
