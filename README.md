@@ -217,6 +217,140 @@ sound.removeFilter(lowpass);
 
 See [TypeDoc](https://cacophony.js.org) for complete filter parameters and options.
 
+## Custom Audio Routing
+
+Cacophony exposes the underlying Web Audio graph through Playback instances, enabling manual routing through custom effects chains. This is the low-level foundation for building complex audio processing pipelines.
+
+### Accessing the Audio Graph
+
+Every Playback instance exposes its output node and standard Web Audio connection methods:
+
+```typescript
+const sound = await cacophony.createSound('audio.mp3');
+const [playback] = sound.play();
+
+// Access the output node (final node in the internal chain)
+const outputNode = playback.outputNode;  // Returns GainNode
+
+// Connect to custom destination
+const customEffect = cacophony.context.createDelay(0.5);
+playback.connect(customEffect);
+customEffect.connect(cacophony.context.destination);
+
+// Disconnect from default routing
+playback.disconnect();  // Disconnect from all
+playback.disconnect(specificNode);  // Disconnect from specific node
+```
+
+### Building Effect Chains
+
+Route playbacks through multiple effects:
+
+```typescript
+const sound = await cacophony.createSound('guitar.mp3');
+const [playback] = sound.play();
+
+// Create effect nodes
+const distortion = cacophony.context.createWaveShaper();
+const delay = cacophony.context.createDelay(1.0);
+const reverb = cacophony.context.createConvolver();
+
+// Chain: playback → distortion → delay → reverb → destination
+playback.disconnect();  // Disconnect from default
+playback.connect(distortion)
+        .connect(delay)
+        .connect(reverb)
+        .connect(cacophony.context.destination);
+```
+
+### Parallel Effects (Send/Return)
+
+Create parallel effect sends like a mixing console:
+
+```typescript
+const sound = await cacophony.createSound('vocals.mp3');
+const [playback] = sound.play();
+
+// Create send effects
+const reverb = cacophony.context.createConvolver();
+const reverbReturn = cacophony.context.createGain();
+reverbReturn.gain.value = 0.3;  // 30% wet
+
+// Dry signal to destination
+playback.connect(cacophony.context.destination);
+
+// Parallel wet signal: playback → reverb → reverbReturn → destination
+playback.connect(reverb)
+        .connect(reverbReturn)
+        .connect(cacophony.context.destination);
+```
+
+### Dynamic Routing
+
+Change routing in real-time:
+
+```typescript
+const sound = await cacophony.createSound('audio.mp3');
+const [playback] = sound.play();
+
+const cleanPath = cacophony.context.destination;
+const fxPath = cacophony.context.createConvolver();
+fxPath.connect(cacophony.context.destination);
+
+// Toggle between clean and effects
+let useFx = false;
+button.addEventListener('click', () => {
+  playback.disconnect();
+
+  if (useFx) {
+    playback.connect(fxPath);
+  } else {
+    playback.connect(cleanPath);
+  }
+
+  useFx = !useFx;
+});
+```
+
+### Integrating with Web Audio Nodes
+
+Cacophony works seamlessly with any Web Audio API nodes:
+
+```typescript
+const [playback] = sound.play();
+
+// Built-in nodes
+const analyser = cacophony.context.createAnalyser();
+const compressor = cacophony.context.createDynamicsCompressor();
+const panner = cacophony.context.createStereoPanner();
+
+// AudioWorklet processors
+const customProcessor = new AudioWorkletNode(cacophony.context, 'my-processor');
+
+// Chain them together
+playback.disconnect();
+playback.connect(compressor)
+        .connect(analyser)
+        .connect(panner)
+        .connect(customProcessor)
+        .connect(cacophony.context.destination);
+
+// Visualize with analyser
+const dataArray = new Uint8Array(analyser.frequencyBinCount);
+function draw() {
+  analyser.getByteFrequencyData(dataArray);
+  // ... draw visualization
+  requestAnimationFrame(draw);
+}
+```
+
+### Architecture Notes
+
+- **Internal chain**: `source → panner → [filters] → gainNode`
+- **outputNode** exposes the final `gainNode` in this chain
+- Default routing: `outputNode → globalGainNode → destination`
+- Calling `disconnect()` breaks the default routing, allowing full manual control
+
 ## Cloning
 
 Clone sounds to create variations without reloading files. Clones share the same AudioBuffer but have independent settings.
