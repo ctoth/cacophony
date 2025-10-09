@@ -996,6 +996,189 @@ stems.sounds.forEach((sound, i) => {
 });
 ```
 
+## Cloning
+
+Cloning creates independent copies of Sounds or Synths with optional property overrides. This is useful for creating variations without reloading audio files.
+
+### Why Clone?
+
+**Performance**: Share the same AudioBuffer in memory while having different playback settings
+**Flexibility**: Create variations (different volume, pitch, position) from a single loaded sound
+**Efficiency**: Avoid redundant network requests and decoding
+
+### Cloning Sounds
+
+```typescript
+const cacophony = new Cacophony();
+const originalSound = await cacophony.createSound('explosion.mp3');
+
+// Create variations with different settings
+const loudExplosion = originalSound.clone({ volume: 1.0 });
+const distantExplosion = originalSound.clone({
+  volume: 0.3,
+  position: [50, 0, -100]
+});
+
+const lowPitchExplosion = originalSound.clone({
+  playbackRate: 0.8,
+  volume: 0.7
+});
+
+// Play all variations
+originalSound.play();
+loudExplosion.play();
+distantExplosion.play();
+lowPitchExplosion.play();
+```
+
+### Clone Override Options
+
+You can override any combination of properties:
+
+```typescript
+const sound = await cacophony.createSound('audio.mp3', SoundType.Buffer, 'HRTF');
+
+const clone = sound.clone({
+  // Volume
+  volume: 0.5,
+
+  // Playback
+  playbackRate: 1.2,
+  loopCount: 3,
+
+  // 3D Positioning (HRTF mode)
+  position: [10, 5, -20],
+  threeDOptions: {
+    distanceModel: 'exponential',
+    refDistance: 2,
+    rolloffFactor: 1.5
+  },
+
+  // Stereo panning (stereo mode)
+  // stereoPan: -0.5,
+
+  // Filters
+  filters: [
+    cacophony.createBiquadFilter({ type: 'lowpass', frequency: 800 })
+  ]
+});
+```
+
+### Cloning Synths
+
+```typescript
+const cacophony = new Cacophony();
+const bassSynth = cacophony.createOscillator({
+  frequency: 110,
+  type: 'sine'
+});
+
+// Create harmonic variations
+const octaveUp = bassSynth.clone({
+  frequency: 220,  // Double frequency
+  volume: 0.6
+});
+
+const fifth = bassSynth.clone({
+  frequency: 165,  // Perfect fifth
+  volume: 0.4
+});
+
+// Create detuned chorus effect
+const detuned = bassSynth.clone({
+  frequency: 111,  // Slightly sharp
+  volume: 0.5,
+  stereoPan: -0.3  // Pan left
+});
+
+// Play chord
+bassSynth.play();
+octaveUp.play();
+fifth.play();
+detuned.play();
+```
+
+### Practical Clone Examples
+
+#### Enemy Footstep Variations
+```typescript
+// Load once, clone for each enemy
+const footstep = await cacophony.createSound('footstep.mp3');
+
+class Enemy {
+  footstepSound: Sound;
+
+  constructor(position: [number, number, number], size: number) {
+    this.footstepSound = footstep.clone({
+      position,
+      playbackRate: 1 / size,  // Bigger = slower/lower pitch
+      volume: size * 0.5
+    });
+  }
+
+  step() {
+    this.footstepSound.play();
+  }
+}
+
+const enemies = [
+  new Enemy([10, 0, -5], 1.2),   // Large enemy
+  new Enemy([-5, 0, -10], 0.8),  // Small enemy
+  new Enemy([0, 0, -20], 1.0)    // Normal enemy
+];
+```
+
+#### Weapon Sound Variants
+```typescript
+const gunshotBase = await cacophony.createSound('gunshot.mp3');
+
+const weapons = {
+  pistol: gunshotBase.clone({ volume: 0.6, playbackRate: 1.2 }),
+  rifle: gunshotBase.clone({ volume: 1.0, playbackRate: 1.0 }),
+  shotgun: gunshotBase.clone({
+    volume: 1.2,
+    playbackRate: 0.8,
+    filters: [cacophony.createBiquadFilter({ type: 'lowpass', frequency: 1200 })]
+  })
+};
+
+weapons.pistol.play();
+```
+
+#### Musical Instrument Samples
+```typescript
+const pianoC4 = await cacophony.createSound('piano_c4.mp3');
+
+// Create a piano keyboard by pitch-shifting
+const keyboard = {
+  C4: pianoC4,
+  D4: pianoC4.clone({ playbackRate: 1.122 }),  // +2 semitones
+  E4: pianoC4.clone({ playbackRate: 1.260 }),  // +4 semitones
+  F4: pianoC4.clone({ playbackRate: 1.335 }),  // +5 semitones
+  G4: pianoC4.clone({ playbackRate: 1.498 }),  // +7 semitones
+  A4: pianoC4.clone({ playbackRate: 1.682 }),  // +9 semitones
+  B4: pianoC4.clone({ playbackRate: 1.888 })   // +11 semitones
+};
+
+// Play a chord
+keyboard.C4.play();
+keyboard.E4.play();
+keyboard.G4.play();
+```
+
+### Clones Share Audio Data
+
+**Important**: Clones share the underlying AudioBuffer but have independent playback state:
+
+```typescript
+const original = await cacophony.createSound('large_file.mp3');  // Loaded once
+const clone1 = original.clone({ volume: 0.5 });  // No additional network request
+const clone2 = original.clone({ volume: 0.7 });  // No additional decoding
+
+// All three share the same buffer in memory
+// But each can play independently with different settings
+```
+
 ## Microphone Input
 
 Capture, process, and manipulate live audio input:
@@ -1295,6 +1478,304 @@ async function streamAudio() {
 }
 
 streamAudio();
+```
+
+## Resource Management & Cleanup
+
+Properly managing audio resources prevents memory leaks and ensures optimal performance.
+
+### When to Clean Up
+
+Call `cleanup()` when you're completely done with a Sound, Synth, or Playback:
+
+```typescript
+const sound = await cacophony.createSound('temp.mp3');
+sound.play();
+
+// When done with the sound
+sound.cleanup();  // Disconnects nodes, removes playbacks, clears listeners
+```
+
+### Automatic Cleanup
+
+Cacophony uses `FinalizationRegistry` for automatic cleanup when objects are garbage collected:
+
+```typescript
+async function playSound() {
+  const sound = await cacophony.createSound('sfx.mp3');
+  sound.play();
+  // When function exits and sound goes out of scope,
+  // it will eventually be garbage collected and cleaned up automatically
+}
+```
+
+**Note**: Automatic cleanup is not immediate - it depends on JavaScript garbage collection. For large applications, call `cleanup()` explicitly.
+
+### Manual Cleanup Patterns
+
+#### Single-Use Sounds
+```typescript
+async function playNotification() {
+  const sound = await cacophony.createSound('notify.mp3');
+  const [playback] = sound.play();
+
+  // Clean up when sound finishes
+  playback.on('stop', () => {
+    sound.cleanup();
+  });
+}
+```
+
+#### Long-Lived Sound Pool
+```typescript
+class SoundManager {
+  private sounds: Map<string, Sound> = new Map();
+
+  async load(id: string, url: string) {
+    const sound = await cacophony.createSound(url);
+    this.sounds.set(id, sound);
+    return sound;
+  }
+
+  play(id: string) {
+    return this.sounds.get(id)?.play();
+  }
+
+  unload(id: string) {
+    const sound = this.sounds.get(id);
+    if (sound) {
+      sound.cleanup();
+      this.sounds.delete(id);
+    }
+  }
+
+  // Clean up all sounds
+  dispose() {
+    this.sounds.forEach(sound => sound.cleanup());
+    this.sounds.clear();
+  }
+}
+```
+
+### Cache Management
+
+Clear the memory cache to free up RAM:
+
+```typescript
+// Clear all cached audio buffers from memory
+cacophony.clearMemoryCache();
+
+// Note: This doesn't affect the browser's Cache API storage
+// Only clears the in-memory LRU cache
+```
+
+### Best Practices
+
+**DO**:
+- Call `cleanup()` on sounds you no longer need
+- Use clone() instead of loading the same file multiple times
+- Clear cache when memory is constrained
+- Clean up in SPA route changes or component unmount
+
+**DON'T**:
+- Call cleanup() on sounds you're still using
+- Create excessive concurrent playbacks (limit to ~10-20 per sound)
+- Load hundreds of sounds without managing lifecycle
+
+### Framework Integration
+
+#### React
+```typescript
+function AudioComponent() {
+  const soundRef = useRef<Sound | null>(null);
+
+  useEffect(() => {
+    async function loadSound() {
+      soundRef.current = await cacophony.createSound('audio.mp3');
+    }
+    loadSound();
+
+    // Cleanup on unmount
+    return () => {
+      soundRef.current?.cleanup();
+    };
+  }, []);
+
+  const play = () => soundRef.current?.play();
+
+  return <button onClick={play}>Play</button>;
+}
+```
+
+#### Vue
+```typescript
+export default {
+  data() {
+    return {
+      sound: null
+    };
+  },
+  async mounted() {
+    this.sound = await cacophony.createSound('audio.mp3');
+  },
+  beforeUnmount() {
+    this.sound?.cleanup();
+  },
+  methods: {
+    play() {
+      this.sound?.play();
+    }
+  }
+};
+```
+
+## Cancellation with AbortSignal
+
+All async audio loading operations support `AbortSignal` for cancellation.
+
+### Basic Cancellation
+
+```typescript
+const controller = new AbortController();
+
+// Start loading
+const soundPromise = cacophony.createSound(
+  'large-file.mp3',
+  SoundType.Buffer,
+  'HRTF',
+  controller.signal  // Pass the signal
+);
+
+// Cancel if user navigates away
+router.on('navigate', () => {
+  controller.abort();
+});
+
+try {
+  const sound = await soundPromise;
+  sound.play();
+} catch (error) {
+  if (error.name === 'AbortError') {
+    console.log('Loading was cancelled');
+  }
+}
+```
+
+### Timeout Pattern
+
+```typescript
+async function loadWithTimeout(url: string, timeoutMs: number) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const sound = await cacophony.createSound(url, SoundType.Buffer, 'HRTF', controller.signal);
+    clearTimeout(timeoutId);
+    return sound;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error(`Loading timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  }
+}
+
+// Use it
+try {
+  const sound = await loadWithTimeout('audio.mp3', 5000);
+} catch (error) {
+  console.error('Failed to load:', error.message);
+}
+```
+
+### Loading Multiple Sounds with Cancellation
+
+```typescript
+async function loadGameAssets(signal?: AbortSignal) {
+  try {
+    const sounds = await Promise.all([
+      cacophony.createSound('bgm.mp3', SoundType.Buffer, 'HRTF', signal),
+      cacophony.createSound('sfx1.mp3', SoundType.Buffer, 'HRTF', signal),
+      cacophony.createSound('sfx2.mp3', SoundType.Buffer, 'HRTF', signal)
+    ]);
+
+    return sounds;
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.log('Asset loading cancelled');
+      return null;
+    }
+    throw error;
+  }
+}
+
+// Cancel all loading
+const controller = new AbortController();
+const assetsPromise = loadGameAssets(controller.signal);
+
+// User clicks "Cancel"
+cancelButton.onclick = () => controller.abort();
+```
+
+### Groups and Streams
+
+AbortSignal works with all loading methods:
+
+```typescript
+const controller = new AbortController();
+
+// Group loading
+const group = await cacophony.createGroupFromUrls(
+  ['a.mp3', 'b.mp3', 'c.mp3'],
+  SoundType.Buffer,
+  'HRTF',
+  controller.signal
+);
+
+// Stream creation
+const stream = await cacophony.createStream(
+  'https://example.com/radio.m3u8',
+  controller.signal
+);
+
+// Cancel both
+controller.abort();
+```
+
+### SPA Route Changes
+
+```typescript
+class AudioLoader {
+  private currentController: AbortController | null = null;
+
+  async loadForRoute(route: string) {
+    // Cancel previous route's loading
+    this.currentController?.abort();
+
+    // Create new controller for this route
+    this.currentController = new AbortController();
+
+    try {
+      const sounds = await this.loadRouteSounds(route, this.currentController.signal);
+      return sounds;
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        throw error;
+      }
+    }
+  }
+
+  private async loadRouteSounds(route: string, signal: AbortSignal) {
+    // Load route-specific sounds
+    return cacophony.createGroupFromUrls(
+      getAudioFilesForRoute(route),
+      SoundType.Buffer,
+      'HRTF',
+      signal
+    );
+  }
+}
 ```
 
 ## Additional Highlights
