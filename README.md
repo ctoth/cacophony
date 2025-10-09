@@ -482,40 +482,37 @@ if (cacophony.muted) {
 cacophony.muted = !cacophony.muted;
 ```
 
-### Smooth Fading
-
-Create smooth volume transitions using the Web Audio API's scheduling:
+### Dynamic Volume Changes
 
 ```typescript
 const sound = await cacophony.createSound('music.mp3');
 const [playback] = sound.play();
 
-// Fade in over 2 seconds (linear)
-function fadeIn(playback: Playback, duration: number) {
-  const gainNode = playback.gainNode;
-  if (gainNode) {
-    const currentTime = gainNode.context.currentTime;
-    gainNode.gain.setValueAtTime(0, currentTime);
-    gainNode.gain.linearRampToValueAtTime(1, currentTime + duration);
-  }
+// Simple volume change
+playback.volume = 0.5;
+
+// Gradual fade with setInterval
+function fadeOut(playback: Playback, durationMs: number) {
+  const startVolume = playback.volume;
+  const steps = 60;
+  const stepTime = durationMs / steps;
+  let currentStep = 0;
+
+  const interval = setInterval(() => {
+    currentStep++;
+    playback.volume = startVolume * (1 - currentStep / steps);
+
+    if (currentStep >= steps) {
+      clearInterval(interval);
+      playback.stop();
+    }
+  }, stepTime);
 }
 
-// Fade out over 1 second (exponential for natural sound)
-function fadeOut(playback: Playback, duration: number) {
-  const gainNode = playback.gainNode;
-  if (gainNode) {
-    const currentTime = gainNode.context.currentTime;
-    gainNode.gain.exponentialRampToValueAtTime(0.001, currentTime + duration);
-    setTimeout(() => playback.stop(), duration * 1000);
-  }
-}
-
-// Use the fade functions
-fadeIn(playback, 2);
-setTimeout(() => fadeOut(playback, 1), 5000);
+fadeOut(playback, 2000);  // Fade out over 2 seconds
 ```
 
-### Crossfading Between Sounds
+### Track Crossfading
 
 ```typescript
 const track1 = await cacophony.createSound('song1.mp3');
@@ -523,24 +520,28 @@ const track2 = await cacophony.createSound('song2.mp3');
 
 const [playback1] = track1.play();
 const [playback2] = track2.play();
-
-// Start track 2 at zero volume
 playback2.volume = 0;
 
-// Crossfade over 3 seconds
-function crossfade(from: Playback, to: Playback, duration: number) {
-  const startTime = from.gainNode!.context.currentTime;
+// Simple crossfade
+function crossfade(from: Playback, to: Playback, durationMs: number) {
+  const steps = 60;
+  const stepTime = durationMs / steps;
+  let currentStep = 0;
 
-  // Fade out current track
-  from.gainNode!.gain.setValueAtTime(from.volume, startTime);
-  from.gainNode!.gain.linearRampToValueAtTime(0, startTime + duration);
+  const interval = setInterval(() => {
+    currentStep++;
+    const progress = currentStep / steps;
 
-  // Fade in next track
-  to.gainNode!.gain.setValueAtTime(0, startTime);
-  to.gainNode!.gain.linearRampToValueAtTime(1, startTime + duration);
+    from.volume = 1 - progress;
+    to.volume = progress;
+
+    if (currentStep >= steps) {
+      clearInterval(interval);
+    }
+  }, stepTime);
 }
 
-crossfade(playback1, playback2, 3);
+crossfade(playback1, playback2, 3000);  // 3 second crossfade
 ```
 
 ### Volume Event Monitoring
@@ -788,46 +789,211 @@ setInterval(() => {
   sineOsc.frequency = frequency;
   time += 0.1;
 }, 50);
-
-// Apply envelope to volume
-complexSynth.volume = 0;
-complexSynth.fadeIn(0.5, 'linear');
-setTimeout(() => complexSynth.fadeOut(1, 'exponential'), 2000);
 ```
 
 ## Group Functionality
 
-Efficiently manage and control multiple sounds or synthesizers:
+Groups allow you to manage and control multiple sounds or synthesizers as a single unit. Cacophony provides two group types:
+
+- **Group**: For managing Sound instances
+- **SynthGroup**: For managing Synth instances
+
+### Group vs SynthGroup
+
+**Group** is for collections of Sounds loaded from files. It provides advanced playback patterns like random selection and round-robin ordering.
+
+**SynthGroup** is specifically for synthesizers. It's simpler since synths are procedurally generated, not loaded from files.
+
+### Basic Group Usage
 
 ```typescript
 const cacophony = new Cacophony();
 
-// Create a group of sounds
+// Create from URLs
 const soundGroup = await cacophony.createGroupFromUrls(['drum.mp3', 'bass.mp3', 'synth.mp3']);
 
-// Play all sounds in the group
+// Or create empty and add sounds
+const group = await cacophony.createGroup([]);
+const sound1 = await cacophony.createSound('kick.mp3');
+const sound2 = await cacophony.createSound('snare.mp3');
+group.addSound(sound1);
+group.addSound(sound2);
+
+// Play all sounds simultaneously
 soundGroup.play();
 
-// Control volume for all sounds
+// Control all sounds at once
 soundGroup.volume = 0.7;
+soundGroup.playbackRate = 1.2;  // Speed up all sounds
+soundGroup.position = [5, 0, 0]; // Position all sounds together
+soundGroup.loop('infinite');     // Loop all sounds
 
-// Apply 3D positioning to the entire group
-soundGroup.position = [1, 0, -1];
+// Apply filters to entire group
+const lowpass = cacophony.createBiquadFilter({ type: 'lowpass', frequency: 1000 });
+soundGroup.addFilter(lowpass);
 
-// Create a group of synthesizers
+// Stop all sounds
+soundGroup.stop();
+```
+
+### Random Playback
+
+Play a random sound from the group:
+
+```typescript
+// Create footstep variations
+const footsteps = await cacophony.createGroupFromUrls([
+  'footstep1.mp3',
+  'footstep2.mp3',
+  'footstep3.mp3',
+  'footstep4.mp3'
+]);
+
+// Play random footstep sound
+function step() {
+  footsteps.playRandom();  // Picks one at random
+}
+
+// Walking animation
+setInterval(step, 500);
+```
+
+### Ordered (Round-Robin) Playback
+
+Play sounds in sequence, optionally looping:
+
+```typescript
+// Create dialog sequence
+const dialog = await cacophony.createGroupFromUrls([
+  'line1.mp3',
+  'line2.mp3',
+  'line3.mp3'
+]);
+
+// Play in order, looping back to start
+dialog.playOrdered(true);  // Plays: 1, 2, 3, 1, 2, 3...
+
+// Or play through once without looping
+const cutscene = await cacophony.createGroupFromUrls(['intro.mp3', 'middle.mp3', 'end.mp3']);
+cutscene.playOrdered(false);  // Plays: 1, 2, 3, then stops
+```
+
+### Group Properties
+
+```typescript
+const group = await cacophony.createGroupFromUrls(['a.mp3', 'b.mp3', 'c.mp3']);
+
+// Check if any sound is playing
+if (group.isPlaying) {
+  console.log('Group is playing');
+}
+
+// Get longest duration in group
+console.log(`Group duration: ${group.duration} seconds`);
+
+// Seek all sounds to same position
+group.seek(10);  // Jump to 10 seconds in all sounds
+```
+
+### SynthGroup for Synthesizers
+
+```typescript
+const cacophony = new Cacophony();
+
+// Create synth group
 const synthGroup = new SynthGroup();
-const synth1 = cacophony.createOscillator({ frequency: 440, type: 'sine' });
-const synth2 = cacophony.createOscillator({ frequency: 660, type: 'square' });
-synthGroup.addSynth(synth1);
-synthGroup.addSynth(synth2);
 
-// Play and control all synths in the group
+// Create and add synths
+const bass = cacophony.createOscillator({ frequency: 110, type: 'sine' });
+const mid = cacophony.createOscillator({ frequency: 220, type: 'sawtooth' });
+const high = cacophony.createOscillator({ frequency: 440, type: 'square' });
+
+synthGroup.addSynth(bass);
+synthGroup.addSynth(mid);
+synthGroup.addSynth(high);
+
+// Control all synths
 synthGroup.play();
-synthGroup.setVolume(0.5);
-synthGroup.stereoPan = -0.3; // Pan slightly to the left
+synthGroup.setVolume(0.6);
+synthGroup.stereoPan = -0.3;      // Pan all to the left
+synthGroup.position = [0, 5, -10]; // Position all synths together
 
-// Remove a synth from the group
-synthGroup.removeSynth(synth2);
+// Remove individual synth
+synthGroup.removeSynth(high);
+
+// Stop all
+synthGroup.stop();
+```
+
+### Practical Examples
+
+#### UI Sound Variations
+```typescript
+// Button click variations to avoid repetitiveness
+const buttonSounds = await cacophony.createGroupFromUrls([
+  'click1.mp3',
+  'click2.mp3',
+  'click3.mp3'
+]);
+
+button.addEventListener('click', () => {
+  buttonSounds.playRandom();  // Different sound each click
+});
+```
+
+#### Ambient Layer Management
+```typescript
+// Manage multiple ambient layers
+const ambient = await cacophony.createGroupFromUrls([
+  'wind.mp3',
+  'birds.mp3',
+  'water.mp3'
+]);
+
+ambient.loop('infinite');
+ambient.volume = 0.3;
+ambient.play();  // All layers play together
+
+// Fade out all ambient layers
+setTimeout(() => {
+  const steps = 60;
+  const fadeTime = 2000;
+  const stepTime = fadeTime / steps;
+  let currentStep = 0;
+
+  const interval = setInterval(() => {
+    currentStep++;
+    ambient.volume = 0.3 * (1 - currentStep / steps);
+
+    if (currentStep >= steps) {
+      clearInterval(interval);
+      ambient.stop();
+    }
+  }, stepTime);
+}, 30000);
+```
+
+#### Music Stems Control
+```typescript
+// Control individual music stems
+const stems = await cacophony.createGroupFromUrls([
+  'drums.mp3',
+  'bass.mp3',
+  'melody.mp3',
+  'harmony.mp3'
+]);
+
+// Play all stems together
+stems.loop('infinite');
+stems.play();
+
+// Mute drums (access individual sounds in group)
+stems.sounds[0].volume = 0;
+
+// Solo bass
+stems.sounds.forEach((sound, i) => {
+  sound.volume = i === 1 ? 1 : 0;  // Only bass at full volume
+});
 ```
 
 ## Microphone Input
@@ -873,50 +1039,228 @@ setupMicrophone();
 
 ## 3D Audio Positioning
 
-Create immersive soundscapes with precise spatial audio control:
+Cacophony provides powerful 3D spatial audio using HRTF (Head-Related Transfer Function) or stereo panning.
+
+### Coordinate System
+
+Cacophony uses a **right-handed coordinate system**:
+- **X-axis**: Left (-) to Right (+)
+- **Y-axis**: Down (-) to Up (+)
+- **Z-axis**: Front (+) to Back (-)
+
+**Units are arbitrary but consistent** - use the same scale for all positions. Common convention: 1 unit = 1 meter.
+
+### HRTF vs Stereo Panning
+
+```typescript
+// HRTF: True 3D audio with elevation and distance
+const sound3D = await cacophony.createSound('audio.mp3', SoundType.Buffer, 'HRTF');
+sound3D.position = [5, 2, -3];  // Right, up, behind
+
+// Stereo: Simple left-right panning
+const soundStereo = await cacophony.createSound('audio.mp3', SoundType.Buffer, 'stereo');
+soundStereo.stereoPan = 0.5;  // -1 (full left) to 1 (full right)
+```
+
+**When to use:**
+- **HRTF**: Games, VR/AR, immersive experiences, 3D environments
+- **Stereo**: Music mixing, simple L/R effects, performance-critical scenarios
+
+### Basic 3D Positioning
+
+```typescript
+const cacophony = new Cacophony();
+const sound = await cacophony.createSound('footsteps.mp3', SoundType.Buffer, 'HRTF');
+
+// Set listener at origin
+cacophony.listenerPosition = [0, 0, 0];
+cacophony.listenerOrientation = {
+  forward: [0, 0, -1],  // Looking towards negative Z
+  up: [0, 1, 0]         // Y-axis is up
+};
+
+// Position sound to the right of listener
+sound.position = [5, 0, 0];
+sound.play();
+
+// Move sound around
+setTimeout(() => {
+  sound.position = [0, 0, -10];  // In front, 10 units away
+}, 2000);
+```
+
+### Distance Attenuation Models
+
+Control how volume decreases with distance:
+
+```typescript
+const sound = await cacophony.createSound('ambient.mp3', SoundType.Buffer, 'HRTF');
+
+// Configure distance model
+sound.threeDOptions = {
+  distanceModel: 'inverse',  // 'linear', 'inverse', or 'exponential'
+  refDistance: 1,           // Distance where volume is 100%
+  maxDistance: 100,         // Maximum distance (linear only)
+  rolloffFactor: 1          // How quickly volume decreases
+};
+
+sound.position = [10, 0, 0];
+sound.play();
+```
+
+**Distance Models:**
+- **inverse** (default): Natural falloff, realistic for most sounds
+- **linear**: Gradual, predictable decrease
+- **exponential**: Rapid falloff, good for urgent/close sounds
+
+### Directional Audio (Cone Effects)
+
+Create sounds that emit in specific directions:
+
+```typescript
+const speaker = await cacophony.createSound('announcement.mp3', SoundType.Buffer, 'HRTF');
+
+speaker.threeDOptions = {
+  coneInnerAngle: 60,   // Full volume cone (degrees)
+  coneOuterAngle: 90,   // Reduced volume cone
+  coneOuterGain: 0.3,   // Volume outside outer cone
+  orientationX: 1,      // Sound points right
+  orientationY: 0,
+  orientationZ: 0
+};
+
+speaker.position = [0, 2, 0];
+speaker.play();
+```
+
+### Advanced 3D Scene
 
 ```typescript
 const cacophony = new Cacophony();
 
 async function create3DAudioScene() {
-  // Create sounds with HRTF panning
+  // Create sounds with HRTF
   const ambience = await cacophony.createSound('forest_ambience.mp3', SoundType.Buffer, 'HRTF');
   const birdSound = await cacophony.createSound('bird_chirp.mp3', SoundType.Buffer, 'HRTF');
-  const footsteps = await cacophony.createSound('footsteps.mp3', SoundType.Buffer, 'HRTF');
+  const waterfall = await cacophony.createSound('waterfall.mp3', SoundType.Buffer, 'HRTF');
+
+  // Configure distance models
+  ambience.threeDOptions = {
+    distanceModel: 'linear',
+    refDistance: 1,
+    maxDistance: 50,
+    rolloffFactor: 0.5  // Gentle falloff for ambient
+  };
+
+  birdSound.threeDOptions = {
+    distanceModel: 'inverse',
+    refDistance: 3,
+    rolloffFactor: 2  // Faster falloff for point source
+  };
+
+  waterfall.threeDOptions = {
+    distanceModel: 'inverse',
+    refDistance: 5,
+    rolloffFactor: 1,
+    coneInnerAngle: 180,  // Wide spread
+    coneOuterAngle: 270,
+    coneOuterGain: 0.5
+  };
 
   // Position sounds in 3D space
-  ambience.position = [0, 0, -5]; // Slightly behind the listener
-  birdSound.position = [10, 5, 0]; // To the right and above
-  footsteps.position = [-2, -1, 2]; // Slightly to the left and in front
+  ambience.position = [0, 0, 0];        // At listener
+  birdSound.position = [10, 5, -5];     // Right, up, slightly forward
+  waterfall.position = [-20, -5, -30];  // Left, below, far away
 
-  // Play the sounds
-  ambience.play();
-  birdSound.play();
-  footsteps.play();
-
-  // Update listener position and orientation
+  // Set listener
   cacophony.listenerPosition = [0, 0, 0];
   cacophony.listenerOrientation = {
     forward: [0, 0, -1],
     up: [0, 1, 0]
   };
 
-  // Animate bird sound position
-  let time = 0;
-  setInterval(() => {
-    const x = Math.sin(time) * 10;
-    birdSound.position = [x, 5, 0];
-    time += 0.05;
-  }, 50);
+  // Play all sounds
+  ambience.loop('infinite');
+  waterfall.loop('infinite');
+  ambience.play();
+  waterfall.play();
 
-  // Change listener position over time
-  setTimeout(() => {
-    cacophony.listenerPosition = [0, 0, 5];
-    console.log("Listener moved forward");
-  }, 5000);
+  // Animate bird moving in a circle
+  let angle = 0;
+  const radius = 10;
+  setInterval(() => {
+    const x = Math.cos(angle) * radius;
+    const z = Math.sin(angle) * radius;
+    birdSound.position = [x, 5, z];
+    angle += 0.02;
+
+    // Play bird chirp occasionally
+    if (Math.random() < 0.02) {
+      birdSound.play();
+    }
+  }, 50);
 }
 
 create3DAudioScene();
+```
+
+### Moving Listener (First-Person Camera)
+
+```typescript
+// Game/VR camera movement
+class AudioCamera {
+  constructor(private cacophony: Cacophony) {}
+
+  update(x: number, y: number, z: number, lookX: number, lookY: number, lookZ: number) {
+    // Update listener position
+    this.cacophony.listenerPosition = [x, y, z];
+
+    // Calculate forward and up vectors
+    const forward: [number, number, number] = [lookX, lookY, lookZ];
+    const up: [number, number, number] = [0, 1, 0];  // Typically world up
+
+    this.cacophony.listenerOrientation = { forward, up };
+  }
+}
+
+// Usage in game loop
+const audioCamera = new AudioCamera(cacophony);
+function gameLoop() {
+  const playerPos = player.getPosition();
+  const playerLook = player.getLookDirection();
+
+  audioCamera.update(
+    playerPos.x, playerPos.y, playerPos.z,
+    playerLook.x, playerLook.y, playerLook.z
+  );
+
+  requestAnimationFrame(gameLoop);
+}
+```
+
+### Stereo Panning (Simple L/R)
+
+For non-3D stereo effects:
+
+```typescript
+const sound = await cacophony.createSound('audio.mp3', SoundType.Buffer, 'stereo');
+
+// Pan left
+sound.stereoPan = -1;  // Full left
+
+// Pan right
+sound.stereoPan = 1;   // Full right
+
+// Center
+sound.stereoPan = 0;   // Equal balance
+
+// Animate panning
+let pan = -1;
+setInterval(() => {
+  sound.stereoPan = pan;
+  pan += 0.1;
+  if (pan > 1) pan = -1;
+}, 100);
 ```
 
 ## Audio Streaming
