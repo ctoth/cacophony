@@ -469,6 +469,66 @@ export class Playback extends BasePlayback implements BaseSound {
   }
 
   /**
+   * Gets the output node of this playback's audio graph.
+   * This is the final node in the internal chain before connection to destination.
+   * Use this to manually wire the playback into custom audio graphs.
+   *
+   * @returns {GainNode} The gain node that serves as the output of this playback.
+   * @throws {Error} Throws an error if the playback has been cleaned up.
+   *
+   * @example
+   * // Manual routing through custom effects
+   * const playback = sound.play()[0];
+   * playback.disconnect(); // Disconnect from default destination
+   * playback.connect(reverbNode).connect(context.destination);
+   */
+  get outputNode(): GainNode {
+    if (!this.gainNode) {
+      throw new Error("Cannot access output node of a playback that has been cleaned up");
+    }
+    return this.gainNode;
+  }
+
+  /**
+   * Connects this playback's output to an AudioNode or AudioParam.
+   * Follows the Web Audio API connection pattern.
+   *
+   * @param {AudioNode | AudioParam} destination - The node or param to connect to.
+   * @returns {AudioNode} The destination node (for chaining).
+   * @throws {Error} Throws an error if the playback has been cleaned up.
+   *
+   * @example
+   * // Chain multiple effects
+   * playback.connect(delay).connect(reverb).connect(context.destination);
+   */
+  connect(destination: AudioNode | AudioParam): AudioNode {
+    return this.outputNode.connect(destination as any);
+  }
+
+  /**
+   * Disconnects this playback's output from a specific destination or from all destinations.
+   *
+   * @param {AudioNode | AudioParam} [destination] - Optional specific destination to disconnect from.
+   *                                                   If omitted, disconnects from all destinations.
+   * @throws {Error} Throws an error if the playback has been cleaned up.
+   *
+   * @example
+   * // Disconnect from all
+   * playback.disconnect();
+   *
+   * @example
+   * // Disconnect from specific node
+   * playback.disconnect(reverbNode);
+   */
+  disconnect(destination?: AudioNode | AudioParam): void {
+    if (destination) {
+      this.outputNode.disconnect(destination as any);
+    } else {
+      this.outputNode.disconnect();
+    }
+  }
+
+  /**
    * Creates a clone of the current Playback instance with optional overrides for certain properties.
    * This method allows for the creation of a new Playback instance that shares the same audio context
    * and source node but can have different settings such as loop count or pan type.

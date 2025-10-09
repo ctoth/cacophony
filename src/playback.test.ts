@@ -783,3 +783,109 @@ describe("Playback Error Events", () => {
     );
   });
 });
+
+describe("Playback audio graph exposure", () => {
+  let playback: Playback;
+  let buffer: AudioBuffer;
+  let source: AudioBufferSourceNode;
+  let gainNode: GainNode;
+  let sound: Sound;
+
+  beforeEach(() => {
+    buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    source = audioContextMock.createBufferSource();
+    source.buffer = buffer;
+    gainNode = audioContextMock.createGain();
+    sound = new Sound("test-url", buffer, audioContextMock, gainNode);
+    playback = new Playback(sound, source, gainNode);
+  });
+
+  afterEach(() => {
+    if (playback && playback.source) {
+      playback.cleanup();
+    }
+    cacophony.clearMemoryCache();
+    vi.restoreAllMocks();
+  });
+
+  it("exposes outputNode as the gain node", () => {
+    expect(playback.outputNode).toBe(playback["gainNode"]);
+  });
+
+  it("throws error when accessing outputNode after cleanup", () => {
+    playback.cleanup();
+    expect(() => playback.outputNode).toThrow(
+      "Cannot access output node of a playback that has been cleaned up"
+    );
+  });
+
+  it("can connect to a custom destination", () => {
+    const customDestination = audioContextMock.createGain();
+    const connectSpy = vi.spyOn(playback.outputNode, "connect");
+
+    playback.connect(customDestination);
+
+    expect(connectSpy).toHaveBeenCalledWith(customDestination);
+  });
+
+  it("returns the destination node for chaining", () => {
+    const destination1 = audioContextMock.createGain();
+    const destination2 = audioContextMock.createGain();
+
+    const result = playback.connect(destination1);
+
+    expect(result).toBeDefined();
+    // Can chain connections (though the return type is AudioNode, not Playback)
+    result.connect(destination2);
+  });
+
+  it("can disconnect from all destinations", () => {
+    const disconnectSpy = vi.spyOn(playback.outputNode, "disconnect");
+
+    playback.disconnect();
+
+    expect(disconnectSpy).toHaveBeenCalledWith();
+  });
+
+  it("can disconnect from a specific destination", () => {
+    const destination = audioContextMock.createGain();
+    const disconnectSpy = vi.spyOn(playback.outputNode, "disconnect");
+
+    playback.connect(destination);
+    playback.disconnect(destination);
+
+    expect(disconnectSpy).toHaveBeenCalledWith(destination);
+  });
+
+  it("throws error when connecting after cleanup", () => {
+    const destination = audioContextMock.createGain();
+    playback.cleanup();
+
+    expect(() => playback.connect(destination)).toThrow(
+      "Cannot access output node of a playback that has been cleaned up"
+    );
+  });
+
+  it("throws error when disconnecting after cleanup", () => {
+    playback.cleanup();
+
+    expect(() => playback.disconnect()).toThrow(
+      "Cannot access output node of a playback that has been cleaned up"
+    );
+  });
+
+  it("enables custom audio graph routing", () => {
+    // Simulate routing through custom effects
+    const delay = audioContextMock.createDelay();
+    const reverb = audioContextMock.createGain(); // Mock reverb as gain node
+    const destination = audioContextMock.createGain();
+
+    const connectSpy = vi.spyOn(playback.outputNode, "connect");
+
+    // Manual routing: playback → delay → reverb → destination
+    playback.disconnect(); // Disconnect from default
+    playback.connect(delay);
+
+    expect(connectSpy).toHaveBeenCalledWith(delay);
+  });
+});
