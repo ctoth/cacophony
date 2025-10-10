@@ -1,10 +1,33 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
     "allowImportingTsExtensions": false,
-    "noEmit": false
+    "baseUrl": "./src",
+    "rootDir": "./src",
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "Node",
+    "types": [],
+    "lib": [
+      "ESNext",
+      "WebWorker"
+    ],
+    "allowJs": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "skipLibCheck": false,
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "noEmit": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "forceConsistentCasingInFileNames": true
   },
   "include": [
     "src/processors/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/processors/**/*.test.ts"
   ]
 }
