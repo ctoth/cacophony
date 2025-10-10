@@ -11,12 +11,16 @@ const inputFiles = glob.sync('src/processors/**/*.ts').filter((file) => {
 
 const configs = inputFiles.map(inputFile => {
   const fileName = inputFile.match(/\/([^\/]+)\.ts$/)[1];
+  // Convert kebab-case to camelCase for valid JS identifier
+  const bundleName = fileName.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
 
   return {
     input: inputFile,
     output: {
       file: `src/bundles/${fileName}-bundle.js`,
       format: 'iife',
+      name: bundleName,
+      sourcemap: true,
     },
     plugins: [
       resolve({
@@ -26,8 +30,11 @@ const configs = inputFiles.map(inputFile => {
       commonjs(),
       replace({
         'process.env.NODE_ENV': JSON.stringify('production'),
+        preventAssignment: true,
       }),
-      typescript(),
+      typescript({
+        tsconfig: './tsconfig.worklets.json',
+      }),
     ],
   };
 });

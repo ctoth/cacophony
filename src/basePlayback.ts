@@ -12,11 +12,11 @@ export abstract class BasePlayback extends PannerMixin(
   public source?: AudioNode;
   _playing: boolean = false;
   public origin!: IPlaybackContainer;
-  protected eventEmitter: TypedEventEmitter<PlaybackEvents> = new TypedEventEmitter<PlaybackEvents>();
+  public eventEmitter: TypedEventEmitter<PlaybackEvents> = new TypedEventEmitter<PlaybackEvents>();
 
   constructor() {
     super();
-    
+
   }
 
   abstract play(): [this];
@@ -51,11 +51,11 @@ export abstract class BasePlayback extends PannerMixin(
   }
 
 
-  protected emit<K extends keyof PlaybackEvents>(event: K, data: PlaybackEvents[K]): void {
+  public emit<K extends keyof PlaybackEvents>(event: K, data: PlaybackEvents[K]): void {
     this.eventEmitter.emit(event, data);
   }
 
-  protected async emitAsync<K extends keyof PlaybackEvents>(
+  public async emitAsync<K extends keyof PlaybackEvents>(
     event: K,
     data: PlaybackEvents[K]
   ): Promise<void> {

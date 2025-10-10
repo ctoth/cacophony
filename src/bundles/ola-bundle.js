@@ -1,4 +1,4 @@
-(function () {
+var ola = (function () {
     'use strict';
 
     const WEBAUDIO_BLOCK_SIZE = 128;
@@ -135,3 +135,4 @@
     return OLAProcessor;
 
 })();
+//# sourceMappingURL=ola-bundle.js.map

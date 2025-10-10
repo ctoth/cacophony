@@ -1,4 +1,4 @@
-(function (exports) {
+var dattorroReverb = (function (exports) {
     'use strict';
 
     /*
@@ -235,3 +235,4 @@
     return exports;
 
 })({});
+//# sourceMappingURL=dattorro-reverb-bundle.js.map

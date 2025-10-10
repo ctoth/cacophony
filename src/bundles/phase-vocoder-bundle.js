@@ -1,4 +1,4 @@
-(function (exports) {
+var phaseVocoder = (function (exports) {
     'use strict';
 
     const WEBAUDIO_BLOCK_SIZE = 128;
@@ -780,3 +780,4 @@
     return exports;
 
 })({});
+//# sourceMappingURL=phase-vocoder-bundle.js.map
