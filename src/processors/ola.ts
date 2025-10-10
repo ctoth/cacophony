@@ -2,7 +2,7 @@ const WEBAUDIO_BLOCK_SIZE = 128;
 const DEFAULT_BLOCK_SIZE = 1024; // Default block size if not provided in options
 
 /** Overlap-Add Node */
-export default abstract class OLAProcessor extends AudioWorkletProcessor {
+export default abstract class OLAProcessor extends AudioWorkletProcessor implements AudioWorkletProcessorImpl {
   nbInputs: number;
   nbOutputs: number;
   blockSize: number;
@@ -151,7 +151,7 @@ export default abstract class OLAProcessor extends AudioWorkletProcessor {
   process(
     inputs: Float32Array[][],
     outputs: Float32Array[][],
-    parameters: AudioParamMap
+    parameters: Record<string, Float32Array>
   ): boolean {
     this.reallocateChannelsIfNeeded(inputs, outputs);
 
@@ -173,6 +173,6 @@ export default abstract class OLAProcessor extends AudioWorkletProcessor {
   abstract processOLA(
     inputs: Float32Array[][],
     outputs: Float32Array[][],
-    parameters: AudioParamMap
+    parameters: Record<string, Float32Array>
   ): void;
 }

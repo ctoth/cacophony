@@ -113,7 +113,8 @@
             for (let i = 0; i < this.nbOutputs; i++) {
                 for (let j = 0; j < this.outputBuffers[i].length; j++) {
                     for (let k = 0; k < this.blockSize; k++) {
-                        this.outputBuffers[i][j][k] += this.outputBuffersToRetrieve[i][j][k] / this.nbOverlaps;
+                        this.outputBuffers[i][j][k] +=
+                            this.outputBuffersToRetrieve[i][j][k] / this.nbOverlaps;
                     }
                 }
             }

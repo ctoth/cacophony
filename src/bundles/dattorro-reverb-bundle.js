@@ -47,31 +47,32 @@
                 ["excursionRate", 0.5, 0, 2, "k-rate"],
                 ["excursionDepth", 0.7, 0, 2, "k-rate"],
                 ["wet", 0.3, 0, 1, "k-rate"],
-                ["dry", 0.6, 0, 1, "k-rate"]
+                ["dry", 0.6, 0, 1, "k-rate"],
             ].map(([name, defaultValue, minValue, maxValue, automationRate]) => ({
                 name: name,
                 defaultValue: defaultValue,
                 minValue: minValue,
                 maxValue: maxValue,
-                automationRate: automationRate
+                automationRate: automationRate,
             }));
         }
         constructor(options) {
             super(options);
             // Pre-delay is always one-second long, rounded to the nearest 128-chunk
-            this._pDLength = sampleRate + (128 - sampleRate % 128);
+            this._pDLength = sampleRate + (128 - (sampleRate % 128));
             this._preDelay = new Float32Array(this._pDLength);
             // Initialize delay lines with specified lengths (in seconds)
             [
-                0.004771345, 0.003595309, 0.012734787, 0.009307483,
-                0.022579886, 0.149625349, 0.060481839, 0.1249958,
-                0.030509727, 0.141695508, 0.089244313, 0.106280031
-            ].forEach(length => this.makeDelay(length));
+                0.004771345, 0.003595309, 0.012734787, 0.009307483, 0.022579886,
+                0.149625349, 0.060481839, 0.1249958, 0.030509727, 0.141695508,
+                0.089244313, 0.106280031,
+            ].forEach((length) => this.makeDelay(length));
             // Initialize tap positions (in seconds) for stereo output
             this._taps = Int16Array.from([
-                0.008937872, 0.099929438, 0.064278754, 0.067067639, 0.066866033, 0.006283391, 0.035818689,
-                0.011861161, 0.121870905, 0.041262054, 0.08981553, 0.070931756, 0.011256342, 0.004065724
-            ], length => Math.round(length * sampleRate));
+                0.008937872, 0.099929438, 0.064278754, 0.067067639, 0.066866033,
+                0.006283391, 0.035818689, 0.011861161, 0.121870905, 0.041262054,
+                0.08981553, 0.070931756, 0.011256342, 0.004065724,
+            ], (length) => Math.round(length * sampleRate));
         }
         /**
          * Creates a delay line with the specified length
@@ -84,14 +85,14 @@
                 new Float32Array(nextPow2),
                 len - 1, // write index
                 0, // read index
-                nextPow2 - 1 // mask for wrapping
+                nextPow2 - 1, // mask for wrapping
             ]);
         }
         /**
          * Writes a sample to a delay line and returns the written value
          */
         writeDelay(index, data) {
-            return this._Delays[index][0][this._Delays[index][1]] = data;
+            return (this._Delays[index][0][this._Delays[index][1]] = data);
         }
         /**
          * Reads the current sample from a delay line
@@ -123,7 +124,7 @@
             const a = (3 * (x1 - x2) - x0 + x3) / 2;
             const b = 2 * x2 + x0 - (5 * x1 + x3) / 2;
             const c = (x2 - x0) / 2;
-            return (((a * frac) + b) * frac + c) * frac + x1;
+            return ((a * frac + b) * frac + c) * frac + x1;
         }
         /**
          * Process audio samples
@@ -140,13 +141,14 @@
             const st = parameters.decayDiffusion2[0];
             const dp = 1 - parameters.damping[0];
             const ex = parameters.excursionRate[0] / sampleRate;
-            const ed = parameters.excursionDepth[0] * sampleRate / 1000;
+            const ed = (parameters.excursionDepth[0] * sampleRate) / 1000;
             const we = parameters.wet[0] * 0.6; // lo & ro both mult. by 0.6 anyways
             const dr = parameters.dry[0];
             // Write to predelay and dry output
             if (inputs[0].length === 2) {
                 for (let i = 127; i >= 0; i--) {
-                    this._preDelay[this._pDWrite + i] = (inputs[0][0][i] + inputs[0][1][i]) * 0.5;
+                    this._preDelay[this._pDWrite + i] =
+                        (inputs[0][0][i] + inputs[0][1][i]) * 0.5;
                     outputs[0][0][i] = inputs[0][0][i] * dr;
                     outputs[0][1][i] = inputs[0][1][i] * dr;
                 }
@@ -165,7 +167,10 @@
                 let lo = 0.0;
                 let ro = 0.0;
                 // Input low-pass filter (bandwidth)
-                this._lp1 += bw * (this._preDelay[(this._pDLength + this._pDWrite - pd + i) % this._pDLength] - this._lp1);
+                this._lp1 +=
+                    bw *
+                        (this._preDelay[(this._pDLength + this._pDWrite - pd + i) % this._pDLength] -
+                            this._lp1);
                 // Pre-tank diffusion (4 all-pass filters)
                 let pre = this.writeDelay(0, this._lp1 - fi * this.readDelay(0));
                 pre = this.writeDelay(1, fi * (pre - this.readDelay(1)) + this.readDelay(0));
@@ -173,7 +178,7 @@
                 pre = this.writeDelay(3, si * (pre - this.readDelay(3)) + this.readDelay(2));
                 const split = si * pre + this.readDelay(3);
                 // Modulated excursions for chorus effect
-                const exc = ed * (1 + Math.cos(this._excPhase * 6.2800));
+                const exc = ed * (1 + Math.cos(this._excPhase * 6.28));
                 const exc2 = ed * (1 + Math.sin(this._excPhase * 6.2847));
                 // Left loop (tank diffuse 1 -> long delay 1 -> damp 1 -> tank diffuse 2 -> long delay 2)
                 let temp = this.writeDelay(4, split + dc * this.readDelay(11) + ft * this.readDelayCAt(4, exc));
@@ -188,21 +193,23 @@
                 temp = this.writeDelay(10, dc * this._lp3 - st * this.readDelay(10));
                 this.writeDelay(11, this.readDelay(10) + st * temp);
                 // Left output: sum of taps from both loops
-                lo = this.readDelayAt(9, this._taps[0])
-                    + this.readDelayAt(9, this._taps[1])
-                    - this.readDelayAt(10, this._taps[2])
-                    + this.readDelayAt(11, this._taps[3])
-                    - this.readDelayAt(5, this._taps[4])
-                    - this.readDelayAt(6, this._taps[5])
-                    - this.readDelayAt(7, this._taps[6]);
+                lo =
+                    this.readDelayAt(9, this._taps[0]) +
+                        this.readDelayAt(9, this._taps[1]) -
+                        this.readDelayAt(10, this._taps[2]) +
+                        this.readDelayAt(11, this._taps[3]) -
+                        this.readDelayAt(5, this._taps[4]) -
+                        this.readDelayAt(6, this._taps[5]) -
+                        this.readDelayAt(7, this._taps[6]);
                 // Right output: sum of taps from both loops
-                ro = this.readDelayAt(5, this._taps[7])
-                    + this.readDelayAt(5, this._taps[8])
-                    - this.readDelayAt(6, this._taps[9])
-                    + this.readDelayAt(7, this._taps[10])
-                    - this.readDelayAt(9, this._taps[11])
-                    - this.readDelayAt(10, this._taps[12])
-                    - this.readDelayAt(11, this._taps[13]);
+                ro =
+                    this.readDelayAt(5, this._taps[7]) +
+                        this.readDelayAt(5, this._taps[8]) -
+                        this.readDelayAt(6, this._taps[9]) +
+                        this.readDelayAt(7, this._taps[10]) -
+                        this.readDelayAt(9, this._taps[11]) -
+                        this.readDelayAt(10, this._taps[12]) -
+                        this.readDelayAt(11, this._taps[13]);
                 outputs[0][0][i] += lo * we;
                 outputs[0][1][i] += ro * we;
                 this._excPhase += ex;
@@ -220,7 +227,7 @@
         }
     }
     // @ts-ignore
-    registerProcessor('dattorro-reverb', DattorroReverbProcessor);
+    registerProcessor("dattorro-reverb", DattorroReverbProcessor);
     console.log("DattorroReverbProcessor registered");
 
     exports.DattorroReverbProcessor = DattorroReverbProcessor;

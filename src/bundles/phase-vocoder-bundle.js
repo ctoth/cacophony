@@ -113,7 +113,8 @@
             for (let i = 0; i < this.nbOutputs; i++) {
                 for (let j = 0; j < this.outputBuffers[i].length; j++) {
                     for (let k = 0; k < this.blockSize; k++) {
-                        this.outputBuffers[i][j][k] += this.outputBuffersToRetrieve[i][j][k] / this.nbOverlaps;
+                        this.outputBuffers[i][j][k] +=
+                            this.outputBuffersToRetrieve[i][j][k] / this.nbOverlaps;
                     }
                 }
             }
@@ -647,7 +648,7 @@
     function genHannWindow(length) {
         let win = new Float32Array(length);
         for (let i = 0; i < length; i++) {
-            win[i] = 0.5 * (1 - Math.cos(2 * Math.PI * i / length));
+            win[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / length));
         }
         return win;
     }
@@ -663,10 +664,12 @@
         peakIndexes;
         nbPeaks;
         static get parameterDescriptors() {
-            return [{
-                    name: 'pitchFactor',
-                    defaultValue: 1.0
-                }];
+            return [
+                {
+                    name: "pitchFactor",
+                    defaultValue: 1.0,
+                },
+            ];
         }
         constructor(options) {
             options.processorOptions = {
@@ -679,14 +682,14 @@
             // prepare FFT and pre-allocate buffers
             this.fft = new FFT$1(this.fftSize);
             this.freqComplexBuffer = this.fft.createComplexArray();
-            this.freqComplexBufferShifted = this.fft.createComplexArray();
+            this.freqComplexBufferShifted =
+                this.fft.createComplexArray();
             this.timeComplexBuffer = this.fft.createComplexArray();
             this.magnitudes = new Float32Array(this.fftSize / 2 + 1);
             this.peakIndexes = new Int32Array(this.magnitudes.length);
             this.nbPeaks = 0;
         }
         processOLA(inputs, outputs, parameters) {
-            // @ts-ignore
             const pitchFactor = parameters.pitchFactor[parameters.pitchFactor.length - 1];
             for (let i = 0; i < this.nbInputs; i++) {
                 for (let j = 0; j < inputs[i].length; j++) {
@@ -722,7 +725,10 @@
             this.nbPeaks = 0;
             for (let i = 2, end = this.magnitudes.length - 2; i < end; i++) {
                 const mag = this.magnitudes[i];
-                if (this.magnitudes[i - 1] >= mag || this.magnitudes[i - 2] >= mag || this.magnitudes[i + 1] >= mag || this.magnitudes[i + 2] >= mag) {
+                if (this.magnitudes[i - 1] >= mag ||
+                    this.magnitudes[i - 2] >= mag ||
+                    this.magnitudes[i + 1] >= mag ||
+                    this.magnitudes[i + 2] >= mag) {
                     continue;
                 }
                 this.peakIndexes[this.nbPeaks++] = i;
@@ -736,15 +742,19 @@
                 if (peakIndexShifted > this.magnitudes.length) {
                     break;
                 }
-                let startIndex = (i > 0) ? peakIndex - Math.floor((peakIndex - this.peakIndexes[i - 1]) / 2) : 0;
-                let endIndex = (i < this.nbPeaks - 1) ? peakIndex + Math.ceil((this.peakIndexes[i + 1] - peakIndex) / 2) : this.fftSize;
+                let startIndex = i > 0
+                    ? peakIndex - Math.floor((peakIndex - this.peakIndexes[i - 1]) / 2)
+                    : 0;
+                let endIndex = i < this.nbPeaks - 1
+                    ? peakIndex + Math.ceil((this.peakIndexes[i + 1] - peakIndex) / 2)
+                    : this.fftSize;
                 for (let j = startIndex - peakIndex; j < endIndex - peakIndex; j++) {
                     const binIndex = peakIndex + j;
                     const binIndexShifted = peakIndexShifted + j;
                     if (binIndexShifted >= this.magnitudes.length) {
                         break;
                     }
-                    const omegaDelta = 2 * Math.PI * (binIndexShifted - binIndex) / this.fftSize;
+                    const omegaDelta = (2 * Math.PI * (binIndexShifted - binIndex)) / this.fftSize;
                     const phaseShiftReal = Math.cos(omegaDelta * this.timeCursor);
                     const phaseShiftImag = Math.sin(omegaDelta * this.timeCursor);
                     const indexReal = binIndex * 2;

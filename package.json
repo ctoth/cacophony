@@ -47,6 +47,7 @@
     "@rollup/plugin-node-resolve": "^15.3.1",
     "@rollup/plugin-replace": "^5.0.7",
     "@rollup/plugin-typescript": "^11.1.6",
+    "@types/audioworklet": "^0.0.87",
     "@types/node": "^22.18.1",
     "rimraf": "^5.0.10",
     "rollup": "^4.50.1",

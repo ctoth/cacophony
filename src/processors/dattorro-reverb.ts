@@ -31,7 +31,7 @@ type DelayLine = [Float32Array, number, number, number];
  *
  * @see https://ccrma.stanford.edu/~dattorro/EffectDesignPart1.pdf
  */
-export class DattorroReverbProcessor extends AudioWorkletProcessor {
+export class DattorroReverbProcessor extends AudioWorkletProcessor implements AudioWorkletProcessorImpl {
   private _Delays: DelayLine[] = [];
   private _pDLength: number;
   private _preDelay: Float32Array;
@@ -158,7 +158,7 @@ export class DattorroReverbProcessor extends AudioWorkletProcessor {
   process(
     inputs: Float32Array[][],
     outputs: Float32Array[][],
-    parameters: AudioParamMap
+    parameters: Record<string, Float32Array>
   ): boolean {
     const pd = ~~parameters.preDelay[0];
     const bw = parameters.bandwidth[0];

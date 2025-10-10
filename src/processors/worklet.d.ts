@@ -1,10 +1,20 @@
-// https://github.com/microsoft/TypeScript/issues/28308#issuecomment-650802278
+// Type definitions based on @types/audioworklet
+// https://www.npmjs.com/package/@types/audioworklet
+
 interface AudioWorkletProcessor {
   readonly port: MessagePort;
+}
+
+declare var AudioWorkletProcessor: {
+  prototype: AudioWorkletProcessor;
+  new (options?: AudioWorkletNodeOptions): AudioWorkletProcessor;
+};
+
+interface AudioWorkletProcessorImpl extends AudioWorkletProcessor {
   process(
     inputs: Float32Array[][],
     outputs: Float32Array[][],
-    parameters: AudioParamMap
+    parameters: Record<string, Float32Array>
   ): boolean;
 }
 
@@ -16,26 +26,15 @@ interface AudioParamDescriptor {
   automationRate?: AutomationRate;
 }
 
-declare var AudioWorkletProcessor: {
-  prototype: AudioWorkletProcessor;
-  new (options?: AudioWorkletNodeOptions): AudioWorkletProcessor;
-};
-
 declare function registerProcessor(
   name: string,
   processorCtor: (new (
     options?: AudioWorkletNodeOptions
-  ) => AudioWorkletProcessor) & {
+  ) => AudioWorkletProcessorImpl) & {
     parameterDescriptors?: AudioParamDescriptor[];
   }
 ): void;
 
-interface AudioParamMap {
-  forEach(
-    callbackfn: (value: AudioParam, key: string, parent: AudioParamMap) => void,
-    thisArg?: any
-  ): void;
-}
 
 // sample rate is 44100 Hz, buffer size is 128 frames
 declare const BUFFER_SIZE = 128;
