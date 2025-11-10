@@ -31,7 +31,10 @@ type DelayLine = [Float32Array, number, number, number];
  *
  * @see https://ccrma.stanford.edu/~dattorro/EffectDesignPart1.pdf
  */
-export class DattorroReverbProcessor extends AudioWorkletProcessor implements AudioWorkletProcessorImpl {
+export class DattorroReverbProcessor
+  extends AudioWorkletProcessor
+  implements AudioWorkletProcessorImpl
+{
   private _Delays: DelayLine[] = [];
   private _pDLength: number;
   private _preDelay: Float32Array;
