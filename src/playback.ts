@@ -484,7 +484,9 @@ export class Playback extends BasePlayback implements BaseSound {
    */
   get outputNode(): GainNode {
     if (!this.gainNode) {
-      throw new Error("Cannot access output node of a playback that has been cleaned up");
+      throw new Error(
+        "Cannot access output node of a playback that has been cleaned up"
+      );
     }
     return this.gainNode;
   }
