@@ -73,7 +73,6 @@ export class Sound
     super();
     this.buffer = buffer;
     this.context = context;
-
   }
 
   get cacophony(): Cacophony | undefined {
@@ -105,7 +104,6 @@ export class Sound
     this.eventEmitter.off(event, listener);
   }
 
-
   protected emit<K extends keyof SoundEvents>(
     event: K,
     data: SoundEvents[K]
@@ -119,7 +117,6 @@ export class Sound
   ): Promise<void> {
     return this.eventEmitter.emitAsync(event, data);
   }
-
 
   /**
    * Clones the current Sound instance, creating a deep copy with the option to override specific properties.
@@ -183,37 +180,37 @@ export class Sound
   preplay(): Playback[] {
     try {
       let source: SourceNode;
-    if (this.buffer) {
-      source = this.context.createBufferSource();
-      source.buffer = this.buffer;
-    } else {
-      const audio = new Audio();
-      audio.crossOrigin = "anonymous";
-      audio.src = this.url;
-      audio.preload = "auto";
-      // we have the audio, let's make a buffer source node out of it
-      source = this.context.createMediaElementSource(audio);
-    }
-    const gainNode = this.context.createGain();
-    gainNode.connect(this.globalGainNode);
-    const playback = new Playback(this, source, gainNode);
-    // this.finalizationRegistry.register(playback, playback);
-    playback.setGainNode(gainNode);
-    playback.volume = this.volume;
-    playback.playbackRate = this.playbackRate;
-    this._filters.forEach((filter) => playback.addFilter(filter));
-    if (this.panType === "HRTF") {
-      playback.threeDOptions = this.threeDOptions;
-      playback.position = this.position;
-    } else if (this.panType === "stereo") {
-      playback.stereoPan = this.stereoPan as number;
-    }
+      if (this.buffer) {
+        source = this.context.createBufferSource();
+        source.buffer = this.buffer;
+      } else {
+        const audio = new Audio();
+        audio.crossOrigin = "anonymous";
+        audio.src = this.url;
+        audio.preload = "auto";
+        // we have the audio, let's make a buffer source node out of it
+        source = this.context.createMediaElementSource(audio);
+      }
+      const gainNode = this.context.createGain();
+      gainNode.connect(this.globalGainNode);
+      const playback = new Playback(this, source, gainNode);
+      // this.finalizationRegistry.register(playback, playback);
+      playback.setGainNode(gainNode);
+      playback.volume = this.volume;
+      playback.playbackRate = this.playbackRate;
+      this._filters.forEach((filter) => playback.addFilter(filter));
+      if (this.panType === "HRTF") {
+        playback.threeDOptions = this.threeDOptions;
+        playback.position = this.position;
+      } else if (this.panType === "stereo") {
+        playback.stereoPan = this.stereoPan as number;
+      }
       // Set up error propagation from playback to sound
-      playback.on('error', (errorEvent) => {
-        this.emitAsync('soundError', {
+      playback.on("error", (errorEvent) => {
+        this.emitAsync("soundError", {
           url: this.url,
           error: errorEvent.error,
-          errorType: 'playback',
+          errorType: "playback",
           timestamp: errorEvent.timestamp,
           recoverable: errorEvent.recoverable,
         });
@@ -225,11 +222,11 @@ export class Sound
       const errorEvent = {
         url: this.url,
         error: error as Error,
-        errorType: 'playback' as const,
+        errorType: "playback" as const,
         timestamp: Date.now(),
         recoverable: true,
       };
-      this.emitAsync('soundError', errorEvent);
+      this.emitAsync("soundError", errorEvent);
       throw error;
     }
   }
