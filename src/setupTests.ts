@@ -10,7 +10,6 @@ const loadedUrls = new Set<string>();
 
 const mockCache = {
   getAudioBuffer: vi.fn((context, url, signal, callbacks) => {
-    
     // Call loading start callback immediately
     if (callbacks?.onLoadingStart) {
       callbacks.onLoadingStart({ url, timestamp: Date.now() });
@@ -18,17 +17,17 @@ const mockCache = {
 
     // Check if this URL has been loaded before (memory cache simulation)
     const isMemoryCacheHit = loadedUrls.has(url);
-    
+
     if (isMemoryCacheHit) {
       // Cache hit - return immediately
       if (callbacks?.onCacheHit) {
         callbacks.onCacheHit({
           url,
-          cacheType: 'memory',
+          cacheType: "memory",
           timestamp: Date.now(),
         });
       }
-      
+
       const audioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
       return Promise.resolve(audioBuffer);
     }
@@ -37,7 +36,7 @@ const mockCache = {
     if (callbacks?.onCacheMiss) {
       callbacks.onCacheMiss({
         url,
-        reason: 'not-found',
+        reason: "not-found",
         timestamp: Date.now(),
       });
     }
@@ -46,17 +45,17 @@ const mockCache = {
     return new Promise(async (resolve, reject) => {
       try {
         // Check if this is an error test scenario based on global fetch mock or AudioContext mock
-        if (global.fetch && typeof global.fetch === 'function') {
+        if (global.fetch && typeof global.fetch === "function") {
           // Only call fetch for valid URLs (including relative URLs)
           let shouldFetch = true;
           let testResponse;
-          
+
           // Allow relative URLs and absolute URLs
-          if (!url || url === 'test') {
+          if (!url || url === "test") {
             // Skip obviously invalid URLs like the debug test URL
             shouldFetch = false;
           }
-          
+
           // Try fetch first if URL is valid
           if (shouldFetch) {
             try {
@@ -64,7 +63,8 @@ const mockCache = {
             } catch (fetchError) {
               // Call error callback for fetch failures
               if (callbacks?.onLoadingError) {
-                const errorType = fetchError.name === 'AbortError' ? 'abort' : 'network';
+                const errorType =
+                  fetchError.name === "AbortError" ? "abort" : "network";
                 callbacks.onLoadingError({
                   url,
                   error: fetchError,
@@ -76,7 +76,7 @@ const mockCache = {
               return; // Exit early on fetch error
             }
           }
-          
+
           // Call progress callback if fetch succeeded or was skipped
           if (callbacks?.onLoadingProgress) {
             callbacks.onLoadingProgress({
@@ -87,28 +87,34 @@ const mockCache = {
               timestamp: Date.now(),
             });
           }
-          
+
           // Now check if decodeAudioData will fail
-          const audioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-          
+          const audioBuffer = new AudioBuffer({
+            length: 100,
+            sampleRate: 44100,
+          });
+
           // Test decode by calling the mocked decodeAudioData
-          if (context.decodeAudioData && typeof context.decodeAudioData === 'function') {
+          if (
+            context.decodeAudioData &&
+            typeof context.decodeAudioData === "function"
+          ) {
             try {
               await context.decodeAudioData(new ArrayBuffer(1024));
-              
+
               // Decode succeeded - call complete callback and mark as loaded
               if (callbacks?.onLoadingComplete) {
-                callbacks.onLoadingComplete({ 
-                  url, 
-                  duration: 2.27, 
-                  size: 1024, 
-                  timestamp: Date.now() 
+                callbacks.onLoadingComplete({
+                  url,
+                  duration: 2.27,
+                  size: 1024,
+                  timestamp: Date.now(),
                 });
               }
-              
+
               // Add to loaded URLs for future cache hits
               loadedUrls.add(url);
-              
+
               resolve(audioBuffer);
             } catch (decodeError) {
               // Decode failed - call error callback
@@ -116,7 +122,7 @@ const mockCache = {
                 callbacks.onLoadingError({
                   url,
                   error: decodeError,
-                  errorType: 'decode',
+                  errorType: "decode",
                   timestamp: Date.now(),
                 });
               }
@@ -125,34 +131,37 @@ const mockCache = {
           } else {
             // No decode mock - simulate successful load
             if (callbacks?.onLoadingComplete) {
-              callbacks.onLoadingComplete({ 
-                url, 
-                duration: 2.27, 
-                size: 1024, 
-                timestamp: Date.now() 
+              callbacks.onLoadingComplete({
+                url,
+                duration: 2.27,
+                size: 1024,
+                timestamp: Date.now(),
               });
             }
-            
+
             // Add to loaded URLs for future cache hits
             loadedUrls.add(url);
-            
+
             resolve(audioBuffer);
           }
         } else {
           // No fetch mock - simulate successful load
           if (callbacks?.onLoadingComplete) {
-            callbacks.onLoadingComplete({ 
-              url, 
-              duration: 2.27, 
-              size: 1024, 
-              timestamp: Date.now() 
+            callbacks.onLoadingComplete({
+              url,
+              duration: 2.27,
+              size: 1024,
+              timestamp: Date.now(),
             });
           }
-          
+
           // Add to loaded URLs for future cache hits
           loadedUrls.add(url);
-          
-          const audioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+
+          const audioBuffer = new AudioBuffer({
+            length: 100,
+            sampleRate: 44100,
+          });
           resolve(audioBuffer);
         }
       } catch (error) {
@@ -167,10 +176,10 @@ const mockCache = {
 
 beforeAll(() => {
   vi.useFakeTimers();
-  
+
   // Mock Audio constructor for HTML audio tests
   global.Audio = vi.fn().mockImplementation(() => ({
-    src: '',
+    src: "",
     crossOrigin: null,
     load: vi.fn(),
     play: vi.fn().mockResolvedValue(undefined),
