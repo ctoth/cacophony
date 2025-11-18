@@ -10,13 +10,9 @@ export abstract class FilterManager {
   }
 
   removeFilter(filter: BiquadFilterNode) {
-    this._filters = this._filters.filter(
-      (f) =>
-        f.frequency.value !== filter.frequency.value &&
-        f.type !== filter.type &&
-        f.Q.value !== filter.Q.value &&
-        f.gain.value !== filter.gain.value
-    );
+    // Remove by object identity, not by comparing property values
+    // This prevents bugs where filters with identical properties can't be removed
+    this._filters = this._filters.filter((f) => f !== filter);
   }
 
   applyFilters(connection: any): any {
