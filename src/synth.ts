@@ -153,7 +153,7 @@ export class Synth
       clonedFilter.frequency.value = filter.frequency.value;
       clonedFilter.Q.value = filter.Q.value;
       clonedFilter.gain.value = filter.gain.value;
-      playback.addFilter(clonedFilter);
+      playback.addFilter(clonedFilter as unknown as BiquadFilterNode);
     });
     if (this.panType === "HRTF") {
       playback.threeDOptions = this.threeDOptions;
