@@ -1,8 +1,7 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, test, vi } from "vitest";
-import { audioContextMock, cacophony, mockCache } from "./setupTests";
-
 import { SoundType } from "./cacophony";
+import { audioContextMock, cacophony } from "./setupTests";
 import { Sound } from "./sound";
 
 describe("Sound playback and state management", () => {
@@ -235,12 +234,7 @@ describe("Sound class", () => {
 
   beforeEach(() => {
     buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    sound = new Sound(
-      "test-url",
-      buffer,
-      audioContextMock,
-      audioContextMock.createGain()
-    );
+    sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
   });
 
   afterEach(() => {
@@ -451,9 +445,7 @@ describe("Sound class", () => {
     expect(sound.filters.length).toBe(1);
 
     // Try to add the same instance again - should throw
-    expect(() => sound.addFilter(filter)).toThrow(
-      "Cannot add the same filter instance twice"
-    );
+    expect(() => sound.addFilter(filter)).toThrow("Cannot add the same filter instance twice");
 
     // Verify filter was not added again
     expect(sound.filters.length).toBe(1);
@@ -484,12 +476,7 @@ describe("Sound class", () => {
 
   test("A sound loops the correct number of times", async () => {
     const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    const sound = new Sound(
-      "test-url",
-      buffer,
-      audioContextMock,
-      audioContextMock.createGain()
-    );
+    const sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
     const playbacks = sound.play();
     const playback = playbacks[0];
     expect(playback.isPlaying).toBe(true);
@@ -523,12 +510,7 @@ describe("Sound class", () => {
 
   it("can stop an infinitely-looped sound", async () => {
     const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    const sound = new Sound(
-      "test-url",
-      buffer,
-      audioContextMock,
-      audioContextMock.createGain()
-    );
+    const sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
     const playbacks = sound.play();
     const playback = playbacks[0];
 
@@ -546,12 +528,7 @@ describe("Sound class", () => {
 
   it("can transition a looping sound to non-looping and vice versa", async () => {
     const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    const sound = new Sound(
-      "test-url",
-      buffer,
-      audioContextMock,
-      audioContextMock.createGain()
-    );
+    const sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
     const playbacks = sound.play();
     const playback = playbacks[0];
 
@@ -587,12 +564,7 @@ describe("Sound class", () => {
 
   it("can safely stop a sound twice, then play it, and stop it again", async () => {
     const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    const sound = new Sound(
-      "test-url",
-      buffer,
-      audioContextMock,
-      audioContextMock.createGain()
-    );
+    const sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
     // Create and stop the sound twice
     sound.play();
     sound.stop();
@@ -610,12 +582,7 @@ describe("Sound class", () => {
   });
   it("ensures isPlaying is set to false after a sound ends naturally", async () => {
     const buffer = new AudioBuffer({ length: 1, sampleRate: 44100 });
-    const sound = new Sound(
-      "test-url",
-      buffer,
-      audioContextMock,
-      audioContextMock.createGain()
-    );
+    const sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
     const playbacks = sound.play();
     const playback = playbacks[0];
     expect(playback.isPlaying).toBe(true);
@@ -743,9 +710,7 @@ describe("Loading Events", () => {
     global.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
 
     cacophony.on("loadingError", mockCallbacks.onLoadingError);
-    await expect(cacophony.createSound("test-url.mp3")).rejects.toThrow(
-      "Network error"
-    );
+    await expect(cacophony.createSound("test-url.mp3")).rejects.toThrow("Network error");
 
     expect(mockCallbacks.onLoadingError).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -770,9 +735,7 @@ describe("Loading Events", () => {
     audioContextMock.decodeAudioData = audioContextDecodeAudioData;
 
     cacophony.on("loadingError", mockCallbacks.onLoadingError);
-    await expect(cacophony.createSound("test-url.mp3")).rejects.toThrow(
-      "Invalid audio format"
-    );
+    await expect(cacophony.createSound("test-url.mp3")).rejects.toThrow("Invalid audio format");
 
     expect(mockCallbacks.onLoadingError).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -795,12 +758,7 @@ describe("Loading Events", () => {
 
     cacophony.on("loadingError", mockCallbacks.onLoadingError);
     await expect(
-      cacophony.createSound(
-        "test-url.mp3",
-        undefined,
-        undefined,
-        controller.signal
-      )
+      cacophony.createSound("test-url.mp3", undefined, undefined, controller.signal)
     ).rejects.toThrow("Aborted");
 
     expect(mockCallbacks.onLoadingError).toHaveBeenCalledWith(
@@ -821,12 +779,7 @@ describe("Sound Error Events", () => {
 
   beforeEach(() => {
     buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    sound = new Sound(
-      "test-url",
-      buffer,
-      audioContextMock,
-      audioContextMock.createGain()
-    );
+    sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
 
     mockCallbacks = {
       onSoundError: vi.fn(),

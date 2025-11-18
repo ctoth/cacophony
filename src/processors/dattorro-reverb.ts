@@ -38,11 +38,11 @@ export class DattorroReverbProcessor
   private _Delays: DelayLine[] = [];
   private _pDLength: number;
   private _preDelay: Float32Array;
-  private _pDWrite: number = 0;
-  private _lp1: number = 0.0;
-  private _lp2: number = 0.0;
-  private _lp3: number = 0.0;
-  private _excPhase: number = 0.0;
+  private _pDWrite = 0;
+  private _lp1 = 0.0;
+  private _lp2 = 0.0;
+  private _lp3 = 0.0;
+  private _excPhase = 0.0;
   private _taps: Int16Array;
 
   static get parameterDescriptors(): AudioParamDescriptor[] {
@@ -77,35 +77,18 @@ export class DattorroReverbProcessor
 
     // Initialize delay lines with specified lengths (in seconds)
     [
-      0.004771345, 0.003595309, 0.012734787, 0.009307483, 0.022579886,
-      0.149625349, 0.060481839, 0.1249958, 0.030509727, 0.141695508,
-      0.089244313, 0.106280031,
+      0.004771345, 0.003595309, 0.012734787, 0.009307483, 0.022579886, 0.149625349, 0.060481839,
+      0.1249958, 0.030509727, 0.141695508, 0.089244313, 0.106280031,
     ].forEach((length) => this.makeDelay(length));
 
     // Initialize tap positions (in seconds) for stereo output
     this._taps = Int16Array.from(
       [
-        0.008937872, 0.099929438, 0.064278754, 0.067067639, 0.066866033,
-        0.006283391, 0.035818689, 0.011861161, 0.121870905, 0.041262054,
-        0.08981553, 0.070931756, 0.011256342, 0.004065724,
+        0.008937872, 0.099929438, 0.064278754, 0.067067639, 0.066866033, 0.006283391, 0.035818689,
+        0.011861161, 0.121870905, 0.041262054, 0.08981553, 0.070931756, 0.011256342, 0.004065724,
       ],
       (length) => Math.round(length * sampleRate)
     );
-  }
-
-  /**
-   * Creates a delay line with the specified length
-   * Uses power-of-2 sizing for efficient wrapping with bitwise AND
-   */
-  private makeDelay(length: number): void {
-    const len = Math.round(length * sampleRate);
-    const nextPow2 = 2 ** Math.ceil(Math.log2(len));
-    this._Delays.push([
-      new Float32Array(nextPow2),
-      len - 1, // write index
-      0, // read index
-      nextPow2 - 1, // mask for wrapping
-    ]);
   }
 
   /**
@@ -179,8 +162,7 @@ export class DattorroReverbProcessor
     // Write to predelay and dry output
     if (inputs[0].length === 2) {
       for (let i = 127; i >= 0; i--) {
-        this._preDelay[this._pDWrite + i] =
-          (inputs[0][0][i] + inputs[0][1][i]) * 0.5;
+        this._preDelay[this._pDWrite + i] = (inputs[0][0][i] + inputs[0][1][i]) * 0.5;
 
         outputs[0][0][i] = inputs[0][0][i] * dr;
         outputs[0][1][i] = inputs[0][1][i] * dr;
@@ -202,25 +184,13 @@ export class DattorroReverbProcessor
       // Input low-pass filter (bandwidth)
       this._lp1 +=
         bw *
-        (this._preDelay[
-          (this._pDLength + this._pDWrite - pd + i) % this._pDLength
-        ] -
-          this._lp1);
+        (this._preDelay[(this._pDLength + this._pDWrite - pd + i) % this._pDLength] - this._lp1);
 
       // Pre-tank diffusion (4 all-pass filters)
       let pre = this.writeDelay(0, this._lp1 - fi * this.readDelay(0));
-      pre = this.writeDelay(
-        1,
-        fi * (pre - this.readDelay(1)) + this.readDelay(0)
-      );
-      pre = this.writeDelay(
-        2,
-        fi * pre + this.readDelay(1) - si * this.readDelay(2)
-      );
-      pre = this.writeDelay(
-        3,
-        si * (pre - this.readDelay(3)) + this.readDelay(2)
-      );
+      pre = this.writeDelay(1, fi * (pre - this.readDelay(1)) + this.readDelay(0));
+      pre = this.writeDelay(2, fi * pre + this.readDelay(1) - si * this.readDelay(2));
+      pre = this.writeDelay(3, si * (pre - this.readDelay(3)) + this.readDelay(2));
 
       const split = si * pre + this.readDelay(3);
 
@@ -239,10 +209,7 @@ export class DattorroReverbProcessor
       this.writeDelay(7, this.readDelay(6) + st * temp);
 
       // Right loop (tank diffuse 3 -> long delay 3 -> damp 2 -> tank diffuse 4 -> long delay 4)
-      temp = this.writeDelay(
-        8,
-        split + dc * this.readDelay(7) + ft * this.readDelayCAt(8, exc2)
-      );
+      temp = this.writeDelay(8, split + dc * this.readDelay(7) + ft * this.readDelayCAt(8, exc2));
       this.writeDelay(9, this.readDelayCAt(8, exc2) - ft * temp);
       this._lp3 += dp * (this.readDelay(9) - this._lp3);
       temp = this.writeDelay(10, dc * this._lp3 - st * this.readDelay(10));
@@ -290,6 +257,6 @@ export class DattorroReverbProcessor
   }
 }
 
-// @ts-ignore
+// @ts-expect-error
 registerProcessor("dattorro-reverb", DattorroReverbProcessor);
 console.log("DattorroReverbProcessor registered");

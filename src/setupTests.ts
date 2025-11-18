@@ -1,4 +1,4 @@
-import { AudioContext, AudioBuffer } from "standardized-audio-context-mock";
+import { AudioBuffer, AudioContext } from "standardized-audio-context-mock";
 import { afterAll, afterEach, beforeAll, beforeEach, vi } from "vitest";
 import { Cacophony } from "./cacophony";
 
@@ -48,7 +48,7 @@ const mockCache = {
         if (global.fetch && typeof global.fetch === "function") {
           // Only call fetch for valid URLs (including relative URLs)
           let shouldFetch = true;
-          let testResponse;
+          let _testResponse;
 
           // Allow relative URLs and absolute URLs
           if (!url || url === "test") {
@@ -59,12 +59,11 @@ const mockCache = {
           // Try fetch first if URL is valid
           if (shouldFetch) {
             try {
-              testResponse = await global.fetch(url, { signal });
+              _testResponse = await global.fetch(url, { signal });
             } catch (fetchError) {
               // Call error callback for fetch failures
               if (callbacks?.onLoadingError) {
-                const errorType =
-                  fetchError.name === "AbortError" ? "abort" : "network";
+                const errorType = fetchError.name === "AbortError" ? "abort" : "network";
                 callbacks.onLoadingError({
                   url,
                   error: fetchError,
@@ -95,10 +94,7 @@ const mockCache = {
           });
 
           // Test decode by calling the mocked decodeAudioData
-          if (
-            context.decodeAudioData &&
-            typeof context.decodeAudioData === "function"
-          ) {
+          if (context.decodeAudioData && typeof context.decodeAudioData === "function") {
             try {
               await context.decodeAudioData(new ArrayBuffer(1024));
 

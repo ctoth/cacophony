@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { SoundType } from "./cacophony";
 import { Synth } from "./synth";
 import { SynthPlayback } from "./synthPlayback";
+
 describe("Synth class", () => {
   let synth: Synth;
   let audioContextMock: AudioContext;
@@ -92,9 +93,7 @@ describe("Synth class", () => {
     const filter = audioContextMock.createBiquadFilter();
     synth.addFilter(filter);
 
-    expect(() => synth.addFilter(filter)).toThrow(
-      "Cannot add the same filter instance twice"
-    );
+    expect(() => synth.addFilter(filter)).toThrow("Cannot add the same filter instance twice");
   });
 
   it("throws error when removing non-existent filter", () => {

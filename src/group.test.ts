@@ -1,9 +1,8 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { audioContextMock, cacophony } from "./setupTests";
-
 import { Group } from "./group";
-import { Playback } from "./playback";
+import type { Playback } from "./playback";
+import { audioContextMock, cacophony } from "./setupTests";
 import { Sound } from "./sound";
 
 describe("Group class", () => {
@@ -110,7 +109,7 @@ describe("Group class", () => {
   });
 
   it("manages playback state correctly", () => {
-    const playbacks = group.play();
+    const _playbacks = group.play();
     expect(group.isPlaying).toBe(true);
 
     group.pause();

@@ -1,4 +1,16 @@
-import { AudioContext, IAudioBuffer, IAudioBufferSourceNode, IAudioNode, IBiquadFilterNode, IGainNode, IMediaElementAudioSourceNode, IMediaStreamAudioSourceNode, IOscillatorNode, IPannerNode, IStereoPannerNode } from 'standardized-audio-context';
+import {
+  AudioContext,
+  type IAudioBuffer,
+  type IAudioBufferSourceNode,
+  type IAudioNode,
+  type IBiquadFilterNode,
+  type IGainNode,
+  type IMediaElementAudioSourceNode,
+  type IMediaStreamAudioSourceNode,
+  type IOscillatorNode,
+  type IPannerNode,
+  type IStereoPannerNode,
+} from "standardized-audio-context";
 export type AudioNode = IAudioNode<AudioContext>;
 export type BiquadFilterNode = IBiquadFilterNode<AudioContext>;
 export type MediaElementSourceNode = IMediaElementAudioSourceNode<AudioContext>;

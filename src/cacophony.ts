@@ -1,19 +1,18 @@
 import {
   AudioContext,
   AudioWorkletNode,
-  IAudioListener,
-  IMediaStreamAudioSourceNode,
-  IPannerNode,
-  IPannerOptions,
+  type IAudioListener,
+  type IMediaStreamAudioSourceNode,
+  type IPannerNode,
+  type IPannerOptions,
 } from "standardized-audio-context";
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
-import { AudioCache, ICache } from "./cache";
-import { AudioBuffer, GainNode } from "./context";
-import { CacophonyEvents } from "./events";
+import { AudioCache, type ICache } from "./cache";
+import type { AudioBuffer, GainNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
+import type { CacophonyEvents } from "./events";
 import { Group } from "./group";
 import { MicrophoneStream } from "./microphone";
-import type { Playback } from "./playback";
 import { Sound } from "./sound";
 import { createStream } from "./stream";
 import { Synth } from "./synth";
@@ -85,9 +84,9 @@ export class Cacophony {
   context: AudioContext;
   globalGainNode: GainNode;
   listener: IAudioListener;
-  private prevVolume: number = 1;
-  private finalizationRegistry: FinalizationRegistry<Playback>;
-  private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
+  private prevVolume = 1;
+  private eventEmitter: TypedEventEmitter<CacophonyEvents> =
+    new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
 
   constructor(context?: AudioContext, cache?: ICache) {
@@ -124,11 +123,7 @@ export class Cacophony {
     this.eventEmitter.off(event, listener);
   }
 
-
-  emit<K extends keyof CacophonyEvents>(
-    event: K,
-    data: CacophonyEvents[K]
-  ): void {
+  emit<K extends keyof CacophonyEvents>(event: K, data: CacophonyEvents[K]): void {
     this.eventEmitter.emit(event, data);
   }
 
@@ -139,14 +134,9 @@ export class Cacophony {
     return this.eventEmitter.emitAsync(event, data);
   }
 
-
   async loadWorklets(signal?: AbortSignal) {
     if (this.context.audioWorklet) {
-      await this.createWorkletNode(
-        "phase-vocoder",
-        phaseVocoderProcessorWorkletUrl,
-        signal
-      );
+      await this.createWorkletNode("phase-vocoder", phaseVocoderProcessorWorkletUrl, signal);
     } else {
       console.warn("AudioWorklet not supported");
     }
@@ -163,9 +153,9 @@ export class Cacophony {
       console.error(err);
       console.log("Loading worklet from url", url);
       try {
-        await this.context.audioWorklet.addModule(url, { 
+        await this.context.audioWorklet.addModule(url, {
           credentials: "same-origin",
-          ...(signal && { signal })
+          ...(signal && { signal }),
         });
       } catch (err) {
         console.error(err);
@@ -180,10 +170,7 @@ export class Cacophony {
     this.cache.clearMemoryCache();
   }
 
-  createOscillator(
-    options: OscillatorOptions,
-    panType: PanType = "HRTF"
-  ): Synth {
+  createOscillator(options: OscillatorOptions, panType: PanType = "HRTF"): Synth {
     const synth = new Synth(
       this.context,
       this.globalGainNode,
@@ -197,7 +184,7 @@ export class Cacophony {
 
   /**
    * Creates a Sound instance from an AudioBuffer or URL.
-   * 
+   *
    * @param bufferOrUrl - AudioBuffer instance or URL string to create sound from
    * @param soundType - Type of sound (Buffer, HTML, Streaming)
    * @param panType - Type of panning (HRTF or stereo)
@@ -243,15 +230,7 @@ export class Cacophony {
       audio.src = url;
       audio.crossOrigin = "anonymous";
       return Promise.resolve(
-        new Sound(
-          url,
-          undefined,
-          this.context,
-          this.globalGainNode,
-          SoundType.HTML,
-          panType,
-          this
-        )
+        new Sound(url, undefined, this.context, this.globalGainNode, SoundType.HTML, panType, this)
       );
     }
     if (soundType === SoundType.Streaming) {
@@ -269,13 +248,13 @@ export class Cacophony {
     }
     return this.cache
       .getAudioBuffer(this.context, url, signal, {
-        onLoadingStart: (event) => this.emitAsync('loadingStart', event),
-        onLoadingProgress: (event) => this.emitAsync('loadingProgress', event),
-        onLoadingComplete: (event) => this.emitAsync('loadingComplete', event),
-        onLoadingError: (event) => this.emitAsync('loadingError', event),
-        onCacheHit: (event) => this.emitAsync('cacheHit', event),
-        onCacheMiss: (event) => this.emitAsync('cacheMiss', event),
-        onCacheError: (event) => this.emitAsync('cacheError', event),
+        onLoadingStart: (event) => this.emitAsync("loadingStart", event),
+        onLoadingProgress: (event) => this.emitAsync("loadingProgress", event),
+        onLoadingComplete: (event) => this.emitAsync("loadingComplete", event),
+        onLoadingError: (event) => this.emitAsync("loadingError", event),
+        onCacheHit: (event) => this.emitAsync("cacheHit", event),
+        onCacheMiss: (event) => this.emitAsync("cacheMiss", event),
+        onCacheError: (event) => this.emitAsync("cacheError", event),
       })
       .then(
         (buffer) =>
@@ -299,7 +278,7 @@ export class Cacophony {
 
   /**
    * Creates a Group containing Sound instances loaded from multiple URLs.
-   * 
+   *
    * @param urls - Array of URL strings to load as sounds
    * @param soundType - Type of sound (Buffer, HTML, Streaming)
    * @param panType - Type of panning (HRTF or stereo)
@@ -322,7 +301,7 @@ export class Cacophony {
 
   /**
    * Creates a streaming Sound instance from a URL.
-   * 
+   *
    * @param url - URL string to stream audio from
    * @param signal - Optional AbortSignal to cancel the operation
    * @returns Promise that resolves to a Sound instance for streaming
@@ -343,12 +322,7 @@ export class Cacophony {
     return sound;
   }
 
-  createBiquadFilter = ({
-    type,
-    frequency,
-    gain,
-    Q,
-  }: BiquadFilterOptions): BiquadFilterNode => {
+  createBiquadFilter = ({ type, frequency, gain, Q }: BiquadFilterOptions): BiquadFilterNode => {
     if (frequency === undefined) {
       frequency = 350;
     }
@@ -484,7 +458,7 @@ export class Cacophony {
     return new Promise((resolve, reject) => {
       navigator.mediaDevices
         .getUserMedia({ audio: true })
-        .then((stream) => {
+        .then((_stream) => {
           const microphoneStream = new MicrophoneStream(this.context);
           microphoneStream.play();
           resolve(microphoneStream);
@@ -502,11 +476,7 @@ export class Cacophony {
         this.listener.forwardY.value,
         this.listener.forwardZ.value,
       ],
-      up: [
-        this.listener.upX.value,
-        this.listener.upY.value,
-        this.listener.upZ.value,
-      ],
+      up: [this.listener.upX.value, this.listener.upY.value, this.listener.upZ.value],
     };
   }
 
@@ -523,11 +493,7 @@ export class Cacophony {
   }
 
   get listenerUpOrientation(): Position {
-    return [
-      this.listener.upX.value,
-      this.listener.upY.value,
-      this.listener.upZ.value,
-    ];
+    return [this.listener.upX.value, this.listener.upY.value, this.listener.upZ.value];
   }
 
   set listenerUpOrientation(up: Position) {

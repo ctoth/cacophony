@@ -1,12 +1,12 @@
 import type { BaseSound, LoopCount, Position } from "./cacophony";
 
-import { Playback } from "./playback";
-import { Sound } from "./sound";
+import type { Playback } from "./playback";
+import type { Sound } from "./sound";
 
 export class Group implements BaseSound {
   private _position: Position = [0, 0, 0];
   loopCount: LoopCount = 0;
-  private playIndex: number = 0;
+  private playIndex = 0;
 
   constructor(public sounds: Sound[] = []) {}
 
@@ -42,7 +42,7 @@ export class Group implements BaseSound {
    * @param shouldLoop - Indicates whether the sounds should be prepared for looping.
    * @returns The playback object representing the first sound being prepared, or undefined if the group is empty.
    */
-  preplayOrdered(shouldLoop: boolean = true): Playback | undefined {
+  preplayOrdered(shouldLoop = true): Playback | undefined {
     if (this.sounds.length === 0) {
       return undefined;
     }
@@ -64,7 +64,7 @@ export class Group implements BaseSound {
    * @param shouldLoop - Indicates whether the sounds should be played in a loop.
    * @returns The playback object representing the first sound being played, or undefined if the group is empty.
    */
-  playOrdered(shouldLoop: boolean = true): Playback | undefined {
+  playOrdered(shouldLoop = true): Playback | undefined {
     const playback = this.preplayOrdered(shouldLoop);
     if (playback) {
       playback.play();
@@ -73,13 +73,11 @@ export class Group implements BaseSound {
   }
 
   get duration() {
-    return this.sounds
-      .map((sound) => sound.duration)
-      .reduce((a, b) => Math.max(a, b), 0);
+    return this.sounds.map((sound) => sound.duration).reduce((a, b) => Math.max(a, b), 0);
   }
 
   seek(time: number): void {
-    this.sounds.forEach((sound) => sound.seek && sound.seek(time));
+    this.sounds.forEach((sound) => sound.seek?.(time));
   }
 
   addSound(sound: Sound): void {
@@ -175,10 +173,7 @@ export class Group implements BaseSound {
   }
 
   get volume(): number {
-    return (
-      this.sounds.map((sound) => sound.volume).reduce((a, b) => a + b, 0) /
-      this.sounds.length
-    );
+    return this.sounds.map((sound) => sound.volume).reduce((a, b) => a + b, 0) / this.sounds.length;
   }
 
   set volume(volume: number) {

@@ -1,23 +1,16 @@
-import { IPlaybackContainer } from "./container";
-import { AudioNode } from "./context";
+import type { IPlaybackContainer } from "./container";
+import type { AudioNode } from "./context";
+import { TypedEventEmitter } from "./eventEmitter";
+import type { PlaybackEvents } from "./events";
 import { FilterManager } from "./filters";
 import { PannerMixin } from "./pannerMixin";
 import { VolumeMixin } from "./volumeMixin";
-import { TypedEventEmitter } from "./eventEmitter";
-import { PlaybackEvents } from "./events";
 
-export abstract class BasePlayback extends PannerMixin(
-  VolumeMixin(FilterManager)
-) {
+export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager)) {
   public source?: AudioNode;
-  _playing: boolean = false;
+  _playing = false;
   public origin!: IPlaybackContainer;
   public eventEmitter: TypedEventEmitter<PlaybackEvents> = new TypedEventEmitter<PlaybackEvents>();
-
-  constructor() {
-    super();
-
-  }
 
   abstract play(): [this];
   abstract pause(): void;
@@ -50,7 +43,6 @@ export abstract class BasePlayback extends PannerMixin(
     this.eventEmitter.off(event, listener);
   }
 
-
   public emit<K extends keyof PlaybackEvents>(event: K, data: PlaybackEvents[K]): void {
     this.eventEmitter.emit(event, data);
   }
@@ -61,7 +53,6 @@ export abstract class BasePlayback extends PannerMixin(
   ): Promise<void> {
     return this.eventEmitter.emitAsync(event, data);
   }
-
 
   cleanup(): void {
     this.eventEmitter.removeAllListeners();

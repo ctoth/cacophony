@@ -22,21 +22,16 @@
  */
 
 import {
-  Cacophony,
-  SoundType,
   type BaseSound,
+  type Cacophony,
   type LoopCount,
   type PanType,
+  SoundType,
 } from "./cacophony";
 import { PlaybackContainer } from "./container";
-import type {
-  AudioBuffer,
-  AudioContext,
-  GainNode,
-  SourceNode,
-} from "./context";
+import type { AudioBuffer, AudioContext, GainNode, SourceNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
-import { SoundEvents } from "./events";
+import type { SoundEvents } from "./events";
 import { FilterManager } from "./filters";
 import type { PanCloneOverrides } from "./pannerMixin";
 import { Playback } from "./playback";
@@ -49,17 +44,13 @@ type SoundCloneOverrides = PanCloneOverrides &
     filters?: BiquadFilterNode[];
   };
 
-export class Sound
-  extends PlaybackContainer(FilterManager)
-  implements BaseSound
-{
+export class Sound extends PlaybackContainer(FilterManager) implements BaseSound {
   public declare playbacks: Playback[];
   buffer?: AudioBuffer;
   context: AudioContext;
   loopCount: LoopCount = 0;
-  private _playbackRate: number = 1;
-  private eventEmitter: TypedEventEmitter<SoundEvents> =
-    new TypedEventEmitter<SoundEvents>();
+  private _playbackRate = 1;
+  private eventEmitter: TypedEventEmitter<SoundEvents> = new TypedEventEmitter<SoundEvents>();
 
   constructor(
     public url: string,
@@ -87,27 +78,18 @@ export class Sound
    * Register event listener.
    * @returns Cleanup function
    */
-  on<K extends keyof SoundEvents>(
-    event: K,
-    listener: (data: SoundEvents[K]) => void
-  ): void {
+  on<K extends keyof SoundEvents>(event: K, listener: (data: SoundEvents[K]) => void): void {
     this.eventEmitter.on(event, listener);
   }
 
   /**
    * Remove event listener.
    */
-  off<K extends keyof SoundEvents>(
-    event: K,
-    listener: (data: SoundEvents[K]) => void
-  ): void {
+  off<K extends keyof SoundEvents>(event: K, listener: (data: SoundEvents[K]) => void): void {
     this.eventEmitter.off(event, listener);
   }
 
-  protected emit<K extends keyof SoundEvents>(
-    event: K,
-    data: SoundEvents[K]
-  ): void {
+  protected emit<K extends keyof SoundEvents>(event: K, data: SoundEvents[K]): void {
     this.eventEmitter.emit(event, data);
   }
 
@@ -133,21 +115,13 @@ export class Sound
 
   clone(overrides: Partial<SoundCloneOverrides> = {}): Sound {
     const panType = overrides.panType || this.panType;
-    const stereoPan =
-      overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
-    const threeDOptions = (overrides.threeDOptions ||
-      this.threeDOptions) as PannerOptions;
-    const loopCount =
-      overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
+    const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
+    const threeDOptions = (overrides.threeDOptions || this.threeDOptions) as PannerOptions;
+    const loopCount = overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
     const playbackRate = overrides.playbackRate || this.playbackRate;
-    const volume =
-      overrides.volume !== undefined ? overrides.volume : this.volume;
-    const position =
-      overrides.position !== undefined ? overrides.position : this.position;
-    const filters =
-      overrides.filters && overrides.filters.length
-        ? overrides.filters
-        : this._filters;
+    const volume = overrides.volume !== undefined ? overrides.volume : this.volume;
+    const position = overrides.position !== undefined ? overrides.position : this.position;
+    const filters = overrides.filters?.length ? overrides.filters : this._filters;
 
     const clone = new Sound(
       this.url,

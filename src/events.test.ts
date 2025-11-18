@@ -1,12 +1,10 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { Cacophony } from "./cacophony";
-import { Sound } from "./sound";
 import { Playback } from "./playback";
-import { audioContextMock, cacophony, mockCache } from "./setupTests";
+import { audioContextMock, cacophony } from "./setupTests";
+import type { Sound } from "./sound";
 import { Synth } from "./synth";
 import { SynthPlayback } from "./synthPlayback";
-
 
 beforeAll(() => {
   vi.useFakeTimers();
@@ -103,7 +101,6 @@ describe("Synth event system", () => {
 afterAll(() => {
   vi.useRealTimers();
 });
-
 
 describe("Event system", () => {
   let sound: Sound;

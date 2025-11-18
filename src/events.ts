@@ -1,18 +1,17 @@
-import { BasePlayback } from "./basePlayback";
-import { Playback } from "./playback";
-import { SynthPlayback } from "./synthPlayback";
+import type { BasePlayback } from "./basePlayback";
 import type { Sound } from "./sound";
 import type { Synth } from "./synth";
+import type { SynthPlayback } from "./synthPlayback";
 
 /**
  * Base events for all audio objects.
  */
 export interface BaseAudioEvents {
   play: BasePlayback;
-  stop: void;
-  pause: void;
-  resume: void;
-  ended: void;
+  stop: undefined;
+  pause: undefined;
+  resume: undefined;
+  ended: undefined;
   volumeChange: number;
   error: PlaybackErrorEvent;
 }
@@ -21,7 +20,7 @@ export interface BaseAudioEvents {
  * Sound-specific events.
  */
 export interface SoundEvents extends BaseAudioEvents {
-  loopEnd: void;
+  loopEnd: undefined;
   rateChange: number;
   soundError: SoundErrorEvent;
 }
@@ -36,7 +35,7 @@ export interface PlaybackEvents extends BaseAudioEvents {
 /**
  * Synthesizer-specific events.
  */
-export interface SynthEvents extends Omit<BaseAudioEvents, 'play'> {
+export interface SynthEvents extends Omit<BaseAudioEvents, "play"> {
   play: SynthPlayback;
   frequencyChange: number;
   typeChange: OscillatorType;
@@ -56,10 +55,10 @@ export interface GlobalPlaybackEvent {
  */
 export interface CacophonyEvents {
   volumeChange: number;
-  mute: void;
-  unmute: void;
-  suspend: void;
-  resume: void;
+  mute: undefined;
+  unmute: undefined;
+  suspend: undefined;
+  resume: undefined;
   loadingStart: LoadingStartEvent;
   loadingProgress: LoadingProgressEvent;
   loadingComplete: LoadingCompleteEvent;
@@ -108,7 +107,7 @@ export interface LoadingCompleteEvent {
 export interface LoadingErrorEvent {
   url: string;
   error: Error;
-  errorType: 'network' | 'decode' | 'abort' | 'unknown';
+  errorType: "network" | "decode" | "abort" | "unknown";
   timestamp: number;
 }
 
@@ -117,7 +116,7 @@ export interface LoadingErrorEvent {
  */
 export interface PlaybackErrorEvent {
   error: Error;
-  errorType: 'context' | 'source' | 'decode' | 'unknown';
+  errorType: "context" | "source" | "decode" | "unknown";
   timestamp: number;
   recoverable: boolean;
 }
@@ -128,7 +127,7 @@ export interface PlaybackErrorEvent {
 export interface SoundErrorEvent {
   url?: string;
   error: Error;
-  errorType: 'load' | 'playback' | 'context' | 'unknown';
+  errorType: "load" | "playback" | "context" | "unknown";
   timestamp: number;
   recoverable: boolean;
 }
@@ -138,7 +137,7 @@ export interface SoundErrorEvent {
  */
 export interface CacheHitEvent {
   url: string;
-  cacheType: 'memory' | 'browser' | 'conditional';
+  cacheType: "memory" | "browser" | "conditional";
   timestamp: number;
 }
 
@@ -147,7 +146,7 @@ export interface CacheHitEvent {
  */
 export interface CacheMissEvent {
   url: string;
-  reason: 'not-found' | 'expired' | 'invalid';
+  reason: "not-found" | "expired" | "invalid";
   timestamp: number;
 }
 
@@ -157,7 +156,7 @@ export interface CacheMissEvent {
 export interface CacheErrorEvent {
   url: string;
   error: Error;
-  operation: 'get' | 'set' | 'delete' | 'validate';
+  operation: "get" | "set" | "delete" | "validate";
   timestamp: number;
 }
 
@@ -191,4 +190,7 @@ export type CacheEventCallback = {
 /**
  * Combined event callbacks for cache operations.
  */
-export interface AudioEventCallbacks extends LoadingEventCallback, ErrorEventCallback, CacheEventCallback {}
+export interface AudioEventCallbacks
+  extends LoadingEventCallback,
+    ErrorEventCallback,
+    CacheEventCallback {}

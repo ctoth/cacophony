@@ -1,6 +1,6 @@
 import type { BasePlayback } from "basePlayback";
 import type { Position } from "./cacophony";
-import { FilterManager } from "./filters";
+import type { FilterManager } from "./filters";
 
 type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
 export interface IPlaybackContainer {
@@ -20,7 +20,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
   abstract class PlaybackContainer extends Base {
     playbacks: BasePlayback[] = [];
     _position: Position = [0, 0, 0];
-    _stereoPan: number = 0;
+    _stereoPan = 0;
     _threeDOptions: PannerOptions = {
       coneInnerAngle: 360,
       coneOuterAngle: 360,
@@ -40,7 +40,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
       orientationY: 0,
       orientationZ: 0,
     };
-    _volume: number = 1;
+    _volume = 1;
 
     abstract preplay(): BasePlayback[];
 
