@@ -456,6 +456,26 @@ describe("Playback error cases", () => {
       playback.removeFilter(filter as unknown as BiquadFilterNode)
     ).toThrow("Cannot perform operation on a sound that has been cleaned up");
   });
+
+  it("prevents adding the same filter instance twice", () => {
+    const filter = audioContextMock.createBiquadFilter();
+    playback.addFilter(filter as unknown as BiquadFilterNode);
+
+    expect(() =>
+      playback.addFilter(filter as unknown as BiquadFilterNode)
+    ).toThrow("Cannot add the same filter instance twice");
+  });
+
+  it("throws error when removing non-existent filter", () => {
+    const filter1 = audioContextMock.createBiquadFilter();
+    const filter2 = audioContextMock.createBiquadFilter();
+
+    playback.addFilter(filter1 as unknown as BiquadFilterNode);
+
+    expect(() =>
+      playback.removeFilter(filter2 as unknown as BiquadFilterNode)
+    ).toThrow("Cannot remove filter that was never added to this container");
+  });
 });
 
 describe("Playback looping and seeking with AudioBufferSourceNode (Bug Catching)", () => {

@@ -198,7 +198,15 @@ export class Sound
       playback.setGainNode(gainNode);
       playback.volume = this.volume;
       playback.playbackRate = this.playbackRate;
-      this._filters.forEach((filter) => playback.addFilter(filter));
+      // Clone filters from sound to playback (each playback gets independent filter instances)
+      this._filters.forEach((filter) => {
+        const clonedFilter = this.context.createBiquadFilter();
+        clonedFilter.type = filter.type;
+        clonedFilter.frequency.value = filter.frequency.value;
+        clonedFilter.Q.value = filter.Q.value;
+        clonedFilter.gain.value = filter.gain.value;
+        playback.addFilter(clonedFilter);
+      });
       if (this.panType === "HRTF") {
         playback.threeDOptions = this.threeDOptions;
         playback.position = this.position;

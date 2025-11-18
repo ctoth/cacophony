@@ -240,4 +240,54 @@ describe("Group class", () => {
       cacophony.off("globalPause", globalPauseListener);
     });
   });
+
+  describe("Group filter operations", () => {
+    it("addFilter propagates to all sounds in group", () => {
+      const filter = audioContextMock.createBiquadFilter();
+
+      group.addFilter(filter);
+
+      // Verify filter was added to all sounds
+      expect(sound1.filters.length).toBe(1);
+      expect(sound1.filters[0]).toBe(filter);
+      expect(sound2.filters.length).toBe(1);
+      expect(sound2.filters[0]).toBe(filter);
+    });
+
+    it("removeFilter propagates to all sounds in group", () => {
+      const filter = audioContextMock.createBiquadFilter();
+
+      group.addFilter(filter);
+      expect(sound1.filters.length).toBe(1);
+      expect(sound2.filters.length).toBe(1);
+
+      group.removeFilter(filter);
+
+      // Verify filter was removed from all sounds
+      expect(sound1.filters.length).toBe(0);
+      expect(sound2.filters.length).toBe(0);
+    });
+
+    it("adding filter to group does not affect existing playbacks", () => {
+      // Create playbacks from sounds
+      const playback1 = sound1.preplay()[0];
+      const playback2 = sound2.preplay()[0];
+
+      expect(playback1.filters.length).toBe(0);
+      expect(playback2.filters.length).toBe(0);
+
+      // Add filter to group (which adds to sounds)
+      const filter = audioContextMock.createBiquadFilter();
+      group.addFilter(filter);
+
+      // Existing playbacks should NOT get the filter
+      expect(playback1.filters.length).toBe(0);
+      expect(playback2.filters.length).toBe(0);
+
+      // But new playbacks should get clones of the filter
+      const playback3 = sound1.preplay()[0];
+      expect(playback3.filters.length).toBe(1);
+      expect(playback3.filters[0]).not.toBe(filter); // Clone, not same instance
+    });
+  });
 });

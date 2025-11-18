@@ -293,6 +293,195 @@ describe("Sound class", () => {
     expect(sound.filters.length).toBe(0);
   });
 
+  it("removeFilter uses object identity, not property comparison", () => {
+    // This test catches the original bug where filters were compared by properties
+    // Create two filters with identical properties but different object identities
+    const filter1 = audioContextMock.createBiquadFilter();
+    filter1.type = "lowpass";
+    filter1.frequency.value = 1000;
+    filter1.Q.value = 1;
+    filter1.gain.value = 0;
+
+    const filter2 = audioContextMock.createBiquadFilter();
+    filter2.type = "lowpass";
+    filter2.frequency.value = 1000;
+    filter2.Q.value = 1;
+    filter2.gain.value = 0;
+
+    // Add both filters
+    sound.addFilter(filter1);
+    sound.addFilter(filter2);
+    expect(sound.filters.length).toBe(2);
+
+    // Remove filter1 - should only remove filter1, not filter2
+    sound.removeFilter(filter1);
+    expect(sound.filters.length).toBe(1);
+    expect(sound.filters[0]).toBe(filter2);
+  });
+
+  it("removes correct filter when multiple same-type filters exist", () => {
+    // Create multiple lowpass filters with different frequencies
+    const lowpass1 = audioContextMock.createBiquadFilter();
+    lowpass1.type = "lowpass";
+    lowpass1.frequency.value = 500;
+
+    const lowpass2 = audioContextMock.createBiquadFilter();
+    lowpass2.type = "lowpass";
+    lowpass2.frequency.value = 1000;
+
+    const lowpass3 = audioContextMock.createBiquadFilter();
+    lowpass3.type = "lowpass";
+    lowpass3.frequency.value = 2000;
+
+    sound.addFilter(lowpass1);
+    sound.addFilter(lowpass2);
+    sound.addFilter(lowpass3);
+    expect(sound.filters.length).toBe(3);
+
+    // Remove the middle filter
+    sound.removeFilter(lowpass2);
+    expect(sound.filters.length).toBe(2);
+    expect(sound.filters[0]).toBe(lowpass1);
+    expect(sound.filters[1]).toBe(lowpass3);
+  });
+
+  it("addFilter does NOT propagate to existing playbacks", () => {
+    // Create playbacks first
+    const playback1 = sound.preplay()[0];
+    const playback2 = sound.preplay()[0];
+
+    expect(playback1.filters.length).toBe(0);
+    expect(playback2.filters.length).toBe(0);
+
+    // Add filter to the sound AFTER playbacks created
+    const filter = audioContextMock.createBiquadFilter();
+    sound.addFilter(filter);
+
+    // Verify filter is on the sound
+    expect(sound.filters.length).toBe(1);
+    expect(sound.filters[0]).toBe(filter);
+
+    // Verify filter did NOT propagate to existing playbacks (they are independent)
+    expect(playback1.filters.length).toBe(0);
+    expect(playback2.filters.length).toBe(0);
+  });
+
+  it("new playbacks get cloned filters with same settings", () => {
+    // Add filters to the sound first
+    const filter1 = audioContextMock.createBiquadFilter();
+    filter1.type = "lowpass";
+    filter1.frequency.value = 1000;
+    filter1.Q.value = 2;
+    filter1.gain.value = 5;
+
+    const filter2 = audioContextMock.createBiquadFilter();
+    filter2.type = "highpass";
+    filter2.frequency.value = 500;
+
+    sound.addFilter(filter1);
+    sound.addFilter(filter2);
+
+    expect(sound.filters.length).toBe(2);
+
+    // Create new playback after filters were added
+    const playback = sound.preplay()[0];
+
+    // Verify the new playback has both filters
+    expect(playback.filters.length).toBe(2);
+
+    // Verify filters are CLONES (different instances, same settings)
+    expect(playback.filters[0]).not.toBe(filter1);
+    expect(playback.filters[0].type).toBe(filter1.type);
+    expect(playback.filters[0].frequency.value).toBe(filter1.frequency.value);
+    expect(playback.filters[0].Q.value).toBe(filter1.Q.value);
+    expect(playback.filters[0].gain.value).toBe(filter1.gain.value);
+
+    expect(playback.filters[1]).not.toBe(filter2);
+    expect(playback.filters[1].type).toBe(filter2.type);
+    expect(playback.filters[1].frequency.value).toBe(filter2.frequency.value);
+  });
+
+  it("removeFilter does NOT affect existing playbacks", () => {
+    // Add filters
+    const filter1 = audioContextMock.createBiquadFilter();
+    const filter2 = audioContextMock.createBiquadFilter();
+    sound.addFilter(filter1);
+    sound.addFilter(filter2);
+
+    // Create playbacks - they get clones of both filters
+    const playback1 = sound.preplay()[0];
+    const playback2 = sound.preplay()[0];
+
+    expect(playback1.filters.length).toBe(2);
+    expect(playback2.filters.length).toBe(2);
+
+    // Remove one filter from sound
+    sound.removeFilter(filter1);
+
+    // Verify filter removed from sound
+    expect(sound.filters.length).toBe(1);
+    expect(sound.filters[0]).toBe(filter2);
+
+    // Verify existing playbacks are UNCHANGED (they have clones, not shared instances)
+    expect(playback1.filters.length).toBe(2);
+    expect(playback2.filters.length).toBe(2);
+  });
+
+  it("removing non-existent filter throws error", () => {
+    const filter1 = audioContextMock.createBiquadFilter();
+    const filter2 = audioContextMock.createBiquadFilter();
+
+    sound.addFilter(filter1);
+    expect(sound.filters.length).toBe(1);
+
+    // Try to remove a filter that was never added
+    expect(() => sound.removeFilter(filter2)).toThrow(
+      "Cannot remove filter that was never added to this container"
+    );
+
+    // Verify original filter still exists
+    expect(sound.filters.length).toBe(1);
+    expect(sound.filters[0]).toBe(filter1);
+  });
+
+  it("prevents adding same filter instance twice", () => {
+    const filter = audioContextMock.createBiquadFilter();
+
+    sound.addFilter(filter);
+    expect(sound.filters.length).toBe(1);
+
+    // Try to add the same instance again - should throw
+    expect(() => sound.addFilter(filter)).toThrow(
+      "Cannot add the same filter instance twice"
+    );
+
+    // Verify filter was not added again
+    expect(sound.filters.length).toBe(1);
+  });
+
+  it("allows adding two different filter instances with identical settings", () => {
+    // Create two filters with identical settings but different instances
+    const filter1 = audioContextMock.createBiquadFilter();
+    filter1.type = "lowpass";
+    filter1.frequency.value = 1000;
+    filter1.Q.value = 1;
+    filter1.gain.value = 0;
+
+    const filter2 = audioContextMock.createBiquadFilter();
+    filter2.type = "lowpass";
+    filter2.frequency.value = 1000;
+    filter2.Q.value = 1;
+    filter2.gain.value = 0;
+
+    // Both should be added successfully (duplicate prevention checks identity, not values)
+    sound.addFilter(filter1);
+    sound.addFilter(filter2);
+
+    expect(sound.filters.length).toBe(2);
+    expect(sound.filters[0]).toBe(filter1);
+    expect(sound.filters[1]).toBe(filter2);
+  });
+
   test("A sound loops the correct number of times", async () => {
     const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
     const sound = new Sound(

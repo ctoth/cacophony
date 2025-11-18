@@ -213,6 +213,10 @@ synth.addFilter(lowpass);
 
 // Remove filters
 sound.removeFilter(lowpass);
+
+// Note: Filters are cloned to each playback for independent processing
+const playback = sound.play()[0];
+playback.filters[0].frequency.value = 500; // Only affects this playback
 ```
 
 See [TypeDoc](https://cacophony.js.org) for complete filter parameters and options.

@@ -150,10 +150,17 @@ export class Group implements BaseSound {
     return this.loopCount;
   }
 
+  /**
+   * Adds a filter to all sounds in the group.
+   * Filters are cloned to playbacks, not shared.
+   */
   addFilter(filter: BiquadFilterNode): void {
     this.sounds.forEach((sound) => sound.addFilter(filter));
   }
 
+  /**
+   * Removes a filter from all sounds in the group.
+   */
   removeFilter(filter: BiquadFilterNode): void {
     this.sounds.forEach((sound) => sound.removeFilter(filter));
   }

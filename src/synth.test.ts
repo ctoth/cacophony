@@ -73,11 +73,39 @@ describe("Synth class", () => {
     expect(synth.filters.length).toBe(0);
   });
 
-  it("applies filters to playbacks", () => {
+  it("new playbacks get cloned filters from synth", () => {
     const filter = audioContextMock.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 1000;
+
     synth.addFilter(filter);
     const playbacks = synth.preplay();
+
     expect(playbacks[0].filters.length).toBe(1);
+    // Verify filter is a clone (same settings, different instance)
+    expect(playbacks[0].filters[0]).not.toBe(filter);
+    expect(playbacks[0].filters[0].type).toBe(filter.type);
+    expect(playbacks[0].filters[0].frequency.value).toBe(filter.frequency.value);
+  });
+
+  it("prevents adding same filter instance twice", () => {
+    const filter = audioContextMock.createBiquadFilter();
+    synth.addFilter(filter);
+
+    expect(() => synth.addFilter(filter)).toThrow(
+      "Cannot add the same filter instance twice"
+    );
+  });
+
+  it("throws error when removing non-existent filter", () => {
+    const filter1 = audioContextMock.createBiquadFilter();
+    const filter2 = audioContextMock.createBiquadFilter();
+
+    synth.addFilter(filter1);
+
+    expect(() => synth.removeFilter(filter2)).toThrow(
+      "Cannot remove filter that was never added to this container"
+    );
   });
 
   it("can set and get volume", () => {

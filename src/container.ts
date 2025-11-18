@@ -76,24 +76,27 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
 
     /**
      * Adds a BiquadFilterNode to the container's filter chain.
-     * Filters are applied in the order they are added.
+     * Filters are cloned when creating new playbacks - existing playbacks are not affected.
+     * Each playback gets independent filter instances for isolated processing.
      * @param { BiquadFilterNode } filter - The filter to add to the chain.
      */
 
     addFilter(filter: BiquadFilterNode): void {
       super.addFilter(filter);
-      this.playbacks.forEach((p) => p.addFilter(filter));
+      // Note: Filters are cloned when creating new playbacks.
+      // Existing playbacks remain unchanged to maintain independent filter chains.
     }
 
     /**
      * Removes a BiquadFilterNode from the container's filter chain.
-     * If the filter is not part of the chain, the method has no effect.
+     * Only affects future playbacks - existing playbacks retain their cloned filters.
      * @param { BiquadFilterNode } filter - The filter to remove from the chain.
+     * @throws {Error} If the filter was never added to this container.
      */
 
     removeFilter(filter: BiquadFilterNode): void {
       super.removeFilter(filter);
-      this.playbacks.forEach((p) => p.removeFilter(filter));
+      // Note: Existing playbacks have cloned filter instances and are not affected.
     }
 
     /**
