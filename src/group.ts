@@ -1,4 +1,4 @@
-import type { BaseSound, LoopCount, Position } from "./cacophony";
+import type { BaseSound, FadeType, LoopCount, Position } from "./cacophony";
 
 import { Playback } from "./playback";
 import { Sound } from "./sound";
@@ -139,6 +139,22 @@ export class Group implements BaseSound {
 
   pause(): void {
     this.sounds.forEach((sound) => sound.pause());
+  }
+
+  fadeTo(value: number, duration: number, type?: FadeType): Promise<void> {
+    return Promise.all(this.sounds.map(sound => sound.fadeTo(value, duration, type))).then(() => {});
+  }
+
+  fadeIn(duration: number, type?: FadeType): Promise<void> {
+    return Promise.all(this.sounds.map(sound => sound.fadeIn(duration, type))).then(() => {});
+  }
+
+  fadeOut(duration: number, type?: FadeType): Promise<void> {
+    return Promise.all(this.sounds.map(sound => sound.fadeOut(duration, type))).then(() => {});
+  }
+
+  stopWithFade(duration: number, type?: FadeType): Promise<void> {
+    return Promise.all(this.sounds.map(sound => sound.stopWithFade(duration, type))).then(() => {});
   }
 
   loop(loopCount?: LoopCount): LoopCount {

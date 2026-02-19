@@ -290,4 +290,56 @@ describe("Group class", () => {
       expect(playback3.filters[0]).not.toBe(filter); // Clone, not same instance
     });
   });
+
+  describe("Group fade delegation", () => {
+    it("fadeTo delegates to all sounds", async () => {
+      const fadeTo1 = vi.spyOn(sound1, "fadeTo").mockResolvedValue(undefined);
+      const fadeTo2 = vi.spyOn(sound2, "fadeTo").mockResolvedValue(undefined);
+
+      await group.fadeTo(0.5, 500);
+
+      expect(fadeTo1).toHaveBeenCalledWith(0.5, 500, undefined);
+      expect(fadeTo2).toHaveBeenCalledWith(0.5, 500, undefined);
+    });
+
+    it("fadeTo passes fade type through", async () => {
+      const fadeTo1 = vi.spyOn(sound1, "fadeTo").mockResolvedValue(undefined);
+      const fadeTo2 = vi.spyOn(sound2, "fadeTo").mockResolvedValue(undefined);
+
+      await group.fadeTo(0.5, 500, "exponential");
+
+      expect(fadeTo1).toHaveBeenCalledWith(0.5, 500, "exponential");
+      expect(fadeTo2).toHaveBeenCalledWith(0.5, 500, "exponential");
+    });
+
+    it("fadeIn delegates to all sounds", async () => {
+      const fadeIn1 = vi.spyOn(sound1, "fadeIn").mockResolvedValue(undefined);
+      const fadeIn2 = vi.spyOn(sound2, "fadeIn").mockResolvedValue(undefined);
+
+      await group.fadeIn(500);
+
+      expect(fadeIn1).toHaveBeenCalledWith(500, undefined);
+      expect(fadeIn2).toHaveBeenCalledWith(500, undefined);
+    });
+
+    it("fadeOut delegates to all sounds", async () => {
+      const fadeOut1 = vi.spyOn(sound1, "fadeOut").mockResolvedValue(undefined);
+      const fadeOut2 = vi.spyOn(sound2, "fadeOut").mockResolvedValue(undefined);
+
+      await group.fadeOut(500);
+
+      expect(fadeOut1).toHaveBeenCalledWith(500, undefined);
+      expect(fadeOut2).toHaveBeenCalledWith(500, undefined);
+    });
+
+    it("stopWithFade delegates to all sounds", async () => {
+      const stopWithFade1 = vi.spyOn(sound1, "stopWithFade").mockResolvedValue(undefined);
+      const stopWithFade2 = vi.spyOn(sound2, "stopWithFade").mockResolvedValue(undefined);
+
+      await group.stopWithFade(500);
+
+      expect(stopWithFade1).toHaveBeenCalledWith(500, undefined);
+      expect(stopWithFade2).toHaveBeenCalledWith(500, undefined);
+    });
+  });
 });
