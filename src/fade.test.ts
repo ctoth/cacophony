@@ -195,3 +195,212 @@ describe("VolumeMixin fade", () => {
     expect(lastCall[0]).toBe(0.0001);
   });
 });
+
+// --- Cycle 4: Playback per-loop fadeIn ---
+
+describe("Playback per-loop fadeIn", () => {
+  let sound: Sound;
+  let buffer: AudioBuffer;
+  let playback: Playback;
+
+  beforeEach(async () => {
+    buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    sound = await cacophony.createSound(buffer);
+    const playbacks = sound.play();
+    playback = playbacks[0];
+  });
+
+  afterEach(() => {
+    if (sound) {
+      sound.stop();
+    }
+    cacophony.clearMemoryCache();
+    vi.restoreAllMocks();
+  });
+
+  it("fadeIn with perLoop stores fade config on playback", () => {
+    playback.volume = 0.8;
+    playback.fadeIn(500, "linear", { perLoop: true });
+
+    expect(playback._fadeInConfig).toBeDefined();
+    expect(playback._fadeInConfig!.duration).toBe(500);
+    expect(playback._fadeInConfig!.type).toBe("linear");
+    expect(playback._fadeInConfig!.perLoop).toBe(true);
+    expect(playback._fadeInConfig!.targetVolume).toBe(0.8);
+  });
+
+  it("loopEnded with perLoop config zeros gain before restart", () => {
+    playback.loopCount = 3;
+    playback.currentLoop = 0;
+    playback.volume = 0.8;
+    playback.fadeIn(500, "linear", { perLoop: true });
+
+    const gain = playback.gainNode!.gain;
+    // Advance past initial fadeIn
+    vi.advanceTimersByTime(500);
+
+    const setValueCountBefore = gain.setValueAtTime.callCount;
+
+    // Trigger loop end
+    playback.loopEnded();
+
+    // Should have set gain to 0.0001 via setValueAtTime for the new loop fade-in
+    const newCalls = gain.setValueAtTime.args.slice(setValueCountBefore);
+    expect(newCalls.some((args: number[]) => args[0] === 0.0001)).toBe(true);
+  });
+
+  it("loopEnded with perLoop config schedules fadeTo after restart", () => {
+    playback.loopCount = 3;
+    playback.currentLoop = 0;
+    playback.volume = 0.8;
+    playback.fadeIn(500, "linear", { perLoop: true });
+
+    const gain = playback.gainNode!.gain;
+    // Advance past initial fadeIn
+    vi.advanceTimersByTime(500);
+
+    const rampCountBefore = gain.linearRampToValueAtTime.callCount;
+
+    // Trigger loop end
+    playback.loopEnded();
+
+    // Should have scheduled a new linear ramp for the fade-in
+    expect(gain.linearRampToValueAtTime.callCount).toBeGreaterThan(rampCountBefore);
+  });
+
+  it("loopEnded WITHOUT perLoop config does not re-trigger fade", () => {
+    playback.loopCount = 3;
+    playback.currentLoop = 0;
+    playback.volume = 0.8;
+    // Regular fadeIn (no perLoop)
+    playback.fadeIn(500, "linear");
+
+    const gain = playback.gainNode!.gain;
+    // Advance past initial fadeIn
+    vi.advanceTimersByTime(500);
+
+    const rampCountBefore = gain.linearRampToValueAtTime.callCount;
+    const setValueCountBefore = gain.setValueAtTime.callCount;
+
+    // Trigger loop end
+    playback.loopEnded();
+
+    // No extra ramp or setValueAtTime calls for fade (seek/play may add their own calls,
+    // but there should be no 0.0001 setValueAtTime)
+    const newSetValueCalls = gain.setValueAtTime.args.slice(setValueCountBefore);
+    expect(newSetValueCalls.some((args: number[]) => args[0] === 0.0001)).toBe(false);
+  });
+
+  it("loopEnded on final iteration does not trigger fade-in", () => {
+    playback.loopCount = 1;
+    playback.currentLoop = 1;
+    playback.volume = 0.8;
+    playback.fadeIn(500, "linear", { perLoop: true });
+
+    const gain = playback.gainNode!.gain;
+    // Advance past initial fadeIn
+    vi.advanceTimersByTime(500);
+
+    const rampCountBefore = gain.linearRampToValueAtTime.callCount;
+
+    // Trigger loop end -- currentLoop becomes 2, exceeds loopCount 1, so stop() is called
+    playback.loopEnded();
+
+    // Should NOT have scheduled a new fade-in ramp
+    expect(gain.linearRampToValueAtTime.callCount).toBe(rampCountBefore);
+  });
+});
+
+// --- Cycle 5: Playback fadeOut on natural end ---
+
+describe("Playback fadeOut on natural end", () => {
+  let sound: Sound;
+  let buffer: AudioBuffer;
+  let playback: Playback;
+
+  beforeEach(async () => {
+    buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    sound = await cacophony.createSound(buffer);
+    const playbacks = sound.play();
+    playback = playbacks[0];
+  });
+
+  afterEach(() => {
+    if (sound) {
+      sound.stop();
+    }
+    cacophony.clearMemoryCache();
+    vi.restoreAllMocks();
+  });
+
+  it("configureFadeOut stores fade-out config", () => {
+    playback.configureFadeOut(500, "linear");
+
+    expect(playback._fadeOutConfig).toBeDefined();
+    expect(playback._fadeOutConfig!.duration).toBe(500);
+    expect(playback._fadeOutConfig!.type).toBe("linear");
+  });
+
+  it("loopEnded on final iteration with fadeOut config fades then stops", () => {
+    playback.loopCount = 1;
+    playback.currentLoop = 1;
+    playback.configureFadeOut(500);
+
+    const gain = playback.gainNode!.gain;
+    const rampCountBefore = gain.linearRampToValueAtTime.callCount;
+
+    // Trigger loopEnded -- currentLoop becomes 2, exceeds loopCount 1
+    playback.loopEnded();
+
+    // Should have initiated a fade-out (linear ramp scheduled)
+    expect(gain.linearRampToValueAtTime.callCount).toBeGreaterThan(rampCountBefore);
+    // Playback should still be playing (not stopped yet -- fade is in progress)
+    expect(playback.isPlaying).toBe(true);
+  });
+
+  it("loopEnded on final iteration without fadeOut config stops immediately", () => {
+    playback.loopCount = 1;
+    playback.currentLoop = 1;
+    // No configureFadeOut
+
+    // Trigger loopEnded -- currentLoop becomes 2, exceeds loopCount 1
+    playback.loopEnded();
+
+    // Should be stopped immediately
+    expect(playback.isPlaying).toBe(false);
+  });
+
+  it("stopWithFade fades out then calls stop", async () => {
+    const gain = playback.gainNode!.gain;
+    const rampCountBefore = gain.linearRampToValueAtTime.callCount;
+
+    const promise = playback.stopWithFade(500);
+
+    // Fade should have been initiated
+    expect(gain.linearRampToValueAtTime.callCount).toBeGreaterThan(rampCountBefore);
+    // Still playing during fade
+    expect(playback.isPlaying).toBe(true);
+
+    // Advance timers to complete the fade
+    vi.advanceTimersByTime(500);
+    await promise;
+
+    // Now should be stopped
+    expect(playback.isPlaying).toBe(false);
+  });
+
+  it("stop during fade-out prevents loopEnded from restarting", () => {
+    playback.loopCount = 3;
+    playback.currentLoop = 0;
+
+    // Start a fade-out
+    playback.fadeOut(500);
+
+    // Stop during the fade
+    playback.stop();
+
+    // Should be stopped and fade cancelled
+    expect(playback.isPlaying).toBe(false);
+    expect(playback.isFading).toBe(false);
+  });
+});

@@ -20,7 +20,7 @@
 
 import type { Sound } from "./sound";
 import { BasePlayback } from "./basePlayback";
-import type { BaseSound, LoopCount, PanType } from "./cacophony";
+import type { BaseSound, FadeType, LoopCount, PanType } from "./cacophony";
 
 import type {
   AudioBuffer,
@@ -52,6 +52,8 @@ export class Playback extends BasePlayback implements BaseSound {
   private _startTime: number = 0;
   private _state: PlaybackState = PlaybackState.Unplayed;
   private _playbackRate: number = 1;
+  _fadeInConfig?: { duration: number; type: FadeType; perLoop: boolean; targetVolume: number };
+  _fadeOutConfig?: { duration: number; type: FadeType };
 
   /**
    * Creates an instance of the Playback class.
@@ -162,7 +164,12 @@ export class Playback extends BasePlayback implements BaseSound {
     this.currentLoop++;
 
     if (this.loopCount !== "infinite" && this.currentLoop > this.loopCount) {
-      this.stop();
+      // Final iteration -- either fade out or stop immediately
+      if (this._fadeOutConfig) {
+        this.fadeOut(this._fadeOutConfig.duration, this._fadeOutConfig.type).then(() => this.stop());
+      } else {
+        this.stop();
+      }
     } else {
       this.seek(0); // Resets offset and handles play/pause state internally.
       // If it was playing, seek will call play() again.
@@ -177,6 +184,12 @@ export class Playback extends BasePlayback implements BaseSound {
         // If seek() did not call play() (e.g., if state wasn't Playing before seek),
         // this will start playback from the new offset.
         this.play();
+      }
+
+      // Re-trigger fade-in if perLoop config is set
+      if (this._fadeInConfig?.perLoop && this.gainNode) {
+        this.gainNode.gain.setValueAtTime(0.0001, this.gainNode.context.currentTime);
+        this.fadeTo(this._fadeInConfig.targetVolume, this._fadeInConfig.duration, this._fadeInConfig.type);
       }
     }
   };
@@ -280,6 +293,8 @@ export class Playback extends BasePlayback implements BaseSound {
       return;
     }
 
+    this.cancelFade();
+
     if ("stop" in this.source && this._state === PlaybackState.Playing) {
       this.source.stop();
     }
@@ -298,6 +313,45 @@ export class Playback extends BasePlayback implements BaseSound {
       source: this.origin,
       timestamp: Date.now(),
     });
+  }
+
+  /**
+   * Fades in from silence to the current volume.
+   * Optionally stores config to re-trigger the fade on each loop iteration.
+   * @param {number} duration - The fade duration in milliseconds.
+   * @param {FadeType} type - The fade curve type. Defaults to "linear".
+   * @param {object} options - Optional. Set perLoop: true to re-trigger fadeIn on each loop.
+   * @returns {Promise<void>} Resolves when the fade completes.
+   */
+  fadeIn(duration: number, type?: FadeType, options?: { perLoop?: boolean }): Promise<void> {
+    if (options?.perLoop) {
+      this._fadeInConfig = {
+        duration,
+        type: type || "linear",
+        perLoop: true,
+        targetVolume: this.gainNode!.gain.value,
+      };
+    }
+    return super.fadeIn(duration, type);
+  }
+
+  /**
+   * Configures a fade-out to be applied when the playback ends naturally (last loop iteration).
+   * @param {number} duration - The fade-out duration in milliseconds.
+   * @param {FadeType} type - The fade curve type. Defaults to "linear".
+   */
+  configureFadeOut(duration: number, type?: FadeType): void {
+    this._fadeOutConfig = { duration, type: type || "linear" };
+  }
+
+  /**
+   * Fades out then stops the playback.
+   * @param {number} duration - The fade-out duration in milliseconds.
+   * @param {FadeType} type - The fade curve type. Defaults to "linear".
+   * @returns {Promise<void>} Resolves when the fade completes and playback is stopped.
+   */
+  stopWithFade(duration: number, type?: FadeType): Promise<void> {
+    return this.fadeOut(duration, type).then(() => this.stop());
   }
 
   seek(time: number): void {
