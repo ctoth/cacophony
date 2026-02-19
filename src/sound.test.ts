@@ -1022,3 +1022,170 @@ describe("Sound Error Events", () => {
     );
   });
 });
+
+// --- Cycle 6: Container propagation tests ---
+
+describe("Sound fade propagation", () => {
+  let sound: Sound;
+  let buffer: AudioBuffer;
+
+  beforeEach(async () => {
+    buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    sound = await cacophony.createSound(buffer);
+  });
+
+  afterEach(() => {
+    if (sound) {
+      sound.stop();
+    }
+    cacophony.clearMemoryCache();
+    vi.restoreAllMocks();
+  });
+
+  it("fadeTo propagates to all playbacks", () => {
+    const playbacks1 = sound.play();
+    const playbacks2 = sound.play();
+    const pb1 = playbacks1[0];
+    const pb2 = playbacks2[0];
+
+    sound.fadeTo(0.5, 500);
+
+    const gain1 = pb1.gainNode!.gain;
+    const gain2 = pb2.gainNode!.gain;
+    // Both playbacks should have had setValueAtTime and linearRampToValueAtTime called
+    expect(gain1.setValueAtTime.callCount).toBeGreaterThan(0);
+    expect(gain1.linearRampToValueAtTime.callCount).toBeGreaterThan(0);
+    expect(gain2.setValueAtTime.callCount).toBeGreaterThan(0);
+    expect(gain2.linearRampToValueAtTime.callCount).toBeGreaterThan(0);
+  });
+
+  it("fadeIn propagates to all playbacks", () => {
+    const playbacks1 = sound.play();
+    const playbacks2 = sound.play();
+    const pb1 = playbacks1[0];
+    const pb2 = playbacks2[0];
+
+    sound.fadeIn(500);
+
+    const gain1 = pb1.gainNode!.gain;
+    const gain2 = pb2.gainNode!.gain;
+    // Each playback should have setValueAtTime(0.0001, ...) and a linear ramp
+    expect(gain1.setValueAtTime.args.some((args: number[]) => args[0] === 0.0001)).toBe(true);
+    expect(gain1.linearRampToValueAtTime.callCount).toBeGreaterThan(0);
+    expect(gain2.setValueAtTime.args.some((args: number[]) => args[0] === 0.0001)).toBe(true);
+    expect(gain2.linearRampToValueAtTime.callCount).toBeGreaterThan(0);
+  });
+
+  it("fadeOut propagates to all playbacks", () => {
+    const playbacks1 = sound.play();
+    const playbacks2 = sound.play();
+    const pb1 = playbacks1[0];
+    const pb2 = playbacks2[0];
+
+    sound.fadeOut(500);
+
+    const gain1 = pb1.gainNode!.gain;
+    const gain2 = pb2.gainNode!.gain;
+    // Each playback should have a linear ramp to 0
+    const lastCall1 = gain1.linearRampToValueAtTime.args[gain1.linearRampToValueAtTime.callCount - 1];
+    const lastCall2 = gain2.linearRampToValueAtTime.args[gain2.linearRampToValueAtTime.callCount - 1];
+    expect(lastCall1[0]).toBe(0);
+    expect(lastCall2[0]).toBe(0);
+  });
+
+  it("stopWithFade fades out all playbacks then stops", async () => {
+    const playbacks1 = sound.play();
+    const playbacks2 = sound.play();
+    const pb1 = playbacks1[0];
+    const pb2 = playbacks2[0];
+
+    const promise = sound.stopWithFade(500);
+
+    // Both playbacks should still be playing during fade
+    expect(pb1.isPlaying).toBe(true);
+    expect(pb2.isPlaying).toBe(true);
+
+    // Advance timers to complete the fade
+    vi.advanceTimersByTime(500);
+    await promise;
+
+    // Now both should be stopped
+    expect(pb1.isPlaying).toBe(false);
+    expect(pb2.isPlaying).toBe(false);
+  });
+});
+
+// --- Cycle 7: Sound.play with fade options ---
+
+describe("Sound.play with fade options", () => {
+  let sound: Sound;
+  let buffer: AudioBuffer;
+
+  beforeEach(async () => {
+    buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    sound = await cacophony.createSound(buffer);
+  });
+
+  afterEach(() => {
+    if (sound) {
+      sound.stop();
+    }
+    cacophony.clearMemoryCache();
+    vi.restoreAllMocks();
+  });
+
+  it("play() without options works as before", () => {
+    const playbacks = sound.play();
+    expect(playbacks.length).toBe(1);
+    expect(playbacks[0].isPlaying).toBe(true);
+  });
+
+  it("play({ fadeIn: 1000 }) calls fadeIn on each playback", () => {
+    const playbacks = sound.play({ fadeIn: 1000 });
+    const pb = playbacks[0];
+    const gain = pb.gainNode!.gain;
+
+    // fadeIn should have set gain to near-zero then scheduled a ramp
+    expect(gain.setValueAtTime.args.some((args: number[]) => args[0] === 0.0001)).toBe(true);
+    expect(gain.linearRampToValueAtTime.callCount).toBeGreaterThan(0);
+  });
+
+  it("play({ fadeOut: 500 }) calls configureFadeOut on each playback", () => {
+    const playbacks = sound.play({ fadeOut: 500 });
+    const pb = playbacks[0];
+
+    expect(pb._fadeOutConfig).toBeDefined();
+    expect(pb._fadeOutConfig!.duration).toBe(500);
+  });
+
+  it("play({ fadeIn: 1000, fadeType: 'exponential' }) passes type through", () => {
+    const playbacks = sound.play({ fadeIn: 1000, fadeType: "exponential" });
+    const pb = playbacks[0];
+    const gain = pb.gainNode!.gain;
+
+    // Should have used exponentialRampToValueAtTime
+    expect(gain.exponentialRampToValueAtTime.callCount).toBeGreaterThan(0);
+  });
+
+  it("play({ fadeIn: 1000, fadeInPerLoop: true }) passes perLoop through", () => {
+    const playbacks = sound.play({ fadeIn: 1000, fadeInPerLoop: true });
+    const pb = playbacks[0];
+
+    expect(pb._fadeInConfig).toBeDefined();
+    expect(pb._fadeInConfig!.perLoop).toBe(true);
+  });
+
+  it("play({ fadeIn: 1000, fadeOut: 500 }) configures both", () => {
+    const playbacks = sound.play({ fadeIn: 1000, fadeOut: 500 });
+    const pb = playbacks[0];
+    const gain = pb.gainNode!.gain;
+
+    // fadeIn was applied
+    expect(gain.setValueAtTime.args.some((args: number[]) => args[0] === 0.0001)).toBe(true);
+    expect(gain.linearRampToValueAtTime.callCount).toBeGreaterThan(0);
+
+    // fadeOut config was stored
+    expect(pb._fadeOutConfig).toBeDefined();
+    expect(pb._fadeOutConfig!.duration).toBe(500);
+  });
+});

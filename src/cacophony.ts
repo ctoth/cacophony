@@ -65,6 +65,17 @@ export type FadeType = "linear" | "exponential";
 export type PanType = "HRTF" | "stereo";
 
 /**
+ * Options for configuring fade behavior when starting playback via Sound.play().
+ * @interface PlayOptions
+ */
+export interface PlayOptions {
+  fadeIn?: number;      // duration in ms
+  fadeOut?: number;     // duration in ms
+  fadeType?: FadeType;  // applies to both fadeIn and fadeOut
+  fadeInPerLoop?: boolean;  // re-trigger fadeIn on each loop iteration
+}
+
+/**
  * The base interface for any sound-producing entity, including individual sounds, groups, and playbacks.
  * @interface BaseSound
  */

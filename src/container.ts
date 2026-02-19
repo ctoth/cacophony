@@ -1,5 +1,5 @@
 import type { BasePlayback } from "basePlayback";
-import type { Position } from "./cacophony";
+import type { FadeType, Position } from "./cacophony";
 import { FilterManager } from "./filters";
 
 type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
@@ -176,6 +176,48 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
     set volume(volume: number) {
       this._volume = volume;
       this.playbacks.forEach((p) => (p.volume = volume));
+    }
+
+    /**
+     * Fades the volume of all playbacks to a target value over a duration.
+     * @param {number} value - The target volume (0 to 1).
+     * @param {number} duration - The fade duration in milliseconds.
+     * @param {FadeType} type - The fade curve type. Defaults to "linear".
+     * @returns {Promise<void>} Resolves when all fades complete.
+     */
+    fadeTo(value: number, duration: number, type?: FadeType): Promise<void> {
+      this._volume = value;
+      return Promise.all(this.playbacks.map(p => p.fadeTo(value, duration, type))).then(() => {});
+    }
+
+    /**
+     * Fades in all playbacks from silence to their current volume.
+     * @param {number} duration - The fade duration in milliseconds.
+     * @param {FadeType} type - The fade curve type. Defaults to "linear".
+     * @returns {Promise<void>} Resolves when all fades complete.
+     */
+    fadeIn(duration: number, type?: FadeType): Promise<void> {
+      return Promise.all(this.playbacks.map(p => p.fadeIn(duration, type))).then(() => {});
+    }
+
+    /**
+     * Fades out all playbacks from their current volume to silence.
+     * @param {number} duration - The fade duration in milliseconds.
+     * @param {FadeType} type - The fade curve type. Defaults to "linear".
+     * @returns {Promise<void>} Resolves when all fades complete.
+     */
+    fadeOut(duration: number, type?: FadeType): Promise<void> {
+      return Promise.all(this.playbacks.map(p => p.fadeOut(duration, type))).then(() => {});
+    }
+
+    /**
+     * Fades out all playbacks then stops them.
+     * @param {number} duration - The fade-out duration in milliseconds.
+     * @param {FadeType} type - The fade curve type. Defaults to "linear".
+     * @returns {Promise<void>} Resolves when the fade completes and all playbacks are stopped.
+     */
+    stopWithFade(duration: number, type?: FadeType): Promise<void> {
+      return this.fadeOut(duration, type).then(() => this.stop());
     }
   }
   return PlaybackContainer;

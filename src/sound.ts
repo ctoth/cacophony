@@ -27,6 +27,7 @@ import {
   type BaseSound,
   type LoopCount,
   type PanType,
+  type PlayOptions,
 } from "./cacophony";
 import { PlaybackContainer } from "./container";
 import type {
@@ -239,9 +240,21 @@ export class Sound
     }
   }
 
-  play(): ReturnType<this["preplay"]> {
+  play(options?: PlayOptions): ReturnType<this["preplay"]> {
     const playbacks = super.play() as ReturnType<this["preplay"]>;
     this.emit("play", playbacks[0]);
+
+    if (options) {
+      for (const playback of playbacks) {
+        if (options.fadeIn !== undefined) {
+          playback.fadeIn(options.fadeIn, options.fadeType, { perLoop: options.fadeInPerLoop });
+        }
+        if (options.fadeOut !== undefined) {
+          playback.configureFadeOut(options.fadeOut, options.fadeType);
+        }
+      }
+    }
+
     return playbacks;
   }
 
