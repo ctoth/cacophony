@@ -1,3 +1,4 @@
+import type { FadeType } from "./cacophony";
 import { IPlaybackContainer } from "./container";
 import { AudioNode } from "./context";
 import { FilterManager } from "./filters";
@@ -62,6 +63,27 @@ export abstract class BasePlayback extends PannerMixin(
     return this.eventEmitter.emitAsync(event, data);
   }
 
+
+  /**
+   * Fades the volume to a target value, emitting fadeStart and fadeEnd events.
+   */
+  fadeTo(value: number, duration: number, type: FadeType = "linear"): Promise<void> {
+    this.emit("fadeStart", { target: value, duration, type });
+    return super.fadeTo(value, duration, type).then(() => {
+      this.emit("fadeEnd", undefined);
+    });
+  }
+
+  /**
+   * Cancels any in-progress fade, emitting fadeCancel if a fade was active.
+   */
+  cancelFade(): void {
+    const wasFading = this._isFading;
+    super.cancelFade();
+    if (wasFading) {
+      this.emit("fadeCancel", undefined);
+    }
+  }
 
   cleanup(): void {
     this.eventEmitter.removeAllListeners();

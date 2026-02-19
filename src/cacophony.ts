@@ -90,6 +90,10 @@ export interface BaseSound {
   volume: number;
   position?: Position;
   threeDOptions?: any;
+  fadeTo?(value: number, duration: number, type?: FadeType): Promise<void>;
+  fadeIn?(duration: number, type?: FadeType): Promise<void>;
+  fadeOut?(duration: number, type?: FadeType): Promise<void>;
+  stopWithFade?(duration: number, type?: FadeType): Promise<void>;
 }
 
 export class Cacophony {

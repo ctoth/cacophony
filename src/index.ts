@@ -1,4 +1,5 @@
 export * from './cacophony';
+export * from './events';
 export * from './group';
 export { MicrophonePlayback } from './microphone';
 export * from './playback';

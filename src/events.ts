@@ -7,6 +7,12 @@ import type { Synth } from "./synth";
 /**
  * Base events for all audio objects.
  */
+export interface FadeStartEvent {
+  target: number;
+  duration: number;
+  type: string;
+}
+
 export interface BaseAudioEvents {
   play: BasePlayback;
   stop: void;
@@ -15,6 +21,9 @@ export interface BaseAudioEvents {
   ended: void;
   volumeChange: number;
   error: PlaybackErrorEvent;
+  fadeStart: FadeStartEvent;
+  fadeEnd: void;
+  fadeCancel: void;
 }
 
 /**

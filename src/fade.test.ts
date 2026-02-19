@@ -404,3 +404,92 @@ describe("Playback fadeOut on natural end", () => {
     expect(playback.isFading).toBe(false);
   });
 });
+
+// --- Cycle 9: Fade events ---
+
+describe("Fade events", () => {
+  let sound: Sound;
+  let buffer: AudioBuffer;
+  let playback: Playback;
+
+  beforeEach(async () => {
+    buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    sound = await cacophony.createSound(buffer);
+    const playbacks = sound.play();
+    playback = playbacks[0];
+  });
+
+  afterEach(() => {
+    if (sound) {
+      sound.stop();
+    }
+    cacophony.clearMemoryCache();
+    vi.restoreAllMocks();
+  });
+
+  it("fadeTo emits fadeStart event", () => {
+    let received: any = null;
+    playback.on("fadeStart", (data) => {
+      received = data;
+    });
+
+    playback.fadeTo(0.5, 500);
+
+    expect(received).not.toBeNull();
+    expect(received.target).toBe(0.5);
+    expect(received.duration).toBe(500);
+    expect(received.type).toBe("linear");
+  });
+
+  it("fadeTo with exponential emits fadeStart with correct type", () => {
+    let received: any = null;
+    playback.on("fadeStart", (data) => {
+      received = data;
+    });
+
+    playback.fadeTo(0.3, 1000, "exponential");
+
+    expect(received).not.toBeNull();
+    expect(received.target).toBe(0.3);
+    expect(received.duration).toBe(1000);
+    expect(received.type).toBe("exponential");
+  });
+
+  it("fade completion emits fadeEnd event", async () => {
+    let fadeEndFired = false;
+    playback.on("fadeEnd", () => {
+      fadeEndFired = true;
+    });
+
+    const promise = playback.fadeTo(0.5, 500);
+
+    expect(fadeEndFired).toBe(false);
+    vi.advanceTimersByTime(500);
+    await promise;
+    expect(fadeEndFired).toBe(true);
+  });
+
+  it("cancelFade emits fadeCancel event when fading", () => {
+    let fadeCancelFired = false;
+    playback.on("fadeCancel", () => {
+      fadeCancelFired = true;
+    });
+
+    playback.fadeTo(0.5, 1000);
+    playback.cancelFade();
+
+    expect(fadeCancelFired).toBe(true);
+  });
+
+  it("cancelFade does NOT emit fadeCancel when not fading", () => {
+    let fadeCancelFired = false;
+    playback.on("fadeCancel", () => {
+      fadeCancelFired = true;
+    });
+
+    // Not fading, so cancelFade should not emit
+    playback.cancelFade();
+
+    expect(fadeCancelFired).toBe(false);
+  });
+});
