@@ -62,7 +62,10 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
      */
 
     stop() {
-      this.playbacks.forEach((p) => p.stop());
+      this.playbacks.forEach((p) => {
+        p.stop();
+        p.cleanup();
+      });
       this.playbacks = [];
     }
 
