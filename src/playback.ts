@@ -170,17 +170,11 @@ export class Playback extends BasePlayback implements BaseSound {
       }
     } else {
       this.seek(0); // Resets offset and handles play/pause state internally.
-      // If it was playing, seek will call play() again.
-
-      // Ensure playback resumes/starts after seeking for the loop.
-      if ("mediaElement" in this.source && this.source.mediaElement) {
-        // Media elements need an explicit play call after their currentTime is set.
-        this.source.mediaElement.play();
-      } else {
-        // For AudioBufferSourceNode:
-        // If seek() already called play(), this.play() will return early (idempotent).
-        // If seek() did not call play() (e.g., if state wasn't Playing before seek),
-        // this will start playback from the new offset.
+      // seek() calls pause() then play() when wasPlaying is true,
+      // so play() handles both media-element and buffer sources correctly.
+      if (this._state !== PlaybackState.Playing && !("mediaElement" in this.source)) {
+        // For AudioBufferSourceNode only: if seek() didn't restart playback
+        // (e.g., state wasn't Playing before seek), start it now.
         this.play();
       }
 
@@ -208,10 +202,12 @@ export class Playback extends BasePlayback implements BaseSound {
     }
 
     try {
+      let mediaPlayPromise: Promise<void> | undefined;
+
       if (this._state === PlaybackState.Paused) {
         // If we're resuming from a paused state
         if ("mediaElement" in this.source && this.source.mediaElement) {
-          this.source.mediaElement.play();
+          mediaPlayPromise = this.source.mediaElement.play();
         } else {
           // For non-mediaElement sources, we need to recreate and start the source
           this.recreateSource();
@@ -224,22 +220,46 @@ export class Playback extends BasePlayback implements BaseSound {
 
         if ("mediaElement" in this.source && this.source.mediaElement) {
           this.source.mediaElement.currentTime = this._offset;
-          this.source.mediaElement.play();
+          mediaPlayPromise = this.source.mediaElement.play();
         } else if ("start" in this.source && this.source.start) {
           this.recreateSource();
           this.source.start(0, this._offset);
         }
       }
 
-      this._startTime = this.context.currentTime;
-      this._state = PlaybackState.Playing;
-      this.emit("play", this);
-
-      // Emit globalPlay for all playback
-      this.origin.cacophony?.emit("globalPlay", {
-        source: this.origin,
-        timestamp: Date.now(),
-      });
+      if (mediaPlayPromise) {
+        // For media-element sources, defer state and events until browser accepts playback
+        const previousState = this._state;
+        mediaPlayPromise.then(
+          () => {
+            this._startTime = this.context.currentTime;
+            this._state = PlaybackState.Playing;
+            this.emit("play", this);
+            this.origin.cacophony?.emit("globalPlay", {
+              source: this.origin,
+              timestamp: Date.now(),
+            });
+          },
+          (error: Error) => {
+            this._state = previousState;
+            this.emitAsync("error", {
+              error,
+              errorType: "source",
+              timestamp: Date.now(),
+              recoverable: true,
+            });
+          },
+        );
+      } else {
+        // For buffer sources, state transition is immediate (start() is synchronous)
+        this._startTime = this.context.currentTime;
+        this._state = PlaybackState.Playing;
+        this.emit("play", this);
+        this.origin.cacophony?.emit("globalPlay", {
+          source: this.origin,
+          timestamp: Date.now(),
+        });
+      }
 
       return [this];
     } catch (error) {
