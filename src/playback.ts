@@ -160,9 +160,13 @@ export class Playback extends BasePlayback implements BaseSound {
     if (this.loopCount !== "infinite" && this.currentLoop > this.loopCount) {
       // Final iteration -- either fade out or stop immediately
       if (this._fadeOutConfig) {
-        this.fadeOut(this._fadeOutConfig.duration, this._fadeOutConfig.type).then(() => this.stop());
+        this.fadeOut(this._fadeOutConfig.duration, this._fadeOutConfig.type).then(() => {
+          this.stop();
+          this.removeFromOrigin();
+        });
       } else {
         this.stop();
+        this.removeFromOrigin();
       }
     } else {
       this.seek(0); // Resets offset and handles play/pause state internally.
@@ -375,6 +379,13 @@ export class Playback extends BasePlayback implements BaseSound {
       return this._offset + elapsed;
     } else {
       return this._offset;
+    }
+  }
+
+  private removeFromOrigin(): void {
+    const idx = this.origin.playbacks.indexOf(this);
+    if (idx !== -1) {
+      this.origin.playbacks.splice(idx, 1);
     }
   }
 
