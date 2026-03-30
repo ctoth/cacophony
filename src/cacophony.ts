@@ -2,7 +2,6 @@ import {
   AudioContext,
   AudioWorkletNode,
   type IAudioListener,
-  type IMediaStreamAudioSourceNode,
   type IPannerNode,
   type IPannerOptions,
 } from "standardized-audio-context";
@@ -26,8 +25,6 @@ export enum SoundType {
 }
 
 type PannerNode = IPannerNode<AudioContext>;
-
-type MediaStreamAudioSourceNode = IMediaStreamAudioSourceNode<AudioContext>;
 
 /**
  * Represents a 3D position in space.
