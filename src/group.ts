@@ -192,6 +192,9 @@ export class Group implements BaseSound {
   }
 
   get volume(): number {
+    if (this.sounds.length === 0) {
+      return 1;
+    }
     return this.sounds.map((sound) => sound.volume).reduce((a, b) => a + b, 0) / this.sounds.length;
   }
 

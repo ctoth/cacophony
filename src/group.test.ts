@@ -133,6 +133,11 @@ describe("Group class", () => {
     expect(emptyGroup.play()).toEqual([]);
   });
 
+  it("returns volume of 1 for an empty group", () => {
+    const emptyGroup = new Group();
+    expect(emptyGroup.volume).toBe(1);
+  });
+
   describe("Global events", () => {
     it("emits globalPlay when using Group.play()", () => {
       const globalPlayListener = vi.fn();
