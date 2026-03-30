@@ -2,6 +2,7 @@ import {
   AudioContext,
   AudioWorkletNode,
   type IAudioListener,
+  type IMediaStreamAudioSourceNode,
   type IPannerNode,
   type IPannerOptions,
 } from "standardized-audio-context";
@@ -12,6 +13,7 @@ import { TypedEventEmitter } from "./eventEmitter";
 import type { CacophonyEvents } from "./events";
 import { Group } from "./group";
 import { MicrophoneStream } from "./microphone";
+import type { Playback } from "./playback";
 import { Sound } from "./sound";
 import { createStream } from "./stream";
 import { Synth } from "./synth";
@@ -24,6 +26,8 @@ export enum SoundType {
 }
 
 type PannerNode = IPannerNode<AudioContext>;
+
+type MediaStreamAudioSourceNode = IMediaStreamAudioSourceNode<AudioContext>;
 
 /**
  * Represents a 3D position in space.
@@ -97,6 +101,7 @@ export class Cacophony {
   globalGainNode: GainNode;
   listener: IAudioListener;
   private prevVolume: number = 1;
+  private finalizationRegistry: FinalizationRegistry<Playback>;
   private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
 
@@ -411,7 +416,7 @@ export class Cacophony {
     return new Promise((resolve, reject) => {
       navigator.mediaDevices
         .getUserMedia({ audio: true })
-        .then((_stream) => {
+        .then((stream) => {
           const microphoneStream = new MicrophoneStream(this.context);
           microphoneStream.play();
           resolve(microphoneStream);

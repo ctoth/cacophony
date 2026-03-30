@@ -5,7 +5,9 @@
     "rules": {
       "recommended": true,
       "complexity": {
-        "noForEach": "off"
+        "noForEach": "off",
+        "noUselessConstructor": "off",
+        "noBannedTypes": "off"
       },
       "suspicious": {
         "noExplicitAny": "off",
@@ -16,6 +18,9 @@
       },
       "correctness": {
         "noUnusedVariables": "warn",
+        "noUnusedImports": "warn",
+        "noUnusedFunctionParameters": "off",
+        "noUnusedPrivateClassMembers": "off",
         "noInnerDeclarations": "off"
       },
       "style": {

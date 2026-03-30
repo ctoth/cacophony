@@ -35,7 +35,7 @@ describe("Stream operations with AbortController", () => {
     global.fetch = mockFetch;
 
     // Mock decodeAudioData to prevent infinite recursion
-    audioContextMock.decodeAudioData = vi.fn().mockImplementation((_buffer, success) => {
+    audioContextMock.decodeAudioData = vi.fn().mockImplementation((buffer, success) => {
       // Create a minimal buffer and call success immediately
       const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
       setTimeout(() => success(mockBuffer), 0);

@@ -3,16 +3,12 @@ import type { AudioContext, GainNode, MediaStreamAudioSourceNode, PannerNode } f
 import { FilterManager } from "./filters";
 
 export class MicrophonePlayback extends FilterManager {
+  private context: AudioContext;
   private source?: MediaStreamAudioSourceNode;
   private gainNode?: GainNode;
   private panner?: PannerNode;
 
-  constructor(
-    source: MediaStreamAudioSourceNode,
-    gainNode: GainNode,
-    context: AudioContext,
-    _loopCount: LoopCount = 0,
-  ) {
+  constructor(source: MediaStreamAudioSourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0) {
     super();
     this.source = source;
     this.gainNode = gainNode;
@@ -119,12 +115,14 @@ export class MicrophonePlayback extends FilterManager {
     return 1;
   }
 
-  set playbackRate(_rate: number) {}
+  set playbackRate(rate: number) {}
 }
 
 export class MicrophoneStream extends FilterManager implements BaseSound {
   context: AudioContext;
+  private _position: Position = [0, 0, 0];
   loopCount: LoopCount = 0;
+  private prevVolume: number = 1;
   private microphoneGainNode: GainNode;
   private streamPlayback?: MicrophonePlayback;
   private stream: MediaStream | undefined;
@@ -157,7 +155,7 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
     return 0;
   }
 
-  seek(_time: number) {
+  seek(time: number) {
     // Seeking is not applicable for live microphone stream
   }
 
@@ -216,11 +214,11 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
     return [0, 0, 0];
   }
 
-  set position(_position: Position) {
+  set position(position: Position) {
     // Position is not applicable for live microphone stream
   }
 
-  loop(_loopCount?: LoopCount): LoopCount {
+  loop(loopCount?: LoopCount): LoopCount {
     // Looping is not applicable for live microphone stream
     return 0;
   }
@@ -230,5 +228,5 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
     return 1;
   }
 
-  set playbackRate(_rate: number) {}
+  set playbackRate(rate: number) {}
 }

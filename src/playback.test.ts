@@ -25,7 +25,7 @@ describe("Playback class", () => {
         buffer: null,
         connect: vi.fn(),
         disconnect: vi.fn(),
-        start: vi.fn((_when = 0, _offset = 0) => {}),
+        start: vi.fn((when = 0, offset = 0) => {}),
         stop: vi.fn(),
         onended: null,
       };

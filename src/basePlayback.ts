@@ -13,6 +13,10 @@ export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager
   public origin!: IPlaybackContainer;
   public eventEmitter: TypedEventEmitter<PlaybackEvents> = new TypedEventEmitter<PlaybackEvents>();
 
+  constructor() {
+    super();
+  }
+
   abstract play(): [this];
   abstract pause(): void;
   abstract stop(): void;
