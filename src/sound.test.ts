@@ -62,6 +62,101 @@ describe("Sound playback and state management", () => {
     expect(playbacks2[0].isPlaying).toBe(false);
   });
 
+  it("removes playback from sound when it ends naturally", () => {
+    const playbacks = sound.play();
+    const playback = playbacks[0];
+    expect(sound.playbacks.length).toBe(1);
+    expect(sound.playbacks).toContain(playback);
+
+    // Simulate natural end by triggering loopEnded
+    playback.loopEnded();
+
+    expect(sound.playbacks.length).toBe(0);
+    expect(sound.playbacks).not.toContain(playback);
+  });
+
+  it("only removes the ended playback, not others", () => {
+    const p1 = sound.play()[0];
+    const p2 = sound.play()[0];
+    expect(sound.playbacks.length).toBe(2);
+
+    // Simulate p1 ending naturally
+    p1.loopEnded();
+
+    expect(sound.playbacks.length).toBe(1);
+    expect(sound.playbacks).not.toContain(p1);
+    expect(sound.playbacks).toContain(p2);
+    expect(p2.isPlaying).toBe(true);
+  });
+
+  it("does not remove playback while it is still looping", () => {
+    sound.loop(2);
+    const playback = sound.play()[0];
+    expect(sound.playbacks.length).toBe(1);
+
+    // First loop end — should keep playing
+    playback.loopEnded();
+    expect(sound.playbacks.length).toBe(1);
+    expect(sound.playbacks).toContain(playback);
+    expect(playback.isPlaying).toBe(true);
+
+    // Second loop end — should keep playing
+    playback.loopEnded();
+    expect(sound.playbacks.length).toBe(1);
+    expect(sound.playbacks).toContain(playback);
+    expect(playback.isPlaying).toBe(true);
+
+    // Third loopEnded — loops exhausted, should be removed
+    playback.loopEnded();
+    expect(sound.playbacks.length).toBe(0);
+    expect(playback.isPlaying).toBe(false);
+  });
+
+  it("does not remove playback when looping infinitely", () => {
+    sound.loop("infinite");
+    const playback = sound.play()[0];
+    expect(sound.playbacks.length).toBe(1);
+
+    // Many loop ends — should never be removed
+    for (let i = 0; i < 10; i++) {
+      playback.loopEnded();
+      expect(sound.playbacks.length).toBe(1);
+      expect(sound.playbacks).toContain(playback);
+      expect(playback.isPlaying).toBe(true);
+    }
+  });
+
+  it("does not remove playback on explicit stop (container.stop handles that)", () => {
+    const playback = sound.play()[0];
+    expect(sound.playbacks.length).toBe(1);
+
+    // Explicit stop on the playback — does NOT auto-remove
+    playback.stop();
+    expect(playback.isPlaying).toBe(false);
+    // The playback stays in the array; Sound.stop() is responsible for clearing
+    expect(sound.playbacks.length).toBe(1);
+  });
+
+  it("removes multiple playbacks independently as each ends naturally", () => {
+    const p1 = sound.play()[0];
+    const p2 = sound.play()[0];
+    const p3 = sound.play()[0];
+    expect(sound.playbacks.length).toBe(3);
+
+    p2.loopEnded();
+    expect(sound.playbacks.length).toBe(2);
+    expect(sound.playbacks).toContain(p1);
+    expect(sound.playbacks).not.toContain(p2);
+    expect(sound.playbacks).toContain(p3);
+
+    p1.loopEnded();
+    expect(sound.playbacks.length).toBe(1);
+    expect(sound.playbacks).toContain(p3);
+
+    p3.loopEnded();
+    expect(sound.playbacks.length).toBe(0);
+  });
+
   it("manages multiple playbacks correctly", () => {
     const playbacks1 = sound.play();
     const playbacks2 = sound.play();
