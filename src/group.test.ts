@@ -71,6 +71,25 @@ describe("Group class", () => {
     expect(playback2).toBeDefined();
   });
 
+  it("playOrdered(false) returns undefined after exhausting all sounds", () => {
+    vi.spyOn(sound1, "preplay").mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
+    vi.spyOn(sound2, "preplay").mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
+
+    const playback1 = group.playOrdered(false);
+    expect(playback1).toBeDefined();
+
+    const playback2 = group.playOrdered(false);
+    expect(playback2).toBeDefined();
+
+    // All sounds exhausted — should return undefined, not crash
+    const playback3 = group.playOrdered(false);
+    expect(playback3).toBeUndefined();
+
+    // Subsequent calls should also return undefined
+    const playback4 = group.playOrdered(false);
+    expect(playback4).toBeUndefined();
+  });
+
   it("plays random sounds", () => {
     const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.7);
     const preplaySpy1 = vi.spyOn(sound1, "preplay").mockReturnValue([]);

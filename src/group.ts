@@ -46,6 +46,9 @@ export class Group implements BaseSound {
     if (this.sounds.length === 0) {
       return undefined;
     }
+    if (this.playIndex >= this.sounds.length) {
+      return undefined;
+    }
     const sound = this.sounds[this.playIndex];
     const playbacks = sound.preplay();
     if (playbacks.length === 0) {
