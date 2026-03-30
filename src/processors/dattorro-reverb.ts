@@ -31,10 +31,7 @@ type DelayLine = [Float32Array, number, number, number];
  *
  * @see https://ccrma.stanford.edu/~dattorro/EffectDesignPart1.pdf
  */
-export class DattorroReverbProcessor
-  extends AudioWorkletProcessor
-  implements AudioWorkletProcessorImpl
-{
+export class DattorroReverbProcessor extends AudioWorkletProcessor implements AudioWorkletProcessorImpl {
   private _Delays: DelayLine[] = [];
   private _pDLength: number;
   private _preDelay: Float32Array;
@@ -77,19 +74,17 @@ export class DattorroReverbProcessor
 
     // Initialize delay lines with specified lengths (in seconds)
     [
-      0.004771345, 0.003595309, 0.012734787, 0.009307483, 0.022579886,
-      0.149625349, 0.060481839, 0.1249958, 0.030509727, 0.141695508,
-      0.089244313, 0.106280031,
+      0.004771345, 0.003595309, 0.012734787, 0.009307483, 0.022579886, 0.149625349, 0.060481839, 0.1249958, 0.030509727,
+      0.141695508, 0.089244313, 0.106280031,
     ].forEach((length) => this.makeDelay(length));
 
     // Initialize tap positions (in seconds) for stereo output
     this._taps = Int16Array.from(
       [
-        0.008937872, 0.099929438, 0.064278754, 0.067067639, 0.066866033,
-        0.006283391, 0.035818689, 0.011861161, 0.121870905, 0.041262054,
-        0.08981553, 0.070931756, 0.011256342, 0.004065724,
+        0.008937872, 0.099929438, 0.064278754, 0.067067639, 0.066866033, 0.006283391, 0.035818689, 0.011861161,
+        0.121870905, 0.041262054, 0.08981553, 0.070931756, 0.011256342, 0.004065724,
       ],
-      (length) => Math.round(length * sampleRate)
+      (length) => Math.round(length * sampleRate),
     );
   }
 
@@ -158,11 +153,7 @@ export class DattorroReverbProcessor
    * First input will be downmixed to mono if number of channels is not 2
    * Outputs stereo
    */
-  process(
-    inputs: Float32Array[][],
-    outputs: Float32Array[][],
-    parameters: Record<string, Float32Array>
-  ): boolean {
+  process(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>): boolean {
     const pd = ~~parameters.preDelay[0];
     const bw = parameters.bandwidth[0];
     const fi = parameters.inputDiffusion1[0];
@@ -179,8 +170,7 @@ export class DattorroReverbProcessor
     // Write to predelay and dry output
     if (inputs[0].length === 2) {
       for (let i = 127; i >= 0; i--) {
-        this._preDelay[this._pDWrite + i] =
-          (inputs[0][0][i] + inputs[0][1][i]) * 0.5;
+        this._preDelay[this._pDWrite + i] = (inputs[0][0][i] + inputs[0][1][i]) * 0.5;
 
         outputs[0][0][i] = inputs[0][0][i] * dr;
         outputs[0][1][i] = inputs[0][1][i] * dr;
@@ -200,27 +190,13 @@ export class DattorroReverbProcessor
       let ro = 0.0;
 
       // Input low-pass filter (bandwidth)
-      this._lp1 +=
-        bw *
-        (this._preDelay[
-          (this._pDLength + this._pDWrite - pd + i) % this._pDLength
-        ] -
-          this._lp1);
+      this._lp1 += bw * (this._preDelay[(this._pDLength + this._pDWrite - pd + i) % this._pDLength] - this._lp1);
 
       // Pre-tank diffusion (4 all-pass filters)
       let pre = this.writeDelay(0, this._lp1 - fi * this.readDelay(0));
-      pre = this.writeDelay(
-        1,
-        fi * (pre - this.readDelay(1)) + this.readDelay(0)
-      );
-      pre = this.writeDelay(
-        2,
-        fi * pre + this.readDelay(1) - si * this.readDelay(2)
-      );
-      pre = this.writeDelay(
-        3,
-        si * (pre - this.readDelay(3)) + this.readDelay(2)
-      );
+      pre = this.writeDelay(1, fi * (pre - this.readDelay(1)) + this.readDelay(0));
+      pre = this.writeDelay(2, fi * pre + this.readDelay(1) - si * this.readDelay(2));
+      pre = this.writeDelay(3, si * (pre - this.readDelay(3)) + this.readDelay(2));
 
       const split = si * pre + this.readDelay(3);
 
@@ -229,20 +205,14 @@ export class DattorroReverbProcessor
       const exc2 = ed * (1 + Math.sin(this._excPhase * 6.2847));
 
       // Left loop (tank diffuse 1 -> long delay 1 -> damp 1 -> tank diffuse 2 -> long delay 2)
-      let temp = this.writeDelay(
-        4,
-        split + dc * this.readDelay(11) + ft * this.readDelayCAt(4, exc)
-      );
+      let temp = this.writeDelay(4, split + dc * this.readDelay(11) + ft * this.readDelayCAt(4, exc));
       this.writeDelay(5, this.readDelayCAt(4, exc) - ft * temp);
       this._lp2 += dp * (this.readDelay(5) - this._lp2);
       temp = this.writeDelay(6, dc * this._lp2 - st * this.readDelay(6));
       this.writeDelay(7, this.readDelay(6) + st * temp);
 
       // Right loop (tank diffuse 3 -> long delay 3 -> damp 2 -> tank diffuse 4 -> long delay 4)
-      temp = this.writeDelay(
-        8,
-        split + dc * this.readDelay(7) + ft * this.readDelayCAt(8, exc2)
-      );
+      temp = this.writeDelay(8, split + dc * this.readDelay(7) + ft * this.readDelayCAt(8, exc2));
       this.writeDelay(9, this.readDelayCAt(8, exc2) - ft * temp);
       this._lp3 += dp * (this.readDelay(9) - this._lp3);
       temp = this.writeDelay(10, dc * this._lp3 - st * this.readDelay(10));
@@ -290,6 +260,6 @@ export class DattorroReverbProcessor
   }
 }
 
-// @ts-ignore
+// @ts-expect-error
 registerProcessor("dattorro-reverb", DattorroReverbProcessor);
 console.log("DattorroReverbProcessor registered");

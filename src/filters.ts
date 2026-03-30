@@ -40,9 +40,7 @@ export abstract class FilterManager {
       prevConnection.connect(filter);
       return filter;
     }, connection);
-    return this._filters.length > 0
-      ? this._filters[this._filters.length - 1]
-      : connection;
+    return this._filters.length > 0 ? this._filters[this._filters.length - 1] : connection;
   }
 
   get filters() {
@@ -60,7 +58,7 @@ export abstract class FilterManager {
 
   cleanup(): void {
     // Disconnect all filters before removing them
-    this._filters.forEach(filter => filter.disconnect());
+    this._filters.forEach((filter) => filter.disconnect());
     this._filters = [];
   }
 }

@@ -1,7 +1,7 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { audioContextMock, cacophony } from "./setupTests";
 import type { Sound } from "./sound";
-import { cacophony, audioContextMock } from "./setupTests";
 
 describe("Media element play() rejection", () => {
   let sound: Sound;
@@ -73,7 +73,7 @@ describe("Media element play() rejection", () => {
           error: expect.any(Error),
           errorType: "source",
           recoverable: true,
-        })
+        }),
       );
     });
   });
@@ -113,7 +113,7 @@ describe("Media element play() rejection", () => {
           error: expect.any(Error),
           errorType: "playback",
           recoverable: true,
-        })
+        }),
       );
     });
   });

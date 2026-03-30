@@ -28,7 +28,11 @@
     "clean": "rimraf build",
     "prepublishOnly": "npm run build",
     "test": "vitest run",
-    "ci:test": "vitest run --no-color --run --typecheck"
+    "ci:test": "vitest run --no-color --run --typecheck",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "prepare": "husky"
   },
   "keywords": [
     "audio",
@@ -43,12 +47,14 @@
     "url": "git+https://github.com/ctoth/cacophony.git"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.10",
     "@rollup/plugin-commonjs": "^25.0.8",
     "@rollup/plugin-node-resolve": "^15.3.1",
     "@rollup/plugin-replace": "^5.0.7",
     "@rollup/plugin-typescript": "^11.1.6",
     "@types/audioworklet": "^0.0.87",
     "@types/node": "^22.18.1",
+    "husky": "^9.1.7",
     "rimraf": "^5.0.10",
     "rollup": "^4.50.1",
     "standardized-audio-context-mock": "^9.7.24",

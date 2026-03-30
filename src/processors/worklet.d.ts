@@ -29,11 +29,7 @@ declare var AudioWorkletProcessor: {
 };
 
 interface AudioWorkletProcessorImpl extends AudioWorkletProcessor {
-  process(
-    inputs: Float32Array[][],
-    outputs: Float32Array[][],
-    parameters: Record<string, Float32Array>
-  ): boolean;
+  process(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>): boolean;
 }
 
 interface AudioWorkletProcessorConstructor {
@@ -41,10 +37,7 @@ interface AudioWorkletProcessorConstructor {
   parameterDescriptors?: AudioParamDescriptor[];
 }
 
-declare function registerProcessor(
-  name: string,
-  processorCtor: AudioWorkletProcessorConstructor
-): void;
+declare function registerProcessor(name: string, processorCtor: AudioWorkletProcessorConstructor): void;
 
 declare var sampleRate: number;
 declare var currentFrame: number;

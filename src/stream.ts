@@ -1,37 +1,27 @@
-import { AudioContext, IAudioBuffer } from "standardized-audio-context";
+import type { AudioContext, IAudioBuffer } from "standardized-audio-context";
 
-const appendBuffer = (
-  buffer1: ArrayBuffer,
-  buffer2: ArrayBuffer
-): ArrayBuffer => {
+const appendBuffer = (buffer1: ArrayBuffer, buffer2: ArrayBuffer): ArrayBuffer => {
   var tmp = new Uint8Array(buffer1.byteLength + buffer2.byteLength);
   tmp.set(new Uint8Array(buffer1), 0);
   tmp.set(new Uint8Array(buffer2), buffer1.byteLength);
   return tmp.buffer;
 };
 
-export function createStream(
-  url: string,
-  context: AudioContext,
-  signal?: AbortSignal
-) {
+export function createStream(url: string, context: AudioContext, signal?: AbortSignal) {
   const audioStack: IAudioBuffer[] = [];
   let nextTime = 0;
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
   // Check if already aborted
   if (signal?.aborted) {
-    console.error(
-      "Stream error:",
-      new DOMException("Operation was aborted", "AbortError")
-    );
+    console.error("Stream error:", new DOMException("Operation was aborted", "AbortError"));
     return;
   }
 
   fetch(url, signal ? { signal } : undefined)
-    .then(function (response) {
+    .then((response) => {
       if (!response.ok) {
-        throw new Error("HTTP error, status = " + response.status);
+        throw new Error(`HTTP error, status = ${response.status}`);
       }
       if (!response.body) {
         throw new Error("Missing body");
@@ -81,7 +71,7 @@ export function createStream(
 
             context.decodeAudioData(
               audioBuffer,
-              function (buffer) {
+              (buffer) => {
                 if (signal?.aborted) {
                   return;
                 }
@@ -91,9 +81,9 @@ export function createStream(
                   scheduleBuffers();
                 }
               },
-              function (err) {
-                console.log("err(decodeAudioData): " + err);
-              }
+              (err) => {
+                console.log(`err(decodeAudioData): ${err}`);
+              },
             );
             if (done) {
               console.log("done");
@@ -113,20 +103,20 @@ export function createStream(
       }
       read();
     })
-    .catch(function (error) {
+    .catch((error) => {
       console.error("Stream error:", error);
     });
 
   function scheduleBuffers() {
     while (audioStack.length) {
-      let buffer = audioStack.shift();
+      const buffer = audioStack.shift();
       const source = context.createBufferSource();
       if (!buffer) {
         return;
       }
       source.buffer = buffer;
       source.connect(context.destination);
-      if (nextTime == 0) nextTime = context.currentTime + 0.02; /// add 50ms latency to work well across systems - tune this if you like
+      if (nextTime === 0) nextTime = context.currentTime + 0.02; /// add 50ms latency to work well across systems - tune this if you like
       source.start(nextTime);
       nextTime += source.buffer.duration; // Make the next buffer wait the length of the last buffer before being played
     }

@@ -1,9 +1,8 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { audioContextMock, cacophony } from "./setupTests";
-
-import { Sound } from "./sound";
-import { Playback } from "./playback";
+import type { Playback } from "./playback";
+import { cacophony } from "./setupTests";
+import type { Sound } from "./sound";
 
 describe("VolumeMixin fade", () => {
   let sound: Sound;
@@ -167,7 +166,12 @@ describe("VolumeMixin fade", () => {
     playback.fadeIn(1000);
 
     // Should ramp to 0.8 (the value captured before setting to near-zero)
-    expect(gain.linearRampToValueAtTime.calledWith(0.8, gain.linearRampToValueAtTime.args[gain.linearRampToValueAtTime.callCount - 1]?.[1])).toBe(true);
+    expect(
+      gain.linearRampToValueAtTime.calledWith(
+        0.8,
+        gain.linearRampToValueAtTime.args[gain.linearRampToValueAtTime.callCount - 1]?.[1],
+      ),
+    ).toBe(true);
     // Simpler check: the first arg of the last linear ramp call should be 0.8
     const lastCall = gain.linearRampToValueAtTime.args[gain.linearRampToValueAtTime.callCount - 1];
     expect(lastCall[0]).toBe(0.8);
@@ -279,7 +283,7 @@ describe("Playback per-loop fadeIn", () => {
     // Advance past initial fadeIn
     vi.advanceTimersByTime(500);
 
-    const rampCountBefore = gain.linearRampToValueAtTime.callCount;
+    const _rampCountBefore = gain.linearRampToValueAtTime.callCount;
     const setValueCountBefore = gain.setValueAtTime.callCount;
 
     // Trigger loop end

@@ -1,6 +1,6 @@
 import type { BasePlayback } from "basePlayback";
 import type { FadeType, Position } from "./cacophony";
-import { FilterManager } from "./filters";
+import type { FilterManager } from "./filters";
 
 type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
 export interface IPlaybackContainer {
@@ -190,7 +190,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
      */
     fadeTo(value: number, duration: number, type?: FadeType): Promise<void> {
       this._volume = value;
-      return Promise.all(this.playbacks.map(p => p.fadeTo(value, duration, type))).then(() => {});
+      return Promise.all(this.playbacks.map((p) => p.fadeTo(value, duration, type))).then(() => {});
     }
 
     /**
@@ -200,7 +200,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
      * @returns {Promise<void>} Resolves when all fades complete.
      */
     fadeIn(duration: number, type?: FadeType): Promise<void> {
-      return Promise.all(this.playbacks.map(p => p.fadeIn(duration, type))).then(() => {});
+      return Promise.all(this.playbacks.map((p) => p.fadeIn(duration, type))).then(() => {});
     }
 
     /**
@@ -210,7 +210,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
      * @returns {Promise<void>} Resolves when all fades complete.
      */
     fadeOut(duration: number, type?: FadeType): Promise<void> {
-      return Promise.all(this.playbacks.map(p => p.fadeOut(duration, type))).then(() => {});
+      return Promise.all(this.playbacks.map((p) => p.fadeOut(duration, type))).then(() => {});
     }
 
     /**

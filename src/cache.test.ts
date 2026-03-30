@@ -35,9 +35,7 @@ describe("AudioCache", () => {
     const dataUrl = "data:audio/wav;base64,SGVsbG8gV29ybGQ="; // "Hello World" in base64
     const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
 
-    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-      mockAudioBuffer
-    );
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
     const result = await cache.getAudioBuffer(audioContextMock, dataUrl);
 
@@ -58,9 +56,7 @@ describe("AudioCache", () => {
       headers: new Headers(),
     } as Response);
 
-    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-      mockAudioBuffer
-    );
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
     // First request should fetch
     const result1 = await cache.getAudioBuffer(audioContextMock, url);
@@ -92,8 +88,8 @@ describe("AudioCache", () => {
                 url,
                 etag,
                 timestamp: Date.now() - 1000, // Expired timestamp
-              })
-            )
+              }),
+            ),
           );
         }
         return Promise.resolve(new Response(mockArrayBuffer));
@@ -109,9 +105,7 @@ describe("AudioCache", () => {
       ok: false,
     } as Response);
 
-    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-      mockAudioBuffer
-    );
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
     const result = await cache.getAudioBuffer(audioContextMock, url);
 
@@ -137,8 +131,8 @@ describe("AudioCache", () => {
                 url,
                 cacheControl: "public, max-age=3600", // 1 hour
                 timestamp: Date.now() - 1000, // 1 second ago (fresh)
-              })
-            )
+              }),
+            ),
           );
         }
         return Promise.resolve(new Response(mockArrayBuffer));
@@ -148,9 +142,7 @@ describe("AudioCache", () => {
     };
     mockCaches.open.mockResolvedValue(mockCache);
 
-    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-      mockAudioBuffer
-    );
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
     const result = await cache.getAudioBuffer(audioContextMock, url);
 
@@ -175,8 +167,8 @@ describe("AudioCache", () => {
                 etag,
                 cacheControl: "public, max-age=0",
                 timestamp: Date.now() - 1000,
-              })
-            )
+              }),
+            ),
           );
         }
         return Promise.resolve(new Response(mockArrayBuffer));
@@ -192,9 +184,7 @@ describe("AudioCache", () => {
       ok: false,
     } as Response);
 
-    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-      mockAudioBuffer
-    );
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
     const result = await cache.getAudioBuffer(audioContextMock, url);
 
@@ -220,8 +210,8 @@ describe("AudioCache", () => {
                 url,
                 cacheControl: "public, max-age=3600", // Fresh for 1 hour
                 timestamp: Date.now() - 1000, // 1 second ago (fresh)
-              })
-            )
+              }),
+            ),
           );
         }
         // Return null for body - simulates missing cache body
@@ -244,9 +234,7 @@ describe("AudioCache", () => {
       }),
     } as Response);
 
-    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-      mockAudioBuffer
-    );
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
     const result = await cache.getAudioBuffer(audioContextMock, url);
 
@@ -272,8 +260,8 @@ describe("AudioCache", () => {
                 etag,
                 cacheControl: originalCacheControl,
                 timestamp: Date.now() - 7200000, // 2 hours ago (stale)
-              })
-            )
+              }),
+            ),
           );
         }
         return Promise.resolve(new Response(mockArrayBuffer));
@@ -292,18 +280,14 @@ describe("AudioCache", () => {
       }),
     } as Response);
 
-    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-      mockAudioBuffer
-    );
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
     const result = await cache.getAudioBuffer(audioContextMock, url);
 
     expect(result).toBe(mockAudioBuffer);
 
     // Verify Cache-Control was updated in metadata
-    const updateMetadataCall = mockCache.put.mock.calls.find((call) =>
-      call[0].includes(":meta")
-    );
+    const updateMetadataCall = mockCache.put.mock.calls.find((call) => call[0].includes(":meta"));
     expect(updateMetadataCall).toBeDefined();
     const metadataResponse = updateMetadataCall[1];
     const updatedMetadata = JSON.parse(await metadataResponse.text());
@@ -327,8 +311,8 @@ describe("AudioCache", () => {
               JSON.stringify({
                 url,
                 timestamp: Date.now() - 1000, // Expired timestamp
-              })
-            )
+              }),
+            ),
           );
         }
         return Promise.resolve(new Response(mockArrayBuffer));
@@ -346,9 +330,7 @@ describe("AudioCache", () => {
       headers: new Headers(),
     } as Response);
 
-    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-      mockAudioBuffer
-    );
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
     const result = await cache.getAudioBuffer(audioContextMock, url);
 
@@ -369,9 +351,7 @@ describe("AudioCache", () => {
       headers: new Headers(),
     } as Response);
 
-    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValue(
-      mockAudioBuffer
-    );
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValue(mockAudioBuffer);
 
     // Make multiple concurrent requests
     const requests = Promise.all([
@@ -400,9 +380,7 @@ describe("AudioCache", () => {
       headers: new Headers(),
     } as Response);
 
-    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValue(
-      mockAudioBuffer
-    );
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValue(mockAudioBuffer);
 
     // First request
     await cache.getAudioBuffer(audioContextMock, url);
@@ -436,8 +414,8 @@ describe("AudioCache", () => {
                 url,
                 etag,
                 timestamp: Date.now() - 1000, // Fresh timestamp (1 second ago)
-              })
-            )
+              }),
+            ),
           );
         }
         return Promise.resolve(new Response(mockArrayBuffer));
@@ -456,9 +434,7 @@ describe("AudioCache", () => {
       headers: new Headers({ ETag: newEtag }),
     } as Response);
 
-    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-      mockAudioBuffer
-    );
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
     const result = await cache.getAudioBuffer(audioContextMock, url);
 
@@ -491,8 +467,8 @@ describe("AudioCache", () => {
                 url,
                 lastModified,
                 timestamp: Date.now() - 1000, // Fresh timestamp (1 second ago)
-              })
-            )
+              }),
+            ),
           );
         }
         return Promise.resolve(new Response(mockArrayBuffer));
@@ -513,9 +489,7 @@ describe("AudioCache", () => {
       }),
     } as Response);
 
-    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-      mockAudioBuffer
-    );
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
     const result = await cache.getAudioBuffer(audioContextMock, url);
 
@@ -548,8 +522,8 @@ describe("AudioCache", () => {
                 url,
                 etag,
                 timestamp: Date.now() - 1000, // Fresh timestamp (1 second ago)
-              })
-            )
+              }),
+            ),
           );
         }
         // Return cached content
@@ -566,9 +540,7 @@ describe("AudioCache", () => {
       ok: false,
     } as Response);
 
-    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-      mockAudioBuffer
-    );
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
     const result = await cache.getAudioBuffer(audioContextMock, url);
 
@@ -576,10 +548,7 @@ describe("AudioCache", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1);
 
     // Verify metadata timestamp was updated on 304 response
-    expect(mockCache.put).toHaveBeenCalledWith(
-      `${url}:meta`,
-      expect.any(Response)
-    );
+    expect(mockCache.put).toHaveBeenCalledWith(`${url}:meta`, expect.any(Response));
   });
 
   it("uses TTL fallback when no validation tokens exist", async () => {
@@ -600,8 +569,8 @@ describe("AudioCache", () => {
                 url,
                 // No etag or lastModified
                 timestamp: Date.now() - 50, // Fresh timestamp (50ms ago, within TTL)
-              })
-            )
+              }),
+            ),
           );
         }
         return Promise.resolve(new Response(mockArrayBuffer));
@@ -611,9 +580,7 @@ describe("AudioCache", () => {
     };
     mockCaches.open.mockResolvedValue(mockCache);
 
-    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-      mockAudioBuffer
-    );
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
     const result = await cache.getAudioBuffer(audioContextMock, url);
 
@@ -641,8 +608,8 @@ describe("AudioCache", () => {
                 url,
                 etag,
                 timestamp: Date.now() - 1000, // Expired timestamp
-              })
-            )
+              }),
+            ),
           );
         }
         return Promise.resolve(new Response(mockArrayBuffer));
@@ -658,9 +625,7 @@ describe("AudioCache", () => {
       ok: false,
     } as Response);
 
-    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-      mockAudioBuffer
-    );
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
     const result = await cache.getAudioBuffer(audioContextMock, url);
 
@@ -704,8 +669,8 @@ describe("AudioCache", () => {
                   url,
                   etag,
                   timestamp: Date.now() - 1000,
-                })
-              )
+                }),
+              ),
             );
           }
           // Return null for cached body (simulating missing/corrupted cache)
@@ -717,9 +682,7 @@ describe("AudioCache", () => {
       mockCaches.open.mockResolvedValue(mockCache);
 
       // Mock console.warn to verify warning is logged
-      const consoleWarnSpy = vi
-        .spyOn(console, "warn")
-        .mockImplementation(() => {});
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       // First fetch returns 304 Not Modified
       // Second fetch (recovery) returns 200 with fresh content
@@ -738,9 +701,7 @@ describe("AudioCache", () => {
           headers: new Headers({ ETag: newEtag }),
         } as Response);
 
-      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-        mockAudioBuffer
-      );
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
       const result = await cache.getAudioBuffer(audioContextMock, url);
 
@@ -748,16 +709,11 @@ describe("AudioCache", () => {
       expect(mockFetch).toHaveBeenCalledTimes(2); // First 304, then recovery fetch
 
       // Verify warning was logged
-      expect(consoleWarnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("Cache inconsistency detected")
-      );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining("Cache inconsistency detected"));
 
       // Verify fresh content was cached
       expect(mockCache.put).toHaveBeenCalledWith(url, expect.any(Object));
-      expect(mockCache.put).toHaveBeenCalledWith(
-        `${url}:meta`,
-        expect.any(Response)
-      );
+      expect(mockCache.put).toHaveBeenCalledWith(`${url}:meta`, expect.any(Response));
 
       consoleWarnSpy.mockRestore();
     });
@@ -780,8 +736,8 @@ describe("AudioCache", () => {
                   url,
                   cacheControl: "invalid-directive", // Invalid Cache-Control
                   timestamp: Date.now() - 1000,
-                })
-              )
+                }),
+              ),
             );
           }
           return Promise.resolve(new Response(mockArrayBuffer));
@@ -791,9 +747,7 @@ describe("AudioCache", () => {
       };
       mockCaches.open.mockResolvedValue(mockCache);
 
-      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-        mockAudioBuffer
-      );
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
       const result = await cache.getAudioBuffer(audioContextMock, url);
 
@@ -819,8 +773,8 @@ describe("AudioCache", () => {
                   url,
                   cacheControl: "public, max-age=3600", // Fresh
                   timestamp: Date.now() - 1000,
-                })
-              )
+                }),
+              ),
             );
           }
           return Promise.resolve(new Response(mockArrayBuffer));
@@ -830,9 +784,7 @@ describe("AudioCache", () => {
       };
       mockCaches.open.mockResolvedValue(mockCache);
 
-      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValue(
-        mockAudioBuffer
-      );
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValue(mockAudioBuffer);
 
       // Make concurrent requests
       const [result1, result2, result3] = await Promise.all([
@@ -866,8 +818,8 @@ describe("AudioCache", () => {
                   cacheControl: "public, max-age=0", // Always stale
                   // No etag or lastModified
                   timestamp: Date.now() - 1000,
-                })
-              )
+                }),
+              ),
             );
           }
           return Promise.resolve(null); // No cached body, forcing network
@@ -886,9 +838,7 @@ describe("AudioCache", () => {
         headers: new Headers(),
       } as Response);
 
-      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-        mockAudioBuffer
-      );
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
       const result = await cache.getAudioBuffer(audioContextMock, url);
 
@@ -921,8 +871,8 @@ describe("AudioCache", () => {
                   url,
                   // No cacheControl field
                   timestamp: Date.now() - 500, // 0.5 seconds ago (fresh by TTL)
-                })
-              )
+                }),
+              ),
             );
           }
           return Promise.resolve(new Response(mockArrayBuffer));
@@ -932,9 +882,7 @@ describe("AudioCache", () => {
       };
       mockCaches.open.mockResolvedValue(mockCache);
 
-      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-        mockAudioBuffer
-      );
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
       const result = await cache.getAudioBuffer(audioContextMock, url);
 
@@ -962,8 +910,8 @@ describe("AudioCache", () => {
                   etag,
                   cacheControl: "public, max-age=3600, no-cache", // Fresh but no-cache
                   timestamp: Date.now() - 1000, // 1 second ago (would be fresh)
-                })
-              )
+                }),
+              ),
             );
           }
           return Promise.resolve(new Response(mockArrayBuffer));
@@ -980,9 +928,7 @@ describe("AudioCache", () => {
         headers: new Headers(),
       } as Response);
 
-      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-        mockAudioBuffer
-      );
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
       const result = await cache.getAudioBuffer(audioContextMock, url);
 
@@ -1011,8 +957,8 @@ describe("AudioCache", () => {
                   url,
                   cacheControl: "public, max-age=3600, must-revalidate", // Fresh but must revalidate
                   timestamp: Date.now() - 1000, // 1 second ago (would be fresh)
-                })
-              )
+                }),
+              ),
             );
           }
           return Promise.resolve(new Response(mockArrayBuffer));
@@ -1031,9 +977,7 @@ describe("AudioCache", () => {
         headers: new Headers(),
       } as Response);
 
-      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-        mockAudioBuffer
-      );
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
       const result = await cache.getAudioBuffer(audioContextMock, url);
 
@@ -1059,8 +1003,8 @@ describe("AudioCache", () => {
                   url,
                   cacheControl: 'public, max-age = "3600"', // Quoted with whitespace
                   timestamp: Date.now() - 1000, // 1 second ago (fresh)
-                })
-              )
+                }),
+              ),
             );
           }
           return Promise.resolve(new Response(mockArrayBuffer));
@@ -1070,9 +1014,7 @@ describe("AudioCache", () => {
       };
       mockCaches.open.mockResolvedValue(mockCache);
 
-      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-        mockAudioBuffer
-      );
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
       const result = await cache.getAudioBuffer(audioContextMock, url);
 
@@ -1094,8 +1036,8 @@ describe("AudioCache", () => {
                   url,
                   etag,
                   timestamp: Date.now() - 1000,
-                })
-              )
+                }),
+              ),
             );
           }
           return Promise.resolve(null);
@@ -1106,9 +1048,7 @@ describe("AudioCache", () => {
       mockCaches.open.mockResolvedValue(mockCache);
 
       // Mock console.warn
-      const consoleWarnSpy = vi
-        .spyOn(console, "warn")
-        .mockImplementation(() => {});
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       // First fetch returns 304, recovery fetch fails
       mockFetch
@@ -1123,7 +1063,7 @@ describe("AudioCache", () => {
         } as Response);
 
       await expect(cache.getAudioBuffer(audioContextMock, url)).rejects.toThrow(
-        "Failed to fetch resource after cache inconsistency: 500 Internal Server Error"
+        "Failed to fetch resource after cache inconsistency: 500 Internal Server Error",
       );
 
       consoleWarnSpy.mockRestore();
@@ -1159,9 +1099,7 @@ describe("AudioCache", () => {
       };
       mockCaches.open.mockResolvedValueOnce(mockCache);
 
-      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-        mockAudioBuffer
-      );
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
       await cache.getAudioBuffer(audioContextMock, url, controller.signal);
 
@@ -1169,7 +1107,7 @@ describe("AudioCache", () => {
         url,
         expect.objectContaining({
           signal: controller.signal,
-        })
+        }),
       );
     });
 
@@ -1178,13 +1116,9 @@ describe("AudioCache", () => {
       const controller = new AbortController();
       controller.abort();
 
-      await expect(
-        cache.getAudioBuffer(audioContextMock, url, controller.signal)
-      ).rejects.toThrow(DOMException);
+      await expect(cache.getAudioBuffer(audioContextMock, url, controller.signal)).rejects.toThrow(DOMException);
 
-      await expect(
-        cache.getAudioBuffer(audioContextMock, url, controller.signal)
-      ).rejects.toMatchObject({
+      await expect(cache.getAudioBuffer(audioContextMock, url, controller.signal)).rejects.toMatchObject({
         name: "AbortError",
         message: "Operation was aborted",
       });
@@ -1213,13 +1147,9 @@ describe("AudioCache", () => {
       // Abort immediately
       controller.abort();
 
-      await expect(
-        cache.getAudioBuffer(audioContextMock, url, controller.signal)
-      ).rejects.toThrow(DOMException);
+      await expect(cache.getAudioBuffer(audioContextMock, url, controller.signal)).rejects.toThrow(DOMException);
 
-      await expect(
-        cache.getAudioBuffer(audioContextMock, url, controller.signal)
-      ).rejects.toMatchObject({
+      await expect(cache.getAudioBuffer(audioContextMock, url, controller.signal)).rejects.toMatchObject({
         name: "AbortError",
       });
     });
@@ -1233,11 +1163,9 @@ describe("AudioCache", () => {
         put: vi.fn().mockResolvedValue(undefined),
         delete: vi.fn().mockResolvedValue(undefined),
       };
-      
+
       // Mock cache opens for both requests
-      mockCaches.open
-        .mockResolvedValueOnce(mockCache)
-        .mockResolvedValueOnce(mockCache);
+      mockCaches.open.mockResolvedValueOnce(mockCache).mockResolvedValueOnce(mockCache);
 
       // Abort before starting the request
       controller.abort();
@@ -1267,9 +1195,7 @@ describe("AudioCache", () => {
       };
 
       mockFetch.mockResolvedValueOnce(mockResponse);
-      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-        mockAudioBuffer
-      );
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
       const result = await cache.getAudioBuffer(audioContextMock, url, controller2.signal);
       expect(result).toBe(mockAudioBuffer);
@@ -1283,8 +1209,10 @@ describe("AudioCache", () => {
       const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
 
       const mockCache = {
-        match: vi.fn()
-          .mockResolvedValueOnce({ // Metadata exists
+        match: vi
+          .fn()
+          .mockResolvedValueOnce({
+            // Metadata exists
             json: vi.fn().mockResolvedValue({
               url,
               etag: '"abc123"',
@@ -1316,23 +1244,27 @@ describe("AudioCache", () => {
         arrayBuffer: vi.fn().mockResolvedValue(mockArrayBuffer),
       };
 
-      mockFetch
-        .mockResolvedValueOnce(mock304Response)
-        .mockResolvedValueOnce(mockRecoveryResponse);
+      mockFetch.mockResolvedValueOnce(mock304Response).mockResolvedValueOnce(mockRecoveryResponse);
 
-      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-        mockAudioBuffer
-      );
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
       await cache.getAudioBuffer(audioContextMock, url, controller.signal);
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
-      expect(mockFetch).toHaveBeenNthCalledWith(1, url, expect.objectContaining({
-        signal: controller.signal,
-      }));
-      expect(mockFetch).toHaveBeenNthCalledWith(2, url, expect.objectContaining({
-        signal: controller.signal,
-      }));
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        1,
+        url,
+        expect.objectContaining({
+          signal: controller.signal,
+        }),
+      );
+      expect(mockFetch).toHaveBeenNthCalledWith(
+        2,
+        url,
+        expect.objectContaining({
+          signal: controller.signal,
+        }),
+      );
     });
 
     it("works without AbortSignal (backward compatibility)", async () => {
@@ -1359,9 +1291,7 @@ describe("AudioCache", () => {
       };
       mockCaches.open.mockResolvedValueOnce(mockCache);
 
-      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-        mockAudioBuffer
-      );
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
       // Call without AbortSignal
       const result = await cache.getAudioBuffer(audioContextMock, url);
@@ -1371,7 +1301,7 @@ describe("AudioCache", () => {
         url,
         expect.objectContaining({
           signal: undefined,
-        })
+        }),
       );
     });
 
@@ -1386,7 +1316,7 @@ describe("AudioCache", () => {
           status: 200,
           ok: true,
           headers: new Headers({
-            'content-length': testData.length.toString(),
+            "content-length": testData.length.toString(),
           }),
           clone: vi.fn().mockReturnValue({
             arrayBuffer: vi.fn().mockResolvedValue(testData.buffer),
@@ -1397,7 +1327,7 @@ describe("AudioCache", () => {
               controller.enqueue(testData.slice(0, 4));
               controller.enqueue(testData.slice(4, 8));
               controller.close();
-            }
+            },
           }),
         };
 
@@ -1410,17 +1340,13 @@ describe("AudioCache", () => {
         };
         mockCaches.open.mockResolvedValueOnce(mockCache);
 
-        vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-          mockAudioBuffer
-        );
+        vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
         const result = await cache.getAudioBuffer(audioContextMock, url);
 
         expect(result).toBe(mockAudioBuffer);
         // Verify decodeAudioData was called with correct buffer
-        expect(audioContextMock.decodeAudioData).toHaveBeenCalledWith(
-          expect.any(ArrayBuffer)
-        );
+        expect(audioContextMock.decodeAudioData).toHaveBeenCalledWith(expect.any(ArrayBuffer));
       });
 
       it("uses exponential growth when content-length is unknown", async () => {
@@ -1442,7 +1368,7 @@ describe("AudioCache", () => {
               controller.enqueue(testData.slice(0, 4));
               controller.enqueue(testData.slice(4, 8));
               controller.close();
-            }
+            },
           }),
         };
 
@@ -1455,17 +1381,13 @@ describe("AudioCache", () => {
         };
         mockCaches.open.mockResolvedValueOnce(mockCache);
 
-        vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(
-          mockAudioBuffer
-        );
+        vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
 
         const result = await cache.getAudioBuffer(audioContextMock, url);
 
         expect(result).toBe(mockAudioBuffer);
         // Verify decodeAudioData was called with correct buffer
-        expect(audioContextMock.decodeAudioData).toHaveBeenCalledWith(
-          expect.any(ArrayBuffer)
-        );
+        expect(audioContextMock.decodeAudioData).toHaveBeenCalledWith(expect.any(ArrayBuffer));
       });
     });
   });

@@ -41,11 +41,7 @@ describe("MicrophonePlayback", () => {
     mockStream = createMockStream([mockTrack]);
     mockSource = createMockMediaStreamSource(mockStream);
     mockGainNode = context.createGain();
-    playback = new MicrophonePlayback(
-      mockSource as any,
-      mockGainNode,
-      context
-    );
+    playback = new MicrophonePlayback(mockSource as any, mockGainNode, context);
   });
 
   afterEach(() => {
@@ -121,9 +117,7 @@ describe("MicrophoneStream", () => {
     });
 
     // Mock createMediaStreamSource on the context
-    vi.spyOn(context as any, "createMediaStreamSource").mockReturnValue(
-      createMockMediaStreamSource(mockStream)
-    );
+    vi.spyOn(context as any, "createMediaStreamSource").mockReturnValue(createMockMediaStreamSource(mockStream));
   });
 
   afterEach(() => {
@@ -167,25 +161,15 @@ describe("MicrophoneStream", () => {
   });
 
   it("handles getUserMedia permission denial", async () => {
-    const permissionError = new DOMException(
-      "Permission denied",
-      "NotAllowedError"
-    );
-    (navigator.mediaDevices.getUserMedia as any).mockRejectedValue(
-      permissionError
-    );
-    const consoleSpy = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+    const permissionError = new DOMException("Permission denied", "NotAllowedError");
+    (navigator.mediaDevices.getUserMedia as any).mockRejectedValue(permissionError);
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const mic = new MicrophoneStream(context);
     mic.play();
 
     await vi.waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith(
-        "Error initializing microphone stream:",
-        permissionError
-      );
+      expect(consoleSpy).toHaveBeenCalledWith("Error initializing microphone stream:", permissionError);
     });
 
     expect(mic.isPlaying).toBe(false);

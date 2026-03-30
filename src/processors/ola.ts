@@ -49,13 +49,9 @@ export default abstract class OLAProcessor extends AudioWorkletProcessor impleme
     this.inputBuffersToSend[inputIndex] = new Array(nbChannels);
 
     for (let i = 0; i < nbChannels; i++) {
-      this.inputBuffers[inputIndex][i] = new Float32Array(
-        this.blockSize + WEBAUDIO_BLOCK_SIZE
-      );
+      this.inputBuffers[inputIndex][i] = new Float32Array(this.blockSize + WEBAUDIO_BLOCK_SIZE);
       this.inputBuffers[inputIndex][i].fill(0);
-      this.inputBuffersHead[inputIndex][i] = this.inputBuffers[inputIndex][
-        i
-      ].subarray(0, this.blockSize);
+      this.inputBuffersHead[inputIndex][i] = this.inputBuffers[inputIndex][i].subarray(0, this.blockSize);
       this.inputBuffersToSend[inputIndex][i] = new Float32Array(this.blockSize);
     }
   }
@@ -67,25 +63,20 @@ export default abstract class OLAProcessor extends AudioWorkletProcessor impleme
     for (let i = 0; i < nbChannels; i++) {
       this.outputBuffers[outputIndex][i] = new Float32Array(this.blockSize);
       this.outputBuffers[outputIndex][i].fill(0);
-      this.outputBuffersToRetrieve[outputIndex][i] = new Float32Array(
-        this.blockSize
-      );
+      this.outputBuffersToRetrieve[outputIndex][i] = new Float32Array(this.blockSize);
     }
   }
 
-  private reallocateChannelsIfNeeded(
-    inputs: Float32Array[][],
-    outputs: Float32Array[][]
-  ) {
+  private reallocateChannelsIfNeeded(inputs: Float32Array[][], outputs: Float32Array[][]) {
     for (let i = 0; i < this.nbInputs; i++) {
-      let nbChannels = inputs[i].length;
+      const nbChannels = inputs[i].length;
       if (nbChannels !== this.inputBuffers[i].length) {
         this.allocateInputChannels(i, nbChannels);
       }
     }
 
     for (let i = 0; i < this.nbOutputs; i++) {
-      let nbChannels = outputs[i].length;
+      const nbChannels = outputs[i].length;
       if (nbChannels !== this.outputBuffers[i].length) {
         this.allocateOutputChannels(i, nbChannels);
       }
@@ -95,7 +86,7 @@ export default abstract class OLAProcessor extends AudioWorkletProcessor impleme
   private readInputs(inputs: Float32Array[][]) {
     for (let i = 0; i < this.nbInputs; i++) {
       for (let j = 0; j < this.inputBuffers[i].length; j++) {
-        let webAudioBlock = inputs[i][j];
+        const webAudioBlock = inputs[i][j];
         this.inputBuffers[i][j].set(webAudioBlock, this.blockSize);
       }
     }
@@ -104,10 +95,8 @@ export default abstract class OLAProcessor extends AudioWorkletProcessor impleme
   private writeOutputs(outputs: Float32Array[][]) {
     for (let i = 0; i < this.nbOutputs; i++) {
       for (let j = 0; j < this.outputBuffers[i].length; j++) {
-        let webAudioBlock = outputs[i][j];
-        webAudioBlock.set(
-          this.outputBuffers[i][j].subarray(0, WEBAUDIO_BLOCK_SIZE)
-        );
+        const webAudioBlock = outputs[i][j];
+        webAudioBlock.set(this.outputBuffers[i][j].subarray(0, WEBAUDIO_BLOCK_SIZE));
       }
     }
   }
@@ -141,28 +130,19 @@ export default abstract class OLAProcessor extends AudioWorkletProcessor impleme
     for (let i = 0; i < this.nbOutputs; i++) {
       for (let j = 0; j < this.outputBuffers[i].length; j++) {
         for (let k = 0; k < this.blockSize; k++) {
-          this.outputBuffers[i][j][k] +=
-            this.outputBuffersToRetrieve[i][j][k] / this.nbOverlaps;
+          this.outputBuffers[i][j][k] += this.outputBuffersToRetrieve[i][j][k] / this.nbOverlaps;
         }
       }
     }
   }
 
-  process(
-    inputs: Float32Array[][],
-    outputs: Float32Array[][],
-    parameters: Record<string, Float32Array>
-  ): boolean {
+  process(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>): boolean {
     this.reallocateChannelsIfNeeded(inputs, outputs);
 
     this.readInputs(inputs);
     this.shiftInputBuffers();
     this.prepareInputBuffersToSend();
-    this.processOLA(
-      this.inputBuffersToSend,
-      this.outputBuffersToRetrieve,
-      parameters
-    );
+    this.processOLA(this.inputBuffersToSend, this.outputBuffersToRetrieve, parameters);
     this.handleOutputBuffersToRetrieve();
     this.writeOutputs(outputs);
     this.shiftOutputBuffers();
@@ -173,6 +153,6 @@ export default abstract class OLAProcessor extends AudioWorkletProcessor impleme
   abstract processOLA(
     inputs: Float32Array[][],
     outputs: Float32Array[][],
-    parameters: Record<string, Float32Array>
+    parameters: Record<string, Float32Array>,
   ): void;
 }

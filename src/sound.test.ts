@@ -1,8 +1,7 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, test, vi } from "vitest";
-import { audioContextMock, cacophony, mockCache } from "./setupTests";
-
 import { SoundType } from "./cacophony";
+import { audioContextMock, cacophony } from "./setupTests";
 import { Sound } from "./sound";
 
 describe("Sound playback and state management", () => {
@@ -124,7 +123,7 @@ describe("Sound cloning", () => {
       audioContextMock,
       audioContextMock.createGain(),
       SoundType.Buffer,
-      "HRTF"
+      "HRTF",
     );
     originalSound.volume = 0.8;
     originalSound.playbackRate = 1.2;
@@ -235,12 +234,7 @@ describe("Sound class", () => {
 
   beforeEach(() => {
     buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    sound = new Sound(
-      "test-url",
-      buffer,
-      audioContextMock,
-      audioContextMock.createGain()
-    );
+    sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
   });
 
   afterEach(() => {
@@ -435,9 +429,7 @@ describe("Sound class", () => {
     expect(sound.filters.length).toBe(1);
 
     // Try to remove a filter that was never added
-    expect(() => sound.removeFilter(filter2)).toThrow(
-      "Cannot remove filter that was never added to this container"
-    );
+    expect(() => sound.removeFilter(filter2)).toThrow("Cannot remove filter that was never added to this container");
 
     // Verify original filter still exists
     expect(sound.filters.length).toBe(1);
@@ -451,9 +443,7 @@ describe("Sound class", () => {
     expect(sound.filters.length).toBe(1);
 
     // Try to add the same instance again - should throw
-    expect(() => sound.addFilter(filter)).toThrow(
-      "Cannot add the same filter instance twice"
-    );
+    expect(() => sound.addFilter(filter)).toThrow("Cannot add the same filter instance twice");
 
     // Verify filter was not added again
     expect(sound.filters.length).toBe(1);
@@ -484,12 +474,7 @@ describe("Sound class", () => {
 
   test("A sound loops the correct number of times", async () => {
     const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    const sound = new Sound(
-      "test-url",
-      buffer,
-      audioContextMock,
-      audioContextMock.createGain()
-    );
+    const sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
     const playbacks = sound.play();
     const playback = playbacks[0];
     expect(playback.isPlaying).toBe(true);
@@ -523,12 +508,7 @@ describe("Sound class", () => {
 
   it("can stop an infinitely-looped sound", async () => {
     const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    const sound = new Sound(
-      "test-url",
-      buffer,
-      audioContextMock,
-      audioContextMock.createGain()
-    );
+    const sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
     const playbacks = sound.play();
     const playback = playbacks[0];
 
@@ -546,12 +526,7 @@ describe("Sound class", () => {
 
   it("can transition a looping sound to non-looping and vice versa", async () => {
     const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    const sound = new Sound(
-      "test-url",
-      buffer,
-      audioContextMock,
-      audioContextMock.createGain()
-    );
+    const sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
     const playbacks = sound.play();
     const playback = playbacks[0];
 
@@ -587,12 +562,7 @@ describe("Sound class", () => {
 
   it("can safely stop a sound twice, then play it, and stop it again", async () => {
     const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    const sound = new Sound(
-      "test-url",
-      buffer,
-      audioContextMock,
-      audioContextMock.createGain()
-    );
+    const sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
     // Create and stop the sound twice
     sound.play();
     sound.stop();
@@ -610,12 +580,7 @@ describe("Sound class", () => {
   });
   it("ensures isPlaying is set to false after a sound ends naturally", async () => {
     const buffer = new AudioBuffer({ length: 1, sampleRate: 44100 });
-    const sound = new Sound(
-      "test-url",
-      buffer,
-      audioContextMock,
-      audioContextMock.createGain()
-    );
+    const sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
     const playbacks = sound.play();
     const playback = playbacks[0];
     expect(playback.isPlaying).toBe(true);
@@ -652,9 +617,7 @@ describe("Loading Events", () => {
       headers: new Map(),
     });
 
-    const audioContextDecodeAudioData = vi
-      .fn()
-      .mockResolvedValue(new AudioBuffer({ length: 100, sampleRate: 44100 }));
+    const audioContextDecodeAudioData = vi.fn().mockResolvedValue(new AudioBuffer({ length: 100, sampleRate: 44100 }));
     audioContextMock.decodeAudioData = audioContextDecodeAudioData;
 
     cacophony.on("loadingStart", mockCallbacks.onLoadingStart);
@@ -664,7 +627,7 @@ describe("Loading Events", () => {
       expect.objectContaining({
         url: "test-url.mp3",
         timestamp: expect.any(Number),
-      })
+      }),
     );
   });
 
@@ -695,9 +658,7 @@ describe("Loading Events", () => {
       arrayBuffer: () => Promise.resolve(new ArrayBuffer(1024)),
     });
 
-    const audioContextDecodeAudioData = vi
-      .fn()
-      .mockResolvedValue(new AudioBuffer({ length: 100, sampleRate: 44100 }));
+    const audioContextDecodeAudioData = vi.fn().mockResolvedValue(new AudioBuffer({ length: 100, sampleRate: 44100 }));
     audioContextMock.decodeAudioData = audioContextDecodeAudioData;
 
     cacophony.on("loadingProgress", mockCallbacks.onLoadingProgress);
@@ -710,7 +671,7 @@ describe("Loading Events", () => {
         total: 1024,
         progress: expect.any(Number),
         timestamp: expect.any(Number),
-      })
+      }),
     );
   });
 
@@ -735,7 +696,7 @@ describe("Loading Events", () => {
         duration: expect.any(Number),
         size: 1024,
         timestamp: expect.any(Number),
-      })
+      }),
     );
   });
 
@@ -743,9 +704,7 @@ describe("Loading Events", () => {
     global.fetch = vi.fn().mockRejectedValue(new Error("Network error"));
 
     cacophony.on("loadingError", mockCallbacks.onLoadingError);
-    await expect(cacophony.createSound("test-url.mp3")).rejects.toThrow(
-      "Network error"
-    );
+    await expect(cacophony.createSound("test-url.mp3")).rejects.toThrow("Network error");
 
     expect(mockCallbacks.onLoadingError).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -753,7 +712,7 @@ describe("Loading Events", () => {
         error: expect.any(Error),
         errorType: "network",
         timestamp: expect.any(Number),
-      })
+      }),
     );
   });
 
@@ -764,15 +723,11 @@ describe("Loading Events", () => {
       headers: new Map(),
     });
 
-    const audioContextDecodeAudioData = vi
-      .fn()
-      .mockRejectedValue(new Error("Invalid audio format"));
+    const audioContextDecodeAudioData = vi.fn().mockRejectedValue(new Error("Invalid audio format"));
     audioContextMock.decodeAudioData = audioContextDecodeAudioData;
 
     cacophony.on("loadingError", mockCallbacks.onLoadingError);
-    await expect(cacophony.createSound("test-url.mp3")).rejects.toThrow(
-      "Invalid audio format"
-    );
+    await expect(cacophony.createSound("test-url.mp3")).rejects.toThrow("Invalid audio format");
 
     expect(mockCallbacks.onLoadingError).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -780,7 +735,7 @@ describe("Loading Events", () => {
         error: expect.any(Error),
         errorType: "decode",
         timestamp: expect.any(Number),
-      })
+      }),
     );
   });
 
@@ -794,14 +749,9 @@ describe("Loading Events", () => {
     setTimeout(() => controller.abort(), 10);
 
     cacophony.on("loadingError", mockCallbacks.onLoadingError);
-    await expect(
-      cacophony.createSound(
-        "test-url.mp3",
-        undefined,
-        undefined,
-        controller.signal
-      )
-    ).rejects.toThrow("Aborted");
+    await expect(cacophony.createSound("test-url.mp3", undefined, undefined, controller.signal)).rejects.toThrow(
+      "Aborted",
+    );
 
     expect(mockCallbacks.onLoadingError).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -809,7 +759,7 @@ describe("Loading Events", () => {
         error: expect.any(DOMException),
         errorType: "abort",
         timestamp: expect.any(Number),
-      })
+      }),
     );
   });
 });
@@ -821,12 +771,7 @@ describe("Sound Error Events", () => {
 
   beforeEach(() => {
     buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    sound = new Sound(
-      "test-url",
-      buffer,
-      audioContextMock,
-      audioContextMock.createGain()
-    );
+    sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
 
     mockCallbacks = {
       onSoundError: vi.fn(),
@@ -863,7 +808,7 @@ describe("Sound Error Events", () => {
         errorType: "load",
         timestamp: expect.any(Number),
         recoverable: false,
-      })
+      }),
     );
   });
 
@@ -888,7 +833,7 @@ describe("Sound Error Events", () => {
         errorType: "playback",
         timestamp: expect.any(Number),
         recoverable: true,
-      })
+      }),
     );
   });
 
@@ -911,7 +856,7 @@ describe("Sound Error Events", () => {
         errorType: "context",
         timestamp: expect.any(Number),
         recoverable: false,
-      })
+      }),
     );
   });
 
@@ -936,7 +881,7 @@ describe("Sound Error Events", () => {
         errorType: "unknown",
         timestamp: expect.any(Number),
         recoverable: true,
-      })
+      }),
     );
   });
 
@@ -961,7 +906,7 @@ describe("Sound Error Events", () => {
         error: playbackError,
         errorType: "playback",
         recoverable: true,
-      })
+      }),
     );
   });
 
@@ -984,7 +929,7 @@ describe("Sound Error Events", () => {
         errorType: "context",
         timestamp: expect.any(Number),
         recoverable: false,
-      })
+      }),
     );
   });
 
@@ -1012,13 +957,13 @@ describe("Sound Error Events", () => {
       expect.objectContaining({
         error: testError,
         errorType: "load",
-      })
+      }),
     );
     expect(mockCallback2).toHaveBeenCalledWith(
       expect.objectContaining({
         error: testError,
         errorType: "load",
-      })
+      }),
     );
   });
 });

@@ -1,7 +1,7 @@
 import type { BaseSound, FadeType, LoopCount, Position } from "./cacophony";
 
-import { Playback } from "./playback";
-import { Sound } from "./sound";
+import type { Playback } from "./playback";
+import type { Sound } from "./sound";
 
 export class Group implements BaseSound {
   private _position: Position = [0, 0, 0];
@@ -73,13 +73,11 @@ export class Group implements BaseSound {
   }
 
   get duration() {
-    return this.sounds
-      .map((sound) => sound.duration)
-      .reduce((a, b) => Math.max(a, b), 0);
+    return this.sounds.map((sound) => sound.duration).reduce((a, b) => Math.max(a, b), 0);
   }
 
   seek(time: number): void {
-    this.sounds.forEach((sound) => sound.seek && sound.seek(time));
+    this.sounds.forEach((sound) => sound.seek?.(time));
   }
 
   addSound(sound: Sound): void {
@@ -142,19 +140,19 @@ export class Group implements BaseSound {
   }
 
   fadeTo(value: number, duration: number, type?: FadeType): Promise<void> {
-    return Promise.all(this.sounds.map(sound => sound.fadeTo(value, duration, type))).then(() => {});
+    return Promise.all(this.sounds.map((sound) => sound.fadeTo(value, duration, type))).then(() => {});
   }
 
   fadeIn(duration: number, type?: FadeType): Promise<void> {
-    return Promise.all(this.sounds.map(sound => sound.fadeIn(duration, type))).then(() => {});
+    return Promise.all(this.sounds.map((sound) => sound.fadeIn(duration, type))).then(() => {});
   }
 
   fadeOut(duration: number, type?: FadeType): Promise<void> {
-    return Promise.all(this.sounds.map(sound => sound.fadeOut(duration, type))).then(() => {});
+    return Promise.all(this.sounds.map((sound) => sound.fadeOut(duration, type))).then(() => {});
   }
 
   stopWithFade(duration: number, type?: FadeType): Promise<void> {
-    return Promise.all(this.sounds.map(sound => sound.stopWithFade(duration, type))).then(() => {});
+    return Promise.all(this.sounds.map((sound) => sound.stopWithFade(duration, type))).then(() => {});
   }
 
   loop(loopCount?: LoopCount): LoopCount {
@@ -191,10 +189,7 @@ export class Group implements BaseSound {
   }
 
   get volume(): number {
-    return (
-      this.sounds.map((sound) => sound.volume).reduce((a, b) => a + b, 0) /
-      this.sounds.length
-    );
+    return this.sounds.map((sound) => sound.volume).reduce((a, b) => a + b, 0) / this.sounds.length;
   }
 
   set volume(volume: number) {

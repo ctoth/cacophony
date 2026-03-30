@@ -3,18 +3,15 @@ import type { AudioContext, GainNode, OscillatorNode } from "./context";
 import { FilterManager } from "./filters";
 import { OscillatorMixin } from "./oscillatorMixin";
 import { PannerMixin } from "./pannerMixin";
-import { Synth } from "./synth";
+import type { Synth } from "./synth";
 import { VolumeMixin } from "./volumeMixin";
 
-export class SynthPlayback
-  extends OscillatorMixin(PannerMixin(VolumeMixin(FilterManager)))
-  implements BaseSound
-{
+export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(FilterManager))) implements BaseSound {
   context: AudioContext;
   constructor(
     public origin: Synth,
     public source: OscillatorNode,
-    gainNode: GainNode
+    gainNode: GainNode,
   ) {
     super();
     this.context = origin.context;
@@ -33,9 +30,7 @@ export class SynthPlayback
 
   private refreshFilters(): void {
     if (!this.panner || !this.gainNode) {
-      throw new Error(
-        "Cannot update filters on a sound that has been cleaned up"
-      );
+      throw new Error("Cannot update filters on a sound that has been cleaned up");
     }
     let connection = this.panner;
     connection.disconnect();

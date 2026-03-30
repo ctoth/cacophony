@@ -1,10 +1,10 @@
-import OLAProcessor from "./ola";
 import FFT from "fft.js";
+import OLAProcessor from "./ola";
 
 const BUFFERED_BLOCK_SIZE = 2048;
 
 function genHannWindow(length: number): Float32Array {
-  let win = new Float32Array(length);
+  const win = new Float32Array(length);
   for (let i = 0; i < length; i++) {
     win[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / length));
   }
@@ -52,21 +52,15 @@ export class PhaseVocoderProcessor extends OLAProcessor {
     // prepare FFT and pre-allocate buffers
     this.fft = new FFT(this.fftSize);
     this.freqComplexBuffer = this.fft.createComplexArray() as Float32Array[];
-    this.freqComplexBufferShifted =
-      this.fft.createComplexArray() as Float32Array[];
+    this.freqComplexBufferShifted = this.fft.createComplexArray() as Float32Array[];
     this.timeComplexBuffer = this.fft.createComplexArray();
     this.magnitudes = new Float32Array(this.fftSize / 2 + 1);
     this.peakIndexes = new Int32Array(this.magnitudes.length);
     this.nbPeaks = 0;
   }
 
-  processOLA(
-    inputs: Float32Array[][],
-    outputs: Float32Array[][],
-    parameters: Record<string, Float32Array>
-  ) {
-    const pitchFactor =
-      parameters.pitchFactor[parameters.pitchFactor.length - 1];
+  processOLA(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>) {
+    const pitchFactor = parameters.pitchFactor[parameters.pitchFactor.length - 1];
 
     for (let i = 0; i < this.nbInputs; i++) {
       for (let j = 0; j < inputs[i].length; j++) {
@@ -82,10 +76,7 @@ export class PhaseVocoderProcessor extends OLAProcessor {
         this.shiftPeaks(pitchFactor);
 
         this.fft.completeSpectrum(this.freqComplexBufferShifted);
-        this.fft.inverseTransform(
-          this.timeComplexBuffer,
-          this.freqComplexBufferShifted
-        );
+        this.fft.inverseTransform(this.timeComplexBuffer, this.freqComplexBufferShifted);
         this.fft.fromComplexArray(this.timeComplexBuffer, output);
 
         this.applyHannWindow(output);
@@ -139,14 +130,9 @@ export class PhaseVocoderProcessor extends OLAProcessor {
         break;
       }
 
-      let startIndex =
-        i > 0
-          ? peakIndex - Math.floor((peakIndex - this.peakIndexes[i - 1]) / 2)
-          : 0;
-      let endIndex =
-        i < this.nbPeaks - 1
-          ? peakIndex + Math.ceil((this.peakIndexes[i + 1] - peakIndex) / 2)
-          : this.fftSize;
+      const startIndex = i > 0 ? peakIndex - Math.floor((peakIndex - this.peakIndexes[i - 1]) / 2) : 0;
+      const endIndex =
+        i < this.nbPeaks - 1 ? peakIndex + Math.ceil((this.peakIndexes[i + 1] - peakIndex) / 2) : this.fftSize;
 
       for (let j = startIndex - peakIndex; j < endIndex - peakIndex; j++) {
         const binIndex = peakIndex + j;
@@ -156,8 +142,7 @@ export class PhaseVocoderProcessor extends OLAProcessor {
           break;
         }
 
-        const omegaDelta =
-          (2 * Math.PI * (binIndexShifted - binIndex)) / this.fftSize;
+        const omegaDelta = (2 * Math.PI * (binIndexShifted - binIndex)) / this.fftSize;
         const phaseShiftReal = Math.cos(omegaDelta * this.timeCursor);
         const phaseShiftImag = Math.sin(omegaDelta * this.timeCursor);
 
@@ -166,10 +151,8 @@ export class PhaseVocoderProcessor extends OLAProcessor {
         const valueReal = this.freqComplexBuffer[indexReal];
         const valueImag = this.freqComplexBuffer[indexImag];
 
-        const valueShiftedReal =
-          valueReal * phaseShiftReal - valueImag * phaseShiftImag;
-        const valueShiftedImag =
-          valueReal * phaseShiftImag + valueImag * phaseShiftReal;
+        const valueShiftedReal = valueReal * phaseShiftReal - valueImag * phaseShiftImag;
+        const valueShiftedImag = valueReal * phaseShiftImag + valueImag * phaseShiftReal;
 
         const indexShiftedReal = binIndexShifted * 2;
         const indexShiftedImag = indexShiftedReal + 1;
@@ -180,6 +163,6 @@ export class PhaseVocoderProcessor extends OLAProcessor {
   }
 }
 
-// @ts-ignore
+// @ts-expect-error
 registerProcessor("phase-vocoder", PhaseVocoderProcessor);
 console.log("PhaseVocoderProcessor registered");

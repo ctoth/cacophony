@@ -1,8 +1,5 @@
-import { vi, expect, describe, it, beforeEach, afterEach } from "vitest";
-import {
-  AudioBuffer,
-  AudioBufferSourceNode,
-} from "standardized-audio-context-mock";
+import { AudioBuffer, type AudioBufferSourceNode } from "standardized-audio-context-mock";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Playback } from "./playback";
 import { audioContextMock, cacophony } from "./setupTests";
 import { Sound } from "./sound";
@@ -28,7 +25,7 @@ describe("Playback class", () => {
         buffer: null,
         connect: vi.fn(),
         disconnect: vi.fn(),
-        start: vi.fn((when = 0, offset = 0) => {}),
+        start: vi.fn((_when = 0, _offset = 0) => {}),
         stop: vi.fn(),
         onended: null,
       };
@@ -36,7 +33,7 @@ describe("Playback class", () => {
   });
 
   afterEach(() => {
-    if (playback && playback.source) {
+    if (playback?.source) {
       playback.cleanup();
     }
     cacophony.clearMemoryCache();
@@ -136,13 +133,11 @@ describe("Playback class", () => {
   });
 
   it("resumes from pause position instead of restarting", () => {
-    const startSpy = vi.spyOn(source, "start");
+    const _startSpy = vi.spyOn(source, "start");
 
     // Mock the context's currentTime
     let mockCurrentTime = 0;
-    vi.spyOn(audioContextMock, "currentTime", "get").mockImplementation(
-      () => mockCurrentTime
-    );
+    vi.spyOn(audioContextMock, "currentTime", "get").mockImplementation(() => mockCurrentTime);
 
     playback.play();
     expect(playback.isPlaying).toBe(true);
@@ -163,8 +158,7 @@ describe("Playback class", () => {
     expect(audioContextMock.createBufferSource).toHaveBeenCalledTimes(1);
 
     // Get the new source created when resuming
-    const newSource = vi.mocked(audioContextMock.createBufferSource).mock
-      .results[0].value;
+    const newSource = vi.mocked(audioContextMock.createBufferSource).mock.results[0].value;
 
     // Check that start was called on the new source
     expect(newSource.start).toHaveBeenCalledTimes(1);
@@ -201,7 +195,7 @@ describe("Playback cloning", () => {
   });
 
   afterEach(() => {
-    if (originalPlayback && originalPlayback.source) {
+    if (originalPlayback?.source) {
       originalPlayback.cleanup();
     }
     cacophony.clearMemoryCache();
@@ -242,13 +236,9 @@ describe("Playback cloning", () => {
   it("clones filters correctly", () => {
     const clone = originalPlayback.clone();
 
-    expect(clone["_filters"].length).toBe(originalPlayback["_filters"].length);
-    expect(clone["_filters"][0].type).toBe(
-      originalPlayback["_filters"][0].type
-    );
-    expect(clone["_filters"][0].frequency.value).toBe(
-      originalPlayback["_filters"][0].frequency.value
-    );
+    expect(clone._filters.length).toBe(originalPlayback._filters.length);
+    expect(clone._filters[0].type).toBe(originalPlayback._filters[0].type);
+    expect(clone._filters[0].frequency.value).toBe(originalPlayback._filters[0].frequency.value);
   });
 
   it("creates independent filters for the clone", () => {
@@ -259,8 +249,8 @@ describe("Playback cloning", () => {
     newFilter.frequency.value = 2000;
     clone.addFilter(newFilter as unknown as BiquadFilterNode);
 
-    expect(clone["_filters"].length).toBe(2);
-    expect(originalPlayback["_filters"].length).toBe(1);
+    expect(clone._filters.length).toBe(2);
+    expect(originalPlayback._filters.length).toBe(1);
   });
 });
 
@@ -305,10 +295,7 @@ describe("Playback cleanup functionality", () => {
   });
 
   it("removes all event listeners when cleaned up", () => {
-    const removeAllListenersSpy = vi.spyOn(
-      playback["eventEmitter"],
-      "removeAllListeners"
-    );
+    const removeAllListenersSpy = vi.spyOn(playback.eventEmitter, "removeAllListeners");
 
     playback.cleanup();
 
@@ -319,8 +306,8 @@ describe("Playback cleanup functionality", () => {
     playback.cleanup();
 
     expect(playback.source).toBeUndefined();
-    expect(playback["gainNode"]).toBeUndefined();
-    expect(playback["_filters"]).toHaveLength(0);
+    expect(playback.gainNode).toBeUndefined();
+    expect(playback._filters).toHaveLength(0);
   });
 
   it("can be cleaned up multiple times without error", () => {
@@ -336,8 +323,8 @@ describe("Playback cleanup functionality", () => {
 
     // Verify state remains cleaned up
     expect(playback.source).toBeUndefined();
-    expect(playback["gainNode"]).toBeUndefined();
-    expect(playback["_filters"]).toHaveLength(0);
+    expect(playback.gainNode).toBeUndefined();
+    expect(playback._filters).toHaveLength(0);
   });
 });
 
@@ -358,7 +345,7 @@ describe("Playback filters chain", () => {
   });
 
   afterEach(() => {
-    if (playback && playback.source) {
+    if (playback?.source) {
       playback.cleanup();
     }
     cacophony.clearMemoryCache();
@@ -379,9 +366,9 @@ describe("Playback filters chain", () => {
     expect(refreshSpy).toHaveBeenCalledTimes(2);
 
     // Verify filters are in the correct order in the array
-    expect(playback["_filters"].length).toBe(2);
-    expect(playback["_filters"][0].type).toBe(filter1.type);
-    expect(playback["_filters"][1].type).toBe(filter2.type);
+    expect(playback._filters.length).toBe(2);
+    expect(playback._filters[0].type).toBe(filter1.type);
+    expect(playback._filters[1].type).toBe(filter2.type);
   });
 });
 
@@ -402,7 +389,7 @@ describe("Playback error cases", () => {
   });
 
   afterEach(() => {
-    if (playback && playback.source) {
+    if (playback?.source) {
       playback.cleanup();
     }
     cacophony.clearMemoryCache();
@@ -411,9 +398,7 @@ describe("Playback error cases", () => {
 
   it("throws an error when trying to play a cleaned-up sound", () => {
     playback.cleanup();
-    expect(() => playback.play()).toThrow(
-      "Cannot play a sound that has been cleaned up"
-    );
+    expect(() => playback.play()).toThrow("Cannot play a sound that has been cleaned up");
   });
 
   it("throws an error when seeking to a negative time", () => {
@@ -435,35 +420,33 @@ describe("Playback error cases", () => {
 
   it("throws an error when trying to clone a cleaned-up sound", () => {
     playback.cleanup();
-    expect(() => playback.clone()).toThrow(
-      "Cannot clone a sound that has been cleaned up"
-    );
+    expect(() => playback.clone()).toThrow("Cannot clone a sound that has been cleaned up");
   });
 
   it("throws an error when trying to add a filter to a cleaned-up sound", () => {
     playback.cleanup();
     const filter = audioContextMock.createBiquadFilter();
-    expect(() =>
-      playback.addFilter(filter as unknown as BiquadFilterNode)
-    ).toThrow("Cannot perform operation on a sound that has been cleaned up");
+    expect(() => playback.addFilter(filter as unknown as BiquadFilterNode)).toThrow(
+      "Cannot perform operation on a sound that has been cleaned up",
+    );
   });
 
   it("throws an error when trying to remove a filter from a cleaned-up sound", () => {
     const filter = audioContextMock.createBiquadFilter();
     playback.addFilter(filter as unknown as BiquadFilterNode);
     playback.cleanup();
-    expect(() =>
-      playback.removeFilter(filter as unknown as BiquadFilterNode)
-    ).toThrow("Cannot perform operation on a sound that has been cleaned up");
+    expect(() => playback.removeFilter(filter as unknown as BiquadFilterNode)).toThrow(
+      "Cannot perform operation on a sound that has been cleaned up",
+    );
   });
 
   it("prevents adding the same filter instance twice", () => {
     const filter = audioContextMock.createBiquadFilter();
     playback.addFilter(filter as unknown as BiquadFilterNode);
 
-    expect(() =>
-      playback.addFilter(filter as unknown as BiquadFilterNode)
-    ).toThrow("Cannot add the same filter instance twice");
+    expect(() => playback.addFilter(filter as unknown as BiquadFilterNode)).toThrow(
+      "Cannot add the same filter instance twice",
+    );
   });
 
   it("throws error when removing non-existent filter", () => {
@@ -472,9 +455,9 @@ describe("Playback error cases", () => {
 
     playback.addFilter(filter1 as unknown as BiquadFilterNode);
 
-    expect(() =>
-      playback.removeFilter(filter2 as unknown as BiquadFilterNode)
-    ).toThrow("Cannot remove filter that was never added to this container");
+    expect(() => playback.removeFilter(filter2 as unknown as BiquadFilterNode)).toThrow(
+      "Cannot remove filter that was never added to this container",
+    );
   });
 });
 
@@ -521,9 +504,7 @@ describe("Playback looping and seeking with AudioBufferSourceNode (Bug Catching)
     // The first call to createBufferSource happens inside the Sound constructor if buffer is provided,
     // or preplay, then Playback constructor. For this test, we'll mock it to return our initialMockSource
     // for the very first creation, then subsequent calls will get new mocks.
-    vi.mocked(audioContextMock.createBufferSource).mockReturnValueOnce(
-      initialMockSource
-    );
+    vi.mocked(audioContextMock.createBufferSource).mockReturnValueOnce(initialMockSource);
 
     gainNode = audioContextMock.createGain();
     sound = new Sound("test-url", buffer, audioContextMock, gainNode);
@@ -536,7 +517,7 @@ describe("Playback looping and seeking with AudioBufferSourceNode (Bug Catching)
   });
 
   afterEach(() => {
-    if (playback && playback.source) {
+    if (playback?.source) {
       playback.cleanup();
     }
     cacophony.clearMemoryCache();
@@ -555,15 +536,13 @@ describe("Playback looping and seeking with AudioBufferSourceNode (Bug Catching)
     vi.mocked(audioContextMock.createBufferSource).mockClear();
 
     // Simulate the first playback ending
-    if (playback.source && playback.source.onended) {
+    if (playback.source?.onended) {
       playback.source.onended({} as Event); // Trigger loopEnded
     }
 
     expect(playback.isPlaying).toBe(true); // Should be playing the next loop
     // A new source should have been created for the loop
-    expect(
-      vi.mocked(audioContextMock.createBufferSource)
-    ).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(audioContextMock.createBufferSource)).toHaveBeenCalledTimes(1);
 
     const secondSourceInstance = playback.source as any;
     expect(secondSourceInstance).not.toBe(firstSourceInstance);
@@ -589,9 +568,7 @@ describe("Playback looping and seeking with AudioBufferSourceNode (Bug Catching)
 
     expect(playback.isPlaying).toBe(true);
     // A new source should have been created due to seek while playing
-    expect(
-      vi.mocked(audioContextMock.createBufferSource)
-    ).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(audioContextMock.createBufferSource)).toHaveBeenCalledTimes(1);
 
     const secondSourceInstance = playback.source as any;
     expect(secondSourceInstance).not.toBe(firstSourceInstance);
@@ -619,9 +596,7 @@ describe("Playback looping and seeking with AudioBufferSourceNode (Bug Catching)
     playback.seek(seekTime);
 
     // Seeking while paused should not immediately recreate the source
-    expect(
-      vi.mocked(audioContextMock.createBufferSource)
-    ).not.toHaveBeenCalled();
+    expect(vi.mocked(audioContextMock.createBufferSource)).not.toHaveBeenCalled();
     // The source instance should still be the first one (though it's stopped)
     expect(playback.source).toBe(firstSourceInstance);
 
@@ -629,9 +604,7 @@ describe("Playback looping and seeking with AudioBufferSourceNode (Bug Catching)
 
     expect(playback.isPlaying).toBe(true);
     // A new source should have been created on play() after pause+seek
-    expect(
-      vi.mocked(audioContextMock.createBufferSource)
-    ).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(audioContextMock.createBufferSource)).toHaveBeenCalledTimes(1);
 
     const secondSourceInstance = playback.source as any;
     expect(secondSourceInstance).not.toBe(firstSourceInstance);
@@ -674,9 +647,9 @@ describe("Playback Error Events", () => {
   it("should emit error event on source node failure during play", () => {
     // Mock source.start to throw an error
     const sourceError = new Error("AudioBufferSourceNode start failed");
-    
+
     // Mock createBufferSource to return a source that will throw on start
-    vi.spyOn(audioContextMock, 'createBufferSource').mockImplementation(() => {
+    vi.spyOn(audioContextMock, "createBufferSource").mockImplementation(() => {
       return {
         buffer: null,
         connect: vi.fn(),
@@ -700,16 +673,16 @@ describe("Playback Error Events", () => {
   it("should emit error event on context state issues", async () => {
     // Mock context to be in an error state
     const contextError = new Error("AudioContext suspended");
-    Object.defineProperty(audioContextMock, 'state', {
-      get: () => 'suspended'
+    Object.defineProperty(audioContextMock, "state", {
+      get: () => "suspended",
     });
 
-    playback.on('error', mockCallbacks.onError);
-    
+    playback.on("error", mockCallbacks.onError);
+
     // Simulate context error during playback
-    await playback.emitAsync('error', {
+    await playback.emitAsync("error", {
       error: contextError,
-      errorType: 'context',
+      errorType: "context",
       timestamp: Date.now(),
       recoverable: false,
     });
@@ -717,22 +690,22 @@ describe("Playback Error Events", () => {
     expect(mockCallbacks.onError).toHaveBeenCalledWith(
       expect.objectContaining({
         error: contextError,
-        errorType: 'context',
+        errorType: "context",
         timestamp: expect.any(Number),
         recoverable: false,
-      })
+      }),
     );
   });
 
   it("should emit error event on decode failures", async () => {
     const decodeError = new Error("Failed to decode audio data");
-    
-    playback.on('error', mockCallbacks.onError);
-    
+
+    playback.on("error", mockCallbacks.onError);
+
     // Simulate decode error
-    await playback.emitAsync('error', {
+    await playback.emitAsync("error", {
       error: decodeError,
-      errorType: 'decode',
+      errorType: "decode",
       timestamp: Date.now(),
       recoverable: false,
     });
@@ -740,22 +713,22 @@ describe("Playback Error Events", () => {
     expect(mockCallbacks.onError).toHaveBeenCalledWith(
       expect.objectContaining({
         error: decodeError,
-        errorType: 'decode',
+        errorType: "decode",
         timestamp: expect.any(Number),
         recoverable: false,
-      })
+      }),
     );
   });
 
   it("should emit error event on unknown playback failures", async () => {
     const unknownError = new Error("Unknown playback error");
-    
-    playback.on('error', mockCallbacks.onError);
-    
+
+    playback.on("error", mockCallbacks.onError);
+
     // Simulate unknown error
-    await playback.emitAsync('error', {
+    await playback.emitAsync("error", {
       error: unknownError,
-      errorType: 'unknown',
+      errorType: "unknown",
       timestamp: Date.now(),
       recoverable: true,
     });
@@ -763,43 +736,43 @@ describe("Playback Error Events", () => {
     expect(mockCallbacks.onError).toHaveBeenCalledWith(
       expect.objectContaining({
         error: unknownError,
-        errorType: 'unknown',
+        errorType: "unknown",
         timestamp: expect.any(Number),
         recoverable: true,
-      })
+      }),
     );
   });
 
   it("should handle multiple error listeners correctly", async () => {
     const mockCallback2 = vi.fn();
     const testError = new Error("Test error");
-    
-    playback.on('error', mockCallbacks.onError);
-    playback.on('error', mockCallback2);
-    
+
+    playback.on("error", mockCallbacks.onError);
+    playback.on("error", mockCallback2);
+
     // Emit error
-    await playback.emitAsync('error', {
+    await playback.emitAsync("error", {
       error: testError,
-      errorType: 'source',
+      errorType: "source",
       timestamp: Date.now(),
       recoverable: true,
     });
 
     expect(mockCallbacks.onError).toHaveBeenCalledTimes(1);
     expect(mockCallback2).toHaveBeenCalledTimes(1);
-    
+
     // Both should receive the same error event
     expect(mockCallbacks.onError).toHaveBeenCalledWith(
       expect.objectContaining({
         error: testError,
-        errorType: 'source',
-      })
+        errorType: "source",
+      }),
     );
     expect(mockCallback2).toHaveBeenCalledWith(
       expect.objectContaining({
         error: testError,
-        errorType: 'source',
-      })
+        errorType: "source",
+      }),
     );
   });
 });
@@ -821,7 +794,7 @@ describe("Playback audio graph exposure", () => {
   });
 
   afterEach(() => {
-    if (playback && playback.source) {
+    if (playback?.source) {
       playback.cleanup();
     }
     cacophony.clearMemoryCache();
@@ -829,14 +802,12 @@ describe("Playback audio graph exposure", () => {
   });
 
   it("exposes outputNode as the gain node", () => {
-    expect(playback.outputNode).toBe(playback["gainNode"]);
+    expect(playback.outputNode).toBe(playback.gainNode);
   });
 
   it("throws error when accessing outputNode after cleanup", () => {
     playback.cleanup();
-    expect(() => playback.outputNode).toThrow(
-      "Cannot access output node of a playback that has been cleaned up"
-    );
+    expect(() => playback.outputNode).toThrow("Cannot access output node of a playback that has been cleaned up");
   });
 
   it("can connect to a custom destination", () => {
@@ -882,23 +853,21 @@ describe("Playback audio graph exposure", () => {
     playback.cleanup();
 
     expect(() => playback.connect(destination)).toThrow(
-      "Cannot access output node of a playback that has been cleaned up"
+      "Cannot access output node of a playback that has been cleaned up",
     );
   });
 
   it("throws error when disconnecting after cleanup", () => {
     playback.cleanup();
 
-    expect(() => playback.disconnect()).toThrow(
-      "Cannot access output node of a playback that has been cleaned up"
-    );
+    expect(() => playback.disconnect()).toThrow("Cannot access output node of a playback that has been cleaned up");
   });
 
   it("enables custom audio graph routing", () => {
     // Simulate routing through custom effects
     const delay = audioContextMock.createDelay();
-    const reverb = audioContextMock.createGain(); // Mock reverb as gain node
-    const destination = audioContextMock.createGain();
+    const _reverb = audioContextMock.createGain(); // Mock reverb as gain node
+    const _destination = audioContextMock.createGain();
 
     const connectSpy = vi.spyOn(playback.outputNode, "connect");
 

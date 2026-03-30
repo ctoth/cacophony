@@ -1,0 +1,2 @@
+npx biome ci .
+npm test

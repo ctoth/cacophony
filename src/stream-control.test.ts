@@ -54,18 +54,12 @@ describe("Stream control integration", () => {
 
   it("createStream initiates fetch to the URL", async () => {
     await cacophony.createStream("https://example.com/audio.wav");
-    expect(global.fetch).toHaveBeenCalledWith(
-      "https://example.com/audio.wav",
-      undefined
-    );
+    expect(global.fetch).toHaveBeenCalledWith("https://example.com/audio.wav", undefined);
   });
 
   it("createStream passes AbortSignal to fetch", async () => {
     const controller = new AbortController();
     await cacophony.createStream("https://example.com/audio.wav", controller.signal);
-    expect(global.fetch).toHaveBeenCalledWith(
-      "https://example.com/audio.wav",
-      { signal: controller.signal }
-    );
+    expect(global.fetch).toHaveBeenCalledWith("https://example.com/audio.wav", { signal: controller.signal });
   });
 });

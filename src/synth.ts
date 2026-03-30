@@ -1,8 +1,8 @@
-import { Cacophony, SoundType, type BaseSound, type PanType } from "./cacophony";
+import { type BaseSound, type Cacophony, type PanType, SoundType } from "./cacophony";
 import { PlaybackContainer } from "./container";
 import type { AudioContext, GainNode, OscillatorNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
-import { SynthEvents } from "./events";
+import type { SynthEvents } from "./events";
 import type { FilterCloneOverrides } from "./filters";
 import { FilterManager } from "./filters";
 import type { OscillatorCloneOverrides } from "./oscillatorMixin";
@@ -10,15 +10,9 @@ import type { PanCloneOverrides } from "./pannerMixin";
 import { SynthPlayback } from "./synthPlayback";
 import type { VolumeCloneOverrides } from "./volumeMixin";
 
-type SynthCloneOverrides = FilterCloneOverrides &
-  OscillatorCloneOverrides &
-  PanCloneOverrides &
-  VolumeCloneOverrides;
+type SynthCloneOverrides = FilterCloneOverrides & OscillatorCloneOverrides & PanCloneOverrides & VolumeCloneOverrides;
 
-export class Synth
-  extends PlaybackContainer(FilterManager)
-  implements BaseSound
-{
+export class Synth extends PlaybackContainer(FilterManager) implements BaseSound {
   _oscillatorOptions: Partial<OscillatorOptions>;
   playbacks: SynthPlayback[] = [];
   private eventEmitter: TypedEventEmitter<SynthEvents> = new TypedEventEmitter<SynthEvents>();
@@ -27,38 +21,24 @@ export class Synth
    * Register event listener.
    * @returns Cleanup function
    */
-  on<K extends keyof SynthEvents>(
-    event: K,
-    listener: (data: SynthEvents[K]) => void
-  ): void {
+  on<K extends keyof SynthEvents>(event: K, listener: (data: SynthEvents[K]) => void): void {
     this.eventEmitter.on(event, listener);
   }
 
   /**
    * Remove event listener.
    */
-  off<K extends keyof SynthEvents>(
-    event: K,
-    listener: (data: SynthEvents[K]) => void
-  ): void {
+  off<K extends keyof SynthEvents>(event: K, listener: (data: SynthEvents[K]) => void): void {
     this.eventEmitter.off(event, listener);
   }
 
-
-  protected emit<K extends keyof SynthEvents>(
-    event: K,
-    data: SynthEvents[K]
-  ): void {
+  protected emit<K extends keyof SynthEvents>(event: K, data: SynthEvents[K]): void {
     this.eventEmitter.emit(event, data);
   }
 
-  protected async emitAsync<K extends keyof SynthEvents>(
-    event: K,
-    data: SynthEvents[K]
-  ): Promise<void> {
+  protected async emitAsync<K extends keyof SynthEvents>(event: K, data: SynthEvents[K]): Promise<void> {
     return this.eventEmitter.emitAsync(event, data);
   }
-
 
   constructor(
     public context: AudioContext,
@@ -66,12 +46,11 @@ export class Synth
     public soundType: SoundType = SoundType.Oscillator,
     public panType: PanType = "HRTF",
     oscillatorOptions: Partial<OscillatorOptions> = {},
-    private cacophony?: Cacophony
+    private cacophony?: Cacophony,
   ) {
     super();
     this.context = context;
     this._oscillatorOptions = oscillatorOptions;
-
   }
 
   /**
@@ -88,24 +67,12 @@ export class Synth
    */
   clone(overrides: Partial<SynthCloneOverrides> = {}): Synth {
     const panType = overrides.panType || this.panType;
-    const stereoPan =
-      overrides.stereoPan !== undefined
-        ? overrides.stereoPan
-        : this.stereoPan ?? 0;
-    const threeDOptions = (overrides.threeDOptions ||
-      this.threeDOptions) as PannerOptions;
-    const volume =
-      overrides.volume !== undefined ? overrides.volume : this.volume;
-    const position =
-      overrides.position && overrides.position.length
-        ? overrides.position
-        : this.position;
-    const filters =
-      overrides.filters && overrides.filters.length
-        ? overrides.filters
-        : this._filters;
-    const oscillatorOptions =
-      overrides.oscillatorOptions || this._oscillatorOptions;
+    const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : (this.stereoPan ?? 0);
+    const threeDOptions = (overrides.threeDOptions || this.threeDOptions) as PannerOptions;
+    const volume = overrides.volume !== undefined ? overrides.volume : this.volume;
+    const position = overrides.position?.length ? overrides.position : this.position;
+    const filters = overrides.filters?.length ? overrides.filters : this._filters;
+    const oscillatorOptions = overrides.oscillatorOptions || this._oscillatorOptions;
 
     const clone = new Synth(
       this.context,
@@ -113,7 +80,7 @@ export class Synth
       this.soundType,
       panType,
       oscillatorOptions,
-      this.cacophony
+      this.cacophony,
     );
     clone._volume = volume;
     clone._position = position;
@@ -135,12 +102,9 @@ export class Synth
   }
 
   private createPlayback(oscillator: OscillatorNode): SynthPlayback[] {
-    if (this.oscillatorOptions.detune)
-      oscillator.detune.value = this.oscillatorOptions.detune;
-    if (this.oscillatorOptions.frequency)
-      oscillator.frequency.value = this.oscillatorOptions.frequency;
-    if (this.oscillatorOptions.type)
-      oscillator.type = this.oscillatorOptions.type;
+    if (this.oscillatorOptions.detune) oscillator.detune.value = this.oscillatorOptions.detune;
+    if (this.oscillatorOptions.frequency) oscillator.frequency.value = this.oscillatorOptions.frequency;
+    if (this.oscillatorOptions.type) oscillator.type = this.oscillatorOptions.type;
 
     const gainNode = this.context.createGain();
     gainNode.connect(this.globalGainNode);
@@ -192,12 +156,9 @@ export class Synth
     this._oscillatorOptions = options;
     this.playbacks.forEach((p) => {
       if (p.source instanceof OscillatorNode) {
-        if (this.oscillatorOptions.detune)
-          p.source.detune.value = this.oscillatorOptions.detune;
-        if (this.oscillatorOptions.frequency)
-          p.source.frequency.value = this.oscillatorOptions.frequency;
-        if (this.oscillatorOptions.type)
-          p.source.type = this.oscillatorOptions.type;
+        if (this.oscillatorOptions.detune) p.source.detune.value = this.oscillatorOptions.detune;
+        if (this.oscillatorOptions.frequency) p.source.frequency.value = this.oscillatorOptions.frequency;
+        if (this.oscillatorOptions.type) p.source.type = this.oscillatorOptions.type;
       }
     });
   }
