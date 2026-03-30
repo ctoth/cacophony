@@ -5,7 +5,7 @@ export type OscillatorCloneOverrides = {
   oscillatorOptions?: Partial<OscillatorOptions>;
 };
 
-type Constructor<T = {}> = abstract new (...args: any[]) => T;
+type Constructor<T = object> = abstract new (...args: any[]) => T;
 
 export function OscillatorMixin<TBase extends Constructor>(_Base: TBase) {
   abstract class OscillatorMixin extends BasePlayback {
