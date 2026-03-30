@@ -7,10 +7,7 @@
     "module": "ESNext",
     "moduleResolution": "Node",
     "types": [],
-    "lib": [
-      "ESNext",
-      "WebWorker"
-    ],
+    "lib": ["ESNext", "WebWorker"],
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
@@ -23,11 +20,6 @@
     "noUnusedParameters": false,
     "forceConsistentCasingInFileNames": true
   },
-  "include": [
-    "src/processors/**/*.ts"
-  ],
-  "exclude": [
-    "node_modules",
-    "src/processors/**/*.test.ts"
-  ]
+  "include": ["src/processors/**/*.ts"],
+  "exclude": ["node_modules", "src/processors/**/*.test.ts"]
 }

@@ -41,91 +41,48 @@ const mockCache = {
       });
     }
 
-    // Simulate async loading behavior
+    // Simulate async loading behavior — never hit the real network
     return new Promise(async (resolve, reject) => {
       try {
-        // Check if this is an error test scenario based on global fetch mock or AudioContext mock
-        if (global.fetch && typeof global.fetch === "function") {
-          // Only call fetch for valid URLs (including relative URLs)
-          let shouldFetch = true;
-          let _testResponse;
-
-          // Allow relative URLs and absolute URLs
-          if (!url || url === "test") {
-            // Skip obviously invalid URLs like the debug test URL
-            shouldFetch = false;
-          }
-
-          // Try fetch first if URL is valid
-          if (shouldFetch) {
-            try {
-              _testResponse = await global.fetch(url, { signal });
-            } catch (fetchError) {
-              // Call error callback for fetch failures
-              if (callbacks?.onLoadingError) {
-                const errorType = fetchError.name === "AbortError" ? "abort" : "network";
-                callbacks.onLoadingError({
-                  url,
-                  error: fetchError,
-                  errorType,
-                  timestamp: Date.now(),
-                });
-              }
-              reject(fetchError);
-              return; // Exit early on fetch error
+        // If a test has mocked global.fetch to throw, honour that for error-path tests
+        if (vi.isMockFunction(global.fetch)) {
+          try {
+            await global.fetch(url, { signal });
+          } catch (fetchError) {
+            if (callbacks?.onLoadingError) {
+              const errorType = fetchError.name === "AbortError" ? "abort" : "network";
+              callbacks.onLoadingError({
+                url,
+                error: fetchError,
+                errorType,
+                timestamp: Date.now(),
+              });
             }
+            reject(fetchError);
+            return;
           }
+        }
 
-          // Call progress callback if fetch succeeded or was skipped
-          if (callbacks?.onLoadingProgress) {
-            callbacks.onLoadingProgress({
-              url,
-              loaded: 512,
-              total: 1024,
-              progress: 0.5,
-              timestamp: Date.now(),
-            });
-          }
-
-          // Now check if decodeAudioData will fail
-          const audioBuffer = new AudioBuffer({
-            length: 100,
-            sampleRate: 44100,
+        if (callbacks?.onLoadingProgress) {
+          callbacks.onLoadingProgress({
+            url,
+            loaded: 512,
+            total: 1024,
+            progress: 0.5,
+            timestamp: Date.now(),
           });
+        }
 
-          // Test decode by calling the mocked decodeAudioData
-          if (context.decodeAudioData && typeof context.decodeAudioData === "function") {
-            try {
-              await context.decodeAudioData(new ArrayBuffer(1024));
+        const audioBuffer = new AudioBuffer({
+          length: 100,
+          sampleRate: 44100,
+        });
 
-              // Decode succeeded - call complete callback and mark as loaded
-              if (callbacks?.onLoadingComplete) {
-                callbacks.onLoadingComplete({
-                  url,
-                  duration: 2.27,
-                  size: 1024,
-                  timestamp: Date.now(),
-                });
-              }
+        // Test decode by calling the mocked decodeAudioData
+        if (context.decodeAudioData && typeof context.decodeAudioData === "function") {
+          try {
+            await context.decodeAudioData(new ArrayBuffer(1024));
 
-              // Add to loaded URLs for future cache hits
-              loadedUrls.add(url);
-
-              resolve(audioBuffer);
-            } catch (decodeError) {
-              // Decode failed - call error callback
-              if (callbacks?.onLoadingError) {
-                callbacks.onLoadingError({
-                  url,
-                  error: decodeError,
-                  errorType: "decode",
-                  timestamp: Date.now(),
-                });
-              }
-              reject(decodeError);
-            }
-          } else {
-            // No decode mock - simulate successful load
             if (callbacks?.onLoadingComplete) {
               callbacks.onLoadingComplete({
                 url,
@@ -135,13 +92,20 @@ const mockCache = {
               });
             }
 
-            // Add to loaded URLs for future cache hits
             loadedUrls.add(url);
-
             resolve(audioBuffer);
+          } catch (decodeError) {
+            if (callbacks?.onLoadingError) {
+              callbacks.onLoadingError({
+                url,
+                error: decodeError,
+                errorType: "decode",
+                timestamp: Date.now(),
+              });
+            }
+            reject(decodeError);
           }
         } else {
-          // No fetch mock - simulate successful load
           if (callbacks?.onLoadingComplete) {
             callbacks.onLoadingComplete({
               url,
@@ -151,13 +115,7 @@ const mockCache = {
             });
           }
 
-          // Add to loaded URLs for future cache hits
           loadedUrls.add(url);
-
-          const audioBuffer = new AudioBuffer({
-            length: 100,
-            sampleRate: 44100,
-          });
           resolve(audioBuffer);
         }
       } catch (error) {

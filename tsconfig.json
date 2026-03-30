@@ -6,15 +6,8 @@
     "target": "ESNext",
     "module": "ESNext",
     "moduleResolution": "Node",
-    "types": [
-      "vite/client",
-      "node"
-    ],
-    "lib": [
-      "ESNext",
-      "DOM",
-      "DOM.Iterable"
-    ],
+    "types": ["vite/client", "node"],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "allowJs": true,
     "allowSyntheticDefaultImports": true,
     "strict": true,
@@ -26,19 +19,10 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "forceConsistentCasingInFileNames": true,
-    "rootDirs": [
-      "./src"
-    ]
+    "rootDirs": ["./src"]
   },
-  "exclude": [
-    "node_modules",
-    "src/*.test.ts",
-    "src/setupTests.ts",
-    "src/processors/**/*.ts"
-  ],
-  "include": [
-    "src/**/*.ts"
-  ],
+  "exclude": ["node_modules", "src/*.test.ts", "src/setupTests.ts", "src/processors/**/*.ts"],
+  "include": ["src/**/*.ts"],
   "references": [
     {
       "path": "./tsconfig.node.json"
