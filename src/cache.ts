@@ -667,6 +667,13 @@ export class AudioCache implements ICache {
             AudioCache.decodedBuffers.set(url, audioBuffer);
             return audioBuffer;
           } catch (error) {
+            if (callbacks?.onLoadingError) {
+              callbacks.onLoadingError({
+                url,
+                error: error as Error,
+                timestamp: Date.now(),
+              });
+            }
             if (callbacks?.onCacheError) {
               callbacks.onCacheError({
                 url,
@@ -705,17 +712,28 @@ export class AudioCache implements ICache {
             }
 
             // Fallback to network if body missing but metadata is fresh
-            const arrayBuffer = await AudioCache.fetchAndCacheBuffer(
-              url,
-              cache,
-              metadata?.etag,
-              metadata?.lastModified,
-              signal,
-              { onCacheHit: callbacks?.onCacheHit },
-            );
-            const audioBuffer = await AudioCache.decodeAudioData(context, arrayBuffer);
-            AudioCache.decodedBuffers.set(url, audioBuffer);
-            return audioBuffer;
+            try {
+              const arrayBuffer = await AudioCache.fetchAndCacheBuffer(
+                url,
+                cache,
+                metadata?.etag,
+                metadata?.lastModified,
+                signal,
+                { onCacheHit: callbacks?.onCacheHit },
+              );
+              const audioBuffer = await AudioCache.decodeAudioData(context, arrayBuffer);
+              AudioCache.decodedBuffers.set(url, audioBuffer);
+              return audioBuffer;
+            } catch (error) {
+              if (callbacks?.onLoadingError) {
+                callbacks.onLoadingError({
+                  url,
+                  error: error as Error,
+                  timestamp: Date.now(),
+                });
+              }
+              throw error;
+            }
           }
         }
       },
