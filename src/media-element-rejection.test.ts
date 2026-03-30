@@ -1,7 +1,8 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Playback } from "./playback";
 import { audioContextMock, cacophony } from "./setupTests";
-import type { Sound } from "./sound";
+import { Sound } from "./sound";
 
 describe("Media element play() rejection", () => {
   let sound: Sound;
@@ -15,10 +16,115 @@ describe("Media element play() rejection", () => {
   });
 
   it("play() succeeds when mediaElement.play() resolves", () => {
-    // Default mock (from setupTests.ts) resolves — verify baseline works
+    // Default createSound with URL uses buffer source — play is synchronous
     const playbacks = sound.play();
     expect(playbacks).toHaveLength(1);
     expect(playbacks[0].isPlaying).toBe(true);
+  });
+
+  describe("media element async play()", () => {
+    type MockMediaElement = {
+      play: ReturnType<typeof vi.fn>;
+      pause: ReturnType<typeof vi.fn>;
+      currentTime: number;
+      duration: number;
+      loop: boolean;
+      onended: (() => void) | null;
+      playbackRate: number;
+    };
+    let mediaElement: MockMediaElement;
+    let playback: Playback;
+
+    beforeEach(() => {
+      mediaElement = {
+        play: vi.fn().mockResolvedValue(undefined),
+        pause: vi.fn(),
+        currentTime: 0,
+        duration: 10,
+        loop: false,
+        onended: null,
+        playbackRate: 1,
+      };
+      const source = {
+        mediaElement,
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+      };
+      const gainNode = audioContextMock.createGain();
+      const bufferSound = new Sound("test-url", undefined, audioContextMock, gainNode);
+      playback = new Playback(bufferSound, source as any, gainNode);
+    });
+
+    it("defers isPlaying until promise resolves", async () => {
+      playback.play();
+      expect(playback.isPlaying).toBe(false);
+
+      await vi.waitFor(() => {
+        expect(playback.isPlaying).toBe(true);
+      });
+    });
+
+    it("emits play event only after promise resolves", async () => {
+      const playSpy = vi.fn();
+      playback.on("play", playSpy);
+
+      playback.play();
+      expect(playSpy).not.toHaveBeenCalled();
+
+      await vi.waitFor(() => {
+        expect(playSpy).toHaveBeenCalledWith(playback);
+      });
+    });
+
+    it("on rejection: isPlaying stays false and error event is emitted", async () => {
+      const rejectError = new DOMException("Autoplay blocked", "NotAllowedError");
+      mediaElement.play.mockRejectedValue(rejectError);
+
+      const errorSpy = vi.fn();
+      playback.on("error", errorSpy);
+
+      playback.play();
+      expect(playback.isPlaying).toBe(false);
+
+      await vi.waitFor(() => {
+        expect(errorSpy).toHaveBeenCalledWith(
+          expect.objectContaining({
+            error: rejectError,
+            errorType: "source",
+            recoverable: true,
+          }),
+        );
+      });
+
+      expect(playback.isPlaying).toBe(false);
+    });
+
+    it("on rejection from paused state: reverts to paused", async () => {
+      // First, play successfully
+      playback.play();
+      await vi.waitFor(() => {
+        expect(playback.isPlaying).toBe(true);
+      });
+
+      // Pause
+      playback.pause();
+      expect(playback.isPlaying).toBe(false);
+
+      // Now make play reject
+      const rejectError = new DOMException("Autoplay blocked", "NotAllowedError");
+      mediaElement.play.mockRejectedValue(rejectError);
+
+      const errorSpy = vi.fn();
+      playback.on("error", errorSpy);
+
+      playback.play();
+
+      await vi.waitFor(() => {
+        expect(errorSpy).toHaveBeenCalled();
+      });
+
+      expect(playback.isPlaying).toBe(false);
+    });
   });
 
   it("play() throws when source.start() throws on buffer-backed sound", async () => {
