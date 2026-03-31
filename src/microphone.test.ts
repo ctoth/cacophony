@@ -125,27 +125,22 @@ describe("MicrophoneStream", () => {
     context.close();
   });
 
-  it("play() returns empty array on first call (stream not yet acquired)", () => {
+  it("play() returns playback immediately when constructed with a stream", () => {
+    const mic = new MicrophoneStream(context, mockStream);
+    const result = mic.play();
+    expect(result).toHaveLength(1);
+    expect(result[0]).toBeInstanceOf(MicrophonePlayback);
+  });
+
+  it("play() returns empty array and calls getUserMedia when constructed without a stream", () => {
     (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
     const mic = new MicrophoneStream(context);
     const result = mic.play();
     expect(result).toEqual([]);
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({ audio: true });
   });
 
-  it("play() acquires microphone stream via getUserMedia", async () => {
-    (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
-    const mic = new MicrophoneStream(context);
-    mic.play();
-
-    // Wait for the async getUserMedia to resolve
-    await vi.waitFor(() => {
-      expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({
-        audio: true,
-      });
-    });
-  });
-
-  it("play() sets up streamPlayback after getUserMedia resolves", async () => {
+  it("play() sets up streamPlayback after getUserMedia resolves (no-stream path)", async () => {
     (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
     const mic = new MicrophoneStream(context);
     mic.play();
@@ -176,55 +171,34 @@ describe("MicrophoneStream", () => {
     consoleSpy.mockRestore();
   });
 
-  it("does not call getUserMedia again if stream already acquired", async () => {
-    (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
-    const mic = new MicrophoneStream(context);
+  it("does not call getUserMedia when constructed with a stream", () => {
+    const mic = new MicrophoneStream(context, mockStream);
     mic.play();
-
-    await vi.waitFor(() => {
-      expect(mic.isPlaying).toBe(true);
-    });
-
-    // Second play should not call getUserMedia again
     mic.play();
-    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(1);
+    expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
   });
 
-  it("stop() delegates to streamPlayback and clears it", async () => {
-    (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
-    const mic = new MicrophoneStream(context);
+  it("stop() delegates to streamPlayback and clears it", () => {
+    const mic = new MicrophoneStream(context, mockStream);
     mic.play();
-
-    await vi.waitFor(() => {
-      expect(mic.isPlaying).toBe(true);
-    });
+    expect(mic.isPlaying).toBe(true);
 
     mic.stop();
     expect(mic.isPlaying).toBe(false);
     expect(mockTrack.stop).toHaveBeenCalled();
   });
 
-  it("pause() delegates to streamPlayback", async () => {
-    (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
-    const mic = new MicrophoneStream(context);
+  it("pause() delegates to streamPlayback", () => {
+    const mic = new MicrophoneStream(context, mockStream);
     mic.play();
-
-    await vi.waitFor(() => {
-      expect(mic.isPlaying).toBe(true);
-    });
 
     mic.pause();
     expect(mockTrack.enabled).toBe(false);
   });
 
-  it("resume() delegates to streamPlayback", async () => {
-    (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
-    const mic = new MicrophoneStream(context);
+  it("resume() delegates to streamPlayback", () => {
+    const mic = new MicrophoneStream(context, mockStream);
     mic.play();
-
-    await vi.waitFor(() => {
-      expect(mic.isPlaying).toBe(true);
-    });
 
     mic.pause();
     mic.resume();

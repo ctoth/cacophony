@@ -128,10 +128,14 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
   private stream: MediaStream | undefined;
   private streamSource?: MediaStreamAudioSourceNode;
 
-  constructor(context: AudioContext) {
+  constructor(context: AudioContext, stream?: MediaStream) {
     super();
     this.context = context;
     this.microphoneGainNode = this.context.createGain();
+    if (stream) {
+      this.stream = stream;
+      this.streamSource = this.context.createMediaStreamSource(stream);
+    }
   }
 
   play(): MicrophonePlayback[] {
@@ -147,8 +151,13 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
         .catch((err) => {
           console.error("Error initializing microphone stream:", err);
         });
+      return [];
     }
-    return this.streamPlayback ? [this.streamPlayback] : [];
+    if (!this.streamPlayback) {
+      this.streamSource = this.streamSource ?? this.context.createMediaStreamSource(this.stream);
+      this.streamPlayback = new MicrophonePlayback(this.streamSource, this.microphoneGainNode, this.context);
+    }
+    return [this.streamPlayback];
   }
 
   get duration() {

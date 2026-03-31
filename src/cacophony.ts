@@ -418,8 +418,7 @@ export class Cacophony {
       navigator.mediaDevices
         .getUserMedia({ audio: true })
         .then((stream) => {
-          const microphoneStream = new MicrophoneStream(this.context);
-          microphoneStream.play();
+          const microphoneStream = new MicrophoneStream(this.context, stream);
           resolve(microphoneStream);
         })
         .catch((err) => {
