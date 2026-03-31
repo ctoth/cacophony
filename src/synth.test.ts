@@ -120,4 +120,23 @@ describe("Synth class", () => {
     synth.stereoPan = 0.5;
     expect(synth.stereoPan).toBe(0.5);
   });
+
+  describe("zero-value oscillator options", () => {
+    it("applies detune of 0 via oscillatorOptions", () => {
+      synth.oscillatorOptions = { detune: 0 };
+      const playbacks = synth.play();
+      expect(playbacks[0].source!.detune.value).toBe(0);
+    });
+
+    it("applies frequency of 0 via oscillatorOptions", () => {
+      synth.oscillatorOptions = { frequency: 0 };
+      const playbacks = synth.play();
+      expect(playbacks[0].source!.frequency.value).toBe(0);
+    });
+
+    it("returns 0 from frequency getter when frequency is explicitly 0", () => {
+      synth.oscillatorOptions = { frequency: 0 };
+      expect(synth.frequency).toBe(0);
+    });
+  });
 });
