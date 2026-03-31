@@ -19,8 +19,9 @@ export function OscillatorMixin<TBase extends Constructor>(Base: TBase) {
     set oscillatorOptions(options: Partial<OscillatorOptions>) {
       this._oscillatorOptions = options;
       if (this.source && this.source instanceof OscillatorNode) {
-        if (this.oscillatorOptions.detune) this.source.detune.value = this.oscillatorOptions.detune;
-        if (this.oscillatorOptions.frequency) this.source.frequency.value = this.oscillatorOptions.frequency;
+        if (this.oscillatorOptions.detune !== undefined) this.source.detune.value = this.oscillatorOptions.detune;
+        if (this.oscillatorOptions.frequency !== undefined)
+          this.source.frequency.value = this.oscillatorOptions.frequency;
         if (this.oscillatorOptions.type) this.source.type = this.oscillatorOptions.type;
       }
     }
@@ -29,8 +30,9 @@ export function OscillatorMixin<TBase extends Constructor>(Base: TBase) {
       if (!this.source) {
         throw new Error("No source node found");
       }
-      if (this.oscillatorOptions.detune) this.source.detune.value = this.oscillatorOptions.detune;
-      if (this.oscillatorOptions.frequency) this.source.frequency.value = this.oscillatorOptions.frequency;
+      if (this.oscillatorOptions.detune !== undefined) this.source.detune.value = this.oscillatorOptions.detune;
+      if (this.oscillatorOptions.frequency !== undefined)
+        this.source.frequency.value = this.oscillatorOptions.frequency;
       if (this.oscillatorOptions.type) this.source.type = this.oscillatorOptions.type;
       this.source.start();
       this._playing = true;

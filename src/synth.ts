@@ -102,8 +102,8 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
   }
 
   private createPlayback(oscillator: OscillatorNode): SynthPlayback[] {
-    if (this.oscillatorOptions.detune) oscillator.detune.value = this.oscillatorOptions.detune;
-    if (this.oscillatorOptions.frequency) oscillator.frequency.value = this.oscillatorOptions.frequency;
+    if (this.oscillatorOptions.detune !== undefined) oscillator.detune.value = this.oscillatorOptions.detune;
+    if (this.oscillatorOptions.frequency !== undefined) oscillator.frequency.value = this.oscillatorOptions.frequency;
     if (this.oscillatorOptions.type) oscillator.type = this.oscillatorOptions.type;
 
     const gainNode = this.context.createGain();
@@ -156,15 +156,15 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     this._oscillatorOptions = options;
     this.playbacks.forEach((p) => {
       if (p.source instanceof OscillatorNode) {
-        if (this.oscillatorOptions.detune) p.source.detune.value = this.oscillatorOptions.detune;
-        if (this.oscillatorOptions.frequency) p.source.frequency.value = this.oscillatorOptions.frequency;
+        if (this.oscillatorOptions.detune !== undefined) p.source.detune.value = this.oscillatorOptions.detune;
+        if (this.oscillatorOptions.frequency !== undefined) p.source.frequency.value = this.oscillatorOptions.frequency;
         if (this.oscillatorOptions.type) p.source.type = this.oscillatorOptions.type;
       }
     });
   }
 
   get frequency(): number {
-    return (this.oscillatorOptions.frequency as number) || 440;
+    return (this.oscillatorOptions.frequency as number) ?? 440;
   }
 
   set frequency(frequency: number) {
