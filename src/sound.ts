@@ -178,7 +178,13 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
       } else if (this.panType === "stereo") {
         playback.stereoPan = this.stereoPan as number;
       }
-      // Set up error propagation from playback to sound
+      // Set up event propagation from playback to sound
+      playback.on("ended", () => {
+        this.emit("ended", undefined);
+      });
+      playback._loopEndCallback = () => {
+        this.emit("loopEnd", undefined);
+      };
       playback.on("error", (errorEvent) => {
         this.emitAsync("soundError", {
           url: this.url,
@@ -230,6 +236,11 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
   pause(): void {
     super.pause();
     this.emit("pause", undefined);
+  }
+
+  resume(): void {
+    this.playbacks.forEach((playback) => playback.play());
+    this.emit("resume", undefined);
   }
 
   /**

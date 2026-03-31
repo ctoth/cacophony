@@ -102,6 +102,55 @@ afterAll(() => {
   vi.useRealTimers();
 });
 
+describe("Cacophony event system", () => {
+  it("emits mute event when muted", () => {
+    const listener = vi.fn();
+    cacophony.on("mute", listener);
+    cacophony.volume = 0.5;
+    cacophony.mute();
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("emits unmute event when unmuted", () => {
+    const listener = vi.fn();
+    cacophony.volume = 0.5;
+    cacophony.mute();
+    cacophony.on("unmute", listener);
+    cacophony.unmute();
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("emits suspend event when paused", () => {
+    const listener = vi.fn();
+    cacophony.on("suspend", listener);
+    cacophony.pause();
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("emits resume event when resumed", () => {
+    const listener = vi.fn();
+    cacophony.on("resume", listener);
+    cacophony.resume();
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("does not emit mute when already muted", () => {
+    const listener = vi.fn();
+    cacophony.volume = 0.5;
+    cacophony.mute();
+    cacophony.on("mute", listener);
+    cacophony.mute();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("does not emit unmute when not muted", () => {
+    const listener = vi.fn();
+    cacophony.on("unmute", listener);
+    cacophony.unmute();
+    expect(listener).not.toHaveBeenCalled();
+  });
+});
+
 describe("Event system", () => {
   let sound: Sound;
   let buffer: AudioBuffer;
@@ -179,5 +228,58 @@ describe("Event system", () => {
     sound.play();
     expect(listener1).toHaveBeenCalled();
     expect(listener2).toHaveBeenCalled();
+  });
+
+  it("emits resume event on sound when resuming from pause", () => {
+    const listener = vi.fn();
+    sound.on("resume", listener);
+    sound.play();
+    sound.pause();
+    sound.resume();
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("emits ended event on sound when playback ends naturally", () => {
+    const listener = vi.fn();
+    sound.on("ended", listener);
+    const [playback] = sound.play();
+    // Simulate natural end via loopEnded callback
+    playback.loopEnded();
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("emits loopEnd event on sound when a loop iteration completes", () => {
+    const listener = vi.fn();
+    sound.on("loopEnd", listener);
+    const [playback] = sound.play();
+    playback.loop(2);
+    // Simulate first loop iteration ending
+    playback.loopEnded();
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("emits resume event on playback when resuming from pause", () => {
+    const [playback] = sound.play();
+    const listener = vi.fn();
+    playback.on("resume", listener);
+    playback.pause();
+    playback.play();
+    expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("does not emit resume event on playback for initial play", () => {
+    const [playback] = sound.preplay();
+    const listener = vi.fn();
+    playback.on("resume", listener);
+    playback.play();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("emits ended event on playback when it ends naturally", () => {
+    const [playback] = sound.play();
+    const listener = vi.fn();
+    playback.on("ended", listener);
+    playback.loopEnded();
+    expect(listener).toHaveBeenCalledOnce();
   });
 });
