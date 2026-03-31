@@ -351,6 +351,7 @@ export class Cacophony {
   pause(): void {
     if ("suspend" in this.context) {
       this.context.suspend();
+      this.emit("suspend", undefined);
     }
   }
 
@@ -363,6 +364,7 @@ export class Cacophony {
   resume() {
     if ("resume" in this.context) {
       this.context.resume();
+      this.emit("resume", undefined);
     }
   }
 
@@ -386,12 +388,14 @@ export class Cacophony {
     if (!this.muted) {
       this.prevVolume = this.globalGainNode.gain.value;
       this.setGlobalVolume(0);
+      this.emit("mute", undefined);
     }
   }
 
   unmute() {
     if (this.muted) {
       this.setGlobalVolume(this.prevVolume);
+      this.emit("unmute", undefined);
     }
   }
 

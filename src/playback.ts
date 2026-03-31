@@ -47,6 +47,7 @@ export class Playback extends BasePlayback implements BaseSound {
   private _playbackRate: number = 1;
   _fadeInConfig?: { duration: number; type: FadeType; perLoop: boolean; targetVolume: number };
   _fadeOutConfig?: { duration: number; type: FadeType };
+  _loopEndCallback?: () => void;
 
   /**
    * Creates an instance of the Playback class.
@@ -158,7 +159,8 @@ export class Playback extends BasePlayback implements BaseSound {
     this.currentLoop++;
 
     if (this.loopCount !== "infinite" && this.currentLoop > this.loopCount) {
-      // Final iteration -- either fade out or stop immediately
+      // Final iteration -- emit ended, then either fade out or stop immediately
+      this.emit("ended", undefined);
       if (this._fadeOutConfig) {
         this.fadeOut(this._fadeOutConfig.duration, this._fadeOutConfig.type).then(() => {
           this.stop();
@@ -169,6 +171,7 @@ export class Playback extends BasePlayback implements BaseSound {
         this.removeFromOrigin();
       }
     } else {
+      this._loopEndCallback?.();
       this.seek(0); // Resets offset and handles play/pause state internally.
       // seek() calls pause() then play() when wasPlaying is true,
       // so play() handles both media-element and buffer sources correctly.
@@ -200,6 +203,8 @@ export class Playback extends BasePlayback implements BaseSound {
     if (this._state === PlaybackState.Playing) {
       return [this];
     }
+
+    const isResume = this._state === PlaybackState.Paused;
 
     try {
       let mediaPlayPromise: Promise<void> | undefined;
@@ -235,6 +240,9 @@ export class Playback extends BasePlayback implements BaseSound {
             this._startTime = this.context.currentTime;
             this._state = PlaybackState.Playing;
             this.emit("play", this);
+            if (isResume) {
+              this.emit("resume", undefined);
+            }
             this.origin.cacophony?.emit("globalPlay", {
               source: this.origin,
               timestamp: Date.now(),
@@ -255,6 +263,9 @@ export class Playback extends BasePlayback implements BaseSound {
         this._startTime = this.context.currentTime;
         this._state = PlaybackState.Playing;
         this.emit("play", this);
+        if (isResume) {
+          this.emit("resume", undefined);
+        }
         this.origin.cacophony?.emit("globalPlay", {
           source: this.origin,
           timestamp: Date.now(),
