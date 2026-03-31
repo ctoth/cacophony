@@ -101,11 +101,11 @@ export class MicrophonePlayback extends FilterManager {
   }
 
   private refreshFilters(): void {
-    if (!this.source || !this.gainNode) {
+    if (!this.panner || !this.gainNode) {
       throw new Error("Cannot update filters on a sound that has been cleaned up");
     }
-    let connection = this.source;
-    this.source.disconnect();
+    let connection = this.panner;
+    connection.disconnect();
     connection = this.applyFilters(connection);
     connection.connect(this.gainNode);
   }
