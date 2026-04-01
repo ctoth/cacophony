@@ -1,6 +1,6 @@
 import { type BaseSound, type Cacophony, type PanType, SoundType } from "./cacophony";
 import { PlaybackContainer } from "./container";
-import type { AudioContext, GainNode, OscillatorNode } from "./context";
+import type { BaseContext, BiquadFilterNode, GainNode, OscillatorNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { SynthEvents } from "./events";
 import type { FilterCloneOverrides } from "./filters";
@@ -41,7 +41,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
   }
 
   constructor(
-    public context: AudioContext,
+    public context: BaseContext,
     private globalGainNode: GainNode,
     public soundType: SoundType = SoundType.Oscillator,
     public panType: PanType = "HRTF",

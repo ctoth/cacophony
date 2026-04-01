@@ -1,20 +1,12 @@
-import {
-  AudioContext,
-  AudioWorkletNode,
-  type IAudioListener,
-  type IPannerNode,
-  type IPannerOptions,
-} from "standardized-audio-context";
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
 import { AudioCache, type ICache } from "./cache";
-import type { AudioBuffer, GainNode } from "./context";
+import type { AudioBuffer, AudioListener, BaseContext, BiquadFilterNode, GainNode, PannerNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { CacophonyEvents } from "./events";
 import { Group } from "./group";
 import { MicrophoneStream } from "./microphone";
 import type { Playback } from "./playback";
 import { Sound } from "./sound";
-import { createStream } from "./stream";
 import { Synth } from "./synth";
 
 export enum SoundType {
@@ -23,8 +15,6 @@ export enum SoundType {
   Buffer = "Buffer",
   Oscillator = "oscillator",
 }
-
-type PannerNode = IPannerNode<AudioContext>;
 
 /**
  * Represents a 3D position in space.
@@ -93,26 +83,83 @@ export interface BaseSound {
   stopWithFade?(duration: number, type?: FadeType): Promise<void>;
 }
 
+/**
+ * Options for creating an offline audio context.
+ */
+export interface OfflineOptions {
+  numberOfChannels: number;
+  length: number;
+  sampleRate: number;
+  context?: BaseContext & { startRendering(): Promise<AudioBuffer> };
+}
+
+export interface RuntimeOptions {
+  createAudioWorkletNode?: (context: BaseContext, name: string) => any;
+}
+
 export class Cacophony {
-  context: AudioContext;
+  context: BaseContext;
   globalGainNode: GainNode;
-  listener: IAudioListener;
+  listener: AudioListener;
   private prevVolume: number = 1;
   private finalizationRegistry: FinalizationRegistry<Playback>;
   private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
+  private createAudioWorkletNode: (context: BaseContext, name: string) => any;
 
-  constructor(context?: AudioContext, cache?: ICache) {
+  constructor(context?: BaseContext, cache?: ICache, runtimeOptions: RuntimeOptions = {}) {
     this.context = context || new AudioContext();
     this.listener = this.context.listener;
     this.globalGainNode = this.context.createGain();
     this.globalGainNode.connect(this.context.destination);
     this.cache = cache || new AudioCache();
+    this.createAudioWorkletNode =
+      runtimeOptions.createAudioWorkletNode ||
+      ((workletContext, name) => new AudioWorkletNode(workletContext as any, name));
 
     this.finalizationRegistry = new FinalizationRegistry((heldValue) => {
       // Cleanup callback for Playbacks
       heldValue.cleanup();
     });
+  }
+
+  /**
+   * Creates a Cacophony instance backed by an OfflineAudioContext.
+   * Use this for rendering, bouncing, precomputing processed output,
+   * or non-realtime scenarios.
+   *
+   * @param options - Offline context configuration (channels, length, sampleRate)
+   * @param cache - Optional cache implementation
+   * @returns A Cacophony instance backed by OfflineAudioContext
+   */
+  static createOffline(options: OfflineOptions, cache?: ICache): Cacophony {
+    const offlineContext =
+      options.context || new OfflineAudioContext(options.numberOfChannels, options.length, options.sampleRate);
+    return new Cacophony(offlineContext, cache);
+  }
+
+  /**
+   * Returns true if this instance is backed by an offline audio context
+   * (i.e., the context has a startRendering method).
+   */
+  get isOffline(): boolean {
+    return typeof this.context.startRendering === "function";
+  }
+
+  /**
+   * Renders the offline audio graph to a buffer.
+   * Only available when the context has a startRendering method.
+   *
+   * @returns Promise that resolves to the rendered AudioBuffer
+   * @throws Error if the context does not support offline rendering
+   */
+  async startRendering(): Promise<AudioBuffer> {
+    if (typeof this.context.startRendering !== "function") {
+      throw new Error(
+        "startRendering() is only available on offline audio contexts. Use Cacophony.createOffline() to create one.",
+      );
+    }
+    return this.context.startRendering();
   }
 
   /**
@@ -152,7 +199,7 @@ export class Cacophony {
       throw new Error("AudioWorklet not supported");
     }
     try {
-      return new AudioWorkletNode!(this.context, name);
+      return this.createAudioWorkletNode(this.context, name);
     } catch (err) {
       console.error(err);
       console.log("Loading worklet from url", url);
@@ -166,7 +213,7 @@ export class Cacophony {
         throw err; // Preserve original error (including AbortError)
       }
 
-      return new AudioWorkletNode!(this.context, name);
+      return this.createAudioWorkletNode(this.context, name);
     }
   }
 
@@ -270,9 +317,6 @@ export class Cacophony {
    * @returns Promise that resolves to a Sound instance for streaming
    */
   async createStream(url: string, signal?: AbortSignal): Promise<Sound> {
-    // Start the streaming process with AbortSignal support
-    createStream(url, this.context, signal);
-
     const sound = new Sound(url, undefined, this.context, this.globalGainNode, SoundType.Streaming, "HRTF", this);
     return sound;
   }
@@ -286,8 +330,7 @@ export class Cacophony {
     filter.frequency.value = frequency;
     filter.gain.value = gain || 0;
     filter.Q.value = Q || 1;
-    // @ts-expect-error
-    return filter as BiquadFilterNode;
+    return filter;
   };
 
   /**
@@ -323,7 +366,7 @@ export class Cacophony {
     orientationX,
     orientationY,
     orientationZ,
-  }: Partial<IPannerOptions>): PannerNode {
+  }: Partial<PannerOptions>): PannerNode {
     const panner = this.context.createPanner();
     panner.coneInnerAngle = coneInnerAngle || 360;
     panner.coneOuterAngle = coneOuterAngle || 360;
@@ -349,7 +392,7 @@ export class Cacophony {
    * Suspends the audio context.
    */
   pause(): void {
-    if ("suspend" in this.context) {
+    if (this.context.suspend) {
       this.context.suspend();
       this.emit("suspend", undefined);
     }
@@ -362,7 +405,7 @@ export class Cacophony {
    */
 
   resume() {
-    if ("resume" in this.context) {
+    if (this.context.resume) {
       this.context.resume();
       this.emit("resume", undefined);
     }

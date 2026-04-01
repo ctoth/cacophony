@@ -1,4 +1,4 @@
-import type { AudioContext, IAudioBuffer } from "standardized-audio-context";
+import type { AudioBuffer, BaseContext } from "./context";
 
 const appendBuffer = (buffer1: ArrayBuffer, buffer2: ArrayBuffer): ArrayBuffer => {
   var tmp = new Uint8Array(buffer1.byteLength + buffer2.byteLength);
@@ -7,8 +7,8 @@ const appendBuffer = (buffer1: ArrayBuffer, buffer2: ArrayBuffer): ArrayBuffer =
   return tmp.buffer;
 };
 
-export function createStream(url: string, context: AudioContext, signal?: AbortSignal) {
-  const audioStack: IAudioBuffer[] = [];
+export function createStream(url: string, context: BaseContext, signal?: AbortSignal) {
+  const audioStack: AudioBuffer[] = [];
   let nextTime = 0;
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 

@@ -1,5 +1,6 @@
 import type { BasePlayback } from "basePlayback";
 import type { FadeType, Position } from "./cacophony";
+import type { BiquadFilterNode } from "./context";
 import type { FilterManager } from "./filters";
 
 type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;

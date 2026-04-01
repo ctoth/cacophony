@@ -39,9 +39,8 @@ describe("Stream control integration", () => {
     expect(sound.soundType).toBe(SoundType.Streaming);
   });
 
-  it("returned Sound has no buffer (stream is fire-and-forget)", async () => {
+  it("returned Sound has no buffer", async () => {
     const sound = await cacophony.createStream("https://example.com/audio.wav");
-    // The Sound has no buffer — it was created as a Streaming type shell
     expect(sound.buffer).toBeUndefined();
   });
 
@@ -52,14 +51,14 @@ describe("Stream control integration", () => {
     expect(playbacks).toHaveLength(1);
   });
 
-  it("createStream initiates fetch to the URL", async () => {
+  it("createStream does not initiate fetch before playback", async () => {
     await cacophony.createStream("https://example.com/audio.wav");
-    expect(global.fetch).toHaveBeenCalledWith("https://example.com/audio.wav", undefined);
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it("createStream passes AbortSignal to fetch", async () => {
+  it("createStream does not use AbortSignal until playback starts", async () => {
     const controller = new AbortController();
     await cacophony.createStream("https://example.com/audio.wav", controller.signal);
-    expect(global.fetch).toHaveBeenCalledWith("https://example.com/audio.wav", { signal: controller.signal });
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 });

@@ -20,7 +20,15 @@
 
 import { BasePlayback } from "./basePlayback";
 import type { BaseSound, FadeType, LoopCount, PanType } from "./cacophony";
-import type { AudioBuffer, AudioContext, GainNode, SourceNode } from "./context";
+import type {
+  AudioBuffer,
+  AudioNode,
+  AudioParam,
+  BaseContext,
+  BiquadFilterNode,
+  GainNode,
+  SourceNode,
+} from "./context";
 import type { Sound } from "./sound";
 
 type PlaybackCloneOverrides = {
@@ -36,7 +44,7 @@ enum PlaybackState {
 }
 
 export class Playback extends BasePlayback implements BaseSound {
-  private context: AudioContext;
+  private context: BaseContext;
   public declare source?: SourceNode;
   loopCount: LoopCount = 0;
   currentLoop: number = 0;
@@ -628,6 +636,9 @@ export class Playback extends BasePlayback implements BaseSound {
       source = this.context.createBufferSource();
       source.buffer = this.source.buffer;
     } else if ("mediaElement" in this.source && this.source.mediaElement) {
+      if (!this.context.createMediaElementSource) {
+        throw new Error("Media element sources are not supported on this audio context.");
+      }
       source = this.context.createMediaElementSource(this.source.mediaElement);
     } else {
       throw new Error("Unsupported source type");

@@ -1,5 +1,5 @@
 import type { BaseSound } from "./cacophony";
-import type { AudioContext, GainNode, OscillatorNode } from "./context";
+import type { BaseContext, GainNode, OscillatorNode } from "./context";
 import { FilterManager } from "./filters";
 import { OscillatorMixin } from "./oscillatorMixin";
 import { PannerMixin } from "./pannerMixin";
@@ -7,7 +7,7 @@ import type { Synth } from "./synth";
 import { VolumeMixin } from "./volumeMixin";
 
 export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(FilterManager))) implements BaseSound {
-  context: AudioContext;
+  context: BaseContext;
   constructor(
     public origin: Synth,
     public source: OscillatorNode,

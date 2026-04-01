@@ -46,7 +46,21 @@
       window.cacophony = new Cacophony();
       window.sound = null;
       window.soundState = "stopped";
+      window.isLoading = false;
       let progressInterval;
+
+      const formatBytes = (bytes) => {
+        if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+        const units = ["B", "KB", "MB", "GB"];
+        const unitIndex = Math.min(
+          Math.floor(Math.log(bytes) / Math.log(1024)),
+          units.length - 1
+        );
+        const value = bytes / 1024 ** unitIndex;
+        return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${
+          units[unitIndex]
+        }`;
+      };
 
       window.onload = () => {
         const playPauseButton = document.getElementById("playPauseSound");
@@ -59,19 +73,56 @@
         );
         const progressFill = document.getElementById("progressFill");
         const errorMessage = document.getElementById("errorMessage");
+        const loadingStatus = document.getElementById("loadingStatus");
 
         window.updateUIState = () => {
           playPauseButton.textContent =
             window.soundState === "playing" ? "Pause" : "Play";
-          soundStateIndicator.textContent = `Sound State: ${window.soundState}`;
+          soundStateIndicator.textContent = `Sound State: ${
+            window.isLoading ? "loading" : window.soundState
+          }`;
+          loadButton.disabled = window.isLoading;
+          loadButton.textContent = window.isLoading
+            ? "Loading..."
+            : "Load Sound";
           stopButton.disabled = window.soundState === "stopped";
-          playPauseButton.disabled = !window.sound;
-          rewindButton.disabled = !window.sound;
-          fastForwardButton.disabled = !window.sound;
+          playPauseButton.disabled = !window.sound || window.isLoading;
+          rewindButton.disabled = !window.sound || window.isLoading;
+          fastForwardButton.disabled = !window.sound || window.isLoading;
           document.querySelectorAll(".control").forEach((control) => {
-            control.disabled = !window.sound;
+            control.disabled = !window.sound || window.isLoading;
           });
         };
+
+        window.cacophony.on("loadingStart", ({ url }) => {
+          window.isLoading = true;
+          loadingStatus.textContent = `Loading ${url}...`;
+          progressFill.style.width = "0%";
+          window.updateUIState();
+        });
+
+        window.cacophony.on("loadingProgress", ({ loaded, total, progress }) => {
+          const progressPercent =
+            progress >= 0 ? `${Math.round(progress * 100)}%` : "Streaming";
+          loadingStatus.textContent = `Loading ${formatBytes(
+            loaded
+          )}${total ? ` of ${formatBytes(total)}` : ""} (${progressPercent})`;
+          if (progress >= 0) {
+            progressFill.style.width = `${progress * 100}%`;
+          }
+        });
+
+        window.cacophony.on("loadingComplete", () => {
+          loadingStatus.textContent = "Download complete. Decoding audio...";
+          progressFill.style.width = "100%";
+        });
+
+        window.cacophony.on("loadingError", () => {
+          window.isLoading = false;
+          loadingStatus.textContent = "";
+          progressFill.style.width = "0%";
+          window.updateUIState();
+        });
 
         window.updateProgressBar = () => {
           if (
@@ -93,6 +144,16 @@
             'input[name="soundType"]:checked'
           ).value;
           try {
+            window.isLoading = true;
+            window.sound = null;
+            errorMessage.textContent = "";
+            loadingStatus.textContent =
+              soundType === "buffer"
+                ? `Loading ${soundUrl} in buffer mode...`
+                : `Preparing ${soundUrl}...`;
+            progressFill.style.width = "0%";
+            window.updateUIState();
+
             switch (soundType) {
               case "oscillator":
                 if (
@@ -117,16 +178,21 @@
                 );
                 break;
             }
+            window.isLoading = false;
+            loadingStatus.textContent =
+              soundType === "buffer" ? `Loaded ${soundUrl}` : "";
             errorMessage.textContent = "";
             window.updateUIState();
           } catch (error) {
+            window.isLoading = false;
+            loadingStatus.textContent = "";
             errorMessage.textContent = `Error: ${error.message}`;
             window.sound = undefined;
             window.updateUIState();
           }
         };
 
-        window.togglePlayPause = () => {
+        window.togglePlayPause = async () => {
           if (!window.sound) return;
 
           if (window.soundState === "playing") {
@@ -136,6 +202,9 @@
             window.soundState = "paused";
             clearInterval(progressInterval);
           } else {
+            if (typeof window.cacophony.resume === "function") {
+              await window.cacophony.resume();
+            }
             if (sound.playbacks.length) {
               const playback =
                 window.sound.playbacks[window.sound.playbacks.length - 1];
@@ -316,6 +385,7 @@
     <div id="progressBar">
       <div id="progressFill"></div>
     </div>
+    <div id="loadingStatus"></div>
     <div class="control-group">
       <label for="volume">Volume:</label>
       <input

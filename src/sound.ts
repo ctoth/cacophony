@@ -23,7 +23,7 @@
 
 import { type BaseSound, type Cacophony, type LoopCount, type PanType, type PlayOptions, SoundType } from "./cacophony";
 import { PlaybackContainer } from "./container";
-import type { AudioBuffer, AudioContext, GainNode, SourceNode } from "./context";
+import type { AudioBuffer, BaseContext, BiquadFilterNode, GainNode, SourceNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { SoundEvents } from "./events";
 import { FilterManager } from "./filters";
@@ -41,7 +41,7 @@ type SoundCloneOverrides = PanCloneOverrides &
 export class Sound extends PlaybackContainer(FilterManager) implements BaseSound {
   public declare playbacks: Playback[];
   buffer?: AudioBuffer;
-  context: AudioContext;
+  context: BaseContext;
   loopCount: LoopCount = 0;
   private _playbackRate: number = 1;
   private eventEmitter: TypedEventEmitter<SoundEvents> = new TypedEventEmitter<SoundEvents>();
@@ -49,7 +49,7 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
   constructor(
     public url: string,
     buffer: AudioBuffer | undefined,
-    context: AudioContext,
+    context: BaseContext,
     private globalGainNode: GainNode,
     public soundType: SoundType = SoundType.Buffer,
     public panType: PanType = "HRTF",
@@ -149,6 +149,11 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
         source = this.context.createBufferSource();
         source.buffer = this.buffer;
       } else {
+        if (!this.context.createMediaElementSource) {
+          throw new Error(
+            "Media element sources are not supported on this audio context (e.g. OfflineAudioContext). Use buffer-based sounds instead.",
+          );
+        }
         const audio = new Audio();
         audio.crossOrigin = "anonymous";
         audio.src = this.url;

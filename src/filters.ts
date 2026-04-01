@@ -1,3 +1,5 @@
+import type { BiquadFilterNode } from "./context";
+
 export type FilterCloneOverrides = {
   filters?: BiquadFilterNode[];
 };
