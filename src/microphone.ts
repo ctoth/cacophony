@@ -1,14 +1,14 @@
 import type { BaseSound, LoopCount, Position } from "./cacophony";
-import type { AudioContext, GainNode, MediaStreamAudioSourceNode, PannerNode } from "./context";
+import type { BaseContext, BiquadFilterNode, GainNode, MediaStreamAudioSourceNode, PannerNode } from "./context";
 import { FilterManager } from "./filters";
 
 export class MicrophonePlayback extends FilterManager {
-  private context: AudioContext;
+  private context: BaseContext;
   private source?: MediaStreamAudioSourceNode;
   private gainNode?: GainNode;
   private panner?: PannerNode;
 
-  constructor(source: MediaStreamAudioSourceNode, gainNode: GainNode, context: AudioContext, loopCount: LoopCount = 0) {
+  constructor(source: MediaStreamAudioSourceNode, gainNode: GainNode, context: BaseContext, loopCount: LoopCount = 0) {
     super();
     this.source = source;
     this.gainNode = gainNode;
@@ -119,7 +119,7 @@ export class MicrophonePlayback extends FilterManager {
 }
 
 export class MicrophoneStream extends FilterManager implements BaseSound {
-  context: AudioContext;
+  context: BaseContext;
   private _position: Position = [0, 0, 0];
   loopCount: LoopCount = 0;
   private prevVolume: number = 1;
@@ -128,14 +128,21 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
   private stream: MediaStream | undefined;
   private streamSource?: MediaStreamAudioSourceNode;
 
-  constructor(context: AudioContext, stream?: MediaStream) {
+  constructor(context: BaseContext, stream?: MediaStream) {
     super();
     this.context = context;
     this.microphoneGainNode = this.context.createGain();
     if (stream) {
       this.stream = stream;
-      this.streamSource = this.context.createMediaStreamSource(stream);
+      this.streamSource = this.createStreamSource(stream);
     }
+  }
+
+  private createStreamSource(stream: MediaStream): MediaStreamAudioSourceNode {
+    if (!this.context.createMediaStreamSource) {
+      throw new Error("Media stream sources are not supported on this audio context (e.g. OfflineAudioContext).");
+    }
+    return this.context.createMediaStreamSource(stream);
   }
 
   play(): MicrophonePlayback[] {
@@ -144,7 +151,7 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
         .getUserMedia({ audio: true })
         .then((stream) => {
           this.stream = stream;
-          this.streamSource = this.context.createMediaStreamSource(this.stream);
+          this.streamSource = this.createStreamSource(this.stream);
           this.streamPlayback = new MicrophonePlayback(this.streamSource, this.microphoneGainNode, this.context);
           this.streamPlayback.play();
         })
@@ -154,7 +161,7 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
       return [];
     }
     if (!this.streamPlayback) {
-      this.streamSource = this.streamSource ?? this.context.createMediaStreamSource(this.stream);
+      this.streamSource = this.streamSource ?? this.createStreamSource(this.stream);
       this.streamPlayback = new MicrophonePlayback(this.streamSource, this.microphoneGainNode, this.context);
     }
     return [this.streamPlayback];

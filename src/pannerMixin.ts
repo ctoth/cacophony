@@ -1,5 +1,5 @@
 import type { PanType, Position } from "./cacophony";
-import type { AudioContext, PannerNode, StereoPannerNode } from "./context";
+import type { BaseContext, PannerNode, StereoPannerNode } from "./context";
 import type { FilterManager } from "./filters";
 
 export type PanCloneOverrides = {
@@ -20,7 +20,7 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
       return this._panType;
     }
 
-    setPanType(panType: PanType, audioContext: AudioContext) {
+    setPanType(panType: PanType, audioContext: BaseContext) {
       if (this._panType === panType && this.panner) {
         // If the pan type is already set and a panner exists, do nothing
         return;

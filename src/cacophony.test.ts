@@ -2,17 +2,7 @@ import { AudioBuffer } from "standardized-audio-context-mock";
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, test, vi } from "vitest";
 
-// Mock standardized-audio-context to provide a mockable AudioWorkletNode
-vi.mock("standardized-audio-context", async () => {
-  const actual = await vi.importActual("standardized-audio-context");
-  return {
-    ...actual,
-    AudioWorkletNode: vi.fn(),
-  };
-});
-
-import { AudioWorkletNode } from "standardized-audio-context";
-import { SoundType } from "./cacophony";
+import { Cacophony, SoundType } from "./cacophony";
 import { Group } from "./group";
 import { audioContextMock, cacophony, mockCache } from "./setupTests";
 import { Sound } from "./sound";
@@ -409,6 +399,42 @@ describe("Cacophony advanced features", () => {
         credentials: "same-origin",
         signal: controller.signal,
       });
+    });
+
+    it("createWorkletNode uses the configured constructor for non-native contexts", async () => {
+      const createAudioWorkletNode = vi
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error("Worklet not loaded");
+        })
+        .mockImplementationOnce(
+          () =>
+            ({
+              connect: vi.fn(),
+              disconnect: vi.fn(),
+              port: {
+                postMessage: vi.fn(),
+                addEventListener: vi.fn(),
+              },
+            }) as any,
+        );
+
+      const cacophonyWithCustomWorkletNode = new Cacophony(audioContextMock, mockCache, {
+        createAudioWorkletNode,
+      });
+      const nativeConstructorSpy = vi.mocked(AudioWorkletNode).mockImplementation(() => {
+        throw new Error("Native AudioWorkletNode should not be used for non-native contexts");
+      });
+
+      await cacophonyWithCustomWorkletNode.createWorkletNode("test-worklet", "https://example.com/worklet.js");
+
+      expect(createAudioWorkletNode).toHaveBeenCalledTimes(2);
+      expect(nativeConstructorSpy).not.toHaveBeenCalled();
+      expect(mockAudioWorklet.addModule).toHaveBeenCalledWith("https://example.com/worklet.js", {
+        credentials: "same-origin",
+      });
+
+      nativeConstructorSpy.mockRestore();
     });
 
     it("createWorkletNode handles AbortError during addModule", async () => {

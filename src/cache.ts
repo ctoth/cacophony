@@ -1,4 +1,4 @@
-import type { AudioContext } from "./context";
+import type { BaseContext } from "./context";
 
 class LRUCache<K, V> {
   private maxSize: number;
@@ -71,7 +71,7 @@ function requiresRevalidation(cacheControlHeader: string | undefined): boolean {
 
 export interface ICache {
   getAudioBuffer(
-    context: AudioContext,
+    context: BaseContext,
     url: string,
     signal?: AbortSignal,
     callbacks?: {
@@ -510,7 +510,7 @@ export class AudioCache implements ICache {
     }
   }
 
-  private static async decodeAudioData(context: AudioContext, arrayBuffer: ArrayBuffer): Promise<AudioBuffer> {
+  private static async decodeAudioData(context: BaseContext, arrayBuffer: ArrayBuffer): Promise<AudioBuffer> {
     try {
       return await context.decodeAudioData(arrayBuffer);
     } catch (error) {
@@ -551,7 +551,7 @@ export class AudioCache implements ICache {
    * @throws Error if audio cannot be fetched or decoded
    */
   public async getAudioBuffer(
-    context: AudioContext,
+    context: BaseContext,
     url: string,
     signal?: AbortSignal,
     callbacks?: {
