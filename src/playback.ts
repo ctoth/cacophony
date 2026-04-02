@@ -485,6 +485,18 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source) {
       return; // Already cleaned up
     }
+    if ("mediaElement" in this.source && this.source.mediaElement) {
+      this.source.mediaElement.pause();
+      this.source.mediaElement.currentTime = 0;
+      this.source.mediaElement.loop = false;
+      this.source.mediaElement.onended = null;
+    } else if ("onended" in this.source) {
+      this.source.onended = null;
+    }
+    this._offset = 0;
+    this._startTime = 0;
+    this._state = PlaybackState.Stopped;
+    this.currentLoop = 0;
     this.source.disconnect();
     this.source = undefined;
     super.cleanup();
