@@ -441,9 +441,12 @@ const footsteps = await cacophony.createGroupFromUrls([
 
 footsteps.playRandom();  // Picks one at random
 
-// Play sounds in sequence
+// Advance through sounds in sequence, one call at a time
 const dialog = await cacophony.createGroupFromUrls(['line1.mp3', 'line2.mp3', 'line3.mp3']);
-dialog.playOrdered(true);  // Plays: 1, 2, 3, 1, 2, 3...
+dialog.playOrdered(true);   // Plays line1, then advances internal order
+dialog.playOrdered(true);   // Plays line2
+dialog.playOrdered(true);   // Plays line3
+dialog.playOrdered(true);   // Plays line1 again because looping is enabled
 
 // SynthGroup for synthesizers
 const synthGroup = new SynthGroup();
