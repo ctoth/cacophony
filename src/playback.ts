@@ -127,6 +127,15 @@ export class Playback extends BasePlayback implements BaseSound {
     return this._playbackRate;
   }
 
+  get volume(): number {
+    return super.volume;
+  }
+
+  set volume(volume: number) {
+    super.volume = volume;
+    this.emit("volumeChange", volume);
+  }
+
   /**
    * Sets the playback rate of the audio.
    * @param {number} rate - The playback rate to set.

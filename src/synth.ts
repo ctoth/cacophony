@@ -154,6 +154,15 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     this.cacophony?.emit("globalPlay", { source: this, timestamp: Date.now() });
   }
 
+  get volume(): number {
+    return super.volume;
+  }
+
+  set volume(volume: number) {
+    super.volume = volume;
+    this.emit("volumeChange", volume);
+  }
+
   get oscillatorOptions(): Partial<OscillatorOptions> {
     return this._oscillatorOptions;
   }

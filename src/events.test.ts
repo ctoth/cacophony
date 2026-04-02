@@ -121,6 +121,16 @@ describe("Synth event system", () => {
     expect(listener1).toHaveBeenCalled();
     expect(listener2).toHaveBeenCalled();
   });
+
+  it("emits volumeChange event when synth volume is changed", () => {
+    return new Promise<void>((resolve) => {
+      synth.on("volumeChange", (volume) => {
+        expect(volume).toBe(0.5);
+        resolve();
+      });
+      synth.volume = 0.5;
+    });
+  });
 });
 
 afterAll(() => {
@@ -328,5 +338,16 @@ describe("Event system", () => {
     playback.on("ended", listener);
     playback.loopEnded();
     expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("emits volumeChange event on playback when volume is changed", () => {
+    return new Promise<void>((resolve) => {
+      const [playback] = sound.play();
+      playback.on("volumeChange", (volume) => {
+        expect(volume).toBe(0.25);
+        resolve();
+      });
+      playback.volume = 0.25;
+    });
   });
 });
