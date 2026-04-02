@@ -452,7 +452,10 @@ const synth2 = cacophony.createOscillator({ frequency: 660, type: 'square' });
 synthGroup.addSynth(synth1);
 synthGroup.addSynth(synth2);
 synthGroup.play();
-synthGroup.setVolume(0.5);
+synthGroup.volume = 0.5;
+synthGroup.type = 'triangle';
+synthGroup.pause();
+synthGroup.resume();
 
 // Remove a synth from the group
 synthGroup.removeSynth(synth1);
