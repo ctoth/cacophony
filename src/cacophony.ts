@@ -398,7 +398,7 @@ export class Cacophony {
 
   /**
    * Creates a PannerNode with the specified options.
-   * @param {IPannerOptions} options - An object containing the options to use when creating the PannerNode.
+   * @param {PannerOptions} options - An object containing the options to use when creating the PannerNode.
    * @returns {PannerNode} A new PannerNode instance with the specified options.
    * @example
    * const panner = audio.createPanner({

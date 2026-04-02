@@ -76,7 +76,7 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
 
     /**
      * Gets the 3D audio options if HRTF panning is used.
-     * @returns {IPannerOptions} The current 3D audio options.
+     * @returns {PannerOptions} The current 3D audio options.
      * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
      */
 
@@ -111,7 +111,7 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
 
     /**
      * Sets the 3D audio options for HRTF panning.
-     * @param {Partial<IPannerOptions>} options - The 3D audio options to set.
+     * @param {Partial<PannerOptions>} options - The 3D audio options to set.
      * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
      */
     set threeDOptions(options: Partial<PannerOptions>) {

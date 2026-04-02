@@ -1,6 +1,6 @@
 /**
  * The Playback class encapsulates the functionality for playing audio in a web application.
- * It integrates with the standardized-audio-context library to provide a cross-browser way to handle audio.
+ * It integrates with the repo's audio-context abstractions so playback works across native and mocked contexts.
  * This class allows for the manipulation of audio playback through various features such as:
  * - Playing and stopping audio
  * - Looping audio a specific number of times or infinitely
