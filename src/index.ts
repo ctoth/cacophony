@@ -1,3 +1,4 @@
+export { AudioCache } from "./cache";
 export * from "./cacophony";
 export type {
   AudioBuffer,
