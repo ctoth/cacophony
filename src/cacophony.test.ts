@@ -653,6 +653,21 @@ describe("Cacophony advanced features", () => {
       });
     });
 
+    it("emits globalPlay again when a Synth resumes", () => {
+      const synth = cacophony.createOscillator({ frequency: 440, type: "sine" });
+      const order: string[] = [];
+
+      cacophony.on("globalPlay", () => order.push("play"));
+      cacophony.on("globalPause", () => order.push("pause"));
+      cacophony.on("globalStop", () => order.push("stop"));
+
+      synth.play();
+      synth.pause();
+      synth.resume();
+
+      expect(order).toEqual(["play", "pause", "play"]);
+    });
+
     it("emits multiple global events for multiple sounds", async () => {
       const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
       const sound1 = await cacophony.createSound(buffer);

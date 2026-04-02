@@ -49,6 +49,31 @@ describe("Synth event system", () => {
     });
   });
 
+  it("emits resume event when synth is resumed", () => {
+    return new Promise<void>((resolve) => {
+      synth.on("resume", () => {
+        expect(synth.isPlaying).toBe(true);
+        resolve();
+      });
+      synth.play();
+      synth.pause();
+      synth.resume();
+    });
+  });
+
+  it("does not emit stop when a synth is paused and resumed", () => {
+    const order: string[] = [];
+    synth.on("pause", () => order.push("pause"));
+    synth.on("resume", () => order.push("resume"));
+    synth.on("stop", () => order.push("stop"));
+
+    synth.play();
+    synth.pause();
+    synth.resume();
+
+    expect(order).toEqual(["pause", "resume"]);
+  });
+
   it("emits frequencyChange event when frequency is changed", () => {
     return new Promise<void>((resolve) => {
       synth.on("frequencyChange", (freq) => {

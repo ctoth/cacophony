@@ -490,7 +490,13 @@ setInterval(() => {
   sineOsc.frequency = frequency;
   time += 0.1;
 }, 50);
+
+// Pause and resume the active synth playback without losing its settings
+sineOsc.pause();
+sineOsc.resume();
 ```
+
+`synth.pause()` keeps the existing synth playback object so `synth.resume()` can restart it with the current frequency, detune, type, volume, pan, and filter settings. `synth.play()` still creates a fresh playback instance, just like `Sound.play()`.
 
 ## 3D Audio Positioning
 

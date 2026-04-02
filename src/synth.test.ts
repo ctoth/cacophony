@@ -34,6 +34,67 @@ describe("Synth class", () => {
     expect(playbacks[0].isPlaying).toBe(false);
   });
 
+  it("can pause and resume a synth without replacing the playback object", () => {
+    synth = new Synth(audioContextMock, audioContextMock.createGain(), SoundType.Oscillator, "stereo", {
+      frequency: 220,
+      detune: 5,
+      type: "triangle",
+    });
+    synth.volume = 0.4;
+    synth.stereoPan = -0.25;
+
+    const filter = audioContextMock.createBiquadFilter();
+    filter.type = "highpass";
+    filter.frequency.value = 900;
+    synth.addFilter(filter);
+
+    const [playback] = synth.play();
+    const originalSource = playback.source;
+
+    synth.pause();
+    synth.resume();
+
+    expect(synth.playbacks).toHaveLength(1);
+    expect(synth.playbacks[0]).toBe(playback);
+    expect(playback.source).not.toBe(originalSource);
+    expect(playback.isPlaying).toBe(true);
+    expect(playback.frequency).toBe(220);
+    expect(playback.detune).toBe(5);
+    expect(playback.type).toBe("triangle");
+    expect(playback.volume).toBe(0.4);
+    expect(playback.stereoPan).toBe(-0.25);
+    expect(playback.filters).toHaveLength(1);
+    expect(playback.filters[0].type).toBe("highpass");
+    expect(playback.filters[0].frequency.value).toBe(900);
+  });
+
+  it("applies synth and playback changes made while paused when resumed", () => {
+    const filter = audioContextMock.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.value = 1200;
+    synth.addFilter(filter);
+
+    const [playback] = synth.play();
+
+    synth.pause();
+    synth.frequency = 550;
+    synth.detune = -20;
+    synth.type = "square";
+    synth.volume = 0.6;
+    synth.position = [4, 5, 6];
+    playback.filters[0].Q.value = 7;
+
+    synth.resume();
+
+    expect(playback.isPlaying).toBe(true);
+    expect(playback.frequency).toBe(550);
+    expect(playback.detune).toBe(-20);
+    expect(playback.type).toBe("square");
+    expect(playback.volume).toBe(0.6);
+    expect(playback.position).toEqual([4, 5, 6]);
+    expect(playback.filters[0].Q.value).toBe(7);
+  });
+
   it("can set and get frequency", () => {
     synth.frequency = 880;
     expect(synth.frequency).toBe(880);
