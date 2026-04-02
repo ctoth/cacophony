@@ -16,6 +16,28 @@ describe("Media element play() rejection", () => {
     vi.restoreAllMocks();
   });
 
+  const setupHtmlSound = async (playImpl: ReturnType<typeof vi.fn>) => {
+    const mediaElement = {
+      play: playImpl,
+      pause: vi.fn(),
+      currentTime: 0,
+      duration: 10,
+      loop: false,
+      onended: null as (() => void) | null,
+      playbackRate: 1,
+    };
+
+    vi.mocked(global.Audio).mockImplementationOnce(() => mediaElement as any);
+    (audioContextMock as any).createMediaElementSource = vi.fn().mockImplementation(() => ({
+      mediaElement,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    }));
+
+    const htmlSound = await cacophony.createSound("https://example.com/html-audio.mp3", SoundType.HTML);
+    return { htmlSound, mediaElement };
+  };
+
   it("play() succeeds when mediaElement.play() resolves", () => {
     // Default createSound with URL uses buffer source — play is synchronous
     const playbacks = sound.play();
@@ -126,6 +148,68 @@ describe("Media element play() rejection", () => {
 
       expect(playback.isPlaying).toBe(false);
     });
+  });
+
+  it("emits sound play only after HTML playback is accepted, before globalPlay", async () => {
+    const order: string[] = [];
+    const { htmlSound } = await setupHtmlSound(vi.fn().mockResolvedValue(undefined));
+    const soundPlaySpy = vi.fn(() => {
+      order.push("sound:play");
+    });
+
+    htmlSound.on("play", soundPlaySpy);
+    cacophony.on("globalPlay", () => {
+      order.push("global:play");
+    });
+
+    const [playback] = htmlSound.play();
+
+    expect(soundPlaySpy).not.toHaveBeenCalled();
+    expect(order).toEqual([]);
+
+    await vi.waitFor(() => {
+      expect(soundPlaySpy).toHaveBeenCalledWith(playback);
+      expect(order).toEqual(["sound:play", "global:play"]);
+    });
+  });
+
+  it("does not emit sound play or globalPlay when HTML playback is rejected", async () => {
+    const rejectError = new DOMException("Autoplay blocked", "NotAllowedError");
+    const order: string[] = [];
+    const soundPlaySpy = vi.fn(() => {
+      order.push("sound:play");
+    });
+    const soundErrorSpy = vi.fn(() => {
+      order.push("sound:error");
+    });
+    const { htmlSound } = await setupHtmlSound(vi.fn().mockRejectedValue(rejectError));
+
+    htmlSound.on("play", soundPlaySpy);
+    htmlSound.on("soundError", soundErrorSpy);
+    cacophony.on("globalPlay", () => {
+      order.push("global:play");
+    });
+
+    const [playback] = htmlSound.play();
+    playback.on("error", () => {
+      order.push("playback:error");
+    });
+
+    expect(order).toEqual([]);
+
+    await vi.waitFor(() => {
+      expect(soundErrorSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: "https://example.com/html-audio.mp3",
+          error: rejectError,
+          errorType: "playback",
+          recoverable: true,
+        }),
+      );
+    });
+
+    expect(soundPlaySpy).not.toHaveBeenCalled();
+    expect(order).toEqual(["playback:error", "sound:error"]);
   });
 
   it("cleanup() tears down active HTML playback", async () => {
