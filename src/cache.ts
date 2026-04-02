@@ -281,7 +281,7 @@ export class AudioCache implements ICache {
         if (callbacks?.onCacheHit) {
           callbacks.onCacheHit({
             url,
-            cacheType: "browser" as const,
+            cacheType: "conditional" as const,
             timestamp: Date.now(),
           });
         }

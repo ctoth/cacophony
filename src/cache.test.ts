@@ -193,6 +193,53 @@ describe("AudioCache", () => {
     expect(headers.get("If-None-Match")).toBe(etag);
   });
 
+  it("reports conditional cache hits for successful 304 revalidation", async () => {
+    const url = "https://example.com/audio.mp3";
+    const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    const mockArrayBuffer = new ArrayBuffer(8);
+    const etag = '"123456"';
+    const onCacheHit = vi.fn();
+
+    AudioCache.setCacheExpirationTime(100);
+
+    const mockCache = {
+      match: vi.fn().mockImplementation((key) => {
+        if (key === `${url}:meta`) {
+          return Promise.resolve(
+            new Response(
+              JSON.stringify({
+                url,
+                etag,
+                timestamp: Date.now() - 1000,
+              }),
+            ),
+          );
+        }
+        return Promise.resolve(new Response(mockArrayBuffer));
+      }),
+      put: vi.fn(),
+      delete: vi.fn(),
+    };
+    mockCaches.open.mockResolvedValue(mockCache);
+
+    mockFetch.mockResolvedValueOnce({
+      status: 304,
+      ok: false,
+    } as Response);
+
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
+
+    await cache.getAudioBuffer(audioContextMock, url, undefined, { onCacheHit });
+
+    expect(onCacheHit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url,
+        cacheType: "conditional",
+        timestamp: expect.any(Number),
+      }),
+    );
+  });
+
   it("respects Cache-Control max-age for fresh content", async () => {
     const url = "https://example.com/audio.mp3";
     const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
