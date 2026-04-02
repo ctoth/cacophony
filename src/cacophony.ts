@@ -217,6 +217,77 @@ export class Cacophony {
     }
   }
 
+  private createAbortError(): DOMException {
+    return new DOMException("Operation was aborted", "AbortError");
+  }
+
+  private createMediaSound(
+    url: string,
+    soundType: SoundType.HTML | SoundType.Streaming,
+    panType: PanType,
+    signal?: AbortSignal,
+  ): Promise<Sound> {
+    if (signal?.aborted) {
+      return Promise.reject(this.createAbortError());
+    }
+
+    return new Promise<Sound>((resolve, reject) => {
+      const audio = new Audio();
+      let settled = false;
+
+      const cleanup = () => {
+        audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
+        audio.removeEventListener("error", handleError);
+        signal?.removeEventListener("abort", handleAbort);
+      };
+
+      const teardown = () => {
+        audio.pause();
+        audio.src = "";
+        audio.load();
+      };
+
+      const settle = (callback: () => void) => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        cleanup();
+        callback();
+      };
+
+      const handleLoadedMetadata = () => {
+        settle(() => {
+          resolve(new Sound(url, undefined, this.context, this.globalGainNode, soundType, panType, this));
+        });
+      };
+
+      const handleError = () => {
+        const error = new Error(`Failed to load audio from ${url}`);
+        settle(() => {
+          teardown();
+          reject(error);
+        });
+      };
+
+      const handleAbort = () => {
+        const error = this.createAbortError();
+        settle(() => {
+          teardown();
+          reject(error);
+        });
+      };
+
+      audio.crossOrigin = "anonymous";
+      audio.preload = "auto";
+      audio.addEventListener("loadedmetadata", handleLoadedMetadata);
+      audio.addEventListener("error", handleError);
+      signal?.addEventListener("abort", handleAbort, { once: true });
+      audio.src = url;
+      audio.load();
+    });
+  }
+
   clearMemoryCache(): void {
     this.cache.clearMemoryCache();
   }
@@ -257,17 +328,10 @@ export class Cacophony {
     }
     const url = bufferOrUrl;
     if (soundType === SoundType.HTML) {
-      const audio = new Audio();
-      audio.src = url;
-      audio.crossOrigin = "anonymous";
-      return Promise.resolve(
-        new Sound(url, undefined, this.context, this.globalGainNode, SoundType.HTML, panType, this),
-      );
+      return this.createMediaSound(url, SoundType.HTML, panType, signal);
     }
     if (soundType === SoundType.Streaming) {
-      return Promise.resolve(
-        new Sound(url, undefined, this.context, this.globalGainNode, SoundType.Streaming, panType, this),
-      );
+      return this.createMediaSound(url, SoundType.Streaming, panType, signal);
     }
     return this.cache
       .getAudioBuffer(this.context, url, signal, {
@@ -317,8 +381,7 @@ export class Cacophony {
    * @returns Promise that resolves to a Sound instance for streaming
    */
   async createStream(url: string, signal?: AbortSignal): Promise<Sound> {
-    const sound = new Sound(url, undefined, this.context, this.globalGainNode, SoundType.Streaming, "HRTF", this);
-    return sound;
+    return this.createMediaSound(url, SoundType.Streaming, "HRTF", signal);
   }
 
   createBiquadFilter = ({ type, frequency, gain, Q }: BiquadFilterOptions): BiquadFilterNode => {

@@ -7,6 +7,44 @@ import { Group } from "./group";
 import { audioContextMock, cacophony, mockCache } from "./setupTests";
 import { Sound } from "./sound";
 
+const createControllableAudioElement = () => {
+  const listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
+  const audio = {
+    src: "",
+    crossOrigin: null,
+    preload: "auto",
+    error: null,
+    load: vi.fn(),
+    play: vi.fn().mockResolvedValue(undefined),
+    pause: vi.fn(),
+    currentTime: 0,
+    duration: 10,
+    loop: false,
+    playbackRate: 1,
+    onended: null,
+    addEventListener: vi.fn((type: string, listener: EventListenerOrEventListenerObject) => {
+      listeners.set(type, listeners.get(type) ?? new Set());
+      listeners.get(type)!.add(listener);
+    }),
+    removeEventListener: vi.fn((type: string, listener: EventListenerOrEventListenerObject) => {
+      listeners.get(type)?.delete(listener);
+    }),
+  };
+
+  const dispatch = (type: string) => {
+    const event = new Event(type);
+    for (const listener of listeners.get(type) ?? []) {
+      if (typeof listener === "function") {
+        listener.call(audio, event);
+      } else {
+        listener.handleEvent(event);
+      }
+    }
+  };
+
+  return { audio, dispatch };
+};
+
 beforeAll(() => {
   vi.useFakeTimers();
 });
@@ -122,7 +160,7 @@ describe("Cacophony core", () => {
 
 describe("Cacophony advanced features", () => {
   beforeEach(() => {
-    vi.resetAllMocks();
+    vi.clearAllMocks();
   });
 
   afterEach(() => {
@@ -260,25 +298,72 @@ describe("Cacophony advanced features", () => {
       expect(sound.buffer).toBe(mockBuffer);
     });
 
-    it("createSound with different SoundTypes handles AbortSignal correctly", async () => {
+    it("createSound with HTML and Streaming waits for media metadata without using cache", async () => {
       const url = "https://example.com/audio.mp3";
       const controller = new AbortController();
+      const htmlAudio = createControllableAudioElement();
+      const streamingAudio = createControllableAudioElement();
 
       // Set up spy to track cache calls
       const getAudioBufferSpy = vi.spyOn(mockCache, "getAudioBuffer");
+      vi.mocked(global.Audio)
+        .mockImplementationOnce(() => htmlAudio.audio as any)
+        .mockImplementationOnce(() => streamingAudio.audio as any);
 
-      // Test HTML sound type - should not call cache at all
-      const htmlSound = await cacophony.createSound(url, SoundType.HTML, "HRTF", controller.signal);
+      const htmlSoundPromise = cacophony.createSound(url, SoundType.HTML, "HRTF", controller.signal);
+      const streamSoundPromise = cacophony.createSound(url, SoundType.Streaming, "HRTF", controller.signal);
+
+      expect(htmlAudio.audio.load).toHaveBeenCalledOnce();
+      expect(streamingAudio.audio.load).toHaveBeenCalledOnce();
+      expect(getAudioBufferSpy).not.toHaveBeenCalled();
+
+      htmlAudio.dispatch("loadedmetadata");
+      streamingAudio.dispatch("loadedmetadata");
+
+      const htmlSound = await htmlSoundPromise;
       expect(htmlSound.soundType).toBe(SoundType.HTML);
       expect(htmlSound.url).toBe(url);
 
-      // Test streaming sound type - cache should not be called
-      const streamSound = await cacophony.createSound(url, SoundType.Streaming, "HRTF", controller.signal);
+      const streamSound = await streamSoundPromise;
       expect(streamSound.soundType).toBe(SoundType.Streaming);
       expect(streamSound.url).toBe(url);
-
-      // Verify cache was not called for HTML or Streaming types
       expect(getAudioBufferSpy).not.toHaveBeenCalled();
+    });
+
+    it("createSound with HTML throws AbortError when signal is aborted during media load", async () => {
+      const url = "https://example.com/audio.mp3";
+      const controller = new AbortController();
+      const htmlAudio = createControllableAudioElement();
+
+      vi.mocked(global.Audio).mockImplementationOnce(() => htmlAudio.audio as any);
+
+      const soundPromise = cacophony.createSound(url, SoundType.HTML, "HRTF", controller.signal);
+      controller.abort();
+
+      await expect(soundPromise).rejects.toMatchObject({
+        name: "AbortError",
+        message: "Operation was aborted",
+      });
+      expect(htmlAudio.audio.pause).toHaveBeenCalledOnce();
+      expect(htmlAudio.audio.src).toBe("");
+    });
+
+    it("createStream throws AbortError when signal is aborted during media load", async () => {
+      const url = "https://example.com/audio.mp3";
+      const controller = new AbortController();
+      const streamingAudio = createControllableAudioElement();
+
+      vi.mocked(global.Audio).mockImplementationOnce(() => streamingAudio.audio as any);
+
+      const streamPromise = cacophony.createStream(url, controller.signal);
+      controller.abort();
+
+      await expect(streamPromise).rejects.toMatchObject({
+        name: "AbortError",
+        message: "Operation was aborted",
+      });
+      expect(streamingAudio.audio.pause).toHaveBeenCalledOnce();
+      expect(streamingAudio.audio.src).toBe("");
     });
 
     it("createGroupFromUrls passes AbortSignal to all createSound calls", async () => {

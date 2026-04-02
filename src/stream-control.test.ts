@@ -25,7 +25,7 @@ describe("Stream control integration", () => {
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
   it("createStream returns a Sound instance", async () => {
@@ -56,9 +56,10 @@ describe("Stream control integration", () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it("createStream does not use AbortSignal until playback starts", async () => {
+  it("createStream initializes through an Audio element even when given an AbortSignal", async () => {
     const controller = new AbortController();
     await cacophony.createStream("https://example.com/audio.wav", controller.signal);
     expect(global.fetch).not.toHaveBeenCalled();
+    expect(global.Audio).toHaveBeenCalled();
   });
 });

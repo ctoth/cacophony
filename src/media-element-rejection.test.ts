@@ -17,7 +17,24 @@ describe("Media element play() rejection", () => {
   });
 
   const setupHtmlSound = async (playImpl: ReturnType<typeof vi.fn>) => {
+    const listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
     const mediaElement = {
+      src: "",
+      crossOrigin: null,
+      preload: "auto",
+      error: null,
+      load: vi.fn(() => {
+        queueMicrotask(() => {
+          const event = new Event("loadedmetadata");
+          for (const listener of listeners.get("loadedmetadata") ?? []) {
+            if (typeof listener === "function") {
+              listener.call(mediaElement, event);
+            } else {
+              listener.handleEvent(event);
+            }
+          }
+        });
+      }),
       play: playImpl,
       pause: vi.fn(),
       currentTime: 0,
@@ -25,6 +42,13 @@ describe("Media element play() rejection", () => {
       loop: false,
       onended: null as (() => void) | null,
       playbackRate: 1,
+      addEventListener: vi.fn((type: string, listener: EventListenerOrEventListenerObject) => {
+        listeners.set(type, listeners.get(type) ?? new Set());
+        listeners.get(type)!.add(listener);
+      }),
+      removeEventListener: vi.fn((type: string, listener: EventListenerOrEventListenerObject) => {
+        listeners.get(type)?.delete(listener);
+      }),
     };
 
     vi.mocked(global.Audio).mockImplementationOnce(() => mediaElement as any);

@@ -132,18 +132,53 @@ beforeAll(() => {
   vi.useFakeTimers();
 
   // Mock Audio constructor for HTML audio tests
-  global.Audio = vi.fn().mockImplementation(() => ({
-    src: "",
-    crossOrigin: null,
-    load: vi.fn(),
-    play: vi.fn().mockResolvedValue(undefined),
-    pause: vi.fn(),
-    currentTime: 0,
-    duration: 0,
-    loop: false,
-    addEventListener: vi.fn(),
-    removeEventListener: vi.fn(),
-  }));
+  global.Audio = vi.fn().mockImplementation(() => {
+    const listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
+    const dispatchEvent = (type: string) => {
+      const event = new Event(type);
+      for (const listener of listeners.get(type) ?? []) {
+        if (typeof listener === "function") {
+          listener.call(audio, event);
+        } else {
+          listener.handleEvent(event);
+        }
+      }
+    };
+
+    const audio = {
+      src: "",
+      crossOrigin: null,
+      preload: "auto",
+      error: null,
+      load: vi.fn(() => {
+        if (!audio.src) {
+          return;
+        }
+        queueMicrotask(() => {
+          if (!audio.src) {
+            return;
+          }
+          dispatchEvent("loadedmetadata");
+        });
+      }),
+      play: vi.fn().mockResolvedValue(undefined),
+      pause: vi.fn(),
+      currentTime: 0,
+      duration: 0,
+      loop: false,
+      playbackRate: 1,
+      onended: null,
+      addEventListener: vi.fn((type: string, listener: EventListenerOrEventListenerObject) => {
+        listeners.set(type, listeners.get(type) ?? new Set());
+        listeners.get(type)!.add(listener);
+      }),
+      removeEventListener: vi.fn((type: string, listener: EventListenerOrEventListenerObject) => {
+        listeners.get(type)?.delete(listener);
+      }),
+    };
+
+    return audio;
+  });
 
   // Mock AudioWorkletNode constructor for worklet tests
   global.AudioWorkletNode = vi.fn().mockImplementation(() => ({
