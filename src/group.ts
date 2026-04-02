@@ -12,8 +12,7 @@ export class Group implements BaseSound {
 
   /**
    * Prepares a random sound from the group for playback.
-   * @returns The playback object representing the prepared sound.
-   * @throws Error if the group is empty and there are no sounds to prepare.
+   * @returns The playback object representing the prepared sound, or undefined if the group is empty.
    */
   preplayRandom(): Playback | undefined {
     if (this.sounds.length === 0) {
