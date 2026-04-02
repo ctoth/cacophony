@@ -112,6 +112,14 @@ describe("Synth event system", () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
+  it("returns a cleanup function from synth.on", () => {
+    const listener = vi.fn();
+    const cleanup = synth.on("play", listener);
+    cleanup();
+    synth.play();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
   it("handles multiple listeners for the same event", () => {
     const listener1 = vi.fn();
     const listener2 = vi.fn();
@@ -166,6 +174,15 @@ describe("Cacophony event system", () => {
 
     expect(listener).toHaveBeenNthCalledWith(1, 0);
     expect(listener).toHaveBeenNthCalledWith(2, 0.5);
+  });
+
+  it("returns a cleanup function from cacophony.on", () => {
+    const listener = vi.fn();
+    const cleanup = cacophony.on("mute", listener);
+    cleanup();
+    cacophony.volume = 0.5;
+    cacophony.mute();
+    expect(listener).not.toHaveBeenCalled();
   });
 
   it("emits unmute event when unmuted", () => {
@@ -277,6 +294,14 @@ describe("Event system", () => {
     expect(listener).not.toHaveBeenCalled();
   });
 
+  it("returns a cleanup function from sound.on", () => {
+    const listener = vi.fn();
+    const cleanup = sound.on("play", listener);
+    cleanup();
+    sound.play();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
   it("handles multiple listeners for the same event", () => {
     const listener1 = vi.fn();
     const listener2 = vi.fn();
@@ -338,6 +363,15 @@ describe("Event system", () => {
     playback.on("ended", listener);
     playback.loopEnded();
     expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("returns a cleanup function from playback.on", () => {
+    const [playback] = sound.play();
+    const listener = vi.fn();
+    const cleanup = playback.on("ended", listener);
+    cleanup();
+    playback.loopEnded();
+    expect(listener).not.toHaveBeenCalled();
   });
 
   it("emits volumeChange event on playback when volume is changed", () => {

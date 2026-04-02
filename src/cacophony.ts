@@ -166,8 +166,8 @@ export class Cacophony {
    * Register event listener.
    * @returns Cleanup function
    */
-  on<K extends keyof CacophonyEvents>(event: K, listener: (data: CacophonyEvents[K]) => void): void {
-    this.eventEmitter.on(event, listener);
+  on<K extends keyof CacophonyEvents>(event: K, listener: (data: CacophonyEvents[K]) => void): () => void {
+    return this.eventEmitter.on(event, listener);
   }
 
   /**

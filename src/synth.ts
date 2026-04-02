@@ -21,8 +21,8 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
    * Register event listener.
    * @returns Cleanup function
    */
-  on<K extends keyof SynthEvents>(event: K, listener: (data: SynthEvents[K]) => void): void {
-    this.eventEmitter.on(event, listener);
+  on<K extends keyof SynthEvents>(event: K, listener: (data: SynthEvents[K]) => void): () => void {
+    return this.eventEmitter.on(event, listener);
   }
 
   /**
