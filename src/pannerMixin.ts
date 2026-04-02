@@ -46,7 +46,6 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
     /**
      * Gets the stereo panning value.
      * @returns {number | null} The current stereo pan value, or null if stereo panning is not applicable.
-     * @throws {Error} Throws an error if stereo panning is not available or if the sound has been cleaned up.
      */
 
     get stereoPan(): number | null {
@@ -69,8 +68,10 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
       if (!this.panner) {
         throw new Error("Cannot set stereo pan of a sound that has been cleaned up");
       }
-      value = clamp(value, -1, 1);
-      (this.panner as StereoPannerNode).pan.setValueAtTime(clamp(value, -1, 1), this.panner.context.currentTime);
+      if (value < -1 || value > 1) {
+        throw new RangeError("Stereo pan must be between -1 and 1.");
+      }
+      (this.panner as StereoPannerNode).pan.setValueAtTime(value, this.panner.context.currentTime);
     }
 
     /**
@@ -187,8 +188,4 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
   }
 
   return PannerMixin;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
 }

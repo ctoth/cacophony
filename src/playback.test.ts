@@ -73,6 +73,17 @@ describe("Playback class", () => {
     expect(playback.playbackRate).toBe(1.5);
   });
 
+  it("returns null for stereoPan when playback is not using stereo panning", () => {
+    expect(playback.stereoPan).toBeNull();
+  });
+
+  it("throws when stereoPan is set outside the supported range", () => {
+    playback.setPanType("stereo", audioContextMock);
+    expect(() => {
+      playback.stereoPan = 1.5;
+    }).toThrow("Stereo pan must be between -1 and 1.");
+  });
+
   it("handles cleanup correctly", () => {
     const disconnectSpy = vi.spyOn(playback.source!, "disconnect");
     playback.cleanup();
