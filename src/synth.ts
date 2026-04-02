@@ -148,6 +148,12 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     this.cacophony?.emit("globalPause", { source: this, timestamp: Date.now() });
   }
 
+  resume(): void {
+    this.playbacks.forEach((playback) => playback.play());
+    this.emit("resume", undefined);
+    this.cacophony?.emit("globalPlay", { source: this, timestamp: Date.now() });
+  }
+
   get oscillatorOptions(): Partial<OscillatorOptions> {
     return this._oscillatorOptions;
   }
@@ -155,7 +161,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
   set oscillatorOptions(options: Partial<OscillatorOptions>) {
     this._oscillatorOptions = options;
     this.playbacks.forEach((p) => {
-      if (p.source instanceof OscillatorNode) {
+      if (p.source) {
         if (this.oscillatorOptions.detune !== undefined) p.source.detune.value = this.oscillatorOptions.detune;
         if (this.oscillatorOptions.frequency !== undefined) p.source.frequency.value = this.oscillatorOptions.frequency;
         if (this.oscillatorOptions.type) p.source.type = this.oscillatorOptions.type;

@@ -18,7 +18,7 @@ export function OscillatorMixin<TBase extends Constructor>(Base: TBase) {
 
     set oscillatorOptions(options: Partial<OscillatorOptions>) {
       this._oscillatorOptions = options;
-      if (this.source && this.source instanceof OscillatorNode) {
+      if (this.source) {
         if (this.oscillatorOptions.detune !== undefined) this.source.detune.value = this.oscillatorOptions.detune;
         if (this.oscillatorOptions.frequency !== undefined)
           this.source.frequency.value = this.oscillatorOptions.frequency;
