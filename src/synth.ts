@@ -63,7 +63,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
    * @param {SynthCloneOverrides} overrides - An object specifying properties to override in the cloned instance.
    *        This can include audio settings like volume, playback rate, and spatial positioning, as well as
    *        more complex configurations like 3D audio options and filter adjustments.
-   * @returns {Sound} A new Sound instance that is a clone of the current sound.
+   * @returns {Synth} A new Synth instance that is a clone of the current synth.
    */
   clone(overrides: Partial<SynthCloneOverrides> = {}): Synth {
     const panType = overrides.panType || this.panType;
