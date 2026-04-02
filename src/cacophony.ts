@@ -412,7 +412,11 @@ export class Cacophony {
   }
 
   setGlobalVolume(volume: number) {
+    if (this.globalGainNode.gain.value === volume) {
+      return;
+    }
     this.globalGainNode.gain.value = volume;
+    this.emit("volumeChange", volume);
   }
 
   get volume(): number {

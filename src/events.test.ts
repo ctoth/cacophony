@@ -128,12 +128,34 @@ afterAll(() => {
 });
 
 describe("Cacophony event system", () => {
+  it("emits volumeChange when global volume changes", () => {
+    const listener = vi.fn();
+    cacophony.on("volumeChange", listener);
+    cacophony.unmute();
+    cacophony.volume = 0.5;
+    expect(listener).toHaveBeenCalledWith(0.5);
+  });
+
   it("emits mute event when muted", () => {
     const listener = vi.fn();
     cacophony.on("mute", listener);
     cacophony.volume = 0.5;
     cacophony.mute();
     expect(listener).toHaveBeenCalledOnce();
+  });
+
+  it("emits volumeChange when muted and unmuted", () => {
+    const listener = vi.fn();
+    cacophony.on("volumeChange", listener);
+    cacophony.unmute();
+    cacophony.volume = 0.5;
+    listener.mockClear();
+
+    cacophony.mute();
+    cacophony.unmute();
+
+    expect(listener).toHaveBeenNthCalledWith(1, 0);
+    expect(listener).toHaveBeenNthCalledWith(2, 0.5);
   });
 
   it("emits unmute event when unmuted", () => {
