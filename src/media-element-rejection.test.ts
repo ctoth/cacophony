@@ -1,5 +1,6 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { SoundType } from "./cacophony";
 import { Playback } from "./playback";
 import { audioContextMock, cacophony } from "./setupTests";
 import { Sound } from "./sound";
@@ -125,6 +126,50 @@ describe("Media element play() rejection", () => {
 
       expect(playback.isPlaying).toBe(false);
     });
+  });
+
+  it("cleanup() tears down active HTML playback", async () => {
+    const mediaElement = {
+      play: vi.fn().mockResolvedValue(undefined),
+      pause: vi.fn(),
+      currentTime: 0,
+      duration: 10,
+      loop: true,
+      onended: null as (() => void) | null,
+      playbackRate: 1,
+    };
+    const source = {
+      mediaElement,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    const gainNode = audioContextMock.createGain();
+    const htmlSound = new Sound(
+      "https://example.com/html-audio.mp3",
+      undefined,
+      audioContextMock,
+      gainNode,
+      SoundType.HTML,
+    );
+    const playback = new Playback(htmlSound, source as any, gainNode);
+    htmlSound.playbacks.push(playback);
+
+    playback.play();
+
+    await vi.waitFor(() => {
+      expect(playback.isPlaying).toBe(true);
+    });
+
+    htmlSound.cleanup();
+
+    expect(mediaElement.pause).toHaveBeenCalledTimes(1);
+    expect(mediaElement.currentTime).toBe(0);
+    expect(mediaElement.loop).toBe(false);
+    expect(mediaElement.onended).toBeNull();
+    expect(playback.isPlaying).toBe(false);
+    expect(playback.source).toBeUndefined();
+    expect(htmlSound.playbacks).toHaveLength(0);
+    expect(() => htmlSound.cleanup()).not.toThrow();
   });
 
   it("play() throws when source.start() throws on buffer-backed sound", async () => {

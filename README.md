@@ -865,7 +865,7 @@ Call `cleanup()` when done with sounds to free resources:
 ```typescript
 const sound = await cacophony.createSound('temp.mp3');
 sound.play();
-sound.cleanup();  // Disconnects nodes, removes playbacks, clears listeners
+sound.cleanup();  // Tears down playbacks, including pausing and resetting active HTML/streaming media
 
 // Clear memory cache
 cacophony.clearMemoryCache();
