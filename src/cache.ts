@@ -69,6 +69,16 @@ function requiresRevalidation(cacheControlHeader: string | undefined): boolean {
   return /(?:^|,)\s*(no-cache|no-store|must-revalidate)\s*(?:,|$)/i.test(cacheControlHeader);
 }
 
+function getNetworkErrorType(error: unknown): "network" | "abort" | "unknown" {
+  if (error instanceof DOMException && error.name === "AbortError") {
+    return "abort";
+  }
+  if (error instanceof Error) {
+    return "network";
+  }
+  return "unknown";
+}
+
 export interface ICache {
   getAudioBuffer(
     context: BaseContext,
@@ -653,7 +663,20 @@ export class AudioCache implements ICache {
               signal,
               { onCacheHit: callbacks?.onCacheHit },
             );
-            const audioBuffer = await AudioCache.decodeAudioData(context, arrayBuffer);
+            let audioBuffer: AudioBuffer;
+            try {
+              audioBuffer = await AudioCache.decodeAudioData(context, arrayBuffer);
+            } catch (error) {
+              if (callbacks?.onLoadingError) {
+                callbacks.onLoadingError({
+                  url,
+                  error: error as Error,
+                  errorType: "decode",
+                  timestamp: Date.now(),
+                });
+              }
+              throw error;
+            }
             if (callbacks?.onLoadingComplete) {
               callbacks.onLoadingComplete({
                 url,
@@ -669,6 +692,7 @@ export class AudioCache implements ICache {
               callbacks.onLoadingError({
                 url,
                 error: error as Error,
+                errorType: getNetworkErrorType(error),
                 timestamp: Date.now(),
               });
             }
@@ -719,7 +743,20 @@ export class AudioCache implements ICache {
                 signal,
                 { onCacheHit: callbacks?.onCacheHit },
               );
-              const audioBuffer = await AudioCache.decodeAudioData(context, arrayBuffer);
+              let audioBuffer: AudioBuffer;
+              try {
+                audioBuffer = await AudioCache.decodeAudioData(context, arrayBuffer);
+              } catch (error) {
+                if (callbacks?.onLoadingError) {
+                  callbacks.onLoadingError({
+                    url,
+                    error: error as Error,
+                    errorType: "decode",
+                    timestamp: Date.now(),
+                  });
+                }
+                throw error;
+              }
               if (callbacks?.onLoadingComplete) {
                 callbacks.onLoadingComplete({
                   url,
@@ -735,6 +772,7 @@ export class AudioCache implements ICache {
                 callbacks.onLoadingError({
                   url,
                   error: error as Error,
+                  errorType: getNetworkErrorType(error),
                   timestamp: Date.now(),
                 });
               }

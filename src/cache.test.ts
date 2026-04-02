@@ -97,6 +97,55 @@ describe("AudioCache", () => {
     );
   });
 
+  it("reports network errorType in loadingError callbacks", async () => {
+    const url = "https://example.com/audio.mp3";
+    const onLoadingError = vi.fn();
+
+    mockFetch.mockRejectedValueOnce(new Error("Network failure"));
+
+    await expect(cache.getAudioBuffer(audioContextMock, url, undefined, { onLoadingError })).rejects.toThrow(
+      "Network failure",
+    );
+
+    expect(onLoadingError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url,
+        error: expect.any(Error),
+        errorType: "network",
+        timestamp: expect.any(Number),
+      }),
+    );
+  });
+
+  it("reports decode errorType in loadingError callbacks", async () => {
+    const url = "https://example.com/audio.mp3";
+    const mockArrayBuffer = new ArrayBuffer(8);
+    const onLoadingError = vi.fn();
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      clone: () => ({ arrayBuffer: () => Promise.resolve(mockArrayBuffer) }),
+      arrayBuffer: () => Promise.resolve(mockArrayBuffer),
+      headers: new Headers(),
+    } as Response);
+
+    vi.spyOn(audioContextMock, "decodeAudioData").mockRejectedValueOnce(new Error("Invalid audio format"));
+
+    await expect(cache.getAudioBuffer(audioContextMock, url, undefined, { onLoadingError })).rejects.toThrow(
+      "Invalid audio format",
+    );
+
+    expect(onLoadingError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url,
+        error: expect.any(Error),
+        errorType: "decode",
+        timestamp: expect.any(Number),
+      }),
+    );
+  });
+
   it("handles 304 Not Modified responses correctly when cache expires", async () => {
     const url = "https://example.com/audio.mp3";
     const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
