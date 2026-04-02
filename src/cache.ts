@@ -653,17 +653,15 @@ export class AudioCache implements ICache {
               signal,
               { onCacheHit: callbacks?.onCacheHit },
             );
-
+            const audioBuffer = await AudioCache.decodeAudioData(context, arrayBuffer);
             if (callbacks?.onLoadingComplete) {
               callbacks.onLoadingComplete({
                 url,
-                duration: 0, // Will be filled when buffer is decoded
+                duration: audioBuffer.duration,
                 size: arrayBuffer.byteLength,
                 timestamp: Date.now(),
               });
             }
-
-            const audioBuffer = await AudioCache.decodeAudioData(context, arrayBuffer);
             AudioCache.decodedBuffers.set(url, audioBuffer);
             return audioBuffer;
           } catch (error) {
@@ -722,6 +720,14 @@ export class AudioCache implements ICache {
                 { onCacheHit: callbacks?.onCacheHit },
               );
               const audioBuffer = await AudioCache.decodeAudioData(context, arrayBuffer);
+              if (callbacks?.onLoadingComplete) {
+                callbacks.onLoadingComplete({
+                  url,
+                  duration: audioBuffer.duration,
+                  size: arrayBuffer.byteLength,
+                  timestamp: Date.now(),
+                });
+              }
               AudioCache.decodedBuffers.set(url, audioBuffer);
               return audioBuffer;
             } catch (error) {

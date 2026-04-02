@@ -69,6 +69,34 @@ describe("AudioCache", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1); // Still just one fetch
   });
 
+  it("reports decoded duration in loadingComplete callbacks", async () => {
+    const url = "https://example.com/audio.mp3";
+    const mockAudioBuffer = new AudioBuffer({ length: 220500, sampleRate: 44100 });
+    const mockArrayBuffer = new ArrayBuffer(8);
+    const onLoadingComplete = vi.fn();
+
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      clone: () => ({ arrayBuffer: () => Promise.resolve(mockArrayBuffer) }),
+      arrayBuffer: () => Promise.resolve(mockArrayBuffer),
+      headers: new Headers(),
+    } as Response);
+
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
+
+    await cache.getAudioBuffer(audioContextMock, url, undefined, { onLoadingComplete });
+
+    expect(onLoadingComplete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url,
+        duration: mockAudioBuffer.duration,
+        size: mockArrayBuffer.byteLength,
+        timestamp: expect.any(Number),
+      }),
+    );
+  });
+
   it("handles 304 Not Modified responses correctly when cache expires", async () => {
     const url = "https://example.com/audio.mp3";
     const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
