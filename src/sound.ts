@@ -219,7 +219,7 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
     const playbacks = this.preplay() as ReturnType<this["preplay"]>;
 
     for (const playback of playbacks) {
-      const emitSoundPlay = (acceptedPlayback: Playback) => {
+      const emitSoundPlay = (acceptedPlayback: SoundEvents["play"]) => {
         cleanupPlayListeners();
         this.emit("play", acceptedPlayback);
       };
