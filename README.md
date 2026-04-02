@@ -13,7 +13,7 @@ Cacophony is a powerful and intuitive audio library designed for modern web appl
 - **Synthesizer Integration**: Create and manipulate synthesized sounds with customizable oscillator options
 - **Efficient Group Management**: Organize and control multiple sounds or synthesizers as groups for streamlined audio management
 - **Live Microphone Input**: Capture and process real-time audio input from the user's microphone
-- **Audio Streaming**: Support for streaming audio directly from URLs
+- **Network-Backed Playback**: Play audio directly from URLs using media-element-backed sounds
 - **Flexible Caching**: Implement efficient audio caching strategies for improved performance
 
 ## Installation
@@ -92,13 +92,13 @@ sound.stop();  // Stops all three playbacks
 
 ## Sound Types
 
-Cacophony supports three sound types, each optimized for different use cases:
+Cacophony supports three sound types:
 
 | Type | Memory | Latency | Seeking | Multiple Instances | Best For |
 |------|--------|---------|---------|-------------------|----------|
 | **Buffer** (default) | High | None | Full | Yes | Sound effects, UI sounds, short music clips |
-| **HTML** | Medium | Low | Full | Limited | Background music, large audio files, podcasts |
-| **Streaming** | Low | Medium | Limited | No | Internet radio, live streams, very large files |
+| **HTML** | Medium | Low | Full | Yes | Background music, large audio files, podcasts |
+| **Streaming** | Medium | Low | Full | Yes | Network-backed playback created via `createStream()` |
 
 ```typescript
 // Buffer - entire file loaded into memory
@@ -107,7 +107,7 @@ const sfx = await cacophony.createSound('explosion.mp3', SoundType.Buffer);
 // HTML - streams from network, good for large files
 const music = await cacophony.createSound('bgm.mp3', SoundType.HTML);
 
-// Streaming - for live streams
+// Streaming - convenience helper for network-backed playback
 const radio = await cacophony.createStream('https://example.com/stream.m3u8');
 ```
 
