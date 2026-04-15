@@ -1229,3 +1229,103 @@ describe("Sound.play with fade options", () => {
     expect(pb._fadeOutConfig!.duration).toBe(500);
   });
 });
+
+describe("Sound FinalizationRegistry wire-up", () => {
+  let buffer: AudioBuffer;
+
+  beforeEach(() => {
+    buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("registers newly constructed Sounds with Cacophony for automatic cleanup", () => {
+    const registerSpy = vi.spyOn(cacophony, "registerSoundForCleanup");
+    const sound = new Sound(
+      "test-url",
+      buffer,
+      audioContextMock,
+      audioContextMock.createGain(),
+      SoundType.Buffer,
+      "HRTF",
+      cacophony,
+    );
+    expect(registerSpy).toHaveBeenCalledTimes(1);
+    const [target, holdings, token] = registerSpy.mock.calls[0];
+    expect(target).toBe(sound);
+    expect(holdings).toEqual({ sources: [], gainNodes: [], mediaElements: [] });
+    expect(token).toBeTypeOf("object");
+    expect(token).not.toBe(sound); // decoupled from the target
+  });
+
+  it("populates cleanup holdings when playbacks are created", () => {
+    const registerSpy = vi.spyOn(cacophony, "registerSoundForCleanup");
+    const sound = new Sound(
+      "test-url",
+      buffer,
+      audioContextMock,
+      audioContextMock.createGain(),
+      SoundType.Buffer,
+      "HRTF",
+      cacophony,
+    );
+    const [, holdings] = registerSpy.mock.calls[0];
+
+    expect(holdings.sources.length).toBe(0);
+    expect(holdings.gainNodes.length).toBe(0);
+
+    sound.preplay();
+    expect(holdings.sources.length).toBe(1);
+    expect(holdings.gainNodes.length).toBe(1);
+
+    sound.preplay();
+    expect(holdings.sources.length).toBe(2);
+    expect(holdings.gainNodes.length).toBe(2);
+  });
+
+  it("unregisters from the cleanup registry on explicit cleanup()", () => {
+    const registerSpy = vi.spyOn(cacophony, "registerSoundForCleanup");
+    const unregisterSpy = vi.spyOn(cacophony, "unregisterSoundCleanup");
+    const sound = new Sound(
+      "test-url",
+      buffer,
+      audioContextMock,
+      audioContextMock.createGain(),
+      SoundType.Buffer,
+      "HRTF",
+      cacophony,
+    );
+    const registrationToken = registerSpy.mock.calls[0][2];
+
+    sound.preplay();
+    sound.cleanup();
+
+    expect(unregisterSpy).toHaveBeenCalledTimes(1);
+    expect(unregisterSpy.mock.calls[0][0]).toBe(registrationToken);
+  });
+
+  it("clears holdings on stop() so repeated play/stop does not grow memory", () => {
+    const registerSpy = vi.spyOn(cacophony, "registerSoundForCleanup");
+    const sound = new Sound(
+      "test-url",
+      buffer,
+      audioContextMock,
+      audioContextMock.createGain(),
+      SoundType.Buffer,
+      "HRTF",
+      cacophony,
+    );
+    const [, holdings] = registerSpy.mock.calls[0];
+
+    sound.play();
+    sound.play();
+    expect(holdings.sources.length).toBe(2);
+
+    sound.stop();
+    expect(holdings.sources.length).toBe(0);
+    expect(holdings.gainNodes.length).toBe(0);
+    expect(holdings.mediaElements.length).toBe(0);
+  });
+});

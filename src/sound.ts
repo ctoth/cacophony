@@ -21,7 +21,15 @@
  * instances of a sound with different settings, without requiring the user to manually manage each playback instance.
  */
 
-import { type BaseSound, type Cacophony, type LoopCount, type PanType, type PlayOptions, SoundType } from "./cacophony";
+import {
+  type BaseSound,
+  type Cacophony,
+  type LoopCount,
+  type PanType,
+  type PlayOptions,
+  type SoundCleanupHoldings,
+  SoundType,
+} from "./cacophony";
 import { PlaybackContainer } from "./container";
 import type { AudioBuffer, BaseContext, BiquadFilterNode, GainNode, SourceNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
@@ -45,6 +53,8 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
   loopCount: LoopCount = 0;
   private _playbackRate: number = 1;
   private eventEmitter: TypedEventEmitter<SoundEvents> = new TypedEventEmitter<SoundEvents>();
+  private _holdings: SoundCleanupHoldings = { sources: [], gainNodes: [], mediaElements: [] };
+  private _unregisterToken: object = {};
 
   constructor(
     public url: string,
@@ -58,6 +68,7 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
     super();
     this.buffer = buffer;
     this.context = context;
+    this._cacophony?.registerSoundForCleanup(this, this._holdings, this._unregisterToken);
   }
 
   get cacophony(): Cacophony | undefined {
@@ -164,7 +175,11 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
       const gainNode = this.context.createGain();
       gainNode.connect(this.globalGainNode);
       const playback = new Playback(this, source, gainNode);
-      // this.finalizationRegistry.register(playback, playback);
+      this._holdings.sources.push(source);
+      this._holdings.gainNodes.push(gainNode);
+      if ("mediaElement" in source && source.mediaElement) {
+        this._holdings.mediaElements.push(source.mediaElement);
+      }
       playback.setGainNode(gainNode);
       playback.volume = this.volume;
       playback.playbackRate = this.playbackRate;
@@ -254,6 +269,9 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
   }
 
   stop(): void {
+    this._holdings.sources.length = 0;
+    this._holdings.gainNodes.length = 0;
+    this._holdings.mediaElements.length = 0;
     super.stop();
     this.emit("stop", undefined);
   }
@@ -326,6 +344,10 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
   }
 
   cleanup(): void {
+    this._cacophony?.unregisterSoundCleanup(this._unregisterToken);
+    this._holdings.sources.length = 0;
+    this._holdings.gainNodes.length = 0;
+    this._holdings.mediaElements.length = 0;
     this.playbacks.forEach((p) => p.cleanup());
     this.playbacks = [];
     this.eventEmitter.removeAllListeners();
