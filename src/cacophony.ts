@@ -5,7 +5,6 @@ import { TypedEventEmitter } from "./eventEmitter";
 import type { CacophonyEvents } from "./events";
 import { Group } from "./group";
 import { MicrophoneStream } from "./microphone";
-import type { Playback } from "./playback";
 import { Sound } from "./sound";
 import { Synth } from "./synth";
 
@@ -97,12 +96,25 @@ export interface RuntimeOptions {
   createAudioWorkletNode?: (context: BaseContext, name: string) => any;
 }
 
+/**
+ * Resources belonging to a Sound that must be released when the Sound is
+ * garbage collected without an explicit cleanup() call. The record is a plain
+ * data bag with no back-references to the Sound or its Playbacks — a
+ * FinalizationRegistry strongly retains its held value, so holding the Sound
+ * itself would prevent the target from ever becoming collectable.
+ */
+export interface SoundCleanupHoldings {
+  sources: Array<{ disconnect(): void }>;
+  gainNodes: GainNode[];
+  mediaElements: HTMLMediaElement[];
+}
+
 export class Cacophony {
   context: BaseContext;
   globalGainNode: GainNode;
   listener: AudioListener;
   private prevVolume: number = 1;
-  private finalizationRegistry: FinalizationRegistry<Playback>;
+  private finalizationRegistry: FinalizationRegistry<SoundCleanupHoldings>;
   private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
   private createAudioWorkletNode: (context: BaseContext, name: string) => any;
@@ -117,10 +129,29 @@ export class Cacophony {
       runtimeOptions.createAudioWorkletNode ||
       ((workletContext, name) => new AudioWorkletNode(workletContext as any, name));
 
-    this.finalizationRegistry = new FinalizationRegistry((heldValue) => {
-      // Cleanup callback for Playbacks
-      heldValue.cleanup();
+    this.finalizationRegistry = new FinalizationRegistry((holdings) => {
+      for (const source of holdings.sources) {
+        source.disconnect();
+      }
+      for (const gainNode of holdings.gainNodes) {
+        gainNode.disconnect();
+      }
+      for (const media of holdings.mediaElements) {
+        media.pause();
+        media.removeAttribute("src");
+        media.load();
+      }
     });
+  }
+
+  /** @internal */
+  registerSoundForCleanup(sound: object, holdings: SoundCleanupHoldings, unregisterToken: object): void {
+    this.finalizationRegistry.register(sound, holdings, unregisterToken);
+  }
+
+  /** @internal */
+  unregisterSoundCleanup(unregisterToken: object): void {
+    this.finalizationRegistry.unregister(unregisterToken);
   }
 
   /**
