@@ -24,17 +24,31 @@ export class StereoToBFormatProcessor extends AudioWorkletProcessor {
     return true;
   }
 
-  private maybeReport(channels: number, kind: "ok" | "short-input", input?: Float32Array[], output?: Float32Array[]): void {
+  private maybeReport(
+    channels: number,
+    kind: "ok" | "short-input",
+    input?: Float32Array[],
+    output?: Float32Array[],
+  ): void {
     if (this.framesProcessed - this.lastReportFrame < 750) return;
     this.lastReportFrame = this.framesProcessed;
     let stats = "";
     if (input && input.length >= 2 && output && output.length >= 4) {
       const peak = (a: Float32Array): number => {
         let m = 0;
-        for (let i = 0; i < a.length; i++) { const v = Math.abs(a[i]); if (v > m) m = v; }
+        for (let i = 0; i < a.length; i++) {
+          const v = Math.abs(a[i]);
+          if (v > m) m = v;
+        }
         return m;
       };
-      stats = ` peakL=${peak(input[0]).toFixed(4)} peakR=${peak(input[1]).toFixed(4)} peakW=${peak(output[0]).toFixed(4)} peakY=${peak(output[2]).toFixed(4)}`;
+      stats =
+        ` peakL=${peak(input[0]).toFixed(4)}` +
+        ` peakR=${peak(input[1]).toFixed(4)}` +
+        ` peakW=${peak(output[0]).toFixed(4)}` +
+        ` peakY=${peak(output[1]).toFixed(4)}` +
+        ` peakZ=${peak(output[2]).toFixed(4)}` +
+        ` peakX=${peak(output[3]).toFixed(4)}`;
     }
     console.info(
       `${WORKLET_LOG_PREFIX} process tick framesTotal=${this.framesProcessed} shortInput=${this.framesShortInput} channelsThisTick=${channels} kind=${kind}${stats}`,

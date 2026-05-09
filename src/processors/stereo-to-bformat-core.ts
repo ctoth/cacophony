@@ -4,10 +4,11 @@ export function encodeStereoToBFormat(
   left: Float32Array,
   right: Float32Array,
   w: Float32Array,
-  x: Float32Array,
   y: Float32Array,
   z: Float32Array,
+  x: Float32Array,
 ): void {
+  // Emit first-order ambisonics in ACN channel order W, Y, Z, X.
   const frameCount = Math.min(left.length, right.length, w.length, x.length, y.length, z.length);
 
   for (let frame = 0; frame < frameCount; frame++) {
