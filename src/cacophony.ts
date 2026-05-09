@@ -120,11 +120,14 @@ export interface SoundCleanupHoldings {
   mediaElements: HTMLMediaElement[];
 }
 
+const WORKLET_LOG_PREFIX = "[cacophony/worklet]";
+
 export class Cacophony {
   context: BaseContext;
   globalGainNode: GainNode;
   listener: AudioListener;
   private prevVolume: number = 1;
+  private loadedAudioWorklets: Set<string> = new Set();
   private finalizationRegistry: FinalizationRegistry<SoundCleanupHoldings>;
   private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
@@ -237,7 +240,7 @@ export class Cacophony {
   }
 
   async loadStereoToBFormatWorklet(signal?: AbortSignal): Promise<void> {
-    await this.createWorkletNode("stereo-to-bformat", stereoToBFormatProcessorWorkletUrl, signal);
+    await this.loadAudioWorkletModule("stereo-to-bformat", stereoToBFormatProcessorWorkletUrl, signal);
   }
 
   async createWorkletNode(
@@ -251,21 +254,39 @@ export class Cacophony {
       throw new Error("AudioWorklet not supported");
     }
     try {
-      return this.createAudioWorkletNode(this.context, name, options);
+      const node = this.createAudioWorkletNode(this.context, name, options);
+      console.info(`${WORKLET_LOG_PREFIX} construct succeeded`, {
+        name,
+        loaded: this.loadedAudioWorklets.has(name),
+      });
+      return node;
     } catch (err) {
-      console.error(err);
-      console.log("Loading worklet from url", url);
+      console.warn(`${WORKLET_LOG_PREFIX} construct failed`, {
+        name,
+        loaded: this.loadedAudioWorklets.has(name),
+        error: err,
+      });
       try {
-        await this.context.audioWorklet.addModule(url, {
-          credentials: "same-origin",
-          ...(signal && { signal }),
-        });
+        await this.loadAudioWorkletModule(name, url, signal);
       } catch (err) {
-        console.error(err);
+        console.error(`${WORKLET_LOG_PREFIX} load failed`, {
+          name,
+          error: err,
+        });
         throw err; // Preserve original error (including AbortError)
       }
 
-      return this.createAudioWorkletNode(this.context, name, options);
+      try {
+        const node = this.createAudioWorkletNode(this.context, name, options);
+        console.info(`${WORKLET_LOG_PREFIX} construct after load succeeded`, { name });
+        return node;
+      } catch (err) {
+        console.error(`${WORKLET_LOG_PREFIX} construct after load failed`, {
+          name,
+          error: err,
+        });
+        throw err;
+      }
     }
   }
 
@@ -278,6 +299,35 @@ export class Cacophony {
       channelCountMode: "explicit",
       channelInterpretation: "speakers",
     });
+  }
+
+  private async loadAudioWorkletModule(name: string, url: string, signal?: AbortSignal): Promise<void> {
+    if (!this.context.audioWorklet) {
+      throw new Error("AudioWorklet not supported");
+    }
+    if (this.loadedAudioWorklets.has(name)) {
+      console.info(`${WORKLET_LOG_PREFIX} load skipped`, { name });
+      return;
+    }
+    console.info(`${WORKLET_LOG_PREFIX} addModule start`, {
+      name,
+      url,
+      aborted: signal?.aborted ?? false,
+    });
+    try {
+      await this.context.audioWorklet.addModule(url, {
+        credentials: "same-origin",
+        ...(signal && { signal }),
+      });
+      this.loadedAudioWorklets.add(name);
+      console.info(`${WORKLET_LOG_PREFIX} addModule resolved`, { name });
+    } catch (err) {
+      console.error(`${WORKLET_LOG_PREFIX} addModule rejected`, {
+        name,
+        error: err,
+      });
+      throw err;
+    }
   }
 
   private createAbortError(): DOMException {

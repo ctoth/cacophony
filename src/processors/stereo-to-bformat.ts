@@ -1,5 +1,7 @@
 import { encodeStereoToBFormat } from "./stereo-to-bformat-core";
 
+const WORKLET_LOG_PREFIX = "[cacophony/worklet:stereo-to-bformat]";
+
 export class StereoToBFormatProcessor extends AudioWorkletProcessor {
   process(inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
     const input = inputs[0];
@@ -14,4 +16,12 @@ export class StereoToBFormatProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor("stereo-to-bformat", StereoToBFormatProcessor);
+console.info(`${WORKLET_LOG_PREFIX} module evaluating`);
+try {
+  console.info(`${WORKLET_LOG_PREFIX} registerProcessor start`);
+  registerProcessor("stereo-to-bformat", StereoToBFormatProcessor);
+  console.info(`${WORKLET_LOG_PREFIX} registerProcessor complete`);
+} catch (error) {
+  console.error(`${WORKLET_LOG_PREFIX} registerProcessor failed`, error);
+  throw error;
+}

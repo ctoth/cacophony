@@ -461,14 +461,18 @@ describe("Cacophony advanced features", () => {
       });
     });
 
-    it("loadWorklets passes AbortSignal to createWorkletNode", async () => {
+    it("loadWorklets passes AbortSignal to worklet preload paths", async () => {
       const controller = new AbortController();
       const createWorkletSpy = vi.spyOn(cacophony, "createWorkletNode").mockResolvedValue({} as any);
 
       await cacophony.loadWorklets(controller.signal);
 
       expect(createWorkletSpy).toHaveBeenNthCalledWith(1, "phase-vocoder", expect.any(String), controller.signal);
-      expect(createWorkletSpy).toHaveBeenNthCalledWith(2, "stereo-to-bformat", expect.any(String), controller.signal);
+      expect(createWorkletSpy).toHaveBeenCalledTimes(1);
+      expect(mockAudioWorklet.addModule).toHaveBeenCalledWith(expect.any(String), {
+        credentials: "same-origin",
+        signal: controller.signal,
+      });
     });
 
     it("createWorkletNode passes AbortSignal to addModule when needed", async () => {
@@ -631,6 +635,23 @@ describe("Cacophony advanced features", () => {
       );
     });
 
+    it("loadStereoToBFormatWorklet loads the module without constructing a node first", async () => {
+      const createAudioWorkletNode = vi.fn(() => {
+        throw new Error("should not construct node while preloading");
+      });
+      const isolated = new Cacophony(audioContextMock as any, mockCache, {
+        createAudioWorkletNode,
+      });
+
+      await isolated.loadStereoToBFormatWorklet();
+
+      expect(createAudioWorkletNode).not.toHaveBeenCalled();
+      expect(mockAudioWorklet.addModule).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({ credentials: "same-origin" }),
+      );
+    });
+
     it("createWorkletNode forwards node options to the constructor", async () => {
       const options: AudioWorkletNodeOptions = {
         numberOfInputs: 1,
@@ -675,7 +696,10 @@ describe("Cacophony advanced features", () => {
       await cacophony.loadWorklets();
 
       expect(createWorkletSpy).toHaveBeenNthCalledWith(1, "phase-vocoder", expect.any(String), undefined);
-      expect(createWorkletSpy).toHaveBeenNthCalledWith(2, "stereo-to-bformat", expect.any(String), undefined);
+      expect(createWorkletSpy).toHaveBeenCalledTimes(1);
+      expect(mockAudioWorklet.addModule).toHaveBeenCalledWith(expect.any(String), {
+        credentials: "same-origin",
+      });
     });
 
     it("loadWorklets handles missing audioWorklet gracefully", async () => {
