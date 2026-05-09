@@ -75,6 +75,14 @@ export interface StereoPannerNode extends AudioNode {
   readonly pan: AudioParam;
 }
 
+export interface ChannelSplitterNode extends AudioNode {}
+
+export interface ChannelMergerNode extends AudioNode {}
+
+export interface AudioWorkletNode extends AudioNode {
+  readonly port: MessagePort;
+}
+
 export interface AudioBufferSourceNode extends AudioNode {
   buffer: AudioBuffer | null;
   loop: boolean;
@@ -157,6 +165,8 @@ export interface BaseContext {
   createBiquadFilter(): BiquadFilterNode;
   createPanner(): PannerNode;
   createStereoPanner(): StereoPannerNode;
+  createChannelSplitter?(numberOfOutputs?: number): ChannelSplitterNode;
+  createChannelMerger?(numberOfInputs?: number): ChannelMergerNode;
   createOscillator(): OscillatorNode;
   decodeAudioData(audioData: ArrayBuffer): Promise<AudioBuffer>;
   decodeAudioData(

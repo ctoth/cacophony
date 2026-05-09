@@ -59,13 +59,13 @@ var ola = (function () {
         }
         reallocateChannelsIfNeeded(inputs, outputs) {
             for (let i = 0; i < this.nbInputs; i++) {
-                let nbChannels = inputs[i].length;
+                const nbChannels = inputs[i].length;
                 if (nbChannels !== this.inputBuffers[i].length) {
                     this.allocateInputChannels(i, nbChannels);
                 }
             }
             for (let i = 0; i < this.nbOutputs; i++) {
-                let nbChannels = outputs[i].length;
+                const nbChannels = outputs[i].length;
                 if (nbChannels !== this.outputBuffers[i].length) {
                     this.allocateOutputChannels(i, nbChannels);
                 }
@@ -74,7 +74,7 @@ var ola = (function () {
         readInputs(inputs) {
             for (let i = 0; i < this.nbInputs; i++) {
                 for (let j = 0; j < this.inputBuffers[i].length; j++) {
-                    let webAudioBlock = inputs[i][j];
+                    const webAudioBlock = inputs[i][j];
                     this.inputBuffers[i][j].set(webAudioBlock, this.blockSize);
                 }
             }
@@ -82,7 +82,7 @@ var ola = (function () {
         writeOutputs(outputs) {
             for (let i = 0; i < this.nbOutputs; i++) {
                 for (let j = 0; j < this.outputBuffers[i].length; j++) {
-                    let webAudioBlock = outputs[i][j];
+                    const webAudioBlock = outputs[i][j];
                     webAudioBlock.set(this.outputBuffers[i][j].subarray(0, WEBAUDIO_BLOCK_SIZE));
                 }
             }
@@ -113,8 +113,7 @@ var ola = (function () {
             for (let i = 0; i < this.nbOutputs; i++) {
                 for (let j = 0; j < this.outputBuffers[i].length; j++) {
                     for (let k = 0; k < this.blockSize; k++) {
-                        this.outputBuffers[i][j][k] +=
-                            this.outputBuffersToRetrieve[i][j][k] / this.nbOverlaps;
+                        this.outputBuffers[i][j][k] += this.outputBuffersToRetrieve[i][j][k] / this.nbOverlaps;
                     }
                 }
             }

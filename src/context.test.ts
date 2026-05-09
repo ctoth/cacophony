@@ -15,6 +15,8 @@ import type {
   AudioParam,
   BaseContext,
   BiquadFilterNode,
+  ChannelMergerNode,
+  ChannelSplitterNode,
   GainNode,
   OscillatorNode,
   PannerNode,
@@ -36,6 +38,8 @@ describe("Context interface compliance", () => {
       expect(typeof ctx.createBiquadFilter).toBe("function");
       expect(typeof ctx.createPanner).toBe("function");
       expect(typeof ctx.createStereoPanner).toBe("function");
+      expect(typeof ctx.createChannelSplitter).toBe("function");
+      expect(typeof ctx.createChannelMerger).toBe("function");
       expect(typeof ctx.createOscillator).toBe("function");
       expect(typeof ctx.decodeAudioData).toBe("function");
       mock.close();
@@ -96,6 +100,27 @@ describe("Context interface compliance", () => {
       const panner = mock.createStereoPanner() as unknown as StereoPannerNode;
       expect(panner.pan).toBeDefined();
       expect(typeof panner.pan.value).toBe("number");
+      mock.close();
+    });
+
+    // standardized-audio-context-mock returns a `{}` stub for createChannelSplitter
+    // and createChannelMerger (see node_modules/standardized-audio-context-mock,
+    // method bodies are marked `// @todo`). The native AudioContext does return
+    // proper AudioNodes; this compliance test only asserts that the factory
+    // method exists and returns an object, which is all the mock can prove.
+    it("createChannelSplitter exists and returns an object", () => {
+      mock = freshContext();
+      const splitter = mock.createChannelSplitter!(2);
+      expect(typeof mock.createChannelSplitter).toBe("function");
+      expect(splitter).toBeDefined();
+      mock.close();
+    });
+
+    it("createChannelMerger exists and returns an object", () => {
+      mock = freshContext();
+      const merger = mock.createChannelMerger!(4);
+      expect(typeof mock.createChannelMerger).toBe("function");
+      expect(merger).toBeDefined();
       mock.close();
     });
 

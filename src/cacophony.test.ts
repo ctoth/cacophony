@@ -116,6 +116,18 @@ describe("Cacophony core", () => {
     expect(filter.Q.value).toBe(0.5);
   });
 
+  it("createSplitter delegates to context.createChannelSplitter with the channel count", () => {
+    const spy = vi.spyOn(audioContextMock, "createChannelSplitter");
+    cacophony.createSplitter(2);
+    expect(spy).toHaveBeenCalledWith(2);
+  });
+
+  it("createMerger delegates to context.createChannelMerger with the channel count", () => {
+    const spy = vi.spyOn(audioContextMock, "createChannelMerger");
+    cacophony.createMerger(4);
+    expect(spy).toHaveBeenCalledWith(4);
+  });
+
   describe("Global volume and muting", () => {
     it("sets and gets global volume correctly", () => {
       cacophony.volume = 0.5;
@@ -455,7 +467,8 @@ describe("Cacophony advanced features", () => {
 
       await cacophony.loadWorklets(controller.signal);
 
-      expect(createWorkletSpy).toHaveBeenCalledWith("phase-vocoder", expect.any(String), controller.signal);
+      expect(createWorkletSpy).toHaveBeenNthCalledWith(1, "phase-vocoder", expect.any(String), controller.signal);
+      expect(createWorkletSpy).toHaveBeenNthCalledWith(2, "stereo-to-bformat", expect.any(String), controller.signal);
     });
 
     it("createWorkletNode passes AbortSignal to addModule when needed", async () => {
@@ -598,12 +611,71 @@ describe("Cacophony advanced features", () => {
       expect(mockAudioWorklet.addModule).not.toHaveBeenCalled();
     });
 
+    it("createStereoToBFormatNode requests a 4-channel worklet node", async () => {
+      const createWorkletSpy = vi.spyOn(cacophony, "createWorkletNode").mockResolvedValue({} as any);
+
+      await cacophony.createStereoToBFormatNode();
+
+      expect(createWorkletSpy).toHaveBeenCalledWith(
+        "stereo-to-bformat",
+        expect.any(String),
+        undefined,
+        expect.objectContaining({
+          numberOfInputs: 1,
+          numberOfOutputs: 1,
+          outputChannelCount: [4],
+          channelCount: 2,
+          channelCountMode: "explicit",
+          channelInterpretation: "speakers",
+        }),
+      );
+    });
+
+    it("createWorkletNode forwards node options to the constructor", async () => {
+      const options: AudioWorkletNodeOptions = {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [4],
+      };
+      const createAudioWorkletNode = vi
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error("Worklet not loaded");
+        })
+        .mockImplementationOnce(
+          () =>
+            ({
+              connect: vi.fn(),
+              disconnect: vi.fn(),
+              port: {
+                postMessage: vi.fn(),
+                addEventListener: vi.fn(),
+              },
+            }) as any,
+        );
+
+      const cacophonyWithCustomWorkletNode = new Cacophony(audioContextMock, mockCache, {
+        createAudioWorkletNode,
+      });
+
+      await cacophonyWithCustomWorkletNode.createWorkletNode(
+        "test-worklet",
+        "https://example.com/worklet.js",
+        undefined,
+        options,
+      );
+
+      expect(createAudioWorkletNode).toHaveBeenNthCalledWith(1, audioContextMock, "test-worklet", options);
+      expect(createAudioWorkletNode).toHaveBeenNthCalledWith(2, audioContextMock, "test-worklet", options);
+    });
+
     it("loadWorklets works without AbortSignal (backward compatibility)", async () => {
       const createWorkletSpy = vi.spyOn(cacophony, "createWorkletNode").mockResolvedValue({} as any);
 
       await cacophony.loadWorklets();
 
-      expect(createWorkletSpy).toHaveBeenCalledWith("phase-vocoder", expect.any(String), undefined);
+      expect(createWorkletSpy).toHaveBeenNthCalledWith(1, "phase-vocoder", expect.any(String), undefined);
+      expect(createWorkletSpy).toHaveBeenNthCalledWith(2, "stereo-to-bformat", expect.any(String), undefined);
     });
 
     it("loadWorklets handles missing audioWorklet gracefully", async () => {

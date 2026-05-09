@@ -1,6 +1,17 @@
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
+import stereoToBFormatProcessorWorkletUrl from "./bundles/stereo-to-bformat-bundle.js?url";
 import { AudioCache, type ICache } from "./cache";
-import type { AudioBuffer, AudioListener, BaseContext, BiquadFilterNode, GainNode, PannerNode } from "./context";
+import type {
+  AudioBuffer,
+  AudioListener,
+  AudioWorkletNode,
+  BaseContext,
+  BiquadFilterNode,
+  ChannelMergerNode,
+  ChannelSplitterNode,
+  GainNode,
+  PannerNode,
+} from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { CacophonyEvents } from "./events";
 import { Group } from "./group";
@@ -93,7 +104,7 @@ export interface OfflineOptions {
 }
 
 export interface RuntimeOptions {
-  createAudioWorkletNode?: (context: BaseContext, name: string) => any;
+  createAudioWorkletNode?: (context: BaseContext, name: string, options?: AudioWorkletNodeOptions) => any;
 }
 
 /**
@@ -117,7 +128,7 @@ export class Cacophony {
   private finalizationRegistry: FinalizationRegistry<SoundCleanupHoldings>;
   private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
-  private createAudioWorkletNode: (context: BaseContext, name: string) => any;
+  private createAudioWorkletNode: (context: BaseContext, name: string, options?: AudioWorkletNodeOptions) => any;
 
   constructor(context?: BaseContext, cache?: ICache, runtimeOptions: RuntimeOptions = {}) {
     this.context = context || new AudioContext();
@@ -127,7 +138,7 @@ export class Cacophony {
     this.cache = cache || new AudioCache();
     this.createAudioWorkletNode =
       runtimeOptions.createAudioWorkletNode ||
-      ((workletContext, name) => new AudioWorkletNode(workletContext as any, name));
+      ((workletContext, name, options) => new AudioWorkletNode(workletContext as any, name, options));
 
     this.finalizationRegistry = new FinalizationRegistry((holdings) => {
       for (const source of holdings.sources) {
@@ -219,18 +230,28 @@ export class Cacophony {
   async loadWorklets(signal?: AbortSignal) {
     if (this.context.audioWorklet) {
       await this.createWorkletNode("phase-vocoder", phaseVocoderProcessorWorkletUrl, signal);
+      await this.loadStereoToBFormatWorklet(signal);
     } else {
       console.warn("AudioWorklet not supported");
     }
   }
 
-  async createWorkletNode(name: string, url: string, signal?: AbortSignal) {
+  async loadStereoToBFormatWorklet(signal?: AbortSignal): Promise<void> {
+    await this.createWorkletNode("stereo-to-bformat", stereoToBFormatProcessorWorkletUrl, signal);
+  }
+
+  async createWorkletNode(
+    name: string,
+    url: string,
+    signal?: AbortSignal,
+    options?: AudioWorkletNodeOptions,
+  ): Promise<AudioWorkletNode> {
     // ensure audioWorklet has been loaded
     if (!this.context.audioWorklet) {
       throw new Error("AudioWorklet not supported");
     }
     try {
-      return this.createAudioWorkletNode(this.context, name);
+      return this.createAudioWorkletNode(this.context, name, options);
     } catch (err) {
       console.error(err);
       console.log("Loading worklet from url", url);
@@ -244,8 +265,19 @@ export class Cacophony {
         throw err; // Preserve original error (including AbortError)
       }
 
-      return this.createAudioWorkletNode(this.context, name);
+      return this.createAudioWorkletNode(this.context, name, options);
     }
+  }
+
+  async createStereoToBFormatNode(signal?: AbortSignal): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("stereo-to-bformat", stereoToBFormatProcessorWorkletUrl, signal, {
+      numberOfInputs: 1,
+      numberOfOutputs: 1,
+      outputChannelCount: [4],
+      channelCount: 2,
+      channelCountMode: "explicit",
+      channelInterpretation: "speakers",
+    });
   }
 
   private createAbortError(): DOMException {
@@ -426,6 +458,20 @@ export class Cacophony {
     filter.Q.value = Q || 1;
     return filter;
   };
+
+  createSplitter(numChannels: number = 2): ChannelSplitterNode {
+    if (!this.context.createChannelSplitter) {
+      throw new Error("ChannelSplitterNode not supported");
+    }
+    return this.context.createChannelSplitter(numChannels);
+  }
+
+  createMerger(numChannels: number = 2): ChannelMergerNode {
+    if (!this.context.createChannelMerger) {
+      throw new Error("ChannelMergerNode not supported");
+    }
+    return this.context.createChannelMerger(numChannels);
+  }
 
   /**
    * Creates a PannerNode with the specified options.
