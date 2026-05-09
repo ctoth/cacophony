@@ -32,6 +32,10 @@ function averageAbsolute(values: Float32Array): number {
   return sum / values.length;
 }
 
+function sineWave(frequencyHz: number, sampleRate: number, phase = 0): (frame: number) => number {
+  return (frame) => Math.sin((2 * Math.PI * frequencyHz * frame) / sampleRate + phase);
+}
+
 describe("StereoToFoaUpmixer", () => {
   it("keeps mono material in W with negligible horizontal cue", () => {
     const upmixer = new StereoToFoaUpmixer(48_000);
@@ -115,5 +119,24 @@ describe("StereoToFoaUpmixer", () => {
     expect(averageAbsolute(block.y)).toBeGreaterThan(0.25);
     expect(averageAbsolute(block.w)).toBeLessThan(0.05);
     expect(averageAbsolute(block.x)).toBeLessThan(0.05);
+  });
+
+  it("keeps bright near-coherent content anchored instead of peeling sideways", () => {
+    const upmixer = new StereoToFoaUpmixer(48_000);
+    const sampleRate = 48_000;
+    const frequencyHz = 6_000;
+    const phaseOffset = Math.PI / 3;
+    let block = processBlock(
+      upmixer,
+      sineWave(frequencyHz, sampleRate),
+      sineWave(frequencyHz, sampleRate, phaseOffset),
+    );
+
+    for (let i = 0; i < 31; i++) {
+      block = processBlock(upmixer, sineWave(frequencyHz, sampleRate), sineWave(frequencyHz, sampleRate, phaseOffset));
+    }
+
+    expect(averageAbsolute(block.x)).toBeGreaterThan(averageAbsolute(block.y));
+    expect(averageAbsolute(block.y)).toBeLessThan(0.08);
   });
 });

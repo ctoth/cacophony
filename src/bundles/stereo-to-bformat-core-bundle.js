@@ -11,9 +11,21 @@ var stereoToBformatCore = (function (exports) {
     const W_GAIN_LOW = 0.5;
     const W_GAIN_MID = 0.45;
     const W_GAIN_HIGH = 0.35;
+    const X_GAIN_LOW = 0;
+    const X_GAIN_MID = 0.35;
+    const X_GAIN_HIGH = 0.55;
     const Y_GAIN_LOW = 0;
     const Y_GAIN_MID = 0.5;
     const Y_GAIN_HIGH = 0.85;
+    const SIDE_DOMINANCE_EPSILON = 1e-9;
+    // Coherence smoothing. Exponential first-order low-pass on per-band power
+    // and cross-power. Alpha closer to 1 means slower tracking; this value gives
+    // a time constant of about 20 ms at 48 kHz, which lines up with BCC-paper
+    // recommendations for perceptual-cue smoothing.
+    const COHERENCE_SMOOTHING_ALPHA = 0.999;
+    // Numerical floor on per-band power so the ICC denominator never blows up
+    // during silence.
+    const COHERENCE_POWER_EPSILON = 1e-12;
     class BiquadFilter {
         b0 = 0;
         b1 = 0;
@@ -64,16 +76,78 @@ var stereoToBformatCore = (function (exports) {
             return output;
         }
     }
+    /**
+     * Running per-band inter-channel coherence estimator.
+     *
+     * Maintains exponentially smoothed estimates of L*L, R*R, and L*R, then
+     * derives a normalized coherence value `|<LR>| / sqrt(<L²> * <R²>)` in
+     * the range [0, 1]. High coherence indicates a stable in-phase / panned
+     * source; low coherence indicates decorrelated diffuse content like room
+     * reverb.
+     *
+     * The sign of <LR> is preserved internally so callers can differentiate
+     * positive (in-phase / center) from negative (anti-phase) correlation,
+     * but the public `coherence()` helper returns magnitude only.
+     */
+    class CrossCorrelator {
+        smoothedLL = 0;
+        smoothedRR = 0;
+        smoothedLR = 0;
+        alpha;
+        oneMinusAlpha;
+        constructor(alpha = COHERENCE_SMOOTHING_ALPHA) {
+            this.alpha = alpha;
+            this.oneMinusAlpha = 1 - alpha;
+        }
+        update(left, right) {
+            this.smoothedLL = this.alpha * this.smoothedLL + this.oneMinusAlpha * left * left;
+            this.smoothedRR = this.alpha * this.smoothedRR + this.oneMinusAlpha * right * right;
+            this.smoothedLR = this.alpha * this.smoothedLR + this.oneMinusAlpha * left * right;
+        }
+        /** Magnitude of normalized cross-correlation in [0, 1]. */
+        coherence() {
+            const denom = Math.sqrt(this.smoothedLL * this.smoothedRR) + COHERENCE_POWER_EPSILON;
+            const c = Math.abs(this.smoothedLR) / denom;
+            return c > 1 ? 1 : c;
+        }
+        /**
+         * Signed normalized cross-correlation in [-1, +1].
+         *
+         * - +1: perfectly in-phase (L and R move together, mono / center pan)
+         * - 0: uncorrelated (diffuse ambient, hard-panned single source)
+         * - -1: perfectly anti-phase (L and R move oppositely, stereo width
+         *   tricks or out-of-phase content)
+         *
+         * Front/back routing wants positive correlation (real center material).
+         * Left/right routing wants whatever isn't in-phase (anything that has
+         * a stable difference between channels, including hard pans).
+         */
+        signedCoherence() {
+            const denom = Math.sqrt(this.smoothedLL * this.smoothedRR) + COHERENCE_POWER_EPSILON;
+            const c = this.smoothedLR / denom;
+            if (c > 1)
+                return 1;
+            if (c < -1)
+                return -1;
+            return c;
+        }
+    }
     class StereoToFoaUpmixer {
         lowLeft;
         lowRight;
         highLeft;
         highRight;
+        lowCoherence;
+        midCoherence;
+        highCoherence;
         constructor(sampleRate) {
             this.lowLeft = new BiquadFilter("lowpass", sampleRate, LOW_CUTOFF_HZ);
             this.lowRight = new BiquadFilter("lowpass", sampleRate, LOW_CUTOFF_HZ);
             this.highLeft = new BiquadFilter("highpass", sampleRate, HIGH_CUTOFF_HZ);
             this.highRight = new BiquadFilter("highpass", sampleRate, HIGH_CUTOFF_HZ);
+            this.lowCoherence = new CrossCorrelator();
+            this.midCoherence = new CrossCorrelator();
+            this.highCoherence = new CrossCorrelator();
         }
         process(left, right, w, y, z, x) {
             const frameCount = Math.min(left.length, right.length, w.length, x.length, y.length, z.length);
@@ -86,16 +160,43 @@ var stereoToBformatCore = (function (exports) {
                 const highRight = this.highRight.process(rightSample);
                 const midLeft = leftSample - lowLeft - highLeft;
                 const midRight = rightSample - lowRight - highRight;
+                this.lowCoherence.update(lowLeft, lowRight);
+                this.midCoherence.update(midLeft, midRight);
+                this.highCoherence.update(highLeft, highRight);
                 const lowMid = (lowLeft + lowRight) * 0.5;
                 const lowSide = (lowLeft - lowRight) * 0.5;
                 const midMid = (midLeft + midRight) * 0.5;
                 const midSide = (midLeft - midRight) * 0.5;
                 const highMid = (highLeft + highRight) * 0.5;
                 const highSide = (highLeft - highRight) * 0.5;
+                // Coherence gating uses signed cross-correlation per band:
+                //   ρ ≈ +1: in-phase / center material → frontal X cue, no Y
+                //   ρ ≈  0: hard-panned single source or diffuse ambient → Y open, X suppressed
+                //   ρ ≈ -1: anti-phase / inverted-pair stereo trickery → Y open, X suppressed
+                //
+                // X gain factor = max(0, ρ). Only positive in-phase content steers
+                // forward; decorrelated and anti-phase content stays out of X.
+                //
+                // Y gain factor = 1 - max(0, ρ). Center material (high +ρ)
+                // suppresses Y; everything else (hard pans, anti-phase, ambient)
+                // keeps the side cue.
+                //
+                // High-frequency vocals were still peeling sideways because "not
+                // perfectly centered" was enough to keep a lot of treble in Y.
+                // Make the high band more selective: only steer hard sideways when
+                // the band is both non-centered and actually side-dominant.
+                const lowRho = Math.max(0, this.lowCoherence.signedCoherence());
+                const midRho = Math.max(0, this.midCoherence.signedCoherence());
+                const highRho = Math.max(0, this.highCoherence.signedCoherence());
+                const highSideDominance = Math.abs(highSide) / (Math.abs(highMid) + Math.abs(highSide) + SIDE_DOMINANCE_EPSILON);
+                const highYWeight = (1 - highRho) * highSideDominance * highSideDominance;
                 w[frame] = lowMid * W_GAIN_LOW + midMid * W_GAIN_MID + highMid * W_GAIN_HIGH;
-                y[frame] = lowSide * Y_GAIN_LOW + midSide * Y_GAIN_MID + highSide * Y_GAIN_HIGH;
+                y[frame] =
+                    lowSide * Y_GAIN_LOW * (1 - lowRho) +
+                        midSide * Y_GAIN_MID * (1 - midRho) +
+                        highSide * Y_GAIN_HIGH * highYWeight;
                 z[frame] = 0;
-                x[frame] = 0;
+                x[frame] = lowMid * X_GAIN_LOW * lowRho + midMid * X_GAIN_MID * midRho + highMid * X_GAIN_HIGH * highRho;
             }
         }
     }

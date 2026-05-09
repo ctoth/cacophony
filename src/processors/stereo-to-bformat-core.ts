@@ -16,6 +16,7 @@ const X_GAIN_HIGH = 0.55;
 const Y_GAIN_LOW = 0;
 const Y_GAIN_MID = 0.5;
 const Y_GAIN_HIGH = 0.85;
+const SIDE_DOMINANCE_EPSILON = 1e-9;
 
 // Coherence smoothing. Exponential first-order low-pass on per-band power
 // and cross-power. Alpha closer to 1 means slower tracking; this value gives
@@ -210,15 +211,22 @@ export class StereoToFoaUpmixer {
       // Y gain factor = 1 - max(0, ρ). Center material (high +ρ)
       // suppresses Y; everything else (hard pans, anti-phase, ambient)
       // keeps the side cue.
+      //
+      // High-frequency vocals were still peeling sideways because "not
+      // perfectly centered" was enough to keep a lot of treble in Y.
+      // Make the high band more selective: only steer hard sideways when
+      // the band is both non-centered and actually side-dominant.
       const lowRho = Math.max(0, this.lowCoherence.signedCoherence());
       const midRho = Math.max(0, this.midCoherence.signedCoherence());
       const highRho = Math.max(0, this.highCoherence.signedCoherence());
+      const highSideDominance = Math.abs(highSide) / (Math.abs(highMid) + Math.abs(highSide) + SIDE_DOMINANCE_EPSILON);
+      const highYWeight = (1 - highRho) * highSideDominance * highSideDominance;
 
       w[frame] = lowMid * W_GAIN_LOW + midMid * W_GAIN_MID + highMid * W_GAIN_HIGH;
       y[frame] =
         lowSide * Y_GAIN_LOW * (1 - lowRho) +
         midSide * Y_GAIN_MID * (1 - midRho) +
-        highSide * Y_GAIN_HIGH * (1 - highRho);
+        highSide * Y_GAIN_HIGH * highYWeight;
       z[frame] = 0;
       x[frame] = lowMid * X_GAIN_LOW * lowRho + midMid * X_GAIN_MID * midRho + highMid * X_GAIN_HIGH * highRho;
     }
