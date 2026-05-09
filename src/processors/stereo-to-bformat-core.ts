@@ -10,6 +10,9 @@ const HIGH_CUTOFF_HZ = 2000;
 const W_GAIN_LOW = 0.5;
 const W_GAIN_MID = 0.45;
 const W_GAIN_HIGH = 0.35;
+const X_GAIN_LOW = 0;
+const X_GAIN_MID = 0.35;
+const X_GAIN_HIGH = 0.55;
 const Y_GAIN_LOW = 0;
 const Y_GAIN_MID = 0.5;
 const Y_GAIN_HIGH = 0.85;
@@ -119,7 +122,7 @@ export class StereoToFoaUpmixer {
       w[frame] = lowMid * W_GAIN_LOW + midMid * W_GAIN_MID + highMid * W_GAIN_HIGH;
       y[frame] = lowSide * Y_GAIN_LOW + midSide * Y_GAIN_MID + highSide * Y_GAIN_HIGH;
       z[frame] = 0;
-      x[frame] = 0;
+      x[frame] = lowMid * X_GAIN_LOW + midMid * X_GAIN_MID + highMid * X_GAIN_HIGH;
     }
   }
 }

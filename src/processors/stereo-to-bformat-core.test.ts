@@ -52,7 +52,28 @@ describe("StereoToFoaUpmixer", () => {
     expect(averageAbsolute(block.w)).toBeGreaterThan(0.1);
     expect(averageAbsolute(block.y)).toBeLessThan(1e-4);
     expect(Array.from(block.z)).toEqual(new Array(block.z.length).fill(0));
-    expect(Array.from(block.x)).toEqual(new Array(block.x.length).fill(0));
+    expect(averageAbsolute(block.x)).toBeLessThan(1e-10);
+  });
+
+  it("encodes coherent upper-band stereo content with a frontal X cue", () => {
+    const upmixer = new StereoToFoaUpmixer(48_000);
+    let block = processBlock(
+      upmixer,
+      (frame) => (frame % 2 === 0 ? 1 : -1),
+      (frame) => (frame % 2 === 0 ? 1 : -1),
+    );
+
+    for (let i = 0; i < 15; i++) {
+      block = processBlock(
+        upmixer,
+        (frame) => (frame % 2 === 0 ? 1 : -1),
+        (frame) => (frame % 2 === 0 ? 1 : -1),
+      );
+    }
+
+    expect(averageAbsolute(block.x)).toBeGreaterThan(0.25);
+    expect(averageAbsolute(block.y)).toBeLessThan(1e-4);
+    expect(Array.from(block.z)).toEqual(new Array(block.z.length).fill(0));
   });
 
   it("suppresses directional output for low-band hard-panned content after settling", () => {
@@ -93,5 +114,6 @@ describe("StereoToFoaUpmixer", () => {
 
     expect(averageAbsolute(block.y)).toBeGreaterThan(0.25);
     expect(averageAbsolute(block.w)).toBeLessThan(0.05);
+    expect(averageAbsolute(block.x)).toBeLessThan(0.05);
   });
 });
