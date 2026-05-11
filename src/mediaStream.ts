@@ -18,6 +18,7 @@ export interface MediaStreamSoundOptions {
 
 export class MediaStreamPlayback extends BasePlayback {
   public declare origin: MediaStreamSound;
+  public declare source?: MediaStreamAudioSourceNode;
   private hasStarted: boolean = false;
   private stopTracksOnStop: boolean;
 
