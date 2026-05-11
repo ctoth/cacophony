@@ -18,7 +18,7 @@ export interface MediaStreamSoundOptions {
 
 export class MediaStreamPlayback extends BasePlayback {
   public declare origin: MediaStreamSound;
-  private context: BaseContext;
+  private hasStarted: boolean = false;
   private stopTracksOnStop: boolean;
 
   constructor(
@@ -32,7 +32,6 @@ export class MediaStreamPlayback extends BasePlayback {
   ) {
     super();
     this.origin = origin;
-    this.context = context;
     this.stopTracksOnStop = stopTracksOnStop;
     this.source = source;
     this.setPanType(panType, context);
@@ -55,6 +54,7 @@ export class MediaStreamPlayback extends BasePlayback {
       return [this];
     }
     this.source.mediaStream.getTracks().forEach((track) => (track.enabled = true));
+    this.hasStarted = true;
     this._playing = true;
     this.emit("play", this);
     this.origin.cacophony?.emit("globalPlay", {
@@ -85,11 +85,13 @@ export class MediaStreamPlayback extends BasePlayback {
     if (!this.source) {
       throw new Error("Cannot stop a media stream that has been cleaned up");
     }
+    const shouldEmitStop = this.hasStarted;
     if (this.stopTracksOnStop) {
       this.source.mediaStream.getTracks().forEach((track) => track.stop());
     }
-    if (this._playing) {
-      this._playing = false;
+    this.hasStarted = false;
+    this._playing = false;
+    if (shouldEmitStop) {
       this.emit("stop", undefined);
       this.origin.cacophony?.emit("globalStop", {
         source: this.origin,
@@ -236,6 +238,6 @@ export class MediaStreamSound extends PlaybackContainer(FilterManager) implement
 
   cleanup(): void {
     this.stop();
-    this._filters = [];
+    super.cleanup();
   }
 }
