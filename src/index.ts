@@ -21,6 +21,7 @@ export type {
 } from "./context";
 export * from "./events";
 export * from "./group";
+export * from "./mediaStream";
 export { MicrophonePlayback } from "./microphone";
 export * from "./playback";
 export { Sound } from "./sound";
