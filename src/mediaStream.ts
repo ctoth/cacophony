@@ -226,6 +226,10 @@ export class MediaStreamSound extends PlaybackContainer(FilterManager) implement
 
   seek(_time: number): void {}
 
+  resume(): void {
+    this.playbacks.forEach((playback) => playback.resume());
+  }
+
   loop(_loopCount?: LoopCount): LoopCount {
     return 0;
   }
