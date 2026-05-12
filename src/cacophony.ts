@@ -15,6 +15,7 @@ import type {
 import { TypedEventEmitter } from "./eventEmitter";
 import type { CacophonyEvents } from "./events";
 import { Group } from "./group";
+import { MediaStreamSound, type MediaStreamSoundOptions } from "./mediaStream";
 import { MicrophoneStream } from "./microphone";
 import { Sound } from "./sound";
 import { Synth } from "./synth";
@@ -495,6 +496,10 @@ export class Cacophony {
    */
   async createStream(url: string, signal?: AbortSignal): Promise<Sound> {
     return this.createMediaSound(url, SoundType.Streaming, "HRTF", signal);
+  }
+
+  createMediaStreamSound(stream: MediaStream, options?: MediaStreamSoundOptions): MediaStreamSound {
+    return new MediaStreamSound(stream, this.context, this.globalGainNode, options, this);
   }
 
   createBiquadFilter = ({ type, frequency, gain, Q }: BiquadFilterOptions): BiquadFilterNode => {

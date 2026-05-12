@@ -1,4 +1,5 @@
 import type { BasePlayback } from "./basePlayback";
+import type { BaseSound } from "./cacophony";
 import type { Sound } from "./sound";
 import type { Synth } from "./synth";
 import type { SynthPlayback } from "./synthPlayback";
@@ -52,10 +53,10 @@ export interface SynthEvents extends Omit<BaseAudioEvents, "play"> {
 }
 
 /**
- * Global playback event fired when any Sound or Synth plays/stops/pauses.
+ * Global playback event fired when any sound-producing entity plays/stops/pauses.
  */
 export interface GlobalPlaybackEvent {
-  source: Sound | Synth;
+  source: BaseSound | Sound | Synth;
   timestamp: number;
 }
 

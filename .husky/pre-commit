@@ -1,2 +1,3 @@
 npx biome ci .
+npm run typecheck
 npm test
