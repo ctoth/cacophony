@@ -4,7 +4,20 @@ import type { BiquadFilterNode } from "./context";
 import type { FilterManager } from "./filters";
 
 type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
-export interface IPlaybackContainer {
+
+/**
+ * Public structural contract of the class returned by the {@link PlaybackContainer}
+ * mixin factory. Describes the surface that consumers can rely on when they hold
+ * a reference to a container (for example, `BasePlayback.origin`).
+ *
+ * NOTE: `stereoPan` getter/setter asymmetry (`number | null` vs `number`) is
+ * mirrored from the implementation and tracked separately by T5.
+ * NOTE: `threeDOptions` getter/setter asymmetry (`PannerOptions` vs
+ * `Partial<PannerOptions>`) is tracked separately by T2.
+ */
+export interface PlaybackContainer {
+  playbacks: BasePlayback[];
+  preplay(): BasePlayback[];
   play(): BasePlayback[];
   stop(): void;
   pause(): void;
@@ -15,6 +28,10 @@ export interface IPlaybackContainer {
   threeDOptions: PannerOptions;
   stereoPan: number | null;
   volume: number;
+  fadeTo(value: number, duration: number, type?: FadeType): Promise<void>;
+  fadeIn(duration: number, type?: FadeType): Promise<void>;
+  fadeOut(duration: number, type?: FadeType): Promise<void>;
+  stopWithFade(duration: number, type?: FadeType): Promise<void>;
 }
 
 export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {

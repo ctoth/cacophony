@@ -1,5 +1,5 @@
 import type { FadeType } from "./cacophony";
-import type { IPlaybackContainer } from "./container";
+import type { PlaybackContainer } from "./container";
 import type { AudioNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { PlaybackEvents } from "./events";
@@ -10,7 +10,7 @@ import { VolumeMixin } from "./volumeMixin";
 export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager)) {
   public source?: AudioNode;
   _playing: boolean = false;
-  public origin!: IPlaybackContainer;
+  public origin!: PlaybackContainer;
   public eventEmitter: TypedEventEmitter<PlaybackEvents> = new TypedEventEmitter<PlaybackEvents>();
 
   constructor() {
