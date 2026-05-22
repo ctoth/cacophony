@@ -569,7 +569,7 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.panner || !this.gainNode) {
       throw new Error("Cannot update filters on a sound that has been cleaned up");
     }
-    let connection = this.panner;
+    let connection: AudioNode = this.panner;
     connection.disconnect();
     connection = this.applyFilters(connection);
     connection.connect(this.gainNode);

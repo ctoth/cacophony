@@ -1,5 +1,5 @@
 import type { BaseSound } from "./cacophony";
-import type { BaseContext, GainNode, OscillatorNode } from "./context";
+import type { AudioNode, BaseContext, GainNode, OscillatorNode } from "./context";
 import { FilterManager } from "./filters";
 import { OscillatorMixin } from "./oscillatorMixin";
 import { PannerMixin } from "./pannerMixin";
@@ -91,7 +91,7 @@ export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(Filte
     if (!this.panner || !this.gainNode) {
       throw new Error("Cannot update filters on a sound that has been cleaned up");
     }
-    let connection = this.panner;
+    let connection: AudioNode = this.panner;
     connection.disconnect();
     connection = this.applyFilters(connection);
     connection.connect(this.gainNode);

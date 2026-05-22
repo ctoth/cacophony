@@ -127,7 +127,7 @@ export class MediaStreamPlayback extends BasePlayback {
     if (!this.panner || !this.gainNode) {
       throw new Error("Cannot update filters on a media stream that has been cleaned up");
     }
-    let connection = this.panner;
+    let connection: AudioNode = this.panner;
     connection.disconnect();
     connection = this.applyFilters(connection);
     connection.connect(this.gainNode);
