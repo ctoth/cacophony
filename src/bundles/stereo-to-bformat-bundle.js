@@ -207,7 +207,7 @@ var stereoToBformat = (function (exports) {
         framesShortInput = 0;
         lastReportFrame = 0;
         upmixer = new StereoToFoaUpmixer(sampleRate);
-        process(inputs, outputs) {
+        process(inputs, outputs, _parameters) {
             const input = inputs[0];
             const output = outputs[0];
             if (!input || input.length < 2 || !output || output.length < 4) {

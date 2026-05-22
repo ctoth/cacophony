@@ -17,9 +17,11 @@ var ola = (function () {
         outputBuffersToRetrieve = [];
         constructor(options) {
             super(options);
-            this.nbInputs = options.numberOfInputs || 1;
-            this.nbOutputs = options.numberOfOutputs || 1;
-            this.blockSize = options.processorOptions.blockSize || DEFAULT_BLOCK_SIZE;
+            this.nbInputs = options?.numberOfInputs || 1;
+            this.nbOutputs = options?.numberOfOutputs || 1;
+            // processorOptions is typed `unknown` at the ambient boundary; narrow here.
+            const procOpts = (options?.processorOptions ?? {});
+            this.blockSize = procOpts.blockSize || DEFAULT_BLOCK_SIZE;
             this.hopSize = WEBAUDIO_BLOCK_SIZE;
             this.nbOverlaps = Math.floor(this.blockSize / this.hopSize);
             this.initializeBuffers();

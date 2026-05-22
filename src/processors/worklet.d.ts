@@ -1,5 +1,7 @@
-// Type definitions for AudioWorklet context
-// Based on Web Audio API spec and runtime behavior
+// Type definitions for AudioWorklet context.
+// Worklet build does not load DOM lib (tsconfig.worklets.json sets
+// lib=["ESNext","WebWorker"]); this declares the AudioWorklet globals
+// (Web Audio API §1.32) needed by processors in this folder.
 
 type AutomationRate = "a-rate" | "k-rate";
 
@@ -16,11 +18,12 @@ interface AudioWorkletNodeOptions {
   numberOfOutputs?: number;
   outputChannelCount?: number[];
   parameterData?: Record<string, number>;
-  processorOptions?: any;
+  processorOptions?: unknown;
 }
 
 interface AudioWorkletProcessor {
   readonly port: MessagePort;
+  process(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>): boolean;
 }
 
 declare var AudioWorkletProcessor: {
@@ -28,12 +31,8 @@ declare var AudioWorkletProcessor: {
   new (options?: AudioWorkletNodeOptions): AudioWorkletProcessor;
 };
 
-interface AudioWorkletProcessorImpl extends AudioWorkletProcessor {
-  process(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>): boolean;
-}
-
 interface AudioWorkletProcessorConstructor {
-  new (options?: AudioWorkletNodeOptions): AudioWorkletProcessorImpl;
+  new (options?: AudioWorkletNodeOptions): AudioWorkletProcessor;
   parameterDescriptors?: AudioParamDescriptor[];
 }
 

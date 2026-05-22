@@ -2,7 +2,7 @@ const WEBAUDIO_BLOCK_SIZE = 128;
 const DEFAULT_BLOCK_SIZE = 1024; // Default block size if not provided in options
 
 /** Overlap-Add Node */
-export default abstract class OLAProcessor extends AudioWorkletProcessor implements AudioWorkletProcessorImpl {
+export default abstract class OLAProcessor extends AudioWorkletProcessor {
   nbInputs: number;
   nbOutputs: number;
   blockSize: number;
@@ -14,13 +14,15 @@ export default abstract class OLAProcessor extends AudioWorkletProcessor impleme
   outputBuffers: Float32Array[][] = [];
   outputBuffersToRetrieve: Float32Array[][] = [];
 
-  constructor(options: AudioWorkletNodeOptions) {
+  constructor(options?: AudioWorkletNodeOptions) {
     super(options);
 
-    this.nbInputs = options.numberOfInputs || 1;
-    this.nbOutputs = options.numberOfOutputs || 1;
+    this.nbInputs = options?.numberOfInputs || 1;
+    this.nbOutputs = options?.numberOfOutputs || 1;
 
-    this.blockSize = options.processorOptions.blockSize || DEFAULT_BLOCK_SIZE;
+    // processorOptions is typed `unknown` at the ambient boundary; narrow here.
+    const procOpts = (options?.processorOptions ?? {}) as { blockSize?: number };
+    this.blockSize = procOpts.blockSize || DEFAULT_BLOCK_SIZE;
     this.hopSize = WEBAUDIO_BLOCK_SIZE;
     this.nbOverlaps = Math.floor(this.blockSize / this.hopSize);
 
