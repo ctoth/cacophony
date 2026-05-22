@@ -15,8 +15,6 @@ import type {
   AudioParam,
   BaseContext,
   BiquadFilterNode,
-  ChannelMergerNode,
-  ChannelSplitterNode,
   GainNode,
   OscillatorNode,
   PannerNode,
