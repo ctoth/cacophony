@@ -275,6 +275,86 @@ describe("Autoplay unlock", () => {
     });
   });
 
+  describe("resume contract", () => {
+    it("does NOT emit unlock when context.resume() rejects", async () => {
+      const doc = installMockDocument();
+      const ctx = new AudioContext();
+      const rejectErr = new Error("resume failed");
+      vi.spyOn(ctx, "resume").mockRejectedValue(rejectErr);
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      const c = new Cacophony(ctx as any, mockCache);
+      const unlockListener = vi.fn();
+      c.on("unlock", unlockListener);
+
+      doc.fire("click");
+
+      // Flush microtasks for the rejected promise to be observed.
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(unlockListener).not.toHaveBeenCalled();
+      expect(c.locked).toBe(true);
+      expect(warnSpy).toHaveBeenCalled();
+
+      warnSpy.mockRestore();
+    });
+
+    it("emits unlock asynchronously, only after resume() fulfills", async () => {
+      const doc = installMockDocument();
+      const ctx = new AudioContext();
+
+      let resolveResume!: () => void;
+      const resumePromise = new Promise<void>((resolve) => {
+        resolveResume = resolve;
+      });
+      vi.spyOn(ctx, "resume").mockReturnValue(resumePromise as any);
+
+      const c = new Cacophony(ctx as any, mockCache);
+      const unlockListener = vi.fn();
+      c.on("unlock", unlockListener);
+
+      doc.fire("click");
+
+      // After the synchronous gesture stack returns, unlock should not yet
+      // have fired — resume() is still pending.
+      await Promise.resolve();
+      expect(unlockListener).not.toHaveBeenCalled();
+
+      resolveResume();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(unlockListener).toHaveBeenCalledTimes(1);
+    });
+
+    it("calls stop(0) on the primer buffer source after start(0)", () => {
+      const doc = installMockDocument();
+      const ctx = new AudioContext();
+
+      const startSpy = vi.fn();
+      const stopSpy = vi.fn();
+      const sourceMock = {
+        start: startSpy,
+        stop: stopSpy,
+        connect: vi.fn(),
+        disconnect: vi.fn(),
+        buffer: null,
+      };
+      vi.spyOn(ctx, "createBufferSource").mockReturnValue(sourceMock as any);
+
+      new Cacophony(ctx as any, mockCache);
+
+      doc.fire("click");
+
+      expect(startSpy).toHaveBeenCalledWith(0);
+      expect(stopSpy).toHaveBeenCalledWith(0);
+      // start must precede stop
+      expect(startSpy.mock.invocationCallOrder[0]).toBeLessThan(stopSpy.mock.invocationCallOrder[0]);
+    });
+  });
+
   describe("locked getter", () => {
     it("returns true before unlock when context is suspended", () => {
       installMockDocument();

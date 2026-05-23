@@ -117,7 +117,11 @@ export function installAutoplayUnlock(opts: AutoplayUnlockOptions): () => void {
       const source = context.createBufferSource();
       source.buffer = buffer as any;
       source.connect(context.destination);
+      // The load-bearing iOS pattern is start(0); stop(0) on a silent buffer
+      // INSIDE the gesture call stack. A 1-sample non-looping buffer would
+      // end on its own, but the pair is what the platform contract names.
       source.start(0);
+      source.stop(0);
     } catch (err) {
       // Primer failure should not block the rest of the unlock; the
       // context.resume() call below is still useful on platforms that do
@@ -125,19 +129,32 @@ export function installAutoplayUnlock(opts: AutoplayUnlockOptions): () => void {
       console.warn("[cacophony/autoplayUnlock] primer failed:", err);
     }
 
-    // Resume the context. The promise may settle asynchronously — that's
-    // fine; we have already played the primer inside the gesture stack.
+    // Resume the context, then emit unlock. The `unlock` event signals that
+    // audio is actually playable, so we must wait for resume() to fulfill
+    // before emitting. On rejection we surface the error and do NOT emit
+    // unlock — a failed resume is not an unlock.
     const resume = (context as unknown as { resume?: () => Promise<void> }).resume;
     if (typeof resume === "function") {
-      resume.call(context).catch((err: unknown) => {
-        console.warn("[cacophony/autoplayUnlock] resume failed:", err);
-      });
-    }
-
-    try {
-      onUnlock();
-    } catch (err) {
-      console.error("[cacophony/autoplayUnlock] onUnlock callback threw:", err);
+      resume.call(context).then(
+        () => {
+          try {
+            onUnlock();
+          } catch (err) {
+            console.error("[cacophony/autoplayUnlock] onUnlock callback threw:", err);
+          }
+        },
+        (err: unknown) => {
+          console.warn("[cacophony/autoplayUnlock] resume failed:", err);
+        },
+      );
+    } else {
+      // No resume() available (unusual, but possible in stubbed contexts).
+      // The primer is enough to consider the context unlocked.
+      try {
+        onUnlock();
+      } catch (err) {
+        console.error("[cacophony/autoplayUnlock] onUnlock callback threw:", err);
+      }
     }
   };
 
