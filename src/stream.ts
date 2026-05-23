@@ -11,11 +11,18 @@ import type { AudioBuffer, BaseContext } from "./context";
 const viewToArrayBuffer = (view: Uint8Array): ArrayBuffer =>
   view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength);
 
+const appendBuffer = (buffer1: ArrayBuffer, buffer2: ArrayBuffer): ArrayBuffer => {
+  const joined = new Uint8Array(buffer1.byteLength + buffer2.byteLength);
+  joined.set(new Uint8Array(buffer1), 0);
+  joined.set(new Uint8Array(buffer2), buffer1.byteLength);
+  return joined.buffer;
+};
+
 /**
  * Fetch a WAV stream from `url` and play it through `context` chunk by chunk.
  *
- * The WAV header (first 44 bytes of the first chunk) travels with the first
- * decoded payload only; subsequent chunks are decoded as raw audio data.
+ * The WAV header (first 44 bytes of the first chunk) is prepended to later
+ * chunks so each decode receives a self-describing WAV buffer.
  *
  * Fire-and-forget: errors are reported via `console.error`. Pass an
  * `AbortSignal` to cancel the in-flight stream.
@@ -40,6 +47,7 @@ export function createStream(url: string, context: BaseContext, signal?: AbortSi
       }
 
       const reader = response.body.getReader();
+      let header = new ArrayBuffer(0);
 
       // Set up abort listener to cancel the reader
       const abortListener = (): void => {
@@ -66,9 +74,13 @@ export function createStream(url: string, context: BaseContext, signal?: AbortSi
             }
 
             if (value) {
-              // First chunk carries the WAV header; subsequent chunks are
-              // streamed as raw audio data without re-prepending it.
-              const audioBuffer = viewToArrayBuffer(value);
+              let audioBuffer: ArrayBuffer;
+              if (!header.byteLength) {
+                header = viewToArrayBuffer(value.subarray(0, 44));
+                audioBuffer = viewToArrayBuffer(value);
+              } else {
+                audioBuffer = appendBuffer(header, viewToArrayBuffer(value));
+              }
 
               context
                 .decodeAudioData(
