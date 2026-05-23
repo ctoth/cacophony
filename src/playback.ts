@@ -48,6 +48,14 @@ export class Playback extends BasePlayback implements BaseSound {
   private _startTime: number = 0;
   private _state: PlaybackState = "unplayed";
   private _playbackRate: number = 1;
+  /**
+   * Promise that tracks an in-flight media-element `.play()` settlement.
+   * Set when the media element's `play()` returns a pending promise; cleared
+   * once that promise settles. Used by `loopEnded` to avoid racing source-state
+   * mutations (`seek`/`play`) against the deferred state transition driven by
+   * this promise.
+   */
+  private _mediaPlayPromise?: Promise<void>;
   _fadeInConfig?: { duration: number; type: FadeType; perLoop: boolean; targetVolume: number };
   _fadeOutConfig?: { duration: number; type: FadeType };
   _loopEndCallback?: () => void;
@@ -163,7 +171,24 @@ export class Playback extends BasePlayback implements BaseSound {
    * This method is bound to the 'onended' event of the audio source.
    * It manages looping logic and restarts playback if necessary.
    */
-  loopEnded = () => {
+  loopEnded = (): void => {
+    if (!this.source || this._state !== "playing") {
+      return;
+    }
+
+    // For media-element sources, a previous play() may still have a pending
+    // settlement promise -- the deferred state transition races with the
+    // seek+play we are about to perform. Defer the loop work until the
+    // pending play resolves so source mutations don't interleave.
+    if ("mediaElement" in this.source && this._mediaPlayPromise) {
+      void this._mediaPlayPromise.then(() => this._runLoopEnded());
+      return;
+    }
+
+    this._runLoopEnded();
+  };
+
+  private _runLoopEnded(): void {
     if (!this.source || this._state !== "playing") {
       return;
     }
@@ -174,9 +199,16 @@ export class Playback extends BasePlayback implements BaseSound {
       // Final iteration -- emit ended, then either fade out or stop immediately
       this.emit("ended", undefined);
       if (this._fadeOutConfig) {
-        this.fadeOut(this._fadeOutConfig.duration, this._fadeOutConfig.type).then(() => {
-          this.stop();
-          this.removeFromOrigin();
+        // Guard the chained stop: an external stop()/cleanup() between the
+        // fade resolving and this .then would otherwise run stop()/source
+        // access against torn-down state. cancelFade() in stop()/cleanup()
+        // resolves the fade promise synchronously, which is what makes this
+        // .then fire at all after a teardown.
+        void this.fadeOut(this._fadeOutConfig.duration, this._fadeOutConfig.type).then(() => {
+          if (this._state !== "stopped" && this.source) {
+            this.stop();
+            this.removeFromOrigin();
+          }
         });
       } else {
         this.stop();
@@ -187,7 +219,7 @@ export class Playback extends BasePlayback implements BaseSound {
       this.seek(0); // Resets offset and handles play/pause state internally.
       // seek() calls pause() then play() when wasPlaying is true,
       // so play() handles both media-element and buffer sources correctly.
-      if (this._state !== "playing" && !("mediaElement" in this.source)) {
+      if (this._state !== "playing" && this.source && !("mediaElement" in this.source)) {
         // For AudioBufferSourceNode only: if seek() didn't restart playback
         // (e.g., state wasn't Playing before seek), start it now.
         this.play();
@@ -199,7 +231,7 @@ export class Playback extends BasePlayback implements BaseSound {
         this.fadeTo(this._fadeInConfig.targetVolume, this._fadeInConfig.duration, this._fadeInConfig.type);
       }
     }
-  };
+  }
 
   /**
    * Starts playing the audio.
@@ -247,29 +279,39 @@ export class Playback extends BasePlayback implements BaseSound {
       if (mediaPlayPromise) {
         // For media-element sources, defer state and events until browser accepts playback
         const previousState = this._state;
-        mediaPlayPromise.then(
-          () => {
-            this._startTime = this.context.currentTime;
-            this._state = "playing";
-            this.emit("play", this);
-            if (isResume) {
-              this.emit("resume", undefined);
+        // Stash the pending promise so loopEnded (and any future caller that
+        // needs to sequence after the deferred state transition) can await it
+        // rather than racing source-state mutations against it.
+        const tracked = mediaPlayPromise
+          .then(
+            () => {
+              this._startTime = this.context.currentTime;
+              this._state = "playing";
+              this.emit("play", this);
+              if (isResume) {
+                this.emit("resume", undefined);
+              }
+              this.origin.cacophony?.emit("globalPlay", {
+                source: this.origin,
+                timestamp: Date.now(),
+              });
+            },
+            (error: Error) => {
+              this._state = previousState;
+              void this.emitAsync("error", {
+                error,
+                errorType: "source",
+                timestamp: Date.now(),
+                recoverable: true,
+              });
+            },
+          )
+          .finally(() => {
+            if (this._mediaPlayPromise === tracked) {
+              this._mediaPlayPromise = undefined;
             }
-            this.origin.cacophony?.emit("globalPlay", {
-              source: this.origin,
-              timestamp: Date.now(),
-            });
-          },
-          (error: Error) => {
-            this._state = previousState;
-            this.emitAsync("error", {
-              error,
-              errorType: "source",
-              timestamp: Date.now(),
-              recoverable: true,
-            });
-          },
-        );
+          });
+        this._mediaPlayPromise = tracked;
       } else {
         // For buffer sources, state transition is immediate (start() is synchronous)
         this._startTime = this.context.currentTime;
@@ -388,7 +430,17 @@ export class Playback extends BasePlayback implements BaseSound {
    * @returns {Promise<void>} Resolves when the fade completes and playback is stopped.
    */
   stopWithFade(duration: number, type?: FadeType): Promise<void> {
-    return this.fadeOut(duration, type).then(() => this.stop());
+    // Guard the chained stop: if an external stop()/cleanup() runs between
+    // the fade resolving and this .then, the chained stop() would otherwise
+    // throw against torn-down state ("Cannot stop a sound that has been
+    // cleaned up"). cancelFade() inside stop()/cleanup() resolves the fade
+    // promise synchronously, so this .then will still fire -- the guard
+    // makes it a no-op when the playback is already stopped or cleaned up.
+    return this.fadeOut(duration, type).then(() => {
+      if (this._state !== "stopped" && this.source) {
+        this.stop();
+      }
+    });
   }
 
   seek(time: number): void {
@@ -655,7 +707,13 @@ export class Playback extends BasePlayback implements BaseSound {
       if (!this.context.createMediaElementSource) {
         throw new Error("Media element sources are not supported on this audio context.");
       }
-      source = this.context.createMediaElementSource(this.source.mediaElement);
+      // The Web Audio spec forbids creating a second MediaElementAudioSourceNode
+      // from the same HTMLMediaElement -- the second call throws
+      // InvalidStateError. Clone the underlying element first so the new
+      // playback owns an independent element that hasn't been bound yet.
+      const originalElement = this.source.mediaElement;
+      const clonedElement = originalElement.cloneNode(true) as HTMLMediaElement;
+      source = this.context.createMediaElementSource(clonedElement);
     } else {
       throw new Error("Unsupported source type");
     }

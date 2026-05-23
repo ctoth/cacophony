@@ -265,6 +265,102 @@ describe("Playback cloning", () => {
   });
 });
 
+describe("Playback cloning for media-element-backed playback", () => {
+  let originalPlayback: Playback;
+  let originalMediaElement: {
+    cloneNode: ReturnType<typeof vi.fn>;
+    play: ReturnType<typeof vi.fn>;
+    pause: ReturnType<typeof vi.fn>;
+    onended: null | (() => void);
+    loop: boolean;
+    currentTime: number;
+    duration: number;
+    playbackRate: number;
+  };
+  let clonedMediaElement: {
+    play: ReturnType<typeof vi.fn>;
+    pause: ReturnType<typeof vi.fn>;
+    onended: null | (() => void);
+    loop: boolean;
+    currentTime: number;
+    duration: number;
+    playbackRate: number;
+  };
+  let gainNode: GainNode;
+  let sound: Sound;
+  let createMediaElementSourceSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    clonedMediaElement = {
+      play: vi.fn(() => Promise.resolve()),
+      pause: vi.fn(),
+      onended: null,
+      loop: false,
+      currentTime: 0,
+      duration: 10,
+      playbackRate: 1,
+    };
+    originalMediaElement = {
+      cloneNode: vi.fn(() => clonedMediaElement),
+      play: vi.fn(() => Promise.resolve()),
+      pause: vi.fn(),
+      onended: null,
+      loop: false,
+      currentTime: 0,
+      duration: 10,
+      playbackRate: 1,
+    };
+
+    // Mock createMediaElementSource to return a source wrapping whichever
+    // element it was given. The first call (constructor) gets the original;
+    // the second call (clone) MUST receive the cloned element, not the
+    // already-bound original.
+    createMediaElementSourceSpy = vi.fn((el: HTMLMediaElement) => ({
+      mediaElement: el,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    }));
+    (audioContextMock as any).createMediaElementSource = createMediaElementSourceSpy;
+
+    const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    gainNode = audioContextMock.createGain();
+    sound = new Sound("test-url", buffer, audioContextMock, gainNode);
+
+    const mediaSource = createMediaElementSourceSpy(originalMediaElement as unknown as HTMLMediaElement);
+    originalPlayback = new Playback(sound, mediaSource as any, gainNode);
+    // Clear the constructor call so the assertions below only count clone()'s call.
+    createMediaElementSourceSpy.mockClear();
+  });
+
+  afterEach(() => {
+    if (originalPlayback?.source) {
+      originalPlayback.cleanup();
+    }
+    cacophony.clearMemoryCache();
+    vi.restoreAllMocks();
+  });
+
+  it("clones the media element rather than re-binding the original (Web Audio invariant)", () => {
+    // Before fix: clone() called createMediaElementSource(originalMediaElement)
+    // which throws InvalidStateError in real browsers because an HTMLMediaElement
+    // can only be wired to a MediaElementAudioSourceNode once.
+    const clone = originalPlayback.clone();
+
+    // cloneNode(true) must have been called on the original element.
+    expect(originalMediaElement.cloneNode).toHaveBeenCalledWith(true);
+
+    // createMediaElementSource must have been called with the CLONED element,
+    // not the original.
+    expect(createMediaElementSourceSpy).toHaveBeenCalledTimes(1);
+    expect(createMediaElementSourceSpy).toHaveBeenCalledWith(clonedMediaElement);
+
+    // The clone's source must wrap the cloned element, leaving the original
+    // playback's source bound to the original element.
+    expect((clone.source as any).mediaElement).toBe(clonedMediaElement);
+    expect((originalPlayback.source as any).mediaElement).toBe(originalMediaElement);
+  });
+});
+
 describe("Playback cleanup functionality", () => {
   let playback: Playback;
   let buffer: AudioBuffer;

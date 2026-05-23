@@ -442,12 +442,33 @@ describe("Playback fadeOut on natural end", () => {
     // Playback should still be playing (not stopped yet -- fade is in progress)
     expect(playback.isPlaying).toBe(true);
 
-    // Drain the fade-then-stop chain that loopEnded() kicked off, otherwise the
-    // pending fade promise resolves during afterEach's sound.stop() (via
-    // cancelFade) and the chained .then(() => this.stop()) throws on the
-    // already-cleaned-up source. The chain is awaited by stepping the fake
-    // timer plus a microtask flush.
+    // Drive the fade-then-stop chain to completion naturally. The chained
+    // .then(() => stop()) is guarded against torn-down state, so afterEach's
+    // sound.stop() will not race the resolution: either this drain stops it
+    // first, or cancelFade() in afterEach resolves the fade and the guarded
+    // .then becomes a no-op.
     vi.advanceTimersByTime(500);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(playback.isPlaying).toBe(false);
+  });
+
+  it("loopEnded with fadeOut config: external stop() during fade does not throw", async () => {
+    playback.loopCount = 1;
+    playback.currentLoop = 1;
+    playback.configureFadeOut(500);
+
+    // Trigger loopEnded -- starts a fadeOut, then schedules stop() in .then
+    playback.loopEnded();
+    expect(playback.isPlaying).toBe(true);
+
+    // External stop() mid-fade. cancelFade() inside stop() resolves the fade
+    // promise synchronously; the guarded .then must NOT throw against the
+    // already-stopped state.
+    expect(() => playback.stop()).not.toThrow();
+    expect(playback.isPlaying).toBe(false);
+
+    // Flush the now-resolved fade promise's .then. Must be a no-op.
     await Promise.resolve();
     await Promise.resolve();
     expect(playback.isPlaying).toBe(false);
