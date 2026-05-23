@@ -31,8 +31,7 @@ export class MediaStreamPlayback extends BasePlayback {
     panType: PanType,
     stopTracksOnStop: boolean,
   ) {
-    super();
-    this.origin = origin;
+    super(origin);
     this.stopTracksOnStop = stopTracksOnStop;
     this.source = source;
     this.setPanType(panType, context);

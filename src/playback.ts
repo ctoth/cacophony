@@ -73,7 +73,7 @@ export class Playback extends BasePlayback implements BaseSound {
     source: SourceNode,
     gainNode: GainNode,
   ) {
-    super();
+    super(origin);
     this.context = origin.context;
     this.loopCount = origin.loopCount;
     this.setPanType(origin.panType, origin.context);

@@ -10,11 +10,12 @@ import { VolumeMixin } from "./volumeMixin";
 export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager)) {
   public source?: AudioNode;
   _playing: boolean = false;
-  public origin!: PlaybackContainer;
+  public origin: PlaybackContainer;
   public eventEmitter: TypedEventEmitter<PlaybackEvents> = new TypedEventEmitter<PlaybackEvents>();
 
-  constructor() {
+  constructor(origin: PlaybackContainer) {
     super();
+    this.origin = origin;
   }
 
   abstract play(): [this];

@@ -16,12 +16,18 @@ export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(Filte
     public source: OscillatorNode,
     gainNode: GainNode,
   ) {
-    super();
+    super(origin);
     this.context = origin.context;
     this.setPanType(origin.panType, origin.context);
-    this.source.connect(this.panner!);
+    // setPanType synchronously assigns this.panner; capture locally so TS
+    // narrows to non-undefined for the connect calls below.
+    const panner = this.panner;
+    if (!panner) {
+      throw new Error("setPanType did not produce a panner node");
+    }
+    this.source.connect(panner);
     this.setGainNode(gainNode);
-    this.panner!.connect(this.gainNode!);
+    panner.connect(gainNode);
     this.refreshFilters();
     this.oscillatorOptions = {
       detune: source.detune.value,
