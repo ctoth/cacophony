@@ -31,7 +31,7 @@ type DelayLine = [Float32Array, number, number, number];
  *
  * @see https://ccrma.stanford.edu/~dattorro/EffectDesignPart1.pdf
  */
-export class DattorroReverbProcessor extends AudioWorkletProcessor implements AudioWorkletProcessorImpl {
+export class DattorroReverbProcessor extends AudioWorkletProcessor {
   private _Delays: DelayLine[] = [];
   private _pDLength: number;
   private _preDelay: Float32Array;
@@ -65,7 +65,7 @@ export class DattorroReverbProcessor extends AudioWorkletProcessor implements Au
     }));
   }
 
-  constructor(options: AudioWorkletNodeOptions) {
+  constructor(options?: AudioWorkletNodeOptions) {
     super(options);
 
     // Pre-delay is always one-second long, rounded to the nearest 128-chunk
@@ -260,6 +260,5 @@ export class DattorroReverbProcessor extends AudioWorkletProcessor implements Au
   }
 }
 
-// @ts-expect-error
 registerProcessor("dattorro-reverb", DattorroReverbProcessor);
 console.log("DattorroReverbProcessor registered");

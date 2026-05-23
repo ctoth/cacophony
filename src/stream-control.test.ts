@@ -1,5 +1,4 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SoundType } from "./cacophony";
 import { cacophony } from "./setupTests";
 
 describe("Stream control integration", () => {
@@ -36,7 +35,7 @@ describe("Stream control integration", () => {
 
   it("returned Sound has Streaming soundType", async () => {
     const sound = await cacophony.createStream("https://example.com/audio.wav");
-    expect(sound.soundType).toBe(SoundType.Streaming);
+    expect(sound.soundType).toBe("streaming");
   });
 
   it("returned Sound has no buffer", async () => {

@@ -1,6 +1,5 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, test, vi } from "vitest";
-import { SoundType } from "./cacophony";
 import { audioContextMock, cacophony } from "./setupTests";
 import { Sound } from "./sound";
 
@@ -212,14 +211,7 @@ describe("Sound cloning", () => {
 
   beforeEach(() => {
     buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    originalSound = new Sound(
-      "test-url",
-      buffer,
-      audioContextMock,
-      audioContextMock.createGain(),
-      SoundType.Buffer,
-      "HRTF",
-    );
+    originalSound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain(), "buffer", "HRTF");
     originalSound.volume = 0.8;
     originalSound.playbackRate = 1.2;
     originalSound.position = [1, 2, 3];
@@ -344,7 +336,7 @@ describe("Sound class", () => {
     expect(sound.url).toBe("test-url");
     expect(sound.buffer).toBe(buffer);
     expect(sound.context).toBe(audioContextMock);
-    expect(sound.soundType).toBe(SoundType.Buffer);
+    expect(sound.soundType).toBe("buffer");
     expect(sound.panType).toBe("HRTF");
   });
 
@@ -1248,7 +1240,7 @@ describe("Sound FinalizationRegistry wire-up", () => {
       buffer,
       audioContextMock,
       audioContextMock.createGain(),
-      SoundType.Buffer,
+      "buffer",
       "HRTF",
       cacophony,
     );
@@ -1267,7 +1259,7 @@ describe("Sound FinalizationRegistry wire-up", () => {
       buffer,
       audioContextMock,
       audioContextMock.createGain(),
-      SoundType.Buffer,
+      "buffer",
       "HRTF",
       cacophony,
     );
@@ -1293,7 +1285,7 @@ describe("Sound FinalizationRegistry wire-up", () => {
       buffer,
       audioContextMock,
       audioContextMock.createGain(),
-      SoundType.Buffer,
+      "buffer",
       "HRTF",
       cacophony,
     );
@@ -1313,7 +1305,7 @@ describe("Sound FinalizationRegistry wire-up", () => {
       buffer,
       audioContextMock,
       audioContextMock.createGain(),
-      SoundType.Buffer,
+      "buffer",
       "HRTF",
       cacophony,
     );
@@ -1327,5 +1319,140 @@ describe("Sound FinalizationRegistry wire-up", () => {
     expect(holdings.sources.length).toBe(0);
     expect(holdings.gainNodes.length).toBe(0);
     expect(holdings.mediaElements.length).toBe(0);
+  });
+});
+
+describe("Sound preplay failure rollback", () => {
+  let sound: Sound;
+  let buffer: AudioBuffer;
+
+  beforeEach(() => {
+    buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain(), "buffer", "HRTF", cacophony);
+  });
+
+  afterEach(() => {
+    if (sound) {
+      sound.stop();
+    }
+    cacophony.clearMemoryCache();
+    vi.restoreAllMocks();
+  });
+
+  it("rolls back _holdings and playbacks when filter construction throws mid-preplay", () => {
+    // Seed a filter so preplay() enters the cloning forEach branch where we
+    // can inject a failure between holdings push and the listener wiring.
+    sound.addFilter(audioContextMock.createBiquadFilter());
+
+    // Capture initial state (post-add-filter, pre-preplay).
+    const registerSpy = vi.spyOn(cacophony, "registerSoundForCleanup").mockImplementation(() => undefined);
+    // The spy was added too late to record the constructor call above, so
+    // grab holdings directly via the private field for assertion purposes.
+    const holdings = (sound as any)._holdings as {
+      sources: unknown[];
+      gainNodes: unknown[];
+      mediaElements: unknown[];
+    };
+    expect(holdings.sources.length).toBe(0);
+    expect(holdings.gainNodes.length).toBe(0);
+    expect(sound.playbacks.length).toBe(0);
+
+    // Make the per-filter clone throw on the first call inside preplay's
+    // forEach. By this point preplay has already pushed source + gainNode +
+    // (no media element) into holdings and constructed the Playback.
+    const realCreate = audioContextMock.createBiquadFilter.bind(audioContextMock);
+    const createFilterSpy = vi
+      .spyOn(audioContextMock, "createBiquadFilter")
+      .mockImplementationOnce(() => {
+        throw new Error("synthetic createBiquadFilter failure");
+      })
+      .mockImplementation(realCreate);
+
+    // Subscribe so we can verify the error event was still emitted.
+    const onSoundError = vi.fn();
+    sound.on("soundError", onSoundError);
+
+    expect(() => sound.preplay()).toThrow("synthetic createBiquadFilter failure");
+
+    // Holdings are rolled back to pre-call lengths.
+    expect(holdings.sources.length).toBe(0);
+    expect(holdings.gainNodes.length).toBe(0);
+    expect(holdings.mediaElements.length).toBe(0);
+
+    // playbacks array is rolled back — the failed playback never gets added.
+    expect(sound.playbacks.length).toBe(0);
+
+    // The error path is still observable to callers (emit + rethrow).
+    expect(createFilterSpy).toHaveBeenCalled();
+    // emitAsync schedules a microtask; flush it.
+    return Promise.resolve().then(() => {
+      expect(onSoundError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url: "test-url",
+          errorType: "playback",
+          recoverable: true,
+        }),
+      );
+      registerSpy.mockRestore();
+    });
+  });
+
+  it("does not affect prior successful playbacks when a later preplay fails", () => {
+    // First preplay succeeds; second is forced to fail.
+    const ok = sound.preplay();
+    expect(ok.length).toBe(1);
+    expect(sound.playbacks.length).toBe(1);
+
+    const holdings = (sound as any)._holdings as {
+      sources: unknown[];
+      gainNodes: unknown[];
+    };
+    const sourcesBefore = holdings.sources.length;
+    const gainsBefore = holdings.gainNodes.length;
+
+    // Force the next createGain to throw — fails between source push and
+    // gainNode push, so the source-push must also be rolled back.
+    const realCreateGain = audioContextMock.createGain.bind(audioContextMock);
+    vi.spyOn(audioContextMock, "createGain").mockImplementationOnce(() => {
+      throw new Error("synthetic createGain failure");
+    });
+
+    expect(() => sound.preplay()).toThrow("synthetic createGain failure");
+
+    // Holdings + playbacks are unchanged relative to before the failed call.
+    expect(holdings.sources.length).toBe(sourcesBefore);
+    expect(holdings.gainNodes.length).toBe(gainsBefore);
+    expect(sound.playbacks.length).toBe(1);
+    expect(sound.playbacks[0]).toBe(ok[0]);
+
+    // Restore so afterEach cleanup doesn't trip the still-active mock.
+    vi.mocked(audioContextMock.createGain).mockImplementation(realCreateGain);
+  });
+
+  it("unsubscribes Sound-side listeners when a playback ends naturally", async () => {
+    const playback = sound.play()[0];
+    // White-box read of the emitter's listener map — Sound-side wiring
+    // attached two `playback.on(...)` listeners plus assigned the field
+    // `_loopEndCallback`. Count them before and after natural end.
+    const listeners = (playback.eventEmitter as any).listeners as Record<string, Array<unknown>>;
+    const endedBefore = listeners.ended?.length ?? 0;
+    const errorBefore = listeners.error?.length ?? 0;
+    expect(endedBefore).toBeGreaterThan(0);
+    expect(errorBefore).toBeGreaterThan(0);
+    expect(playback._loopEndCallback).toBeDefined();
+
+    // Natural end: loopEnded with no loops left fires "ended". Sound's
+    // "ended" listener schedules a microtask that tears down its own
+    // subscriptions via the captured unsubscribe functions (deferred so the
+    // emitter's post-iteration listener re-assignment doesn't overwrite the
+    // off()).
+    playback.loopEnded();
+    await Promise.resolve();
+
+    // One ended-listener and one error-listener removed (the ones Sound
+    // registered); the loopEnd callback field was cleared.
+    expect(listeners.ended?.length ?? 0).toBe(endedBefore - 1);
+    expect(listeners.error?.length ?? 0).toBe(errorBefore - 1);
+    expect(playback._loopEndCallback).toBeUndefined();
   });
 });

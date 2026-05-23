@@ -1,16 +1,35 @@
 import type { AudioBuffer, BaseContext } from "./context";
 
+/**
+ * Copy a typed-array view into a freshly allocated ArrayBuffer.
+ *
+ * `Uint8Array.buffer` returns the underlying ArrayBuffer, which may be
+ * pooled and larger than the view. Always slice by the view's
+ * `byteOffset`/`byteLength` before handing the bytes to APIs that consume
+ * an ArrayBuffer.
+ */
+const viewToArrayBuffer = (view: Uint8Array): ArrayBuffer =>
+  view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength);
+
 const appendBuffer = (buffer1: ArrayBuffer, buffer2: ArrayBuffer): ArrayBuffer => {
-  var tmp = new Uint8Array(buffer1.byteLength + buffer2.byteLength);
-  tmp.set(new Uint8Array(buffer1), 0);
-  tmp.set(new Uint8Array(buffer2), buffer1.byteLength);
-  return tmp.buffer;
+  const joined = new Uint8Array(buffer1.byteLength + buffer2.byteLength);
+  joined.set(new Uint8Array(buffer1), 0);
+  joined.set(new Uint8Array(buffer2), buffer1.byteLength);
+  return joined.buffer;
 };
 
-export function createStream(url: string, context: BaseContext, signal?: AbortSignal) {
+/**
+ * Fetch a WAV stream from `url` and play it through `context` chunk by chunk.
+ *
+ * The WAV header (first 44 bytes of the first chunk) is prepended to later
+ * chunks so each decode receives a self-describing WAV buffer.
+ *
+ * Fire-and-forget: errors are reported via `console.error`. Pass an
+ * `AbortSignal` to cancel the in-flight stream.
+ */
+export function createStream(url: string, context: BaseContext, signal?: AbortSignal): void {
   const audioStack: AudioBuffer[] = [];
   let nextTime = 0;
-  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
 
   // Check if already aborted
   if (signal?.aborted) {
@@ -27,28 +46,26 @@ export function createStream(url: string, context: BaseContext, signal?: AbortSi
         throw new Error("Missing body");
       }
 
-      reader = response.body.getReader();
-      let header = new ArrayBuffer(0); //first 44bytes
+      const reader = response.body.getReader();
+      let header = new ArrayBuffer(0);
 
       // Set up abort listener to cancel the reader
-      const abortListener = () => {
+      const abortListener = (): void => {
         audioStack.length = 0; // Clear decoded buffers to free memory
-        if (reader) {
-          reader.cancel("Stream aborted").catch(() => {
-            // Ignore cancel errors - reader might already be closed
-          });
-        }
+        reader.cancel("Stream aborted").catch(() => {
+          // Ignore cancel errors - reader might already be closed
+        });
       };
 
       signal?.addEventListener("abort", abortListener);
 
-      function read() {
+      function read(): Promise<void> {
         if (signal?.aborted) {
           abortListener();
           return Promise.resolve();
         }
 
-        return reader!
+        return reader
           .read()
           .then(({ value, done }) => {
             if (signal?.aborted) {
@@ -56,58 +73,65 @@ export function createStream(url: string, context: BaseContext, signal?: AbortSi
               return;
             }
 
-            let audioBuffer = null;
-            if (!value) {
-              return;
+            if (value) {
+              let audioBuffer: ArrayBuffer;
+              if (!header.byteLength) {
+                header = viewToArrayBuffer(value.subarray(0, 44));
+                audioBuffer = viewToArrayBuffer(value);
+              } else {
+                audioBuffer = appendBuffer(header, viewToArrayBuffer(value));
+              }
+
+              context
+                .decodeAudioData(
+                  audioBuffer,
+                  (buffer) => {
+                    if (signal?.aborted) {
+                      return;
+                    }
+                    audioStack.push(buffer);
+                    scheduleBuffers();
+                  },
+                  (err) => {
+                    console.error("Stream decode error:", err);
+                  },
+                )
+                .catch((err: unknown) => {
+                  // The callback overload also rejects the returned promise
+                  // on decode failure. Avoid unhandled-rejection noise; the
+                  // errorCallback above is the primary reporting channel.
+                  if (signal?.aborted) {
+                    return;
+                  }
+                  console.error("Stream decode error:", err);
+                });
             }
 
-            if (!header.byteLength) {
-              //copy first 44 bytes (wav header)
-              header = value.buffer.slice(0, 44);
-              audioBuffer = value.buffer;
-            } else {
-              audioBuffer = appendBuffer(header, value.buffer);
-            }
-
-            context.decodeAudioData(
-              audioBuffer,
-              (buffer) => {
-                if (signal?.aborted) {
-                  return;
-                }
-
-                audioStack.push(buffer);
-                if (audioStack.length) {
-                  scheduleBuffers();
-                }
-              },
-              (err) => {
-                console.log(`err(decodeAudioData): ${err}`);
-              },
-            );
             if (done) {
-              console.log("done");
               signal?.removeEventListener("abort", abortListener);
               return;
             }
             //read next buffer
-            read();
+            return read();
           })
-          .catch((error) => {
-            if (signal?.aborted || error.name === "AbortError") {
+          .catch((error: unknown) => {
+            if (signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) {
               // Expected abort, cleanup handled by abort listener
               return;
             }
             console.error("Stream read error:", error);
           });
       }
-      read();
+      return read();
     })
-    .catch((error) => {
+    .catch((error: unknown) => {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return;
+      }
       console.error("Stream error:", error);
     });
 
-  function scheduleBuffers() {
+  function scheduleBuffers(): void {
     while (audioStack.length) {
       const buffer = audioStack.shift();
       const source = context.createBufferSource();

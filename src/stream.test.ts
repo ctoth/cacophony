@@ -39,6 +39,7 @@ describe("Stream operations with AbortController", () => {
       // Create a minimal buffer and call success immediately
       const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
       setTimeout(() => success(mockBuffer), 0);
+      return Promise.resolve(mockBuffer);
     });
   });
 
@@ -125,5 +126,34 @@ describe("Stream operations with AbortController", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     expect(mockResponse.body.getReader).toHaveBeenCalled();
+  });
+
+  it("should prepend the WAV header when decoding chunks after the first", async () => {
+    const firstChunk = new Uint8Array(48);
+    firstChunk.set([82, 73, 70, 70], 0);
+    firstChunk.set([87, 65, 86, 69], 8);
+    firstChunk.set([11, 12, 13, 14], 44);
+    const secondChunk = new Uint8Array([21, 22, 23, 24]);
+    const decodedBuffers: ArrayBuffer[] = [];
+
+    audioContextMock.decodeAudioData = vi.fn().mockImplementation((buffer, success) => {
+      decodedBuffers.push(buffer);
+      const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      setTimeout(() => success(mockBuffer), 0);
+      return Promise.resolve(mockBuffer);
+    });
+    mockReader.read
+      .mockResolvedValueOnce({ value: firstChunk, done: false })
+      .mockResolvedValueOnce({ value: secondChunk, done: false })
+      .mockResolvedValueOnce({ value: undefined, done: true });
+
+    createStream("https://example.com/audio.wav", audioContextMock);
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(audioContextMock.decodeAudioData).toHaveBeenCalledTimes(2);
+    expect(new Uint8Array(decodedBuffers[0])).toEqual(firstChunk);
+    expect(new Uint8Array(decodedBuffers[1]).slice(0, 44)).toEqual(firstChunk.slice(0, 44));
+    expect(new Uint8Array(decodedBuffers[1]).slice(44)).toEqual(secondChunk);
   });
 });

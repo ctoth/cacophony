@@ -1,7 +1,5 @@
 import type { BasePlayback } from "./basePlayback";
-import type { BaseSound } from "./cacophony";
-import type { Sound } from "./sound";
-import type { Synth } from "./synth";
+import type { BaseSound, FadeType } from "./cacophony";
 import type { SynthPlayback } from "./synthPlayback";
 
 /**
@@ -10,10 +8,10 @@ import type { SynthPlayback } from "./synthPlayback";
 export interface FadeStartEvent {
   target: number;
   duration: number;
-  type: string;
+  type: FadeType;
 }
 
-export interface BaseAudioEvents {
+export type BaseAudioEvents = {
   play: BasePlayback;
   stop: undefined;
   pause: undefined;
@@ -24,46 +22,46 @@ export interface BaseAudioEvents {
   fadeStart: FadeStartEvent;
   fadeEnd: undefined;
   fadeCancel: undefined;
-}
+};
 
 /**
  * Sound-specific events.
  */
-export interface SoundEvents extends BaseAudioEvents {
+export type SoundEvents = BaseAudioEvents & {
   loopEnd: undefined;
   rateChange: number;
   soundError: SoundErrorEvent;
-}
+};
 
 /**
  * Playback-specific events.
  */
-export interface PlaybackEvents extends BaseAudioEvents {
+export type PlaybackEvents = BaseAudioEvents & {
   seek: number;
-}
+};
 
 /**
  * Synthesizer-specific events.
  */
-export interface SynthEvents extends Omit<BaseAudioEvents, "play"> {
+export type SynthEvents = Omit<BaseAudioEvents, "play"> & {
   play: SynthPlayback;
   frequencyChange: number;
   typeChange: OscillatorType;
   detuneChange: number;
-}
+};
 
 /**
  * Global playback event fired when any sound-producing entity plays/stops/pauses.
  */
 export interface GlobalPlaybackEvent {
-  source: BaseSound | Sound | Synth;
+  source: BaseSound;
   timestamp: number;
 }
 
 /**
  * Global Cacophony events including loading and cache operations.
  */
-export interface CacophonyEvents {
+export type CacophonyEvents = {
   volumeChange: number;
   mute: undefined;
   unmute: undefined;
@@ -79,7 +77,7 @@ export interface CacophonyEvents {
   globalPlay: GlobalPlaybackEvent;
   globalStop: GlobalPlaybackEvent;
   globalPause: GlobalPlaybackEvent;
-}
+};
 
 /**
  * Fired when loading starts. Use for loading spinners.
@@ -171,33 +169,34 @@ export interface CacheErrorEvent {
 }
 
 /**
+ * Maps an event-payload record to its `on<EventName>` callback record.
+ * Each callback is optional and takes the payload as its sole argument.
+ */
+type EventCallbacks<TMap> = {
+  [K in keyof TMap as `on${Capitalize<string & K>}`]?: (event: TMap[K]) => void;
+};
+
+/**
  * Loading event callbacks for cache operations.
  */
-export type LoadingEventCallback = {
-  onLoadingStart?: (event: LoadingStartEvent) => void;
-  onLoadingProgress?: (event: LoadingProgressEvent) => void;
-  onLoadingComplete?: (event: LoadingCompleteEvent) => void;
-  onLoadingError?: (event: LoadingErrorEvent) => void;
-};
+export type LoadingEventCallback = EventCallbacks<
+  Pick<CacophonyEvents, "loadingStart" | "loadingProgress" | "loadingComplete" | "loadingError">
+>;
 
 /**
  * Error event callbacks.
  */
-export type ErrorEventCallback = {
-  onPlaybackError?: (event: PlaybackErrorEvent) => void;
-  onSoundError?: (event: SoundErrorEvent) => void;
-};
+export type ErrorEventCallback = EventCallbacks<{
+  playbackError: PlaybackErrorEvent;
+  soundError: SoundErrorEvent;
+}>;
 
 /**
  * Cache event callbacks.
  */
-export type CacheEventCallback = {
-  onCacheHit?: (event: CacheHitEvent) => void;
-  onCacheMiss?: (event: CacheMissEvent) => void;
-  onCacheError?: (event: CacheErrorEvent) => void;
-};
+export type CacheEventCallback = EventCallbacks<Pick<CacophonyEvents, "cacheHit" | "cacheMiss" | "cacheError">>;
 
 /**
- * Combined event callbacks for cache operations.
+ * Combined event callbacks for loading, error, and cache operations.
  */
 export interface AudioEventCallbacks extends LoadingEventCallback, ErrorEventCallback, CacheEventCallback {}

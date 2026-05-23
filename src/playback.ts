@@ -36,12 +36,7 @@ type PlaybackCloneOverrides = {
   panType: PanType;
 };
 
-enum PlaybackState {
-  Unplayed,
-  Playing,
-  Paused,
-  Stopped,
-}
+type PlaybackState = "unplayed" | "playing" | "paused" | "stopped";
 
 export class Playback extends BasePlayback implements BaseSound {
   private context: BaseContext;
@@ -51,17 +46,22 @@ export class Playback extends BasePlayback implements BaseSound {
   private buffer?: AudioBuffer;
   private _offset: number = 0;
   private _startTime: number = 0;
-  private _state: PlaybackState = PlaybackState.Unplayed;
+  private _state: PlaybackState = "unplayed";
   private _playbackRate: number = 1;
+  /**
+   * Promise that tracks an in-flight media-element `.play()` settlement.
+   * Set when the media element's `play()` returns a pending promise; cleared
+   * once that promise settles. Used by `loopEnded` to avoid racing source-state
+   * mutations (`seek`/`play`) against the deferred state transition driven by
+   * this promise.
+   */
+  private _mediaPlayPromise?: Promise<void>;
   _fadeInConfig?: { duration: number; type: FadeType; perLoop: boolean; targetVolume: number };
   _fadeOutConfig?: { duration: number; type: FadeType };
   _loopEndCallback?: () => void;
 
   /**
    * Creates an instance of the Playback class.
-   * @param {Sound} origin - The Sound instance that the Playback is associated with.
-   * @param {SourceNode} source - The audio source node.
-   * @param {GainNode} gainNode - The gain node for controlling volume.
    * @throws {Error} Throws an error if an invalid pan type is provided.
    */
 
@@ -70,7 +70,7 @@ export class Playback extends BasePlayback implements BaseSound {
     source: SourceNode,
     gainNode: GainNode,
   ) {
-    super();
+    super(origin);
     this.context = origin.context;
     this.loopCount = origin.loopCount;
     this.setPanType(origin.panType, origin.context);
@@ -96,7 +96,7 @@ export class Playback extends BasePlayback implements BaseSound {
   }
 
   get isPlaying(): boolean {
-    return this._state === PlaybackState.Playing;
+    return this._state === "playing";
   }
 
   /**
@@ -120,7 +120,6 @@ export class Playback extends BasePlayback implements BaseSound {
 
   /**
    * Gets the current playback rate of the audio.
-   * @returns {number} The current playback rate.
    */
 
   get playbackRate() {
@@ -138,7 +137,6 @@ export class Playback extends BasePlayback implements BaseSound {
 
   /**
    * Sets the playback rate of the audio.
-   * @param {number} rate - The playback rate to set.
    * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
    */
 
@@ -146,7 +144,7 @@ export class Playback extends BasePlayback implements BaseSound {
     if (rate <= 0) {
       throw new Error("Playback rate must be greater than 0");
     }
-    if (this._state === PlaybackState.Playing) {
+    if (this._state === "playing") {
       const elapsed = (this.context.currentTime - this._startTime) * this._playbackRate;
       this._offset += elapsed;
       this._startTime = this.context.currentTime;
@@ -168,8 +166,25 @@ export class Playback extends BasePlayback implements BaseSound {
    * This method is bound to the 'onended' event of the audio source.
    * It manages looping logic and restarts playback if necessary.
    */
-  loopEnded = () => {
-    if (!this.source || this._state !== PlaybackState.Playing) {
+  loopEnded = (): void => {
+    if (!this.source || this._state !== "playing") {
+      return;
+    }
+
+    // For media-element sources, a previous play() may still have a pending
+    // settlement promise -- the deferred state transition races with the
+    // seek+play we are about to perform. Defer the loop work until the
+    // pending play resolves so source mutations don't interleave.
+    if ("mediaElement" in this.source && this._mediaPlayPromise) {
+      void this._mediaPlayPromise.then(() => this._runLoopEnded());
+      return;
+    }
+
+    this._runLoopEnded();
+  };
+
+  private _runLoopEnded(): void {
+    if (!this.source || this._state !== "playing") {
       return;
     }
 
@@ -179,9 +194,16 @@ export class Playback extends BasePlayback implements BaseSound {
       // Final iteration -- emit ended, then either fade out or stop immediately
       this.emit("ended", undefined);
       if (this._fadeOutConfig) {
-        this.fadeOut(this._fadeOutConfig.duration, this._fadeOutConfig.type).then(() => {
-          this.stop();
-          this.removeFromOrigin();
+        // Guard the chained stop: an external stop()/cleanup() between the
+        // fade resolving and this .then would otherwise run stop()/source
+        // access against torn-down state. cancelFade() in stop()/cleanup()
+        // resolves the fade promise synchronously, which is what makes this
+        // .then fire at all after a teardown.
+        void this.fadeOut(this._fadeOutConfig.duration, this._fadeOutConfig.type).then(() => {
+          if (this._state !== "stopped" && this.source) {
+            this.stop();
+            this.removeFromOrigin();
+          }
         });
       } else {
         this.stop();
@@ -192,7 +214,7 @@ export class Playback extends BasePlayback implements BaseSound {
       this.seek(0); // Resets offset and handles play/pause state internally.
       // seek() calls pause() then play() when wasPlaying is true,
       // so play() handles both media-element and buffer sources correctly.
-      if (this._state !== PlaybackState.Playing && !("mediaElement" in this.source)) {
+      if (this._state !== "playing" && this.source && !("mediaElement" in this.source)) {
         // For AudioBufferSourceNode only: if seek() didn't restart playback
         // (e.g., state wasn't Playing before seek), start it now.
         this.play();
@@ -204,7 +226,7 @@ export class Playback extends BasePlayback implements BaseSound {
         this.fadeTo(this._fadeInConfig.targetVolume, this._fadeInConfig.duration, this._fadeInConfig.type);
       }
     }
-  };
+  }
 
   /**
    * Starts playing the audio.
@@ -217,16 +239,16 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Cannot play a sound that has been cleaned up");
     }
 
-    if (this._state === PlaybackState.Playing) {
+    if (this._state === "playing") {
       return [this];
     }
 
-    const isResume = this._state === PlaybackState.Paused;
+    const isResume = this._state === "paused";
 
     try {
       let mediaPlayPromise: Promise<void> | undefined;
 
-      if (this._state === PlaybackState.Paused) {
+      if (this._state === "paused") {
         // If we're resuming from a paused state
         if ("mediaElement" in this.source && this.source.mediaElement) {
           mediaPlayPromise = this.source.mediaElement.play();
@@ -252,33 +274,43 @@ export class Playback extends BasePlayback implements BaseSound {
       if (mediaPlayPromise) {
         // For media-element sources, defer state and events until browser accepts playback
         const previousState = this._state;
-        mediaPlayPromise.then(
-          () => {
-            this._startTime = this.context.currentTime;
-            this._state = PlaybackState.Playing;
-            this.emit("play", this);
-            if (isResume) {
-              this.emit("resume", undefined);
+        // Stash the pending promise so loopEnded (and any future caller that
+        // needs to sequence after the deferred state transition) can await it
+        // rather than racing source-state mutations against it.
+        const tracked = mediaPlayPromise
+          .then(
+            () => {
+              this._startTime = this.context.currentTime;
+              this._state = "playing";
+              this.emit("play", this);
+              if (isResume) {
+                this.emit("resume", undefined);
+              }
+              this.origin.cacophony?.emit("globalPlay", {
+                source: this.origin,
+                timestamp: Date.now(),
+              });
+            },
+            (error: Error) => {
+              this._state = previousState;
+              void this.emitAsync("error", {
+                error,
+                errorType: "source",
+                timestamp: Date.now(),
+                recoverable: true,
+              });
+            },
+          )
+          .finally(() => {
+            if (this._mediaPlayPromise === tracked) {
+              this._mediaPlayPromise = undefined;
             }
-            this.origin.cacophony?.emit("globalPlay", {
-              source: this.origin,
-              timestamp: Date.now(),
-            });
-          },
-          (error: Error) => {
-            this._state = previousState;
-            this.emitAsync("error", {
-              error,
-              errorType: "source",
-              timestamp: Date.now(),
-              recoverable: true,
-            });
-          },
-        );
+          });
+        this._mediaPlayPromise = tracked;
       } else {
         // For buffer sources, state transition is immediate (start() is synchronous)
         this._startTime = this.context.currentTime;
-        this._state = PlaybackState.Playing;
+        this._state = "playing";
         this.emit("play", this);
         if (isResume) {
           this.emit("resume", undefined);
@@ -302,7 +334,7 @@ export class Playback extends BasePlayback implements BaseSound {
   }
 
   pause(): void {
-    if (!this.source || this._state !== PlaybackState.Playing) {
+    if (!this.source || this._state !== "playing") {
       return;
     }
 
@@ -317,7 +349,7 @@ export class Playback extends BasePlayback implements BaseSound {
       this.source.stop();
     }
 
-    this._state = PlaybackState.Paused;
+    this._state = "paused";
     this.emit("pause", undefined);
 
     // Emit globalPause for all playback
@@ -331,13 +363,13 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source) {
       throw new Error("Cannot stop a sound that has been cleaned up");
     }
-    if (this._state === PlaybackState.Stopped || this._state === PlaybackState.Unplayed) {
+    if (this._state === "stopped" || this._state === "unplayed") {
       return;
     }
 
     this.cancelFade();
 
-    if ("stop" in this.source && this._state === PlaybackState.Playing) {
+    if ("stop" in this.source && this._state === "playing") {
       this.source.stop();
     }
     if ("mediaElement" in this.source && this.source.mediaElement) {
@@ -347,7 +379,7 @@ export class Playback extends BasePlayback implements BaseSound {
 
     this._offset = 0;
     this._startTime = 0;
-    this._state = PlaybackState.Stopped;
+    this._state = "stopped";
     this.emit("stop", undefined);
 
     // Emit globalStop for all playback
@@ -369,7 +401,7 @@ export class Playback extends BasePlayback implements BaseSound {
     if (options?.perLoop) {
       this._fadeInConfig = {
         duration,
-        type: type || "linear",
+        type: type ?? "linear",
         perLoop: true,
         targetVolume: this.gainNode!.gain.value,
       };
@@ -383,7 +415,7 @@ export class Playback extends BasePlayback implements BaseSound {
    * @param {FadeType} type - The fade curve type. Defaults to "linear".
    */
   configureFadeOut(duration: number, type?: FadeType): void {
-    this._fadeOutConfig = { duration, type: type || "linear" };
+    this._fadeOutConfig = { duration, type: type ?? "linear" };
   }
 
   /**
@@ -393,7 +425,17 @@ export class Playback extends BasePlayback implements BaseSound {
    * @returns {Promise<void>} Resolves when the fade completes and playback is stopped.
    */
   stopWithFade(duration: number, type?: FadeType): Promise<void> {
-    return this.fadeOut(duration, type).then(() => this.stop());
+    // Guard the chained stop: if an external stop()/cleanup() runs between
+    // the fade resolving and this .then, the chained stop() would otherwise
+    // throw against torn-down state ("Cannot stop a sound that has been
+    // cleaned up"). cancelFade() inside stop()/cleanup() resolves the fade
+    // promise synchronously, so this .then will still fire -- the guard
+    // makes it a no-op when the playback is already stopped or cleaned up.
+    return this.fadeOut(duration, type).then(() => {
+      if (this._state !== "stopped" && this.source) {
+        this.stop();
+      }
+    });
   }
 
   seek(time: number): void {
@@ -404,7 +446,7 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Invalid time value for seek");
     }
 
-    const wasPlaying = this._state === PlaybackState.Playing;
+    const wasPlaying = this._state === "playing";
     if (wasPlaying) {
       this.pause();
     }
@@ -422,7 +464,7 @@ export class Playback extends BasePlayback implements BaseSound {
   }
 
   get currentTime(): number {
-    if (this._state === PlaybackState.Playing) {
+    if (this._state === "playing") {
       const elapsed = (this.context.currentTime - this._startTime) * this._playbackRate;
       return this._offset + elapsed;
     } else {
@@ -470,7 +512,6 @@ export class Playback extends BasePlayback implements BaseSound {
 
   /**
    * Sets whether the audio source should loop.
-   * @param {boolean} loop - Whether the audio should loop.
    * @throws {Error} Throws an error if the sound has been cleaned up.
    */
   set sourceLoop(loop: boolean) {
@@ -504,7 +545,7 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     this._offset = 0;
     this._startTime = 0;
-    this._state = PlaybackState.Stopped;
+    this._state = "stopped";
     this.currentLoop = 0;
     this.source.disconnect();
     this.source = undefined;
@@ -569,7 +610,7 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.panner || !this.gainNode) {
       throw new Error("Cannot update filters on a sound that has been cleaned up");
     }
-    let connection = this.panner;
+    let connection: AudioNode = this.panner;
     connection.disconnect();
     connection = this.applyFilters(connection);
     connection.connect(this.gainNode);
@@ -600,7 +641,6 @@ export class Playback extends BasePlayback implements BaseSound {
    * Connects this playback's output to an AudioNode or AudioParam.
    * Follows the Web Audio API connection pattern.
    *
-   * @param {AudioNode | AudioParam} destination - The node or param to connect to.
    * @returns {AudioNode} The destination node (for chaining).
    * @throws {Error} Throws an error if the playback has been cleaned up.
    *
@@ -639,8 +679,6 @@ export class Playback extends BasePlayback implements BaseSound {
    * Creates a clone of the current Playback instance with optional overrides for certain properties.
    * This method allows for the creation of a new Playback instance that shares the same audio context
    * and source node but can have different settings such as loop count or pan type.
-   * @param {Partial<Playback>} overrides - An object containing properties to override in the cloned instance.
-   * @returns {Playback} A new Playback instance cloned from the current one with the specified overrides applied.
    * @throws {Error} Throws an error if the sound has been cleaned up.
    */
 
@@ -648,7 +686,7 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source || !this.gainNode || !this.context) {
       throw new Error("Cannot clone a sound that has been cleaned up");
     }
-    const panType = overrides.panType || this.panType;
+    const panType = overrides.panType ?? this.panType;
     // we'll need to create a new gain node
     const gainNode = this.context.createGain();
     // clone the source node
@@ -660,7 +698,13 @@ export class Playback extends BasePlayback implements BaseSound {
       if (!this.context.createMediaElementSource) {
         throw new Error("Media element sources are not supported on this audio context.");
       }
-      source = this.context.createMediaElementSource(this.source.mediaElement);
+      // The Web Audio spec forbids creating a second MediaElementAudioSourceNode
+      // from the same HTMLMediaElement -- the second call throws
+      // InvalidStateError. Clone the underlying element first so the new
+      // playback owns an independent element that hasn't been bound yet.
+      const originalElement = this.source.mediaElement;
+      const clonedElement = originalElement.cloneNode(true) as HTMLMediaElement;
+      source = this.context.createMediaElementSource(clonedElement);
     } else {
       throw new Error("Unsupported source type");
     }
@@ -687,7 +731,7 @@ export class Playback extends BasePlayback implements BaseSound {
     });
 
     // If the original is playing, start the clone
-    if (this._state === PlaybackState.Playing) {
+    if (this._state === "playing") {
       clone.play();
     }
 

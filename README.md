@@ -102,10 +102,10 @@ Cacophony supports three sound types:
 
 ```typescript
 // Buffer - entire file loaded into memory
-const sfx = await cacophony.createSound('explosion.mp3', SoundType.Buffer);
+const sfx = await cacophony.createSound('explosion.mp3', 'buffer');
 
 // HTML - streams from network, good for large files
-const music = await cacophony.createSound('bgm.mp3', SoundType.HTML);
+const music = await cacophony.createSound('bgm.mp3', 'html');
 
 // Streaming - convenience helper for network-backed playback
 const radio = await cacophony.createStream('https://example.com/stream.m3u8');
@@ -512,9 +512,9 @@ Create immersive soundscapes with precise spatial audio control using HRTF (Head
 const cacophony = new Cacophony();
 
 // Create sounds with HRTF panning
-const ambience = await cacophony.createSound('forest_ambience.mp3', SoundType.Buffer, 'HRTF');
-const birdSound = await cacophony.createSound('bird_chirp.mp3', SoundType.Buffer, 'HRTF');
-const footsteps = await cacophony.createSound('footsteps.mp3', SoundType.Buffer, 'HRTF');
+const ambience = await cacophony.createSound('forest_ambience.mp3', 'buffer', 'HRTF');
+const birdSound = await cacophony.createSound('bird_chirp.mp3', 'buffer', 'HRTF');
+const footsteps = await cacophony.createSound('footsteps.mp3', 'buffer', 'HRTF');
 
 // Position sounds in 3D space
 // Coordinate system: X (left- to right+), Y (down- to up+), Z (front+ to back-)
@@ -550,7 +550,7 @@ setInterval(() => {
 }, 50);
 
 // Stereo panning (simple left-right)
-const stereoSound = await cacophony.createSound('audio.mp3', SoundType.Buffer, 'stereo');
+const stereoSound = await cacophony.createSound('audio.mp3', 'buffer', 'stereo');
 stereoSound.stereoPan = 0.5;  // -1 (left) to 1 (right)
 stereoSound.play();
 ```
@@ -838,7 +838,7 @@ const controller = new AbortController();
 
 const soundPromise = cacophony.createSound(
   'large-file.mp3',
-  SoundType.Buffer,
+  'buffer',
   'HRTF',
   controller.signal
 );
@@ -858,7 +858,7 @@ try {
 // Works with groups too
 const group = await cacophony.createGroupFromUrls(
   ['a.mp3', 'b.mp3', 'c.mp3'],
-  SoundType.Buffer,
+  'buffer',
   'HRTF',
   controller.signal
 );

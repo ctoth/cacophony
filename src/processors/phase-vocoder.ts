@@ -11,10 +11,8 @@ function genHannWindow(length: number): Float32Array {
   return win;
 }
 
-interface PhaseVocoderNodeOptions extends AudioWorkletNodeOptions {
-  processorOptions: {
-    blockSize: number;
-  };
+interface PhaseVocoderProcessorOptions {
+  blockSize: number;
 }
 
 export class PhaseVocoderProcessor extends OLAProcessor {
@@ -22,9 +20,12 @@ export class PhaseVocoderProcessor extends OLAProcessor {
   timeCursor: number;
   hannWindow: Float32Array;
   fft: FFT;
-  freqComplexBuffer: any;
-  freqComplexBufferShifted: any;
-  timeComplexBuffer: any;
+  // fft.js with a Float32Array input returns a flat interleaved Float32Array
+  // of length 2*size (real/imag pairs). The library's types are `any[]` so we
+  // narrow at the perimeter — see allocation site below.
+  freqComplexBuffer: Float32Array;
+  freqComplexBufferShifted: Float32Array;
+  timeComplexBuffer: Float32Array;
   magnitudes: Float32Array;
   peakIndexes: Int32Array;
   nbPeaks: number;
@@ -38,11 +39,15 @@ export class PhaseVocoderProcessor extends OLAProcessor {
     ];
   }
 
-  constructor(options: PhaseVocoderNodeOptions) {
-    options.processorOptions = {
+  constructor(options?: AudioWorkletNodeOptions) {
+    // Merge defaults with caller-supplied processorOptions (caller wins).
+    const baseOptions: AudioWorkletNodeOptions = options ?? {};
+    const callerOpts = (baseOptions.processorOptions ?? {}) as Partial<PhaseVocoderProcessorOptions>;
+    baseOptions.processorOptions = {
       blockSize: BUFFERED_BLOCK_SIZE,
-    };
-    super(options);
+      ...callerOpts,
+    } satisfies PhaseVocoderProcessorOptions;
+    super(baseOptions);
 
     this.fftSize = this.blockSize;
     this.timeCursor = 0;
@@ -51,21 +56,22 @@ export class PhaseVocoderProcessor extends OLAProcessor {
 
     // prepare FFT and pre-allocate buffers
     this.fft = new FFT(this.fftSize);
-    this.freqComplexBuffer = this.fft.createComplexArray() as Float32Array[];
-    this.freqComplexBufferShifted = this.fft.createComplexArray() as Float32Array[];
-    this.timeComplexBuffer = this.fft.createComplexArray();
+    // fft.js returns its complex array as `any[]`; runtime is a flat Float32Array.
+    this.freqComplexBuffer = this.fft.createComplexArray() as unknown as Float32Array;
+    this.freqComplexBufferShifted = this.fft.createComplexArray() as unknown as Float32Array;
+    this.timeComplexBuffer = this.fft.createComplexArray() as unknown as Float32Array;
     this.magnitudes = new Float32Array(this.fftSize / 2 + 1);
     this.peakIndexes = new Int32Array(this.magnitudes.length);
     this.nbPeaks = 0;
   }
 
-  processOLA(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>) {
+  processOLA(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>): void {
     const pitchFactor = parameters.pitchFactor[parameters.pitchFactor.length - 1];
 
     for (let i = 0; i < this.nbInputs; i++) {
       for (let j = 0; j < inputs[i].length; j++) {
-        var input = inputs[i][j];
-        var output = outputs[i][j];
+        const input = inputs[i][j];
+        const output = outputs[i][j];
 
         this.applyHannWindow(input);
 
@@ -84,7 +90,6 @@ export class PhaseVocoderProcessor extends OLAProcessor {
     }
 
     this.timeCursor += this.hopSize;
-    return true;
   }
 
   private applyHannWindow(input: Float32Array) {
@@ -163,6 +168,5 @@ export class PhaseVocoderProcessor extends OLAProcessor {
   }
 }
 
-// @ts-expect-error
 registerProcessor("phase-vocoder", PhaseVocoderProcessor);
 console.log("PhaseVocoderProcessor registered");

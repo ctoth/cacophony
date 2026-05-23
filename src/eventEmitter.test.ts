@@ -196,4 +196,107 @@ describe("TypedEventEmitter", () => {
       expect(listener).not.toHaveBeenCalled();
     });
   });
+
+  // Regression tests for the re-entrancy + once-removal race fixed by the
+  // snapshot-and-remove-against-current-state rework. See
+  // reports/ts-review-eventEmitter.md (Blockers 4 & 5) and the workaround in
+  // src/sound.ts emitGlobalEvent that motivated this fix.
+  describe("re-entrancy and concurrent mutation", () => {
+    it("emit honours off() called from inside a sibling listener (during emit)", () => {
+      // Scenario (a): listener1 calls off(listener2) while emit is iterating.
+      // The pre-fix code rebuilt this.listeners[event] from the pre-emit
+      // snapshot, silently resurrecting listener2 for the NEXT emit.
+      const listener2 = vi.fn();
+      emitter.on("testEvent", () => {
+        emitter.off("testEvent", listener2);
+      });
+      emitter.on("testEvent", listener2);
+
+      emitter.emit("testEvent", "first");
+      // listener2 was registered when emit started, so it still fires this turn.
+      expect(listener2).toHaveBeenCalledTimes(1);
+
+      emitter.emit("testEvent", "second");
+      // After the first emit, listener2 must remain removed.
+      expect(listener2).toHaveBeenCalledTimes(1);
+    });
+
+    it("once removal does not resurrect a sibling off()'d from inside a listener", () => {
+      // Scenario (b): a once listener fires while a regular listener calls
+      // off(sibling). The pre-fix code's filter-and-reassign overwrote the
+      // sibling removal because it filtered the pre-emit snapshot.
+      const onceFn = vi.fn();
+      const siblingFn = vi.fn();
+      emitter.once("testEvent", onceFn);
+      emitter.on("testEvent", () => {
+        emitter.off("testEvent", siblingFn);
+      });
+      emitter.on("testEvent", siblingFn);
+
+      emitter.emit("testEvent", "first");
+      // First emit: all three listeners are present, all fire.
+      expect(onceFn).toHaveBeenCalledTimes(1);
+      expect(siblingFn).toHaveBeenCalledTimes(1);
+
+      emitter.emit("testEvent", "second");
+      // Second emit: onceFn must be gone (it was `once`), siblingFn must be
+      // gone (the in-listener off() must have stuck), only the middle
+      // listener remains. siblingFn count unchanged.
+      expect(onceFn).toHaveBeenCalledTimes(1);
+      expect(siblingFn).toHaveBeenCalledTimes(1);
+    });
+
+    it("re-entrant emit does not re-fire a once listener", () => {
+      // The pre-fix code removed once listeners only AFTER the loop, so a
+      // listener that synchronously re-emitted the same event would re-fire
+      // the still-present once listener.
+      const onceFn = vi.fn();
+      let reentered = false;
+      emitter.once("testEvent", onceFn);
+      emitter.on("testEvent", () => {
+        if (!reentered) {
+          reentered = true;
+          emitter.emit("testEvent", "reentrant");
+        }
+      });
+
+      emitter.emit("testEvent", "outer");
+      // `once` means once across the whole program lifetime. The fix
+      // removes once listeners from storage BEFORE iterating the dispatch
+      // snapshot, so the re-entrant emit cannot see (and re-fire) onceFn.
+      expect(onceFn).toHaveBeenCalledTimes(1);
+    });
+
+    it("emitAsync honours off() called from inside a sibling listener", async () => {
+      // Scenario (c): emitAsync variant of scenario (a).
+      const listener2 = vi.fn().mockResolvedValue(undefined);
+      emitter.on("testEvent", () => {
+        emitter.off("testEvent", listener2);
+      });
+      emitter.on("testEvent", listener2);
+
+      await emitter.emitAsync("testEvent", "first");
+      expect(listener2).toHaveBeenCalledTimes(1);
+
+      await emitter.emitAsync("testEvent", "second");
+      // listener2 must stay removed across emits.
+      expect(listener2).toHaveBeenCalledTimes(1);
+    });
+
+    it("once cleanup is idempotent after auto-removal", () => {
+      // The unsub returned from once() must be safe to call after the
+      // listener has already self-removed by firing.
+      const listener = vi.fn();
+      const unsub = emitter.once("testEvent", listener);
+
+      emitter.emit("testEvent", "fires");
+      expect(listener).toHaveBeenCalledTimes(1);
+
+      // Now call the unsub — must be a no-op, not throw, not double-remove.
+      expect(() => unsub()).not.toThrow();
+
+      emitter.emit("testEvent", "no-fire");
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+  });
 });

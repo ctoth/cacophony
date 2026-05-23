@@ -88,7 +88,6 @@ export class Group implements BaseSound {
 
   /**
    * Returns a random sound from the group.
-   * @returns A random Sound object from the group.
    * @throws Error if the group is empty.
    */
   randomSound(): Sound {

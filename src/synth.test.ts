@@ -1,6 +1,5 @@
 import { AudioContext } from "standardized-audio-context-mock";
 import { beforeEach, describe, expect, it } from "vitest";
-import { SoundType } from "./cacophony";
 import { Synth } from "./synth";
 import { SynthPlayback } from "./synthPlayback";
 
@@ -15,7 +14,7 @@ describe("Synth class", () => {
 
   it("is created with correct default properties", () => {
     expect(synth.context).toBe(audioContextMock);
-    expect(synth.soundType).toBe(SoundType.Oscillator);
+    expect(synth.soundType).toBe("oscillator");
     expect(synth.panType).toBe("HRTF");
     expect(synth.oscillatorOptions).toEqual({});
   });
@@ -35,7 +34,7 @@ describe("Synth class", () => {
   });
 
   it("can pause and resume a synth without replacing the playback object", () => {
-    synth = new Synth(audioContextMock, audioContextMock.createGain(), SoundType.Oscillator, "stereo", {
+    synth = new Synth(audioContextMock, audioContextMock.createGain(), "oscillator", "stereo", {
       frequency: 220,
       detune: 5,
       type: "triangle",

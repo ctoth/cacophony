@@ -2,10 +2,54 @@ import type { PanType, Position } from "./cacophony";
 import type { BaseContext, PannerNode, StereoPannerNode } from "./context";
 import type { FilterManager } from "./filters";
 
+/**
+ * The HRTF-relevant subset of {@link PannerOptions}. Derived via `Pick` so the
+ * set of fields tracks the lib.dom definition rather than being re-listed.
+ */
+export type HrtfPannerOptions = Pick<
+  PannerOptions,
+  | "coneInnerAngle"
+  | "coneOuterAngle"
+  | "coneOuterGain"
+  | "distanceModel"
+  | "maxDistance"
+  | "channelCount"
+  | "channelCountMode"
+  | "channelInterpretation"
+  | "panningModel"
+  | "refDistance"
+  | "rolloffFactor"
+  | "positionX"
+  | "positionY"
+  | "positionZ"
+  | "orientationX"
+  | "orientationY"
+  | "orientationZ"
+>;
+
+/**
+ * Canonical type describing the 3D-audio configuration for a sound, discriminated
+ * by {@link PanType}.
+ *
+ * - For `panType: "stereo"` the only relevant field is `stereoPan` (-1..1). HRTF
+ *   position/orientation fields are intentionally not present on this variant
+ *   so that callers cannot accidentally set them on a stereo source.
+ * - For `panType: "HRTF"` the variant carries the {@link HrtfPannerOptions}
+ *   subset plus an optional `[x,y,z]` position tuple.
+ *
+ * Containers / mixins exposing this type guarantee the HRTF variant is fully
+ * populated (`Required`) so callers can read fields without further narrowing.
+ * Inputs that only carry a partial override (e.g. clone calls) use the looser
+ * {@link PanCloneOverrides} shape.
+ */
+export type ThreeDOptions =
+  | { panType: "stereo"; stereoPan: number }
+  | ({ panType: "HRTF"; position?: Position } & Required<HrtfPannerOptions>);
+
 export type PanCloneOverrides = {
   panType?: PanType;
   stereoPan?: number; // -1 (left) to 1 (right)
-  threeDOptions?: Partial<PannerOptions>; // HRTF panning only
+  threeDOptions?: Partial<HrtfPannerOptions>; // HRTF panning only
   position?: Position; // HRTF panning only, [x, y, z]
 };
 
@@ -76,11 +120,11 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
 
     /**
      * Gets the 3D audio options if HRTF panning is used.
-     * @returns {PannerOptions} The current 3D audio options.
+     * @returns {ThreeDOptions} The current 3D audio options (HRTF variant).
      * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
      */
 
-    get threeDOptions(): PannerOptions {
+    get threeDOptions(): ThreeDOptions {
       if (!this.panner) {
         throw new Error("Cannot get 3D options of a sound that has been cleaned up");
       }
@@ -89,6 +133,7 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
       }
       const panner = this.panner as PannerNode;
       return {
+        panType: "HRTF",
         coneInnerAngle: panner.coneInnerAngle,
         coneOuterAngle: panner.coneOuterAngle,
         coneOuterGain: panner.coneOuterGain,
@@ -111,26 +156,31 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
 
     /**
      * Sets the 3D audio options for HRTF panning.
-     * @param {Partial<PannerOptions>} options - The 3D audio options to set.
+     * Accepts either a full {@link ThreeDOptions} value or a partial HRTF override.
+     * Any field omitted from the input is left at its current value on the underlying PannerNode.
      * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
      */
-    set threeDOptions(options: Partial<PannerOptions>) {
+    set threeDOptions(options: ThreeDOptions | Partial<HrtfPannerOptions>) {
       if (!this.panner) {
         throw new Error("Cannot set 3D options of a sound that has been cleaned up");
       }
       if (this.panType !== "HRTF") {
         throw new Error("Cannot set 3D options of a sound that is not using HRTF");
       }
+      // If caller passed a stereo-variant ThreeDOptions to an HRTF panner, reject.
+      if ("panType" in options && options.panType === "stereo") {
+        throw new Error("Cannot apply stereo ThreeDOptions to an HRTF panner");
+      }
       const panner = this.panner as PannerNode;
       panner.coneInnerAngle = options.coneInnerAngle !== undefined ? options.coneInnerAngle : panner.coneInnerAngle;
       panner.coneOuterAngle = options.coneOuterAngle !== undefined ? options.coneOuterAngle : panner.coneOuterAngle;
       panner.coneOuterGain = options.coneOuterGain !== undefined ? options.coneOuterGain : panner.coneOuterGain;
-      panner.distanceModel = options.distanceModel || panner.distanceModel;
+      panner.distanceModel = options.distanceModel ?? panner.distanceModel;
       panner.maxDistance = options.maxDistance !== undefined ? options.maxDistance : panner.maxDistance;
       panner.channelCount = options.channelCount !== undefined ? options.channelCount : panner.channelCount;
-      panner.channelCountMode = options.channelCountMode || panner.channelCountMode;
-      panner.channelInterpretation = options.channelInterpretation || panner.channelInterpretation;
-      panner.panningModel = options.panningModel || panner.panningModel;
+      panner.channelCountMode = options.channelCountMode ?? panner.channelCountMode;
+      panner.channelInterpretation = options.channelInterpretation ?? panner.channelInterpretation;
+      panner.panningModel = options.panningModel ?? panner.panningModel;
       panner.refDistance = options.refDistance !== undefined ? options.refDistance : panner.refDistance;
       panner.rolloffFactor = options.rolloffFactor !== undefined ? options.rolloffFactor : panner.rolloffFactor;
       panner.positionX.value = options.positionX !== undefined ? options.positionX : panner.positionX.value;

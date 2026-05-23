@@ -529,9 +529,11 @@ var phaseVocoder = (function (exports) {
 	    outputBuffersToRetrieve = [];
 	    constructor(options) {
 	        super(options);
-	        this.nbInputs = options.numberOfInputs || 1;
-	        this.nbOutputs = options.numberOfOutputs || 1;
-	        this.blockSize = options.processorOptions.blockSize || DEFAULT_BLOCK_SIZE;
+	        this.nbInputs = options?.numberOfInputs || 1;
+	        this.nbOutputs = options?.numberOfOutputs || 1;
+	        // processorOptions is typed `unknown` at the ambient boundary; narrow here.
+	        const procOpts = (options?.processorOptions ?? {});
+	        this.blockSize = procOpts.blockSize || DEFAULT_BLOCK_SIZE;
 	        this.hopSize = WEBAUDIO_BLOCK_SIZE;
 	        this.nbOverlaps = Math.floor(this.blockSize / this.hopSize);
 	        this.initializeBuffers();
@@ -656,6 +658,9 @@ var phaseVocoder = (function (exports) {
 	    timeCursor;
 	    hannWindow;
 	    fft;
+	    // fft.js with a Float32Array input returns a flat interleaved Float32Array
+	    // of length 2*size (real/imag pairs). The library's types are `any[]` so we
+	    // narrow at the perimeter — see allocation site below.
 	    freqComplexBuffer;
 	    freqComplexBufferShifted;
 	    timeComplexBuffer;
@@ -671,15 +676,20 @@ var phaseVocoder = (function (exports) {
 	        ];
 	    }
 	    constructor(options) {
-	        options.processorOptions = {
+	        // Merge defaults with caller-supplied processorOptions (caller wins).
+	        const baseOptions = options ?? {};
+	        const callerOpts = (baseOptions.processorOptions ?? {});
+	        baseOptions.processorOptions = {
 	            blockSize: BUFFERED_BLOCK_SIZE,
+	            ...callerOpts,
 	        };
-	        super(options);
+	        super(baseOptions);
 	        this.fftSize = this.blockSize;
 	        this.timeCursor = 0;
 	        this.hannWindow = genHannWindow(this.blockSize);
 	        // prepare FFT and pre-allocate buffers
 	        this.fft = new FFT$1(this.fftSize);
+	        // fft.js returns its complex array as `any[]`; runtime is a flat Float32Array.
 	        this.freqComplexBuffer = this.fft.createComplexArray();
 	        this.freqComplexBufferShifted = this.fft.createComplexArray();
 	        this.timeComplexBuffer = this.fft.createComplexArray();
@@ -691,8 +701,8 @@ var phaseVocoder = (function (exports) {
 	        const pitchFactor = parameters.pitchFactor[parameters.pitchFactor.length - 1];
 	        for (let i = 0; i < this.nbInputs; i++) {
 	            for (let j = 0; j < inputs[i].length; j++) {
-	                var input = inputs[i][j];
-	                var output = outputs[i][j];
+	                const input = inputs[i][j];
+	                const output = outputs[i][j];
 	                this.applyHannWindow(input);
 	                this.fft.realTransform(this.freqComplexBuffer, input);
 	                this.computeMagnitudes();
@@ -705,7 +715,6 @@ var phaseVocoder = (function (exports) {
 	            }
 	        }
 	        this.timeCursor += this.hopSize;
-	        return true;
 	    }
 	    applyHannWindow(input) {
 	        for (let i = 0; i < this.blockSize; i++) {
@@ -765,7 +774,6 @@ var phaseVocoder = (function (exports) {
 	        }
 	    }
 	}
-	// @ts-expect-error
 	registerProcessor("phase-vocoder", PhaseVocoderProcessor);
 	console.log("PhaseVocoderProcessor registered");
 

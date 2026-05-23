@@ -21,13 +21,13 @@
  * instances of a sound with different settings, without requiring the user to manually manage each playback instance.
  */
 
-import {
-  type BaseSound,
-  type Cacophony,
-  type LoopCount,
-  type PanType,
-  type PlayOptions,
-  type SoundCleanupHoldings,
+import type {
+  BaseSound,
+  Cacophony,
+  LoopCount,
+  PanType,
+  PlayOptions,
+  SoundCleanupHoldings,
   SoundType,
 } from "./cacophony";
 import { PlaybackContainer } from "./container";
@@ -55,13 +55,22 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
   private eventEmitter: TypedEventEmitter<SoundEvents> = new TypedEventEmitter<SoundEvents>();
   private _holdings: SoundCleanupHoldings = { sources: [], gainNodes: [], mediaElements: [] };
   private _unregisterToken: object = {};
+  /**
+   * Per-playback unsubscribe functions for the listeners that Sound attaches
+   * to each playback in {@link preplay}. Tracked so the Sound→playback
+   * closure cycle (each listener captures `this`) can be broken explicitly
+   * when the playback ends, stops, or is cleaned up — not only when the
+   * playback's own eventEmitter is torn down. A WeakMap keeps the entry GC-
+   * tied to the playback identity.
+   */
+  private _playbackUnsubscribes: WeakMap<Playback, Array<() => void>> = new WeakMap();
 
   constructor(
     public url: string,
     buffer: AudioBuffer | undefined,
     context: BaseContext,
     private globalGainNode: GainNode,
-    public soundType: SoundType = SoundType.Buffer,
+    public soundType: SoundType = "buffer",
     public panType: PanType = "HRTF",
     private _cacophony?: Cacophony,
   ) {
@@ -112,15 +121,13 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
    * @param {SoundCloneOverrides} overrides - An object specifying properties to override in the cloned instance.
    *        This can include audio settings like volume, playback rate, and spatial positioning, as well as
    *        more complex configurations like 3D audio options and filter adjustments.
-   * @returns {Sound} A new Sound instance that is a clone of the current sound.
    */
 
   clone(overrides: Partial<SoundCloneOverrides> = {}): Sound {
-    const panType = overrides.panType || this.panType;
+    const panType = overrides.panType ?? this.panType;
     const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
-    const threeDOptions = (overrides.threeDOptions || this.threeDOptions) as PannerOptions;
     const loopCount = overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
-    const playbackRate = overrides.playbackRate || this.playbackRate;
+    const playbackRate = overrides.playbackRate ?? this.playbackRate;
     const volume = overrides.volume !== undefined ? overrides.volume : this.volume;
     const position = overrides.position !== undefined ? overrides.position : this.position;
     const filters = overrides.filters?.length ? overrides.filters : this._filters;
@@ -138,10 +145,15 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
     clone.playbackRate = playbackRate;
     clone.volume = volume;
     if (panType === "HRTF") {
-      clone.threeDOptions = threeDOptions;
+      // Apply HRTF override or inherit from source.
+      if (overrides.threeDOptions !== undefined) {
+        clone.threeDOptions = overrides.threeDOptions;
+      } else if (this.panType === "HRTF") {
+        clone.threeDOptions = this.threeDOptions;
+      }
       clone.position = position;
     } else {
-      clone.stereoPan = stereoPan as number;
+      clone.stereoPan = stereoPan;
     }
     clone.addFilters(filters);
     return clone;
@@ -150,10 +162,21 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
   /**
    * Generates a Playback instance for the sound without starting playback.
    * This allows for pre-configuration of playback properties such as volume and position before the sound is actually played.
-   * @returns {Playback[]} An array of Playback instances that are ready to be played.
    */
 
   preplay(): Playback[] {
+    // Capture array lengths at entry so a throw mid-construction can truncate
+    // back to exactly what was here before — this preplay call's pushes get
+    // rolled back without touching prior entries.
+    const sourcesLen = this._holdings.sources.length;
+    const gainNodesLen = this._holdings.gainNodes.length;
+    const mediaElementsLen = this._holdings.mediaElements.length;
+    const playbacksLen = this.playbacks.length;
+    // Track audio nodes created during this call so we can disconnect them on
+    // rollback (the finalization registry won't see them since holdings are
+    // truncated below).
+    let createdSource: SourceNode | undefined;
+    let createdGainNode: GainNode | undefined;
     try {
       let source: SourceNode;
       if (this.buffer) {
@@ -172,7 +195,9 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
         // we have the audio, let's make a buffer source node out of it
         source = this.context.createMediaElementSource(audio);
       }
+      createdSource = source;
       const gainNode = this.context.createGain();
+      createdGainNode = gainNode;
       gainNode.connect(this.globalGainNode);
       const playback = new Playback(this, source, gainNode);
       this._holdings.sources.push(source);
@@ -190,22 +215,34 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
         clonedFilter.frequency.value = filter.frequency.value;
         clonedFilter.Q.value = filter.Q.value;
         clonedFilter.gain.value = filter.gain.value;
-        playback.addFilter(clonedFilter as unknown as BiquadFilterNode);
+        playback.addFilter(clonedFilter);
       });
       if (this.panType === "HRTF") {
         playback.threeDOptions = this.threeDOptions;
         playback.position = this.position;
       } else if (this.panType === "stereo") {
-        playback.stereoPan = this.stereoPan as number;
+        playback.stereoPan = this.stereoPan;
       }
-      // Set up event propagation from playback to sound
-      playback.on("ended", () => {
+      // Set up event propagation from playback to sound. Each listener captures
+      // `this` and is registered on the playback's own emitter — so the
+      // playback holds a reference back to the Sound for the lifetime of the
+      // listener. Capture the unsubscribe functions so we can break the cycle
+      // explicitly when the playback ends (naturally) or is cleaned up.
+      const unsubEnded = playback.on("ended", () => {
         this.emit("ended", undefined);
+        // Natural end: the playback has fired its terminal event; tear down
+        // our subscriptions so it can be GC'd without waiting for cleanup().
+        // Deferred to a microtask because the emitter re-assigns its listener
+        // array AFTER the synchronous forEach iteration completes — calling
+        // off() inside the listener would have its removal overwritten by
+        // that re-assignment (see TypedEventEmitter.emit). The microtask
+        // defers the off() until after the emit cycle settles.
+        queueMicrotask(() => this._unsubscribeFromPlayback(playback));
       });
       playback._loopEndCallback = () => {
         this.emit("loopEnd", undefined);
       };
-      playback.on("error", (errorEvent) => {
+      const unsubError = playback.on("error", (errorEvent) => {
         this.emitAsync("soundError", {
           url: this.url,
           error: errorEvent.error,
@@ -214,10 +251,41 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
           recoverable: errorEvent.recoverable,
         });
       });
+      // Clear-the-callback step counts as an "unsubscribe" for the closure
+      // _loopEndCallback holds (it captures `this`). Combine all three.
+      const clearLoopCallback = () => {
+        if (playback._loopEndCallback) {
+          playback._loopEndCallback = undefined;
+        }
+      };
+      this._playbackUnsubscribes.set(playback, [unsubEnded, unsubError, clearLoopCallback]);
 
       this.playbacks.push(playback);
       return [playback];
     } catch (error) {
+      // Roll back any state pushed during THIS call so a failed preplay does
+      // not leave zombie holdings/playbacks behind. Truncate to entry lengths
+      // first (safe even if we never reached the pushes), then disconnect the
+      // audio nodes we actually created.
+      this._holdings.sources.length = sourcesLen;
+      this._holdings.gainNodes.length = gainNodesLen;
+      this._holdings.mediaElements.length = mediaElementsLen;
+      this.playbacks.length = playbacksLen;
+      if (createdGainNode) {
+        try {
+          createdGainNode.disconnect();
+        } catch {
+          // Disconnect can throw if the node was never connected; the rollback
+          // intent is satisfied regardless.
+        }
+      }
+      if (createdSource) {
+        try {
+          createdSource.disconnect();
+        } catch {
+          // Same — best-effort cleanup on a failed-construction path.
+        }
+      }
       const errorEvent = {
         url: this.url,
         error: error as Error,
@@ -227,6 +295,23 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
       };
       this.emitAsync("soundError", errorEvent);
       throw error;
+    }
+  }
+
+  /**
+   * Detaches the Sound-side listeners that were registered on a playback in
+   * {@link preplay}. Idempotent — safe to call on a playback whose
+   * subscriptions were already torn down. Breaks the Sound↔playback closure
+   * cycle described on the entries in {@link _playbackUnsubscribes}.
+   */
+  private _unsubscribeFromPlayback(playback: Playback): void {
+    const unsubs = this._playbackUnsubscribes.get(playback);
+    if (!unsubs) {
+      return;
+    }
+    this._playbackUnsubscribes.delete(playback);
+    for (const unsub of unsubs) {
+      unsub();
     }
   }
 
@@ -250,6 +335,15 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
         playback.play();
       } catch (error) {
         cleanupPlayListeners();
+        // preplay() already committed `playback` to `this.playbacks` and the
+        // Sound→playback listener subscriptions. Remove both so the failed
+        // playback is not re-touched by subsequent resume()/loop() iterations
+        // and so the closure cycle is broken on the throw path too.
+        const idx = this.playbacks.indexOf(playback);
+        if (idx !== -1) {
+          this.playbacks.splice(idx, 1);
+        }
+        this._unsubscribeFromPlayback(playback);
         throw error;
       }
     }
@@ -348,7 +442,14 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
     this._holdings.sources.length = 0;
     this._holdings.gainNodes.length = 0;
     this._holdings.mediaElements.length = 0;
-    this.playbacks.forEach((p) => p.cleanup());
+    // Explicitly tear down the Sound→playback listener subscriptions before
+    // calling p.cleanup() — p.cleanup()'s removeAllListeners() also clears
+    // them, but doing it here keeps the closure cycle's break point local to
+    // Sound and ensures the WeakMap entries are released promptly.
+    this.playbacks.forEach((p) => {
+      this._unsubscribeFromPlayback(p);
+      p.cleanup();
+    });
     this.playbacks = [];
     this.eventEmitter.removeAllListeners();
   }

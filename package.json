@@ -1,6 +1,6 @@
 {
   "name": "cacophony",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "description": "Typescript audio library with caching",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -29,7 +29,7 @@
     "prepublishOnly": "npm run build",
     "test": "vitest run",
     "ci:test": "vitest run --no-color --run --typecheck",
-    "lint": "biome check .",
+    "lint": "biome check --error-on-warnings .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
     "prepare": "husky"

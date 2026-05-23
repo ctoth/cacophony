@@ -2,7 +2,7 @@ import { AudioBuffer } from "standardized-audio-context-mock";
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, test, vi } from "vitest";
 
-import { Cacophony, SoundType } from "./cacophony";
+import { Cacophony } from "./cacophony";
 import { Group } from "./group";
 import { audioContextMock, cacophony, mockCache } from "./setupTests";
 import { Sound } from "./sound";
@@ -182,7 +182,7 @@ describe("Cacophony advanced features", () => {
   it("createStream creates a streaming Sound instance", async () => {
     const streamSound = await cacophony.createStream("https://example.com/audio.mp3");
     expect(streamSound).toBeInstanceOf(Sound);
-    expect(streamSound.soundType).toBe(SoundType.Streaming);
+    expect(streamSound.soundType).toBe("streaming");
   });
 
   it("createGroupFromUrls creates a Group with Sound instances", async () => {
@@ -234,6 +234,16 @@ describe("Cacophony advanced features", () => {
     expect(resumeSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("resume delegates after the context is suspended outside the wrapper", async () => {
+    const resumeSpy = vi.spyOn(cacophony.context, "resume");
+
+    await cacophony.resume();
+    await cacophony.context.suspend?.();
+    await cacophony.resume();
+
+    expect(resumeSpy).toHaveBeenCalledTimes(2);
+  });
+
   it("setGlobalVolume sets the global gain node value", () => {
     cacophony.setGlobalVolume(0.5);
     expect(cacophony.globalGainNode.gain.value).toBe(0.5);
@@ -251,9 +261,9 @@ describe("Cacophony advanced features", () => {
       // Should work even with aborted signal since it's immediate
       controller.abort();
 
-      const sound = await cacophony.createSound(buffer, SoundType.Buffer, "HRTF", controller.signal);
+      const sound = await cacophony.createSound(buffer, "buffer", "HRTF", controller.signal);
       expect(sound.buffer).toBe(buffer);
-      expect(sound.soundType).toBe(SoundType.Buffer);
+      expect(sound.soundType).toBe("buffer");
     });
 
     it("createSound with URL passes AbortSignal to cache", async () => {
@@ -264,7 +274,7 @@ describe("Cacophony advanced features", () => {
       // Mock the cache to verify signal is passed through
       const getAudioBufferSpy = vi.spyOn(mockCache, "getAudioBuffer").mockResolvedValueOnce(mockBuffer);
 
-      const sound = await cacophony.createSound(url, SoundType.Buffer, "HRTF", controller.signal);
+      const sound = await cacophony.createSound(url, "buffer", "HRTF", controller.signal);
 
       expect(getAudioBufferSpy).toHaveBeenCalledWith(
         audioContextMock,
@@ -287,7 +297,7 @@ describe("Cacophony advanced features", () => {
 
       controller.abort();
 
-      await expect(cacophony.createSound(url, SoundType.Buffer, "HRTF", controller.signal)).rejects.toMatchObject({
+      await expect(cacophony.createSound(url, "buffer", "HRTF", controller.signal)).rejects.toMatchObject({
         name: "AbortError",
         message: "Operation was aborted",
       });
@@ -299,7 +309,7 @@ describe("Cacophony advanced features", () => {
 
       const getAudioBufferSpy = vi.spyOn(mockCache, "getAudioBuffer").mockResolvedValueOnce(mockBuffer);
 
-      const sound = await cacophony.createSound(url, SoundType.Buffer);
+      const sound = await cacophony.createSound(url, "buffer");
 
       expect(getAudioBufferSpy).toHaveBeenCalledWith(
         audioContextMock,
@@ -322,8 +332,8 @@ describe("Cacophony advanced features", () => {
         .mockImplementationOnce(() => htmlAudio.audio as any)
         .mockImplementationOnce(() => streamingAudio.audio as any);
 
-      const htmlSoundPromise = cacophony.createSound(url, SoundType.HTML, "HRTF", controller.signal);
-      const streamSoundPromise = cacophony.createSound(url, SoundType.Streaming, "HRTF", controller.signal);
+      const htmlSoundPromise = cacophony.createSound(url, "html", "HRTF", controller.signal);
+      const streamSoundPromise = cacophony.createSound(url, "streaming", "HRTF", controller.signal);
 
       expect(htmlAudio.audio.load).toHaveBeenCalledOnce();
       expect(streamingAudio.audio.load).toHaveBeenCalledOnce();
@@ -333,11 +343,11 @@ describe("Cacophony advanced features", () => {
       streamingAudio.dispatch("loadedmetadata");
 
       const htmlSound = await htmlSoundPromise;
-      expect(htmlSound.soundType).toBe(SoundType.HTML);
+      expect(htmlSound.soundType).toBe("html");
       expect(htmlSound.url).toBe(url);
 
       const streamSound = await streamSoundPromise;
-      expect(streamSound.soundType).toBe(SoundType.Streaming);
+      expect(streamSound.soundType).toBe("streaming");
       expect(streamSound.url).toBe(url);
       expect(getAudioBufferSpy).not.toHaveBeenCalled();
     });
@@ -349,7 +359,7 @@ describe("Cacophony advanced features", () => {
 
       vi.mocked(global.Audio).mockImplementationOnce(() => htmlAudio.audio as any);
 
-      const soundPromise = cacophony.createSound(url, SoundType.HTML, "HRTF", controller.signal);
+      const soundPromise = cacophony.createSound(url, "html", "HRTF", controller.signal);
       controller.abort();
 
       await expect(soundPromise).rejects.toMatchObject({
@@ -386,7 +396,7 @@ describe("Cacophony advanced features", () => {
       // Mock cache to return buffer for all calls
       vi.spyOn(mockCache, "getAudioBuffer").mockResolvedValue(mockBuffer);
 
-      const group = await cacophony.createGroupFromUrls(urls, SoundType.Buffer, "HRTF", controller.signal);
+      const group = await cacophony.createGroupFromUrls(urls, "buffer", "HRTF", controller.signal);
 
       expect(group).toBeInstanceOf(Group);
       expect(group.sounds.length).toBe(3);
@@ -412,9 +422,7 @@ describe("Cacophony advanced features", () => {
 
       controller.abort();
 
-      await expect(
-        cacophony.createGroupFromUrls(urls, SoundType.Buffer, "HRTF", controller.signal),
-      ).rejects.toMatchObject({
+      await expect(cacophony.createGroupFromUrls(urls, "buffer", "HRTF", controller.signal)).rejects.toMatchObject({
         name: "AbortError",
       });
     });
@@ -477,6 +485,7 @@ describe("Cacophony advanced features", () => {
 
     it("createWorkletNode passes AbortSignal to addModule when needed", async () => {
       const controller = new AbortController();
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       // Mock AudioWorkletNode constructor to throw first, then succeed
       vi.mocked(AudioWorkletNode)
@@ -501,9 +510,18 @@ describe("Cacophony advanced features", () => {
         credentials: "same-origin",
         signal: controller.signal,
       });
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        "[cacophony/worklet] construct failed",
+        expect.objectContaining({
+          name: "test-worklet",
+          error: expect.any(Error),
+        }),
+      );
+      consoleWarnSpy.mockRestore();
     });
 
     it("createWorkletNode uses the configured constructor for non-native contexts", async () => {
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       const createAudioWorkletNode = vi
         .fn()
         .mockImplementationOnce(() => {
@@ -535,12 +553,22 @@ describe("Cacophony advanced features", () => {
       expect(mockAudioWorklet.addModule).toHaveBeenCalledWith("https://example.com/worklet.js", {
         credentials: "same-origin",
       });
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        "[cacophony/worklet] construct failed",
+        expect.objectContaining({
+          name: "test-worklet",
+          error: expect.any(Error),
+        }),
+      );
 
       nativeConstructorSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
     });
 
     it("createWorkletNode handles AbortError during addModule", async () => {
       const controller = new AbortController();
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       // Mock AudioWorkletNode constructor to always throw (simulating worklet not loaded)
       vi.mocked(AudioWorkletNode).mockImplementation(() => {
@@ -562,9 +590,34 @@ describe("Cacophony advanced features", () => {
         credentials: "same-origin",
         signal: controller.signal,
       });
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        "[cacophony/worklet] construct failed",
+        expect.objectContaining({
+          name: "test-worklet",
+          error: expect.any(Error),
+        }),
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "[cacophony/worklet] addModule rejected",
+        expect.objectContaining({
+          name: "test-worklet",
+          error: expect.any(DOMException),
+        }),
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "[cacophony/worklet] load failed",
+        expect.objectContaining({
+          name: "test-worklet",
+          error: expect.any(DOMException),
+        }),
+      );
+      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
 
     it("createWorkletNode works without AbortSignal (backward compatibility)", async () => {
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
       // Mock AudioWorkletNode constructor to throw first, then succeed
       vi.mocked(AudioWorkletNode)
         .mockImplementationOnce(() => {
@@ -587,6 +640,14 @@ describe("Cacophony advanced features", () => {
       expect(mockAudioWorklet.addModule).toHaveBeenCalledWith("https://example.com/worklet.js", {
         credentials: "same-origin",
       });
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        "[cacophony/worklet] construct failed",
+        expect.objectContaining({
+          name: "test-worklet",
+          error: expect.any(Error),
+        }),
+      );
+      consoleWarnSpy.mockRestore();
     });
 
     it("createWorkletNode returns immediately if worklet already loaded", async () => {
@@ -653,6 +714,7 @@ describe("Cacophony advanced features", () => {
     });
 
     it("createWorkletNode forwards node options to the constructor", async () => {
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       const options: AudioWorkletNodeOptions = {
         numberOfInputs: 1,
         numberOfOutputs: 1,
@@ -688,6 +750,14 @@ describe("Cacophony advanced features", () => {
 
       expect(createAudioWorkletNode).toHaveBeenNthCalledWith(1, audioContextMock, "test-worklet", options);
       expect(createAudioWorkletNode).toHaveBeenNthCalledWith(2, audioContextMock, "test-worklet", options);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        "[cacophony/worklet] construct failed",
+        expect.objectContaining({
+          name: "test-worklet",
+          error: expect.any(Error),
+        }),
+      );
+      consoleWarnSpy.mockRestore();
     });
 
     it("loadWorklets works without AbortSignal (backward compatibility)", async () => {

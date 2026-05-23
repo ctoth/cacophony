@@ -1,6 +1,6 @@
-import { type BaseSound, type Cacophony, type PanType, SoundType } from "./cacophony";
+import type { BaseSound, Cacophony, PanType, SoundType } from "./cacophony";
 import { PlaybackContainer } from "./container";
-import type { BaseContext, BiquadFilterNode, GainNode, OscillatorNode } from "./context";
+import type { BaseContext, GainNode, OscillatorNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { SynthEvents } from "./events";
 import type { FilterCloneOverrides } from "./filters";
@@ -43,7 +43,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
   constructor(
     public context: BaseContext,
     private globalGainNode: GainNode,
-    public soundType: SoundType = SoundType.Oscillator,
+    public soundType: SoundType = "oscillator",
     public panType: PanType = "HRTF",
     oscillatorOptions: Partial<OscillatorOptions> = {},
     private cacophony?: Cacophony,
@@ -63,16 +63,14 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
    * @param {SynthCloneOverrides} overrides - An object specifying properties to override in the cloned instance.
    *        This can include audio settings like volume, playback rate, and spatial positioning, as well as
    *        more complex configurations like 3D audio options and filter adjustments.
-   * @returns {Synth} A new Synth instance that is a clone of the current synth.
    */
   clone(overrides: Partial<SynthCloneOverrides> = {}): Synth {
-    const panType = overrides.panType || this.panType;
-    const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : (this.stereoPan ?? 0);
-    const threeDOptions = (overrides.threeDOptions || this.threeDOptions) as PannerOptions;
+    const panType = overrides.panType ?? this.panType;
+    const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
     const volume = overrides.volume !== undefined ? overrides.volume : this.volume;
     const position = overrides.position?.length ? overrides.position : this.position;
     const filters = overrides.filters?.length ? overrides.filters : this._filters;
-    const oscillatorOptions = overrides.oscillatorOptions || this._oscillatorOptions;
+    const oscillatorOptions = overrides.oscillatorOptions ?? this._oscillatorOptions;
 
     const clone = new Synth(
       this.context,
@@ -84,8 +82,15 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     );
     clone._volume = volume;
     clone._position = position;
-    clone._stereoPan = stereoPan as number;
-    clone._threeDOptions = threeDOptions;
+    clone._stereoPan = stereoPan;
+    // Apply HRTF override (if provided) through the canonical setter so the
+    // discriminated `_threeDOptions` invariant is preserved. Without an override
+    // the new clone keeps its default HRTF storage initialized in the container.
+    if (overrides.threeDOptions !== undefined) {
+      clone.threeDOptions = overrides.threeDOptions;
+    } else if (this.panType === "HRTF") {
+      clone.threeDOptions = this.threeDOptions;
+    }
     clone.addFilters(filters);
     return clone;
   }
@@ -93,7 +98,6 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
   /**
    * Generates a Playback instance for the synth without starting playback.
    * This allows for pre-configuration of playback properties such as volume and position before the synth is actually played.
-   * @returns {SynthPlayback[]} An array of SynthPlayback instances that are ready to be played.
    */
   preplay(): SynthPlayback[] {
     const oscillator = this.context.createOscillator();
@@ -117,13 +121,13 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
       clonedFilter.frequency.value = filter.frequency.value;
       clonedFilter.Q.value = filter.Q.value;
       clonedFilter.gain.value = filter.gain.value;
-      playback.addFilter(clonedFilter as unknown as BiquadFilterNode);
+      playback.addFilter(clonedFilter);
     });
     if (this.panType === "HRTF") {
       playback.threeDOptions = this.threeDOptions;
       playback.position = this.position;
     } else if (this.panType === "stereo") {
-      playback.stereoPan = this.stereoPan as number;
+      playback.stereoPan = this.stereoPan;
     }
     this.playbacks.push(playback);
     return [playback];
@@ -199,7 +203,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
   }
 
   get type(): OscillatorType {
-    return (this.oscillatorOptions.type as OscillatorType) || "sine";
+    return (this.oscillatorOptions.type as OscillatorType) ?? "sine";
   }
 
   set type(type: OscillatorType) {

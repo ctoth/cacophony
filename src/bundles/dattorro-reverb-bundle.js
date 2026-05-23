@@ -220,7 +220,6 @@ var dattorroReverb = (function (exports) {
             return true;
         }
     }
-    // @ts-expect-error
     registerProcessor("dattorro-reverb", DattorroReverbProcessor);
     console.log("DattorroReverbProcessor registered");
 

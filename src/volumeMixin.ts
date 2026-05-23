@@ -8,17 +8,28 @@ export type VolumeCloneOverrides = {
 
 type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
 
+type ActiveFade = {
+  timeout: ReturnType<typeof setTimeout>;
+  resolve: () => void;
+  node: GainNode;
+  target: number;
+  type: FadeType;
+};
+
 export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
   abstract class VolumeMixin extends Base {
     gainNode?: GainNode;
     _fadeTimeout?: ReturnType<typeof setTimeout>;
     _isFading: boolean = false;
+    private _activeFade?: ActiveFade;
 
     setGainNode(gainNode: GainNode) {
       this.gainNode = gainNode;
     }
 
     cleanup(): void {
+      // cancelFade resolves any pending fade promise synchronously, so
+      // awaiters of an in-flight fade unblock before the gainNode is torn down.
       this.cancelFade();
       if (this.gainNode) {
         this.gainNode.disconnect();
@@ -30,7 +41,6 @@ export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
     /**
      * Gets the current volume of the audio.
      * @throws {Error} Throws an error if the sound has been cleaned up.
-     * @returns {number} The current volume.
      */
 
     get volume(): number {
@@ -42,7 +52,6 @@ export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
 
     /**
      * Sets the volume of the audio.
-     * @param {number} v - The volume to set.
      * @throws {Error} Throws an error if the sound has been cleaned up.
      */
 
@@ -74,44 +83,79 @@ export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
       }
       this.cancelFade();
 
-      const now = this.gainNode.context.currentTime;
+      // Capture the gainNode at fade start so the timeout closes over the node
+      // present when fadeTo was called -- not whichever node (or undefined)
+      // this.gainNode happens to point at when the timer fires.
+      const node = this.gainNode;
+      const now = node.context.currentTime;
       const endTime = now + duration / 1000;
 
-      this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
+      node.gain.setValueAtTime(node.gain.value, now);
 
       if (type === "exponential") {
-        this.gainNode.gain.exponentialRampToValueAtTime(value === 0 ? 0.0001 : value, endTime);
+        node.gain.exponentialRampToValueAtTime(value === 0 ? 0.0001 : value, endTime);
       } else {
-        this.gainNode.gain.linearRampToValueAtTime(value, endTime);
+        node.gain.linearRampToValueAtTime(value, endTime);
       }
 
       this._isFading = true;
 
       return new Promise<void>((resolve) => {
-        this._fadeTimeout = setTimeout(() => {
+        const timeout = setTimeout(() => {
+          // If this fade was superseded (cancelled / re-fired) the active-fade
+          // slot has already been cleared by cancelFade. Bail without resolving
+          // a second time.
+          if (this._activeFade?.timeout !== timeout) {
+            return;
+          }
+          this._activeFade = undefined;
+          this._fadeTimeout = undefined;
           this._isFading = false;
-          if (value === 0 && type === "exponential" && this.gainNode) {
-            this.gainNode.gain.value = 0;
+          // Web Audio's exponentialRampToValueAtTime requires a strict-positive
+          // target, so the ramp went to 0.0001. Snap to 0 at completion.
+          if (value === 0 && type === "exponential") {
+            node.gain.value = 0;
           }
           resolve();
         }, duration);
+        this._activeFade = { timeout, resolve, node, target: value, type };
+        this._fadeTimeout = timeout;
       });
     }
 
     /**
-     * Cancels any in-progress fade.
+     * Cancels any in-progress fade. The fade's pending promise is resolved
+     * (Option A: cancellation is not an error; awaiters learn the outcome by
+     * reading the resulting volume). Safe to call repeatedly.
      */
     cancelFade(): void {
-      if (this._fadeTimeout) {
+      const active = this._activeFade;
+      this._activeFade = undefined;
+      if (this._fadeTimeout !== undefined) {
         clearTimeout(this._fadeTimeout);
         this._fadeTimeout = undefined;
       }
-      if (this._isFading && this.gainNode) {
-        const now = this.gainNode.context.currentTime;
-        this.gainNode.gain.cancelScheduledValues(now);
-        this.gainNode.gain.setValueAtTime(this.gainNode.gain.value, now);
+      if (active && this.gainNode) {
+        const node = this.gainNode;
+        const now = node.context.currentTime;
+        node.gain.cancelScheduledValues(now);
+        // A cancelled fade-to-zero exponential would otherwise leave the gain
+        // latched at the 0.0001 ramp target. Snap to 0 so the audible state
+        // matches the caller's intent at the moment they cancelled.
+        if (active.target === 0 && active.type === "exponential") {
+          node.gain.value = 0;
+        } else {
+          // For all other cancellations, leave the gain wherever the ramp had
+          // reached -- pin it there so no further scheduled values apply.
+          node.gain.setValueAtTime(node.gain.value, now);
+        }
       }
       this._isFading = false;
+      // Resolve LAST: any handler attached to the fade promise will observe
+      // the post-cancel volume and isFading === false.
+      if (active) {
+        active.resolve();
+      }
     }
 
     /**

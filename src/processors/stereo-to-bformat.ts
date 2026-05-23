@@ -8,7 +8,7 @@ export class StereoToBFormatProcessor extends AudioWorkletProcessor {
   private lastReportFrame = 0;
   private readonly upmixer = new StereoToFoaUpmixer(sampleRate);
 
-  process(inputs: Float32Array[][], outputs: Float32Array[][]): boolean {
+  process(inputs: Float32Array[][], outputs: Float32Array[][], _parameters: Record<string, Float32Array>): boolean {
     const input = inputs[0];
     const output = outputs[0];
 

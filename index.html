@@ -41,7 +41,7 @@
       }
     </style>
     <script type="module">
-      import { Cacophony, SoundType, Sound } from "/src/index.ts";
+      import { Cacophony, Sound } from "/src/index.ts";
 
       window.cacophony = new Cacophony();
       window.sound = null;
@@ -173,7 +173,7 @@
               default:
                 window.sound = await window.cacophony.createSound(
                   soundUrl,
-                  SoundType.Buffer,
+                  "buffer",
                   window.panType
                 );
                 break;

@@ -17,15 +17,11 @@ import type { CacophonyEvents } from "./events";
 import { Group } from "./group";
 import { MediaStreamSound, type MediaStreamSoundOptions } from "./mediaStream";
 import { MicrophoneStream } from "./microphone";
+import type { ThreeDOptions } from "./pannerMixin";
 import { Sound } from "./sound";
 import { Synth } from "./synth";
 
-export enum SoundType {
-  HTML = "HTML",
-  Streaming = "Streaming",
-  Buffer = "Buffer",
-  Oscillator = "oscillator",
-}
+export type SoundType = "html" | "streaming" | "buffer" | "oscillator";
 
 /**
  * Represents a 3D position in space.
@@ -87,7 +83,7 @@ export interface BaseSound {
   removeFilter(filter: BiquadFilterNode): void;
   volume: number;
   position?: Position;
-  threeDOptions?: any;
+  threeDOptions?: ThreeDOptions;
   fadeTo?(value: number, duration: number, type?: FadeType): Promise<void>;
   fadeIn?(duration: number, type?: FadeType): Promise<void>;
   fadeOut?(duration: number, type?: FadeType): Promise<void>;
@@ -133,15 +129,19 @@ export class Cacophony {
   private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
   private createAudioWorkletNode: (context: BaseContext, name: string, options?: AudioWorkletNodeOptions) => any;
+  // Tracks the lifecycle state we have explicitly transitioned to. This avoids
+  // duplicate wrapper-driven suspend calls, but resume() still delegates because
+  // the underlying AudioContext can be suspended externally.
+  private suspendState: "unknown" | "running" | "suspended" = "unknown";
 
   constructor(context?: BaseContext, cache?: ICache, runtimeOptions: RuntimeOptions = {}) {
-    this.context = context || new AudioContext();
+    this.context = context ?? new AudioContext();
     this.listener = this.context.listener;
     this.globalGainNode = this.context.createGain();
     this.globalGainNode.connect(this.context.destination);
-    this.cache = cache || new AudioCache();
+    this.cache = cache ?? new AudioCache();
     this.createAudioWorkletNode =
-      runtimeOptions.createAudioWorkletNode ||
+      runtimeOptions.createAudioWorkletNode ??
       ((workletContext, name, options) => new AudioWorkletNode(workletContext as any, name, options));
 
     this.finalizationRegistry = new FinalizationRegistry((holdings) => {
@@ -180,7 +180,7 @@ export class Cacophony {
    */
   static createOffline(options: OfflineOptions, cache?: ICache): Cacophony {
     const offlineContext =
-      options.context || new OfflineAudioContext(options.numberOfChannels, options.length, options.sampleRate);
+      options.context ?? new OfflineAudioContext(options.numberOfChannels, options.length, options.sampleRate);
     return new Cacophony(offlineContext, cache);
   }
 
@@ -337,7 +337,7 @@ export class Cacophony {
 
   private createMediaSound(
     url: string,
-    soundType: SoundType.HTML | SoundType.Streaming,
+    soundType: "html" | "streaming",
     panType: PanType,
     signal?: AbortSignal,
   ): Promise<Sound> {
@@ -407,7 +407,7 @@ export class Cacophony {
   }
 
   createOscillator(options: OscillatorOptions, panType: PanType = "HRTF"): Synth {
-    const synth = new Synth(this.context, this.globalGainNode, SoundType.Oscillator, panType, options, this);
+    const synth = new Synth(this.context, this.globalGainNode, "oscillator", panType, options, this);
     return synth;
   }
 
@@ -431,21 +431,19 @@ export class Cacophony {
 
   async createSound(
     bufferOrUrl: AudioBuffer | string,
-    soundType: SoundType = SoundType.Buffer,
+    soundType: SoundType = "buffer",
     panType: PanType = "HRTF",
     signal?: AbortSignal,
   ): Promise<Sound> {
     if (typeof bufferOrUrl === "object") {
-      return Promise.resolve(
-        new Sound("", bufferOrUrl, this.context, this.globalGainNode, SoundType.Buffer, panType, this),
-      );
+      return Promise.resolve(new Sound("", bufferOrUrl, this.context, this.globalGainNode, soundType, panType, this));
     }
     const url = bufferOrUrl;
-    if (soundType === SoundType.HTML) {
-      return this.createMediaSound(url, SoundType.HTML, panType, signal);
+    if (soundType === "html") {
+      return this.createMediaSound(url, "html", panType, signal);
     }
-    if (soundType === SoundType.Streaming) {
-      return this.createMediaSound(url, SoundType.Streaming, panType, signal);
+    if (soundType === "streaming") {
+      return this.createMediaSound(url, "streaming", panType, signal);
     }
     return this.cache
       .getAudioBuffer(this.context, url, signal, {
@@ -477,7 +475,7 @@ export class Cacophony {
    */
   async createGroupFromUrls(
     urls: string[],
-    soundType: SoundType = SoundType.Buffer,
+    soundType: SoundType = "buffer",
     panType: PanType = "HRTF",
     signal?: AbortSignal,
   ): Promise<Group> {
@@ -495,7 +493,7 @@ export class Cacophony {
    * @returns Promise that resolves to a Sound instance for streaming
    */
   async createStream(url: string, signal?: AbortSignal): Promise<Sound> {
-    return this.createMediaSound(url, SoundType.Streaming, "HRTF", signal);
+    return this.createMediaSound(url, "streaming", "HRTF", signal);
   }
 
   createMediaStreamSound(stream: MediaStream, options?: MediaStreamSoundOptions): MediaStreamSound {
@@ -507,10 +505,10 @@ export class Cacophony {
       frequency = 350;
     }
     const filter = this.context.createBiquadFilter();
-    filter.type = type || "lowpass";
+    filter.type = type ?? "lowpass";
     filter.frequency.value = frequency;
-    filter.gain.value = gain || 0;
-    filter.Q.value = Q || 1;
+    filter.gain.value = gain ?? 0;
+    filter.Q.value = Q ?? 1;
     return filter;
   };
 
@@ -563,47 +561,62 @@ export class Cacophony {
     orientationZ,
   }: Partial<PannerOptions>): PannerNode {
     const panner = this.context.createPanner();
-    panner.coneInnerAngle = coneInnerAngle || 360;
-    panner.coneOuterAngle = coneOuterAngle || 360;
-    panner.coneOuterGain = coneOuterGain || 0;
-    panner.distanceModel = distanceModel || "inverse";
-    panner.maxDistance = maxDistance || 10000;
-    panner.channelCount = channelCount || 2;
-    panner.channelCountMode = channelCountMode || "clamped-max";
-    panner.channelInterpretation = channelInterpretation || "speakers";
-    panner.panningModel = panningModel || "HRTF";
-    panner.refDistance = refDistance || 1;
-    panner.rolloffFactor = rolloffFactor || 1;
-    panner.positionX.value = positionX || 0;
-    panner.positionY.value = positionY || 0;
-    panner.positionZ.value = positionZ || 0;
-    panner.orientationX.value = orientationX || 0;
-    panner.orientationY.value = orientationY || 0;
-    panner.orientationZ.value = orientationZ || 0;
+    panner.coneInnerAngle = coneInnerAngle ?? 360;
+    panner.coneOuterAngle = coneOuterAngle ?? 360;
+    panner.coneOuterGain = coneOuterGain ?? 0;
+    panner.distanceModel = distanceModel ?? "inverse";
+    panner.maxDistance = maxDistance ?? 10000;
+    panner.channelCount = channelCount ?? 2;
+    panner.channelCountMode = channelCountMode ?? "clamped-max";
+    panner.channelInterpretation = channelInterpretation ?? "speakers";
+    panner.panningModel = panningModel ?? "HRTF";
+    panner.refDistance = refDistance ?? 1;
+    panner.rolloffFactor = rolloffFactor ?? 1;
+    panner.positionX.value = positionX ?? 0;
+    panner.positionY.value = positionY ?? 0;
+    panner.positionZ.value = positionZ ?? 0;
+    panner.orientationX.value = orientationX ?? 0;
+    panner.orientationY.value = orientationY ?? 0;
+    panner.orientationZ.value = orientationZ ?? 0;
     return panner;
   }
 
   /**
    * Suspends the audio context.
+   *
+   * Resolves after the underlying AudioContext transition completes, then
+   * emits the `suspend` event. If the context is already suspended (per this
+   * instance's view), resolves immediately as a no-op. If the underlying
+   * `suspend()` call rejects, the rejection is propagated and no event fires.
    */
-  pause(): void {
-    if (this.context.suspend) {
-      this.context.suspend();
-      this.emit("suspend", undefined);
+  async pause(): Promise<void> {
+    if (!this.context.suspend) {
+      return;
     }
+    if (this.suspendState === "suspended") {
+      return;
+    }
+    await this.context.suspend();
+    this.suspendState = "suspended";
+    this.emit("suspend", undefined);
   }
 
   /**
    * Resumes the audio context.
    * This method is required to resume the audio context on mobile devices.
    * On desktop, the audio context will automatically resume when a sound is played.
+   *
+   * Resolves after the underlying AudioContext transition completes, then
+   * emits the `resume` event. If the underlying `resume()` call rejects, the
+   * rejection is propagated and no event fires.
    */
-
-  resume() {
-    if (this.context.resume) {
-      this.context.resume();
-      this.emit("resume", undefined);
+  async resume(): Promise<void> {
+    if (!this.context.resume) {
+      return;
     }
+    await this.context.resume();
+    this.suspendState = "running";
+    this.emit("resume", undefined);
   }
 
   setGlobalVolume(volume: number) {
@@ -655,18 +668,9 @@ export class Cacophony {
     }
   }
 
-  getMicrophoneStream(): Promise<MicrophoneStream> {
-    return new Promise((resolve, reject) => {
-      navigator.mediaDevices
-        .getUserMedia({ audio: true })
-        .then((stream) => {
-          const microphoneStream = new MicrophoneStream(this.context, stream);
-          resolve(microphoneStream);
-        })
-        .catch((err) => {
-          reject(err);
-        });
-    });
+  async getMicrophoneStream(): Promise<MicrophoneStream> {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    return new MicrophoneStream(this.context, stream);
   }
 
   get listenerOrientation(): Orientation {

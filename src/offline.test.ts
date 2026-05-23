@@ -11,7 +11,7 @@
 
 import { AudioBuffer, AudioContext } from "standardized-audio-context-mock";
 import { describe, expect, it, vi } from "vitest";
-import { Cacophony, SoundType } from "./cacophony";
+import { Cacophony } from "./cacophony";
 import type { BaseContext, AudioBuffer as CacophonyAudioBuffer } from "./context";
 
 // Build a mock that satisfies BaseContext and has startRendering()
@@ -96,7 +96,7 @@ describe("OfflineAudioContext support", () => {
       const offlineCtx = createOfflineContextMock();
       const cacophony = new Cacophony(offlineCtx, mockCache);
       const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 }) as unknown as CacophonyAudioBuffer;
-      const sound = await cacophony.createSound(buffer, SoundType.Buffer);
+      const sound = await cacophony.createSound(buffer, "buffer");
       expect(sound).toBeDefined();
     });
 
@@ -104,7 +104,7 @@ describe("OfflineAudioContext support", () => {
       const offlineCtx = createOfflineContextMock();
       const cacophony = new Cacophony(offlineCtx, mockCache);
       const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 }) as unknown as CacophonyAudioBuffer;
-      const sound = await cacophony.createSound(buffer, SoundType.Buffer);
+      const sound = await cacophony.createSound(buffer, "buffer");
       const playbacks = sound.play();
       expect(playbacks.length).toBeGreaterThan(0);
       expect(playbacks[0].isPlaying).toBe(true);

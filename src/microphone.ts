@@ -1,5 +1,12 @@
 import type { BaseSound, LoopCount, Position } from "./cacophony";
-import type { BaseContext, BiquadFilterNode, GainNode, MediaStreamAudioSourceNode, PannerNode } from "./context";
+import type {
+  AudioNode,
+  BaseContext,
+  BiquadFilterNode,
+  GainNode,
+  MediaStreamAudioSourceNode,
+  PannerNode,
+} from "./context";
 import { FilterManager } from "./filters";
 
 export class MicrophonePlayback extends FilterManager {
@@ -31,7 +38,6 @@ export class MicrophonePlayback extends FilterManager {
 
   /**
    * Indicates whether the audio is currently playing.
-   * @returns {boolean} True if the audio is playing, false otherwise.
    */
 
   get isPlaying() {
@@ -104,7 +110,7 @@ export class MicrophonePlayback extends FilterManager {
     if (!this.panner || !this.gainNode) {
       throw new Error("Cannot update filters on a sound that has been cleaned up");
     }
-    let connection = this.panner;
+    let connection: AudioNode = this.panner;
     connection.disconnect();
     connection = this.applyFilters(connection);
     connection.connect(this.gainNode);
@@ -177,7 +183,6 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
 
   /**
    * A boolean indicating whether the sound is currently playing.
-   * @returns {boolean} True if the sound is playing, false otherwise.
    */
 
   get isPlaying(): boolean {
