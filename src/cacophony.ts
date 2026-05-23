@@ -129,6 +129,12 @@ export class Cacophony {
   private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
   private createAudioWorkletNode: (context: BaseContext, name: string, options?: AudioWorkletNodeOptions) => any;
+  // Tracks the lifecycle state we have explicitly transitioned to. `unknown`
+  // means we have not driven the context yet — the underlying AudioContext may
+  // be running (desktop default) or suspended (mobile autoplay). On `unknown`
+  // we always honor the call so resume() works on a context the browser
+  // auto-suspended.
+  private suspendState: "unknown" | "running" | "suspended" = "unknown";
 
   constructor(context?: BaseContext, cache?: ICache, runtimeOptions: RuntimeOptions = {}) {
     this.context = context || new AudioContext();
@@ -579,25 +585,44 @@ export class Cacophony {
 
   /**
    * Suspends the audio context.
+   *
+   * Resolves after the underlying AudioContext transition completes, then
+   * emits the `suspend` event. If the context is already suspended (per this
+   * instance's view), resolves immediately as a no-op. If the underlying
+   * `suspend()` call rejects, the rejection is propagated and no event fires.
    */
-  pause(): void {
-    if (this.context.suspend) {
-      this.context.suspend();
-      this.emit("suspend", undefined);
+  async pause(): Promise<void> {
+    if (!this.context.suspend) {
+      return;
     }
+    if (this.suspendState === "suspended") {
+      return;
+    }
+    await this.context.suspend();
+    this.suspendState = "suspended";
+    this.emit("suspend", undefined);
   }
 
   /**
    * Resumes the audio context.
    * This method is required to resume the audio context on mobile devices.
    * On desktop, the audio context will automatically resume when a sound is played.
+   *
+   * Resolves after the underlying AudioContext transition completes, then
+   * emits the `resume` event. If the context is already running (per this
+   * instance's view), resolves immediately as a no-op. If the underlying
+   * `resume()` call rejects, the rejection is propagated and no event fires.
    */
-
-  resume() {
-    if (this.context.resume) {
-      this.context.resume();
-      this.emit("resume", undefined);
+  async resume(): Promise<void> {
+    if (!this.context.resume) {
+      return;
     }
+    if (this.suspendState === "running") {
+      return;
+    }
+    await this.context.resume();
+    this.suspendState = "running";
+    this.emit("resume", undefined);
   }
 
   setGlobalVolume(volume: number) {
@@ -649,18 +674,9 @@ export class Cacophony {
     }
   }
 
-  getMicrophoneStream(): Promise<MicrophoneStream> {
-    return new Promise((resolve, reject) => {
-      navigator.mediaDevices
-        .getUserMedia({ audio: true })
-        .then((stream) => {
-          const microphoneStream = new MicrophoneStream(this.context, stream);
-          resolve(microphoneStream);
-        })
-        .catch((err) => {
-          reject(err);
-        });
-    });
+  async getMicrophoneStream(): Promise<MicrophoneStream> {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    return new MicrophoneStream(this.context, stream);
   }
 
   get listenerOrientation(): Orientation {

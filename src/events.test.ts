@@ -194,17 +194,17 @@ describe("Cacophony event system", () => {
     expect(listener).toHaveBeenCalledOnce();
   });
 
-  it("emits suspend event when paused", () => {
+  it("emits suspend event when paused", async () => {
     const listener = vi.fn();
     cacophony.on("suspend", listener);
-    cacophony.pause();
+    await cacophony.pause();
     expect(listener).toHaveBeenCalledOnce();
   });
 
-  it("emits resume event when resumed", () => {
+  it("emits resume event when resumed", async () => {
     const listener = vi.fn();
     cacophony.on("resume", listener);
-    cacophony.resume();
+    await cacophony.resume();
     expect(listener).toHaveBeenCalledOnce();
   });
 
