@@ -1,4 +1,4 @@
-import type { AudioBuffer, BaseContext } from "./context";
+import type { AudioBuffer, AudioNode, BaseContext } from "./context";
 
 /**
  * Copy a typed-array view into a freshly allocated ArrayBuffer.
@@ -26,8 +26,13 @@ const appendBuffer = (buffer1: ArrayBuffer, buffer2: ArrayBuffer): ArrayBuffer =
  *
  * Fire-and-forget: errors are reported via `console.error`. Pass an
  * `AbortSignal` to cancel the in-flight stream.
+ *
+ * Pass `outputNode` to route the decoded audio through a shared gain node
+ * (typically the library's `globalGainNode`) so global volume / mute apply.
+ * If omitted, audio connects directly to `context.destination` and bypasses
+ * any global gain — preserved only for backward compatibility.
  */
-export function createStream(url: string, context: BaseContext, signal?: AbortSignal): void {
+export function createStream(url: string, context: BaseContext, signal?: AbortSignal, outputNode?: AudioNode): void {
   const audioStack: AudioBuffer[] = [];
   let nextTime = 0;
 
@@ -139,7 +144,7 @@ export function createStream(url: string, context: BaseContext, signal?: AbortSi
         return;
       }
       source.buffer = buffer;
-      source.connect(context.destination);
+      source.connect(outputNode ?? context.destination);
       if (nextTime === 0) nextTime = context.currentTime + 0.02; /// add 50ms latency to work well across systems - tune this if you like
       source.start(nextTime);
       nextTime += source.buffer.duration; // Make the next buffer wait the length of the last buffer before being played
