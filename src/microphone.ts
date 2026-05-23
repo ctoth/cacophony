@@ -134,10 +134,16 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
   private stream: MediaStream | undefined;
   private streamSource?: MediaStreamAudioSourceNode;
 
-  constructor(context: BaseContext, stream?: MediaStream) {
+  constructor(context: BaseContext, stream?: MediaStream, outputNode?: AudioNode) {
     super();
     this.context = context;
     this.microphoneGainNode = this.context.createGain();
+    // Wire the microphone gain node into the audio graph. Without this
+    // connection the gain node is dangling and volume/mute on the chain
+    // have no audible effect. Callers should pass the shared
+    // `globalGainNode` so global volume applies; otherwise we fall back
+    // to `context.destination` so the chain is at least reachable.
+    this.microphoneGainNode.connect(outputNode ?? this.context.destination);
     if (stream) {
       this.stream = stream;
       this.streamSource = this.createStreamSource(stream);
