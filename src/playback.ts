@@ -406,7 +406,7 @@ export class Playback extends BasePlayback implements BaseSound {
     if (options?.perLoop) {
       this._fadeInConfig = {
         duration,
-        type: type || "linear",
+        type: type ?? "linear",
         perLoop: true,
         targetVolume: this.gainNode!.gain.value,
       };
@@ -420,7 +420,7 @@ export class Playback extends BasePlayback implements BaseSound {
    * @param {FadeType} type - The fade curve type. Defaults to "linear".
    */
   configureFadeOut(duration: number, type?: FadeType): void {
-    this._fadeOutConfig = { duration, type: type || "linear" };
+    this._fadeOutConfig = { duration, type: type ?? "linear" };
   }
 
   /**
@@ -695,7 +695,7 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source || !this.gainNode || !this.context) {
       throw new Error("Cannot clone a sound that has been cleaned up");
     }
-    const panType = overrides.panType || this.panType;
+    const panType = overrides.panType ?? this.panType;
     // we'll need to create a new gain node
     const gainNode = this.context.createGain();
     // clone the source node

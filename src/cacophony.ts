@@ -137,13 +137,13 @@ export class Cacophony {
   private suspendState: "unknown" | "running" | "suspended" = "unknown";
 
   constructor(context?: BaseContext, cache?: ICache, runtimeOptions: RuntimeOptions = {}) {
-    this.context = context || new AudioContext();
+    this.context = context ?? new AudioContext();
     this.listener = this.context.listener;
     this.globalGainNode = this.context.createGain();
     this.globalGainNode.connect(this.context.destination);
-    this.cache = cache || new AudioCache();
+    this.cache = cache ?? new AudioCache();
     this.createAudioWorkletNode =
-      runtimeOptions.createAudioWorkletNode ||
+      runtimeOptions.createAudioWorkletNode ??
       ((workletContext, name, options) => new AudioWorkletNode(workletContext as any, name, options));
 
     this.finalizationRegistry = new FinalizationRegistry((holdings) => {
@@ -182,7 +182,7 @@ export class Cacophony {
    */
   static createOffline(options: OfflineOptions, cache?: ICache): Cacophony {
     const offlineContext =
-      options.context || new OfflineAudioContext(options.numberOfChannels, options.length, options.sampleRate);
+      options.context ?? new OfflineAudioContext(options.numberOfChannels, options.length, options.sampleRate);
     return new Cacophony(offlineContext, cache);
   }
 
@@ -507,10 +507,10 @@ export class Cacophony {
       frequency = 350;
     }
     const filter = this.context.createBiquadFilter();
-    filter.type = type || "lowpass";
+    filter.type = type ?? "lowpass";
     filter.frequency.value = frequency;
-    filter.gain.value = gain || 0;
-    filter.Q.value = Q || 1;
+    filter.gain.value = gain ?? 0;
+    filter.Q.value = Q ?? 1;
     return filter;
   };
 
@@ -563,23 +563,23 @@ export class Cacophony {
     orientationZ,
   }: Partial<PannerOptions>): PannerNode {
     const panner = this.context.createPanner();
-    panner.coneInnerAngle = coneInnerAngle || 360;
-    panner.coneOuterAngle = coneOuterAngle || 360;
-    panner.coneOuterGain = coneOuterGain || 0;
-    panner.distanceModel = distanceModel || "inverse";
-    panner.maxDistance = maxDistance || 10000;
-    panner.channelCount = channelCount || 2;
-    panner.channelCountMode = channelCountMode || "clamped-max";
-    panner.channelInterpretation = channelInterpretation || "speakers";
-    panner.panningModel = panningModel || "HRTF";
-    panner.refDistance = refDistance || 1;
-    panner.rolloffFactor = rolloffFactor || 1;
-    panner.positionX.value = positionX || 0;
-    panner.positionY.value = positionY || 0;
-    panner.positionZ.value = positionZ || 0;
-    panner.orientationX.value = orientationX || 0;
-    panner.orientationY.value = orientationY || 0;
-    panner.orientationZ.value = orientationZ || 0;
+    panner.coneInnerAngle = coneInnerAngle ?? 360;
+    panner.coneOuterAngle = coneOuterAngle ?? 360;
+    panner.coneOuterGain = coneOuterGain ?? 0;
+    panner.distanceModel = distanceModel ?? "inverse";
+    panner.maxDistance = maxDistance ?? 10000;
+    panner.channelCount = channelCount ?? 2;
+    panner.channelCountMode = channelCountMode ?? "clamped-max";
+    panner.channelInterpretation = channelInterpretation ?? "speakers";
+    panner.panningModel = panningModel ?? "HRTF";
+    panner.refDistance = refDistance ?? 1;
+    panner.rolloffFactor = rolloffFactor ?? 1;
+    panner.positionX.value = positionX ?? 0;
+    panner.positionY.value = positionY ?? 0;
+    panner.positionZ.value = positionZ ?? 0;
+    panner.orientationX.value = orientationX ?? 0;
+    panner.orientationY.value = orientationY ?? 0;
+    panner.orientationZ.value = orientationZ ?? 0;
     return panner;
   }
 

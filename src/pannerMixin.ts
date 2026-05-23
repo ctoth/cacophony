@@ -175,12 +175,12 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
       panner.coneInnerAngle = options.coneInnerAngle !== undefined ? options.coneInnerAngle : panner.coneInnerAngle;
       panner.coneOuterAngle = options.coneOuterAngle !== undefined ? options.coneOuterAngle : panner.coneOuterAngle;
       panner.coneOuterGain = options.coneOuterGain !== undefined ? options.coneOuterGain : panner.coneOuterGain;
-      panner.distanceModel = options.distanceModel || panner.distanceModel;
+      panner.distanceModel = options.distanceModel ?? panner.distanceModel;
       panner.maxDistance = options.maxDistance !== undefined ? options.maxDistance : panner.maxDistance;
       panner.channelCount = options.channelCount !== undefined ? options.channelCount : panner.channelCount;
-      panner.channelCountMode = options.channelCountMode || panner.channelCountMode;
-      panner.channelInterpretation = options.channelInterpretation || panner.channelInterpretation;
-      panner.panningModel = options.panningModel || panner.panningModel;
+      panner.channelCountMode = options.channelCountMode ?? panner.channelCountMode;
+      panner.channelInterpretation = options.channelInterpretation ?? panner.channelInterpretation;
+      panner.panningModel = options.panningModel ?? panner.panningModel;
       panner.refDistance = options.refDistance !== undefined ? options.refDistance : panner.refDistance;
       panner.rolloffFactor = options.rolloffFactor !== undefined ? options.rolloffFactor : panner.rolloffFactor;
       panner.positionX.value = options.positionX !== undefined ? options.positionX : panner.positionX.value;

@@ -125,10 +125,10 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
    */
 
   clone(overrides: Partial<SoundCloneOverrides> = {}): Sound {
-    const panType = overrides.panType || this.panType;
+    const panType = overrides.panType ?? this.panType;
     const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
     const loopCount = overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
-    const playbackRate = overrides.playbackRate || this.playbackRate;
+    const playbackRate = overrides.playbackRate ?? this.playbackRate;
     const volume = overrides.volume !== undefined ? overrides.volume : this.volume;
     const position = overrides.position !== undefined ? overrides.position : this.position;
     const filters = overrides.filters?.length ? overrides.filters : this._filters;

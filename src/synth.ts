@@ -66,12 +66,12 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
    * @returns {Synth} A new Synth instance that is a clone of the current synth.
    */
   clone(overrides: Partial<SynthCloneOverrides> = {}): Synth {
-    const panType = overrides.panType || this.panType;
+    const panType = overrides.panType ?? this.panType;
     const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
     const volume = overrides.volume !== undefined ? overrides.volume : this.volume;
     const position = overrides.position?.length ? overrides.position : this.position;
     const filters = overrides.filters?.length ? overrides.filters : this._filters;
-    const oscillatorOptions = overrides.oscillatorOptions || this._oscillatorOptions;
+    const oscillatorOptions = overrides.oscillatorOptions ?? this._oscillatorOptions;
 
     const clone = new Synth(
       this.context,
@@ -205,7 +205,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
   }
 
   get type(): OscillatorType {
-    return (this.oscillatorOptions.type as OscillatorType) || "sine";
+    return (this.oscillatorOptions.type as OscillatorType) ?? "sine";
   }
 
   set type(type: OscillatorType) {
