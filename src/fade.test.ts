@@ -144,6 +144,87 @@ describe("VolumeMixin fade", () => {
     expect(playback.isFading).toBe(false);
   });
 
+  // Regression: cancelFade used to leave the fade promise unresolved forever,
+  // hanging any awaiter (including cleanup paths and stopWithFade).
+  it("cancelFade resolves the in-flight fade promise", async () => {
+    let resolved = false;
+    const promise = playback.fadeTo(0.5, 1000).then(() => {
+      resolved = true;
+    });
+
+    playback.cancelFade();
+    await promise;
+    expect(resolved).toBe(true);
+  });
+
+  it("cancelFade on a fade-to-zero exponential snaps gain to 0", () => {
+    const gain = playback.gainNode!.gain;
+    playback.fadeTo(0, 1000, "exponential");
+
+    // Pre-cancel: the exponential ramp targets 0.0001 (Web Audio strict-positive
+    // requirement); without the cancel-snap, the gain is left latched there.
+    playback.cancelFade();
+
+    expect(gain.value).toBe(0);
+  });
+
+  it("cancelFade on a non-zero-exponential fade does not force-snap the target value", () => {
+    // Contract: a fade-to-nonzero cancel leaves the ramp value pinned via
+    // setValueAtTime(gain.value, now). It must NOT write the target value
+    // (that would be a snap to the unreached endpoint).
+    const gain = playback.gainNode!.gain;
+    playback.fadeTo(0.9, 1000, "linear");
+    const setValueCountBefore = gain.setValueAtTime.callCount;
+
+    playback.cancelFade();
+
+    // setValueAtTime was called to pin the current value; verify the value
+    // pinned was NOT the unreached target 0.9.
+    const newCalls = gain.setValueAtTime.args.slice(setValueCountBefore);
+    expect(newCalls.some((args: number[]) => args[0] === 0.9)).toBe(false);
+  });
+
+  it("cancelFade is safe to call repeatedly (no double-resolve, no leaks)", async () => {
+    const promise = playback.fadeTo(0.5, 1000);
+
+    playback.cancelFade();
+    playback.cancelFade();
+    playback.cancelFade();
+
+    await promise;
+    expect(playback.isFading).toBe(false);
+  });
+
+  it("cancelFade is a no-op when no fade is in flight", () => {
+    // Calling cancelFade without an active fade must not throw or alter state.
+    expect(() => playback.cancelFade()).not.toThrow();
+    expect(playback.isFading).toBe(false);
+  });
+
+  it("setting volume during fade resolves the in-flight fade promise", async () => {
+    let resolved = false;
+    const promise = playback.fadeTo(0.5, 1000).then(() => {
+      resolved = true;
+    });
+
+    playback.volume = 0.7; // setter calls cancelFade()
+    await promise;
+    expect(resolved).toBe(true);
+  });
+
+  it("starting a new fade resolves the prior fade's promise", async () => {
+    let firstResolved = false;
+    const first = playback.fadeTo(0.5, 1000).then(() => {
+      firstResolved = true;
+    });
+
+    // Start a second fade BEFORE the first completes -- fadeTo internally
+    // calls cancelFade(), which should resolve the prior promise.
+    playback.fadeTo(0.2, 500);
+    await first;
+    expect(firstResolved).toBe(true);
+  });
+
   // --- Cycle 3: fadeIn and fadeOut convenience methods ---
 
   it("fadeIn sets gain to near-zero then ramps to current volume", () => {
@@ -345,7 +426,7 @@ describe("Playback fadeOut on natural end", () => {
     expect(playback._fadeOutConfig!.type).toBe("linear");
   });
 
-  it("loopEnded on final iteration with fadeOut config fades then stops", () => {
+  it("loopEnded on final iteration with fadeOut config fades then stops", async () => {
     playback.loopCount = 1;
     playback.currentLoop = 1;
     playback.configureFadeOut(500);
@@ -360,6 +441,16 @@ describe("Playback fadeOut on natural end", () => {
     expect(gain.linearRampToValueAtTime.callCount).toBeGreaterThan(rampCountBefore);
     // Playback should still be playing (not stopped yet -- fade is in progress)
     expect(playback.isPlaying).toBe(true);
+
+    // Drain the fade-then-stop chain that loopEnded() kicked off, otherwise the
+    // pending fade promise resolves during afterEach's sound.stop() (via
+    // cancelFade) and the chained .then(() => this.stop()) throws on the
+    // already-cleaned-up source. The chain is awaited by stepping the fake
+    // timer plus a microtask flush.
+    vi.advanceTimersByTime(500);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(playback.isPlaying).toBe(false);
   });
 
   it("loopEnded on final iteration without fadeOut config stops immediately", () => {
