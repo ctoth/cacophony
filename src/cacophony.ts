@@ -129,11 +129,9 @@ export class Cacophony {
   private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
   private createAudioWorkletNode: (context: BaseContext, name: string, options?: AudioWorkletNodeOptions) => any;
-  // Tracks the lifecycle state we have explicitly transitioned to. `unknown`
-  // means we have not driven the context yet — the underlying AudioContext may
-  // be running (desktop default) or suspended (mobile autoplay). On `unknown`
-  // we always honor the call so resume() works on a context the browser
-  // auto-suspended.
+  // Tracks the lifecycle state we have explicitly transitioned to. This avoids
+  // duplicate wrapper-driven suspend calls, but resume() still delegates because
+  // the underlying AudioContext can be suspended externally.
   private suspendState: "unknown" | "running" | "suspended" = "unknown";
 
   constructor(context?: BaseContext, cache?: ICache, runtimeOptions: RuntimeOptions = {}) {
@@ -609,15 +607,11 @@ export class Cacophony {
    * On desktop, the audio context will automatically resume when a sound is played.
    *
    * Resolves after the underlying AudioContext transition completes, then
-   * emits the `resume` event. If the context is already running (per this
-   * instance's view), resolves immediately as a no-op. If the underlying
-   * `resume()` call rejects, the rejection is propagated and no event fires.
+   * emits the `resume` event. If the underlying `resume()` call rejects, the
+   * rejection is propagated and no event fires.
    */
   async resume(): Promise<void> {
     if (!this.context.resume) {
-      return;
-    }
-    if (this.suspendState === "running") {
       return;
     }
     await this.context.resume();
