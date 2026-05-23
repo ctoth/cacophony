@@ -145,7 +145,7 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
       }
       clone.position = position;
     } else {
-      clone.stereoPan = stereoPan as number;
+      clone.stereoPan = stereoPan;
     }
     clone.addFilters(filters);
     return clone;
@@ -194,13 +194,13 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
         clonedFilter.frequency.value = filter.frequency.value;
         clonedFilter.Q.value = filter.Q.value;
         clonedFilter.gain.value = filter.gain.value;
-        playback.addFilter(clonedFilter as unknown as BiquadFilterNode);
+        playback.addFilter(clonedFilter);
       });
       if (this.panType === "HRTF") {
         playback.threeDOptions = this.threeDOptions;
         playback.position = this.position;
       } else if (this.panType === "stereo") {
-        playback.stereoPan = this.stereoPan as number;
+        playback.stereoPan = this.stereoPan;
       }
       // Set up event propagation from playback to sound
       playback.on("ended", () => {

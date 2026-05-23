@@ -37,8 +37,8 @@ const defaultHrtfThreeDOptions: ThreeDOptions = {
  * mixin factory. Describes the surface that consumers can rely on when they hold
  * a reference to a container (for example, `BasePlayback.origin`).
  *
- * NOTE: `stereoPan` getter/setter asymmetry (`number | null` vs `number`) is
- * mirrored from the implementation and tracked separately by T5.
+ * `stereoPan` is `number` (centered = `0`); the storage and setter only ever
+ * carry a number, so the public read shape matches.
  */
 export interface PlaybackContainer {
   playbacks: BasePlayback[];
@@ -51,7 +51,7 @@ export interface PlaybackContainer {
   isPlaying: boolean;
   position: Position;
   threeDOptions: ThreeDOptions;
-  stereoPan: number | null;
+  stereoPan: number;
   volume: number;
   fadeTo(value: number, duration: number, type?: FadeType): Promise<void>;
   fadeIn(duration: number, type?: FadeType): Promise<void>;
@@ -203,7 +203,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
       this.playbacks.forEach((p) => (p.threeDOptions = this._threeDOptions));
     }
 
-    get stereoPan(): number | null {
+    get stereoPan(): number {
       return this._stereoPan;
     }
 
