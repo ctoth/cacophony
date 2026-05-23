@@ -17,6 +17,7 @@ import type { CacophonyEvents } from "./events";
 import { Group } from "./group";
 import { MediaStreamSound, type MediaStreamSoundOptions } from "./mediaStream";
 import { MicrophoneStream } from "./microphone";
+import type { ThreeDOptions } from "./pannerMixin";
 import { Sound } from "./sound";
 import { Synth } from "./synth";
 
@@ -87,7 +88,7 @@ export interface BaseSound {
   removeFilter(filter: BiquadFilterNode): void;
   volume: number;
   position?: Position;
-  threeDOptions?: any;
+  threeDOptions?: ThreeDOptions;
   fadeTo?(value: number, duration: number, type?: FadeType): Promise<void>;
   fadeIn?(duration: number, type?: FadeType): Promise<void>;
   fadeOut?(duration: number, type?: FadeType): Promise<void>;

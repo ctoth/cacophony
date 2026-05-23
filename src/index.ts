@@ -23,6 +23,7 @@ export * from "./events";
 export * from "./group";
 export * from "./mediaStream";
 export { MicrophonePlayback } from "./microphone";
+export type { HrtfPannerOptions, PanCloneOverrides, ThreeDOptions } from "./pannerMixin";
 export * from "./playback";
 export { Sound } from "./sound";
 export { Synth } from "./synth";

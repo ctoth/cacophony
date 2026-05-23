@@ -68,7 +68,6 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
   clone(overrides: Partial<SynthCloneOverrides> = {}): Synth {
     const panType = overrides.panType || this.panType;
     const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : (this.stereoPan ?? 0);
-    const threeDOptions = (overrides.threeDOptions || this.threeDOptions) as PannerOptions;
     const volume = overrides.volume !== undefined ? overrides.volume : this.volume;
     const position = overrides.position?.length ? overrides.position : this.position;
     const filters = overrides.filters?.length ? overrides.filters : this._filters;
@@ -85,7 +84,14 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     clone._volume = volume;
     clone._position = position;
     clone._stereoPan = stereoPan as number;
-    clone._threeDOptions = threeDOptions;
+    // Apply HRTF override (if provided) through the canonical setter so the
+    // discriminated `_threeDOptions` invariant is preserved. Without an override
+    // the new clone keeps its default HRTF storage initialized in the container.
+    if (overrides.threeDOptions !== undefined) {
+      clone.threeDOptions = overrides.threeDOptions;
+    } else if (this.panType === "HRTF") {
+      clone.threeDOptions = this.threeDOptions;
+    }
     clone.addFilters(filters);
     return clone;
   }

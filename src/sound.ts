@@ -118,7 +118,6 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
   clone(overrides: Partial<SoundCloneOverrides> = {}): Sound {
     const panType = overrides.panType || this.panType;
     const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
-    const threeDOptions = (overrides.threeDOptions || this.threeDOptions) as PannerOptions;
     const loopCount = overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
     const playbackRate = overrides.playbackRate || this.playbackRate;
     const volume = overrides.volume !== undefined ? overrides.volume : this.volume;
@@ -138,7 +137,12 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
     clone.playbackRate = playbackRate;
     clone.volume = volume;
     if (panType === "HRTF") {
-      clone.threeDOptions = threeDOptions;
+      // Apply HRTF override or inherit from source.
+      if (overrides.threeDOptions !== undefined) {
+        clone.threeDOptions = overrides.threeDOptions;
+      } else if (this.panType === "HRTF") {
+        clone.threeDOptions = this.threeDOptions;
+      }
       clone.position = position;
     } else {
       clone.stereoPan = stereoPan as number;

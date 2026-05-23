@@ -2,8 +2,35 @@ import type { BasePlayback } from "basePlayback";
 import type { FadeType, Position } from "./cacophony";
 import type { BiquadFilterNode } from "./context";
 import type { FilterManager } from "./filters";
+import type { HrtfPannerOptions, ThreeDOptions } from "./pannerMixin";
 
 type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
+
+/**
+ * Fully-populated HRTF defaults used to initialize the container's canonical
+ * `_threeDOptions` and to recover a coherent HRTF state when a partial HRTF
+ * override is applied to a stereo-variant container.
+ */
+const defaultHrtfThreeDOptions: ThreeDOptions = {
+  panType: "HRTF",
+  coneInnerAngle: 360,
+  coneOuterAngle: 360,
+  coneOuterGain: 0,
+  distanceModel: "inverse",
+  maxDistance: 10000,
+  channelCount: 2,
+  channelCountMode: "clamped-max",
+  channelInterpretation: "speakers",
+  panningModel: "HRTF",
+  refDistance: 1,
+  rolloffFactor: 1,
+  positionX: 0,
+  positionY: 0,
+  positionZ: 0,
+  orientationX: 0,
+  orientationY: 0,
+  orientationZ: 0,
+};
 
 /**
  * Public structural contract of the class returned by the {@link PlaybackContainer}
@@ -12,8 +39,6 @@ type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
  *
  * NOTE: `stereoPan` getter/setter asymmetry (`number | null` vs `number`) is
  * mirrored from the implementation and tracked separately by T5.
- * NOTE: `threeDOptions` getter/setter asymmetry (`PannerOptions` vs
- * `Partial<PannerOptions>`) is tracked separately by T2.
  */
 export interface PlaybackContainer {
   playbacks: BasePlayback[];
@@ -25,7 +50,7 @@ export interface PlaybackContainer {
   removeFilter(filter: BiquadFilterNode): void;
   isPlaying: boolean;
   position: Position;
-  threeDOptions: PannerOptions;
+  threeDOptions: ThreeDOptions;
   stereoPan: number | null;
   volume: number;
   fadeTo(value: number, duration: number, type?: FadeType): Promise<void>;
@@ -39,25 +64,13 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
     playbacks: BasePlayback[] = [];
     _position: Position = [0, 0, 0];
     _stereoPan: number = 0;
-    _threeDOptions: PannerOptions = {
-      coneInnerAngle: 360,
-      coneOuterAngle: 360,
-      coneOuterGain: 0,
-      distanceModel: "inverse",
-      maxDistance: 10000,
-      channelCount: 2,
-      channelCountMode: "clamped-max",
-      channelInterpretation: "speakers",
-      panningModel: "HRTF",
-      refDistance: 1,
-      rolloffFactor: 1,
-      positionX: 0,
-      positionY: 0,
-      positionZ: 0,
-      orientationX: 0,
-      orientationY: 0,
-      orientationZ: 0,
-    };
+    /**
+     * Canonical 3D-audio configuration storage. Always holds a fully-populated
+     * HRTF variant ({@link ThreeDOptions} with `panType: "HRTF"`) so callers
+     * reading via the getter never see undefined fields. Setting the stereo
+     * variant replaces this with the stereo shape (no stale HRTF fields).
+     */
+    _threeDOptions: ThreeDOptions = { ...defaultHrtfThreeDOptions };
     _volume: number = 1;
 
     abstract preplay(): BasePlayback[];
@@ -137,11 +150,10 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
      */
 
     get position(): Position {
-      return [
-        this._threeDOptions.positionX as number,
-        this._threeDOptions.positionY as number,
-        this._threeDOptions.positionZ as number,
-      ];
+      if (this._threeDOptions.panType === "stereo") {
+        return [0, 0, 0];
+      }
+      return [this._threeDOptions.positionX, this._threeDOptions.positionY, this._threeDOptions.positionZ];
     }
 
     /**
@@ -152,18 +164,42 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
      */
 
     set position(position: Position) {
-      this._threeDOptions.positionX = position[0];
-      this._threeDOptions.positionY = position[1];
-      this._threeDOptions.positionZ = position[2];
+      if (this._threeDOptions.panType === "HRTF") {
+        this._threeDOptions.positionX = position[0];
+        this._threeDOptions.positionY = position[1];
+        this._threeDOptions.positionZ = position[2];
+      }
       this.playbacks.forEach((p) => (p.position = position));
     }
 
-    get threeDOptions(): PannerOptions {
-      return this._threeDOptions;
+    /**
+     * Returns a fresh copy of the canonical 3D-audio configuration. The clone
+     * prevents callers from mutating the container's internal state via the
+     * returned reference (previously the raw `_threeDOptions` object leaked).
+     */
+    get threeDOptions(): ThreeDOptions {
+      return { ...this._threeDOptions };
     }
 
-    set threeDOptions(options: Partial<PannerOptions>) {
-      this._threeDOptions = { ...this._threeDOptions, ...options };
+    /**
+     * Accepts either a full canonical {@link ThreeDOptions} value, or a partial
+     * HRTF-options override (legacy ergonomics). When a partial is provided the
+     * existing variant is merged in place — and if the existing variant is
+     * stereo, the partial is interpreted as a switch back to HRTF defaults plus
+     * the override (no stale stereo fields). When a full variant is provided
+     * with a different `panType`, the storage is replaced wholesale so stale
+     * fields from the previous variant cannot be observed via the getter.
+     */
+    set threeDOptions(options: ThreeDOptions | Partial<HrtfPannerOptions>) {
+      if ("panType" in options) {
+        // Full canonical variant — replace storage so the discriminant is honored.
+        this._threeDOptions = { ...options };
+      } else if (this._threeDOptions.panType === "HRTF") {
+        this._threeDOptions = { ...this._threeDOptions, ...options };
+      } else {
+        // Was stereo, now receiving HRTF partial — fall back to HRTF defaults + override.
+        this._threeDOptions = { ...defaultHrtfThreeDOptions, ...options };
+      }
       this.playbacks.forEach((p) => (p.threeDOptions = this._threeDOptions));
     }
 
