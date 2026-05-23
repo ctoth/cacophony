@@ -11,7 +11,7 @@ export interface FadeStartEvent {
   type: FadeType;
 }
 
-export interface BaseAudioEvents {
+export type BaseAudioEvents = {
   play: BasePlayback;
   stop: undefined;
   pause: undefined;
@@ -22,33 +22,33 @@ export interface BaseAudioEvents {
   fadeStart: FadeStartEvent;
   fadeEnd: undefined;
   fadeCancel: undefined;
-}
+};
 
 /**
  * Sound-specific events.
  */
-export interface SoundEvents extends BaseAudioEvents {
+export type SoundEvents = BaseAudioEvents & {
   loopEnd: undefined;
   rateChange: number;
   soundError: SoundErrorEvent;
-}
+};
 
 /**
  * Playback-specific events.
  */
-export interface PlaybackEvents extends BaseAudioEvents {
+export type PlaybackEvents = BaseAudioEvents & {
   seek: number;
-}
+};
 
 /**
  * Synthesizer-specific events.
  */
-export interface SynthEvents extends Omit<BaseAudioEvents, "play"> {
+export type SynthEvents = Omit<BaseAudioEvents, "play"> & {
   play: SynthPlayback;
   frequencyChange: number;
   typeChange: OscillatorType;
   detuneChange: number;
-}
+};
 
 /**
  * Global playback event fired when any sound-producing entity plays/stops/pauses.
@@ -61,7 +61,7 @@ export interface GlobalPlaybackEvent {
 /**
  * Global Cacophony events including loading and cache operations.
  */
-export interface CacophonyEvents {
+export type CacophonyEvents = {
   volumeChange: number;
   mute: undefined;
   unmute: undefined;
@@ -77,7 +77,7 @@ export interface CacophonyEvents {
   globalPlay: GlobalPlaybackEvent;
   globalStop: GlobalPlaybackEvent;
   globalPause: GlobalPlaybackEvent;
-}
+};
 
 /**
  * Fired when loading starts. Use for loading spinners.
