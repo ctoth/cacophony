@@ -67,6 +67,13 @@ export type CacophonyEvents = {
   unmute: undefined;
   suspend: undefined;
   resume: undefined;
+  /**
+   * Fired once when the audio context is unlocked by the first user gesture
+   * (touchend / click / keydown) via the auto-unlock listeners installed by
+   * the `Cacophony` constructor. Not fired when `autoUnlock: false` is set
+   * or when the context was already running. See `RuntimeOptions.autoUnlock`.
+   */
+  unlock: undefined;
   loadingStart: LoadingStartEvent;
   loadingProgress: LoadingProgressEvent;
   loadingComplete: LoadingCompleteEvent;

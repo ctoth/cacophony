@@ -55,6 +55,43 @@ async function audioDemo() {
 audioDemo();
 ```
 
+## Mobile Autoplay Handling
+
+Modern browsers — especially iOS Safari and Chrome on Android — refuse to
+produce sound from an `AudioContext` that was constructed before any user
+interaction. The context is created in `suspended` state and must be both
+resumed AND have a node started from inside a real user-gesture call stack
+before audio can play. Calling `context.resume()` alone is not enough on iOS.
+
+Cacophony handles this transparently by default. When you construct a
+`Cacophony` instance and the context is suspended, it installs one-time
+`touchend` / `click` / `keydown` listeners on `document.body`. The first
+user gesture resumes the context, plays a 1-sample silent primer buffer (the
+iOS unlock primer), removes the listeners, and emits the `unlock` event.
+
+```typescript
+const cacophony = new Cacophony();
+
+if (cacophony.locked) {
+  // Mobile: waiting for the first user interaction.
+  // Show a "tap to enable audio" affordance if you want one.
+}
+
+cacophony.on('unlock', () => {
+  // Audio is now usable.
+});
+```
+
+If you prefer to manage unlock yourself, opt out:
+
+```typescript
+const cacophony = new Cacophony(undefined, undefined, { autoUnlock: false });
+// You are responsible for calling cacophony.resume() inside a user gesture.
+```
+
+The auto-unlock has no effect on offline contexts or in non-browser
+environments (`typeof document === 'undefined'`).
+
 ## Core Concepts
 
 ### Sound vs Playback Architecture

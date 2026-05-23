@@ -1,3 +1,4 @@
+import { installAutoplayUnlock } from "./autoplayUnlock";
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
 import stereoToBFormatProcessorWorkletUrl from "./bundles/stereo-to-bformat-bundle.js?url";
 import { AudioCache, type ICache } from "./cache";
@@ -102,6 +103,23 @@ export interface OfflineOptions {
 
 export interface RuntimeOptions {
   createAudioWorkletNode?: (context: BaseContext, name: string, options?: AudioWorkletNodeOptions) => any;
+  /**
+   * If `true` (the default), Cacophony installs one-time `touchend` / `click` /
+   * `keydown` listeners on `document.body` whenever the audio context is
+   * constructed in `suspended` state. The first user gesture resumes the
+   * context, plays a silent primer buffer (required by iOS Safari for the
+   * context to truly unlock), removes the listeners, and emits the `unlock`
+   * event on the Cacophony instance.
+   *
+   * Set to `false` to opt out — you are then responsible for calling
+   * `cacophony.resume()` yourself in response to a user gesture.
+   *
+   * Has no effect when the context is already running, on offline contexts,
+   * or in non-browser environments (`document === undefined`).
+   *
+   * @default true
+   */
+  autoUnlock?: boolean;
 }
 
 /**
@@ -133,7 +151,29 @@ export class Cacophony {
   // duplicate wrapper-driven suspend calls, but resume() still delegates because
   // the underlying AudioContext can be suspended externally.
   private suspendState: "unknown" | "running" | "suspended" = "unknown";
+  // Cleanup function for the autoplay-unlock listeners. No-op when listeners
+  // were not installed (autoUnlock disabled, offline context, non-browser,
+  // or context not in 'suspended' state at construction time).
+  private autoplayUnlockCleanup: () => void = () => {};
 
+  /**
+   * Constructs a new Cacophony instance.
+   *
+   * If the supplied (or auto-constructed) audio context is in `suspended`
+   * state and `runtimeOptions.autoUnlock` is `true` (default), one-time
+   * `touchend` / `click` / `keydown` listeners are installed on
+   * `document.body` so the first user gesture transparently unlocks audio
+   * — matching Howler's `autoUnlock` behavior. See
+   * {@link RuntimeOptions.autoUnlock} for the opt-out and the iOS primer
+   * rationale.
+   *
+   * @param context - Audio context to use. If omitted, a fresh `AudioContext`
+   *   is constructed (which on mobile will be `suspended` until a user
+   *   gesture, triggering the auto-unlock path described above).
+   * @param cache - Optional cache implementation. Defaults to `AudioCache`.
+   * @param runtimeOptions - Optional runtime configuration including the
+   *   `autoUnlock` opt-out and a `createAudioWorkletNode` factory override.
+   */
   constructor(context?: BaseContext, cache?: ICache, runtimeOptions: RuntimeOptions = {}) {
     this.context = context ?? new AudioContext();
     this.listener = this.context.listener;
@@ -157,6 +197,36 @@ export class Cacophony {
         media.load();
       }
     });
+
+    // Install autoplay unlock — guarded against offline contexts, non-browser
+    // environments, and non-suspended contexts inside installAutoplayUnlock
+    // itself. Offline contexts are filtered out here because they cannot
+    // suspend in the same way and an unlock makes no sense for them.
+    const autoUnlock = runtimeOptions.autoUnlock !== false;
+    if (autoUnlock && !this.isOffline) {
+      this.autoplayUnlockCleanup = installAutoplayUnlock({
+        context: this.context,
+        onUnlock: () => {
+          this.suspendState = "running";
+          this.emit("unlock", undefined);
+        },
+      });
+    }
+  }
+
+  /**
+   * Returns `true` while the audio context is suspended — i.e. the library
+   * cannot produce sound until the context is resumed (typically by a user
+   * gesture). After the auto-unlock fires (or `resume()` is called manually),
+   * this becomes `false`.
+   *
+   * Mirrors Howler's `Howler.ctx.state === 'suspended'` check via the
+   * `Howler` global's `_audioUnlocked`. Use this to gate UI that hints to
+   * the user that an interaction is required to start audio.
+   */
+  get locked(): boolean {
+    const state = (this.context as unknown as { state?: string }).state;
+    return state === "suspended";
   }
 
   /** @internal */
