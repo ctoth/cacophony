@@ -1348,7 +1348,6 @@ describe("Sound preplay failure rollback", () => {
     const registerSpy = vi.spyOn(cacophony, "registerSoundForCleanup").mockImplementation(() => undefined);
     // The spy was added too late to record the constructor call above, so
     // grab holdings directly via the private field for assertion purposes.
-    // biome-ignore lint/suspicious/noExplicitAny: white-box test of rollback.
     const holdings = (sound as any)._holdings as {
       sources: unknown[];
       gainNodes: unknown[];
@@ -1404,7 +1403,6 @@ describe("Sound preplay failure rollback", () => {
     expect(ok.length).toBe(1);
     expect(sound.playbacks.length).toBe(1);
 
-    // biome-ignore lint/suspicious/noExplicitAny: white-box test of rollback.
     const holdings = (sound as any)._holdings as {
       sources: unknown[];
       gainNodes: unknown[];
@@ -1436,7 +1434,6 @@ describe("Sound preplay failure rollback", () => {
     // White-box read of the emitter's listener map — Sound-side wiring
     // attached two `playback.on(...)` listeners plus assigned the field
     // `_loopEndCallback`. Count them before and after natural end.
-    // biome-ignore lint/suspicious/noExplicitAny: white-box test of cleanup.
     const listeners = (playback.eventEmitter as any).listeners as Record<string, Array<unknown>>;
     const endedBefore = listeners.ended?.length ?? 0;
     const errorBefore = listeners.error?.length ?? 0;
