@@ -121,6 +121,7 @@ describe("AudioCache", () => {
     const url = "https://example.com/audio.mp3";
     const mockArrayBuffer = new ArrayBuffer(8);
     const onLoadingError = vi.fn();
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
     mockFetch.mockResolvedValueOnce({
       ok: true,
@@ -144,6 +145,8 @@ describe("AudioCache", () => {
         timestamp: expect.any(Number),
       }),
     );
+    expect(consoleErrorSpy).toHaveBeenCalledWith("Failed to decode audio data:", expect.any(Error));
+    consoleErrorSpy.mockRestore();
   });
 
   it("handles 304 Not Modified responses correctly when cache expires", async () => {
@@ -1331,6 +1334,7 @@ describe("AudioCache", () => {
       const controller = new AbortController();
       const mockArrayBuffer = new ArrayBuffer(8);
       const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       const mockCache = {
         match: vi
@@ -1389,6 +1393,10 @@ describe("AudioCache", () => {
           signal: controller.signal,
         }),
       );
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        `Cache inconsistency detected for ${url}: 304 response but no cached body. Re-fetching.`,
+      );
+      consoleWarnSpy.mockRestore();
     });
 
     it("works without AbortSignal (backward compatibility)", async () => {
