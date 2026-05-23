@@ -485,6 +485,7 @@ describe("Cacophony advanced features", () => {
 
     it("createWorkletNode passes AbortSignal to addModule when needed", async () => {
       const controller = new AbortController();
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
       // Mock AudioWorkletNode constructor to throw first, then succeed
       vi.mocked(AudioWorkletNode)
@@ -509,9 +510,18 @@ describe("Cacophony advanced features", () => {
         credentials: "same-origin",
         signal: controller.signal,
       });
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        "[cacophony/worklet] construct failed",
+        expect.objectContaining({
+          name: "test-worklet",
+          error: expect.any(Error),
+        }),
+      );
+      consoleWarnSpy.mockRestore();
     });
 
     it("createWorkletNode uses the configured constructor for non-native contexts", async () => {
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       const createAudioWorkletNode = vi
         .fn()
         .mockImplementationOnce(() => {
@@ -543,12 +553,22 @@ describe("Cacophony advanced features", () => {
       expect(mockAudioWorklet.addModule).toHaveBeenCalledWith("https://example.com/worklet.js", {
         credentials: "same-origin",
       });
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        "[cacophony/worklet] construct failed",
+        expect.objectContaining({
+          name: "test-worklet",
+          error: expect.any(Error),
+        }),
+      );
 
       nativeConstructorSpy.mockRestore();
+      consoleWarnSpy.mockRestore();
     });
 
     it("createWorkletNode handles AbortError during addModule", async () => {
       const controller = new AbortController();
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       // Mock AudioWorkletNode constructor to always throw (simulating worklet not loaded)
       vi.mocked(AudioWorkletNode).mockImplementation(() => {
@@ -570,9 +590,34 @@ describe("Cacophony advanced features", () => {
         credentials: "same-origin",
         signal: controller.signal,
       });
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        "[cacophony/worklet] construct failed",
+        expect.objectContaining({
+          name: "test-worklet",
+          error: expect.any(Error),
+        }),
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "[cacophony/worklet] addModule rejected",
+        expect.objectContaining({
+          name: "test-worklet",
+          error: expect.any(DOMException),
+        }),
+      );
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        "[cacophony/worklet] load failed",
+        expect.objectContaining({
+          name: "test-worklet",
+          error: expect.any(DOMException),
+        }),
+      );
+      consoleWarnSpy.mockRestore();
+      consoleErrorSpy.mockRestore();
     });
 
     it("createWorkletNode works without AbortSignal (backward compatibility)", async () => {
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
       // Mock AudioWorkletNode constructor to throw first, then succeed
       vi.mocked(AudioWorkletNode)
         .mockImplementationOnce(() => {
@@ -595,6 +640,14 @@ describe("Cacophony advanced features", () => {
       expect(mockAudioWorklet.addModule).toHaveBeenCalledWith("https://example.com/worklet.js", {
         credentials: "same-origin",
       });
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        "[cacophony/worklet] construct failed",
+        expect.objectContaining({
+          name: "test-worklet",
+          error: expect.any(Error),
+        }),
+      );
+      consoleWarnSpy.mockRestore();
     });
 
     it("createWorkletNode returns immediately if worklet already loaded", async () => {
@@ -661,6 +714,7 @@ describe("Cacophony advanced features", () => {
     });
 
     it("createWorkletNode forwards node options to the constructor", async () => {
+      const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
       const options: AudioWorkletNodeOptions = {
         numberOfInputs: 1,
         numberOfOutputs: 1,
@@ -696,6 +750,14 @@ describe("Cacophony advanced features", () => {
 
       expect(createAudioWorkletNode).toHaveBeenNthCalledWith(1, audioContextMock, "test-worklet", options);
       expect(createAudioWorkletNode).toHaveBeenNthCalledWith(2, audioContextMock, "test-worklet", options);
+      expect(consoleWarnSpy).toHaveBeenCalledWith(
+        "[cacophony/worklet] construct failed",
+        expect.objectContaining({
+          name: "test-worklet",
+          error: expect.any(Error),
+        }),
+      );
+      consoleWarnSpy.mockRestore();
     });
 
     it("loadWorklets works without AbortSignal (backward compatibility)", async () => {
