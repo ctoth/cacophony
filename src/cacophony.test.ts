@@ -234,6 +234,16 @@ describe("Cacophony advanced features", () => {
     expect(resumeSpy).toHaveBeenCalledTimes(1);
   });
 
+  it("resume delegates after the context is suspended outside the wrapper", async () => {
+    const resumeSpy = vi.spyOn(cacophony.context, "resume");
+
+    await cacophony.resume();
+    await cacophony.context.suspend?.();
+    await cacophony.resume();
+
+    expect(resumeSpy).toHaveBeenCalledTimes(2);
+  });
+
   it("setGlobalVolume sets the global gain node value", () => {
     cacophony.setGlobalVolume(0.5);
     expect(cacophony.globalGainNode.gain.value).toBe(0.5);
