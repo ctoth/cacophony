@@ -21,12 +21,7 @@ import type { ThreeDOptions } from "./pannerMixin";
 import { Sound } from "./sound";
 import { Synth } from "./synth";
 
-export enum SoundType {
-  HTML = "HTML",
-  Streaming = "Streaming",
-  Buffer = "Buffer",
-  Oscillator = "oscillator",
-}
+export type SoundType = "html" | "streaming" | "buffer" | "oscillator";
 
 /**
  * Represents a 3D position in space.
@@ -338,7 +333,7 @@ export class Cacophony {
 
   private createMediaSound(
     url: string,
-    soundType: SoundType.HTML | SoundType.Streaming,
+    soundType: "html" | "streaming",
     panType: PanType,
     signal?: AbortSignal,
   ): Promise<Sound> {
@@ -408,7 +403,7 @@ export class Cacophony {
   }
 
   createOscillator(options: OscillatorOptions, panType: PanType = "HRTF"): Synth {
-    const synth = new Synth(this.context, this.globalGainNode, SoundType.Oscillator, panType, options, this);
+    const synth = new Synth(this.context, this.globalGainNode, "oscillator", panType, options, this);
     return synth;
   }
 
@@ -432,21 +427,19 @@ export class Cacophony {
 
   async createSound(
     bufferOrUrl: AudioBuffer | string,
-    soundType: SoundType = SoundType.Buffer,
+    soundType: SoundType = "buffer",
     panType: PanType = "HRTF",
     signal?: AbortSignal,
   ): Promise<Sound> {
     if (typeof bufferOrUrl === "object") {
-      return Promise.resolve(
-        new Sound("", bufferOrUrl, this.context, this.globalGainNode, SoundType.Buffer, panType, this),
-      );
+      return Promise.resolve(new Sound("", bufferOrUrl, this.context, this.globalGainNode, soundType, panType, this));
     }
     const url = bufferOrUrl;
-    if (soundType === SoundType.HTML) {
-      return this.createMediaSound(url, SoundType.HTML, panType, signal);
+    if (soundType === "html") {
+      return this.createMediaSound(url, "html", panType, signal);
     }
-    if (soundType === SoundType.Streaming) {
-      return this.createMediaSound(url, SoundType.Streaming, panType, signal);
+    if (soundType === "streaming") {
+      return this.createMediaSound(url, "streaming", panType, signal);
     }
     return this.cache
       .getAudioBuffer(this.context, url, signal, {
@@ -478,7 +471,7 @@ export class Cacophony {
    */
   async createGroupFromUrls(
     urls: string[],
-    soundType: SoundType = SoundType.Buffer,
+    soundType: SoundType = "buffer",
     panType: PanType = "HRTF",
     signal?: AbortSignal,
   ): Promise<Group> {
@@ -496,7 +489,7 @@ export class Cacophony {
    * @returns Promise that resolves to a Sound instance for streaming
    */
   async createStream(url: string, signal?: AbortSignal): Promise<Sound> {
-    return this.createMediaSound(url, SoundType.Streaming, "HRTF", signal);
+    return this.createMediaSound(url, "streaming", "HRTF", signal);
   }
 
   createMediaStreamSound(stream: MediaStream, options?: MediaStreamSoundOptions): MediaStreamSound {

@@ -1,6 +1,5 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, test, vi } from "vitest";
-import { SoundType } from "./cacophony";
 import { audioContextMock, cacophony } from "./setupTests";
 import { Sound } from "./sound";
 
@@ -212,14 +211,7 @@ describe("Sound cloning", () => {
 
   beforeEach(() => {
     buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
-    originalSound = new Sound(
-      "test-url",
-      buffer,
-      audioContextMock,
-      audioContextMock.createGain(),
-      SoundType.Buffer,
-      "HRTF",
-    );
+    originalSound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain(), "buffer", "HRTF");
     originalSound.volume = 0.8;
     originalSound.playbackRate = 1.2;
     originalSound.position = [1, 2, 3];
@@ -344,7 +336,7 @@ describe("Sound class", () => {
     expect(sound.url).toBe("test-url");
     expect(sound.buffer).toBe(buffer);
     expect(sound.context).toBe(audioContextMock);
-    expect(sound.soundType).toBe(SoundType.Buffer);
+    expect(sound.soundType).toBe("buffer");
     expect(sound.panType).toBe("HRTF");
   });
 
@@ -1248,7 +1240,7 @@ describe("Sound FinalizationRegistry wire-up", () => {
       buffer,
       audioContextMock,
       audioContextMock.createGain(),
-      SoundType.Buffer,
+      "buffer",
       "HRTF",
       cacophony,
     );
@@ -1267,7 +1259,7 @@ describe("Sound FinalizationRegistry wire-up", () => {
       buffer,
       audioContextMock,
       audioContextMock.createGain(),
-      SoundType.Buffer,
+      "buffer",
       "HRTF",
       cacophony,
     );
@@ -1293,7 +1285,7 @@ describe("Sound FinalizationRegistry wire-up", () => {
       buffer,
       audioContextMock,
       audioContextMock.createGain(),
-      SoundType.Buffer,
+      "buffer",
       "HRTF",
       cacophony,
     );
@@ -1313,7 +1305,7 @@ describe("Sound FinalizationRegistry wire-up", () => {
       buffer,
       audioContextMock,
       audioContextMock.createGain(),
-      SoundType.Buffer,
+      "buffer",
       "HRTF",
       cacophony,
     );

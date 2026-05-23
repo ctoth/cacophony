@@ -1,4 +1,4 @@
-import { type BaseSound, type Cacophony, type PanType, SoundType } from "./cacophony";
+import type { BaseSound, Cacophony, PanType, SoundType } from "./cacophony";
 import { PlaybackContainer } from "./container";
 import type { BaseContext, BiquadFilterNode, GainNode, OscillatorNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
@@ -43,7 +43,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
   constructor(
     public context: BaseContext,
     private globalGainNode: GainNode,
-    public soundType: SoundType = SoundType.Oscillator,
+    public soundType: SoundType = "oscillator",
     public panType: PanType = "HRTF",
     oscillatorOptions: Partial<OscillatorOptions> = {},
     private cacophony?: Cacophony,

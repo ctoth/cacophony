@@ -1,6 +1,5 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SoundType } from "./cacophony";
 import { Playback } from "./playback";
 import { audioContextMock, cacophony } from "./setupTests";
 import { Sound } from "./sound";
@@ -58,7 +57,7 @@ describe("Media element play() rejection", () => {
       disconnect: vi.fn(),
     }));
 
-    const htmlSound = await cacophony.createSound("https://example.com/html-audio.mp3", SoundType.HTML);
+    const htmlSound = await cacophony.createSound("https://example.com/html-audio.mp3", "html");
     return { htmlSound, mediaElement };
   };
 
@@ -252,13 +251,7 @@ describe("Media element play() rejection", () => {
       disconnect: vi.fn(),
     };
     const gainNode = audioContextMock.createGain();
-    const htmlSound = new Sound(
-      "https://example.com/html-audio.mp3",
-      undefined,
-      audioContextMock,
-      gainNode,
-      SoundType.HTML,
-    );
+    const htmlSound = new Sound("https://example.com/html-audio.mp3", undefined, audioContextMock, gainNode, "html");
     const playback = new Playback(htmlSound, source as any, gainNode);
     htmlSound.playbacks.push(playback);
 

@@ -6,16 +6,11 @@ import { PannerMixin } from "./pannerMixin";
 import type { Synth } from "./synth";
 import { VolumeMixin } from "./volumeMixin";
 
-enum SynthPlaybackState {
-  Unplayed,
-  Playing,
-  Paused,
-  Stopped,
-}
+type SynthPlaybackState = "unplayed" | "playing" | "paused" | "stopped";
 
 export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(FilterManager))) implements BaseSound {
   context: BaseContext;
-  private _state: SynthPlaybackState = SynthPlaybackState.Unplayed;
+  private _state: SynthPlaybackState = "unplayed";
   constructor(
     public origin: Synth,
     public source: OscillatorNode,
@@ -40,11 +35,11 @@ export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(Filte
       throw new Error("Cannot play a synth that has been cleaned up");
     }
 
-    if (this._state === SynthPlaybackState.Playing) {
+    if (this._state === "playing") {
       return [this];
     }
 
-    if (this._state === SynthPlaybackState.Paused || this._state === SynthPlaybackState.Stopped) {
+    if (this._state === "paused" || this._state === "stopped") {
       this.recreateSource();
     }
 
@@ -54,31 +49,31 @@ export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(Filte
 
     this.source.start();
     this._playing = true;
-    this._state = SynthPlaybackState.Playing;
+    this._state = "playing";
     return [this];
   }
 
   pause(): void {
-    if (!this.source || this._state !== SynthPlaybackState.Playing) {
+    if (!this.source || this._state !== "playing") {
       return;
     }
 
     this.source.stop();
     this._playing = false;
-    this._state = SynthPlaybackState.Paused;
+    this._state = "paused";
   }
 
   stop(): void {
-    if (!this.source || this._state === SynthPlaybackState.Unplayed || this._state === SynthPlaybackState.Stopped) {
+    if (!this.source || this._state === "unplayed" || this._state === "stopped") {
       return;
     }
 
-    if (this._state === SynthPlaybackState.Playing) {
+    if (this._state === "playing") {
       this.source.stop();
     }
 
     this._playing = false;
-    this._state = SynthPlaybackState.Stopped;
+    this._state = "stopped";
   }
 
   /**

@@ -2,7 +2,7 @@ import { AudioBuffer } from "standardized-audio-context-mock";
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, test, vi } from "vitest";
 
-import { Cacophony, SoundType } from "./cacophony";
+import { Cacophony } from "./cacophony";
 import { Group } from "./group";
 import { audioContextMock, cacophony, mockCache } from "./setupTests";
 import { Sound } from "./sound";
@@ -182,7 +182,7 @@ describe("Cacophony advanced features", () => {
   it("createStream creates a streaming Sound instance", async () => {
     const streamSound = await cacophony.createStream("https://example.com/audio.mp3");
     expect(streamSound).toBeInstanceOf(Sound);
-    expect(streamSound.soundType).toBe(SoundType.Streaming);
+    expect(streamSound.soundType).toBe("streaming");
   });
 
   it("createGroupFromUrls creates a Group with Sound instances", async () => {
@@ -251,9 +251,9 @@ describe("Cacophony advanced features", () => {
       // Should work even with aborted signal since it's immediate
       controller.abort();
 
-      const sound = await cacophony.createSound(buffer, SoundType.Buffer, "HRTF", controller.signal);
+      const sound = await cacophony.createSound(buffer, "buffer", "HRTF", controller.signal);
       expect(sound.buffer).toBe(buffer);
-      expect(sound.soundType).toBe(SoundType.Buffer);
+      expect(sound.soundType).toBe("buffer");
     });
 
     it("createSound with URL passes AbortSignal to cache", async () => {
@@ -264,7 +264,7 @@ describe("Cacophony advanced features", () => {
       // Mock the cache to verify signal is passed through
       const getAudioBufferSpy = vi.spyOn(mockCache, "getAudioBuffer").mockResolvedValueOnce(mockBuffer);
 
-      const sound = await cacophony.createSound(url, SoundType.Buffer, "HRTF", controller.signal);
+      const sound = await cacophony.createSound(url, "buffer", "HRTF", controller.signal);
 
       expect(getAudioBufferSpy).toHaveBeenCalledWith(
         audioContextMock,
@@ -287,7 +287,7 @@ describe("Cacophony advanced features", () => {
 
       controller.abort();
 
-      await expect(cacophony.createSound(url, SoundType.Buffer, "HRTF", controller.signal)).rejects.toMatchObject({
+      await expect(cacophony.createSound(url, "buffer", "HRTF", controller.signal)).rejects.toMatchObject({
         name: "AbortError",
         message: "Operation was aborted",
       });
@@ -299,7 +299,7 @@ describe("Cacophony advanced features", () => {
 
       const getAudioBufferSpy = vi.spyOn(mockCache, "getAudioBuffer").mockResolvedValueOnce(mockBuffer);
 
-      const sound = await cacophony.createSound(url, SoundType.Buffer);
+      const sound = await cacophony.createSound(url, "buffer");
 
       expect(getAudioBufferSpy).toHaveBeenCalledWith(
         audioContextMock,
@@ -322,8 +322,8 @@ describe("Cacophony advanced features", () => {
         .mockImplementationOnce(() => htmlAudio.audio as any)
         .mockImplementationOnce(() => streamingAudio.audio as any);
 
-      const htmlSoundPromise = cacophony.createSound(url, SoundType.HTML, "HRTF", controller.signal);
-      const streamSoundPromise = cacophony.createSound(url, SoundType.Streaming, "HRTF", controller.signal);
+      const htmlSoundPromise = cacophony.createSound(url, "html", "HRTF", controller.signal);
+      const streamSoundPromise = cacophony.createSound(url, "streaming", "HRTF", controller.signal);
 
       expect(htmlAudio.audio.load).toHaveBeenCalledOnce();
       expect(streamingAudio.audio.load).toHaveBeenCalledOnce();
@@ -333,11 +333,11 @@ describe("Cacophony advanced features", () => {
       streamingAudio.dispatch("loadedmetadata");
 
       const htmlSound = await htmlSoundPromise;
-      expect(htmlSound.soundType).toBe(SoundType.HTML);
+      expect(htmlSound.soundType).toBe("html");
       expect(htmlSound.url).toBe(url);
 
       const streamSound = await streamSoundPromise;
-      expect(streamSound.soundType).toBe(SoundType.Streaming);
+      expect(streamSound.soundType).toBe("streaming");
       expect(streamSound.url).toBe(url);
       expect(getAudioBufferSpy).not.toHaveBeenCalled();
     });
@@ -349,7 +349,7 @@ describe("Cacophony advanced features", () => {
 
       vi.mocked(global.Audio).mockImplementationOnce(() => htmlAudio.audio as any);
 
-      const soundPromise = cacophony.createSound(url, SoundType.HTML, "HRTF", controller.signal);
+      const soundPromise = cacophony.createSound(url, "html", "HRTF", controller.signal);
       controller.abort();
 
       await expect(soundPromise).rejects.toMatchObject({
@@ -386,7 +386,7 @@ describe("Cacophony advanced features", () => {
       // Mock cache to return buffer for all calls
       vi.spyOn(mockCache, "getAudioBuffer").mockResolvedValue(mockBuffer);
 
-      const group = await cacophony.createGroupFromUrls(urls, SoundType.Buffer, "HRTF", controller.signal);
+      const group = await cacophony.createGroupFromUrls(urls, "buffer", "HRTF", controller.signal);
 
       expect(group).toBeInstanceOf(Group);
       expect(group.sounds.length).toBe(3);
@@ -412,9 +412,7 @@ describe("Cacophony advanced features", () => {
 
       controller.abort();
 
-      await expect(
-        cacophony.createGroupFromUrls(urls, SoundType.Buffer, "HRTF", controller.signal),
-      ).rejects.toMatchObject({
+      await expect(cacophony.createGroupFromUrls(urls, "buffer", "HRTF", controller.signal)).rejects.toMatchObject({
         name: "AbortError",
       });
     });

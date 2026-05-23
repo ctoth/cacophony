@@ -21,13 +21,13 @@
  * instances of a sound with different settings, without requiring the user to manually manage each playback instance.
  */
 
-import {
-  type BaseSound,
-  type Cacophony,
-  type LoopCount,
-  type PanType,
-  type PlayOptions,
-  type SoundCleanupHoldings,
+import type {
+  BaseSound,
+  Cacophony,
+  LoopCount,
+  PanType,
+  PlayOptions,
+  SoundCleanupHoldings,
   SoundType,
 } from "./cacophony";
 import { PlaybackContainer } from "./container";
@@ -61,7 +61,7 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
     buffer: AudioBuffer | undefined,
     context: BaseContext,
     private globalGainNode: GainNode,
-    public soundType: SoundType = SoundType.Buffer,
+    public soundType: SoundType = "buffer",
     public panType: PanType = "HRTF",
     private _cacophony?: Cacophony,
   ) {

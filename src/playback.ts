@@ -36,12 +36,7 @@ type PlaybackCloneOverrides = {
   panType: PanType;
 };
 
-enum PlaybackState {
-  Unplayed,
-  Playing,
-  Paused,
-  Stopped,
-}
+type PlaybackState = "unplayed" | "playing" | "paused" | "stopped";
 
 export class Playback extends BasePlayback implements BaseSound {
   private context: BaseContext;
@@ -51,7 +46,7 @@ export class Playback extends BasePlayback implements BaseSound {
   private buffer?: AudioBuffer;
   private _offset: number = 0;
   private _startTime: number = 0;
-  private _state: PlaybackState = PlaybackState.Unplayed;
+  private _state: PlaybackState = "unplayed";
   private _playbackRate: number = 1;
   _fadeInConfig?: { duration: number; type: FadeType; perLoop: boolean; targetVolume: number };
   _fadeOutConfig?: { duration: number; type: FadeType };
@@ -96,7 +91,7 @@ export class Playback extends BasePlayback implements BaseSound {
   }
 
   get isPlaying(): boolean {
-    return this._state === PlaybackState.Playing;
+    return this._state === "playing";
   }
 
   /**
@@ -146,7 +141,7 @@ export class Playback extends BasePlayback implements BaseSound {
     if (rate <= 0) {
       throw new Error("Playback rate must be greater than 0");
     }
-    if (this._state === PlaybackState.Playing) {
+    if (this._state === "playing") {
       const elapsed = (this.context.currentTime - this._startTime) * this._playbackRate;
       this._offset += elapsed;
       this._startTime = this.context.currentTime;
@@ -169,7 +164,7 @@ export class Playback extends BasePlayback implements BaseSound {
    * It manages looping logic and restarts playback if necessary.
    */
   loopEnded = () => {
-    if (!this.source || this._state !== PlaybackState.Playing) {
+    if (!this.source || this._state !== "playing") {
       return;
     }
 
@@ -192,7 +187,7 @@ export class Playback extends BasePlayback implements BaseSound {
       this.seek(0); // Resets offset and handles play/pause state internally.
       // seek() calls pause() then play() when wasPlaying is true,
       // so play() handles both media-element and buffer sources correctly.
-      if (this._state !== PlaybackState.Playing && !("mediaElement" in this.source)) {
+      if (this._state !== "playing" && !("mediaElement" in this.source)) {
         // For AudioBufferSourceNode only: if seek() didn't restart playback
         // (e.g., state wasn't Playing before seek), start it now.
         this.play();
@@ -217,16 +212,16 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Cannot play a sound that has been cleaned up");
     }
 
-    if (this._state === PlaybackState.Playing) {
+    if (this._state === "playing") {
       return [this];
     }
 
-    const isResume = this._state === PlaybackState.Paused;
+    const isResume = this._state === "paused";
 
     try {
       let mediaPlayPromise: Promise<void> | undefined;
 
-      if (this._state === PlaybackState.Paused) {
+      if (this._state === "paused") {
         // If we're resuming from a paused state
         if ("mediaElement" in this.source && this.source.mediaElement) {
           mediaPlayPromise = this.source.mediaElement.play();
@@ -255,7 +250,7 @@ export class Playback extends BasePlayback implements BaseSound {
         mediaPlayPromise.then(
           () => {
             this._startTime = this.context.currentTime;
-            this._state = PlaybackState.Playing;
+            this._state = "playing";
             this.emit("play", this);
             if (isResume) {
               this.emit("resume", undefined);
@@ -278,7 +273,7 @@ export class Playback extends BasePlayback implements BaseSound {
       } else {
         // For buffer sources, state transition is immediate (start() is synchronous)
         this._startTime = this.context.currentTime;
-        this._state = PlaybackState.Playing;
+        this._state = "playing";
         this.emit("play", this);
         if (isResume) {
           this.emit("resume", undefined);
@@ -302,7 +297,7 @@ export class Playback extends BasePlayback implements BaseSound {
   }
 
   pause(): void {
-    if (!this.source || this._state !== PlaybackState.Playing) {
+    if (!this.source || this._state !== "playing") {
       return;
     }
 
@@ -317,7 +312,7 @@ export class Playback extends BasePlayback implements BaseSound {
       this.source.stop();
     }
 
-    this._state = PlaybackState.Paused;
+    this._state = "paused";
     this.emit("pause", undefined);
 
     // Emit globalPause for all playback
@@ -331,13 +326,13 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source) {
       throw new Error("Cannot stop a sound that has been cleaned up");
     }
-    if (this._state === PlaybackState.Stopped || this._state === PlaybackState.Unplayed) {
+    if (this._state === "stopped" || this._state === "unplayed") {
       return;
     }
 
     this.cancelFade();
 
-    if ("stop" in this.source && this._state === PlaybackState.Playing) {
+    if ("stop" in this.source && this._state === "playing") {
       this.source.stop();
     }
     if ("mediaElement" in this.source && this.source.mediaElement) {
@@ -347,7 +342,7 @@ export class Playback extends BasePlayback implements BaseSound {
 
     this._offset = 0;
     this._startTime = 0;
-    this._state = PlaybackState.Stopped;
+    this._state = "stopped";
     this.emit("stop", undefined);
 
     // Emit globalStop for all playback
@@ -404,7 +399,7 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Invalid time value for seek");
     }
 
-    const wasPlaying = this._state === PlaybackState.Playing;
+    const wasPlaying = this._state === "playing";
     if (wasPlaying) {
       this.pause();
     }
@@ -422,7 +417,7 @@ export class Playback extends BasePlayback implements BaseSound {
   }
 
   get currentTime(): number {
-    if (this._state === PlaybackState.Playing) {
+    if (this._state === "playing") {
       const elapsed = (this.context.currentTime - this._startTime) * this._playbackRate;
       return this._offset + elapsed;
     } else {
@@ -504,7 +499,7 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     this._offset = 0;
     this._startTime = 0;
-    this._state = PlaybackState.Stopped;
+    this._state = "stopped";
     this.currentLoop = 0;
     this.source.disconnect();
     this.source = undefined;
@@ -687,7 +682,7 @@ export class Playback extends BasePlayback implements BaseSound {
     });
 
     // If the original is playing, start the clone
-    if (this._state === PlaybackState.Playing) {
+    if (this._state === "playing") {
       clone.play();
     }
 
