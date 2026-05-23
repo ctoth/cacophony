@@ -41,7 +41,6 @@ export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
     /**
      * Gets the current volume of the audio.
      * @throws {Error} Throws an error if the sound has been cleaned up.
-     * @returns {number} The current volume.
      */
 
     get volume(): number {
@@ -53,7 +52,6 @@ export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
 
     /**
      * Sets the volume of the audio.
-     * @param {number} v - The volume to set.
      * @throws {Error} Throws an error if the sound has been cleaned up.
      */
 

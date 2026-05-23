@@ -63,7 +63,6 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
    * @param {SynthCloneOverrides} overrides - An object specifying properties to override in the cloned instance.
    *        This can include audio settings like volume, playback rate, and spatial positioning, as well as
    *        more complex configurations like 3D audio options and filter adjustments.
-   * @returns {Synth} A new Synth instance that is a clone of the current synth.
    */
   clone(overrides: Partial<SynthCloneOverrides> = {}): Synth {
     const panType = overrides.panType ?? this.panType;
@@ -99,7 +98,6 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
   /**
    * Generates a Playback instance for the synth without starting playback.
    * This allows for pre-configuration of playback properties such as volume and position before the synth is actually played.
-   * @returns {SynthPlayback[]} An array of SynthPlayback instances that are ready to be played.
    */
   preplay(): SynthPlayback[] {
     const oscillator = this.context.createOscillator();

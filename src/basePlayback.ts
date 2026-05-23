@@ -24,7 +24,6 @@ export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager
 
   /**
    * Checks if the audio is currently playing.
-   * @returns {boolean} True if the audio is playing, false otherwise.
    */
 
   get isPlaying(): boolean {

@@ -79,7 +79,6 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
      * Starts playback of the sound and returns a Playback instance representing this particular playback.
      * Multiple Playback instances can be created by calling this method multiple times,
      * allowing for the same sound to be played concurrently with different settings.
-     * @returns {Playback[]} An array containing the Playback instances that have been started.
      */
 
     play(): BasePlayback[] {
@@ -112,7 +111,6 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
      * Adds a BiquadFilterNode to the container's filter chain.
      * Filters are cloned when creating new playbacks - existing playbacks are not affected.
      * Each playback gets independent filter instances for isolated processing.
-     * @param { BiquadFilterNode } filter - The filter to add to the chain.
      */
 
     addFilter(filter: BiquadFilterNode): void {
@@ -124,7 +122,6 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
     /**
      * Removes a BiquadFilterNode from the container's filter chain.
      * Only affects future playbacks - existing playbacks retain their cloned filters.
-     * @param { BiquadFilterNode } filter - The filter to remove from the chain.
      * @throws {Error} If the filter was never added to this container.
      */
 
@@ -136,7 +133,6 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
     /**
      * Returns a boolean indicating whether the object is currently playing.
      * an object is playing if any of its playbacks are currently playing.
-     * @returns {boolean} True if the object is playing, false otherwise.
      */
 
     get isPlaying(): boolean {
@@ -146,7 +142,6 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
     /**
      * Retrieves the current 3D spatial position of the sound in the audio context.
      * The position is returned as an array of three values[x, y, z].
-     * @returns { Position } The current position of the sound.
      */
 
     get position(): Position {
@@ -160,7 +155,6 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
      * Sets the 3D spatial position of the sound in the audio context.
      * The position is an array of three values[x, y, z].
      * This method updates the position of all active playbacks of the sound.
-     * @param { Position } position - The new position of the sound.
      */
 
     set position(position: Position) {
@@ -215,8 +209,6 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
     /***
      * Gets the volume of the sound. This volume level affects all current and future playbacks of this sound instance.
      * The volume is specified as a linear value between 0 (silent) and 1 (full volume).
-     *
-     * @returns {number} The current volume of the sound.
      */
 
     get volume(): number {
@@ -226,8 +218,6 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
     /***
      * Sets the volume of the sound. This volume level affects all current and future playbacks of this sound instance.
      * The volume is specified as a linear value between 0 (silent) and 1 (full volume).
-     *
-     * @param {number} volume - The new volume level for the sound.
      */
 
     set volume(volume: number) {

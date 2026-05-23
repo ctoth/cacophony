@@ -38,7 +38,6 @@ export class MicrophonePlayback extends FilterManager {
 
   /**
    * Indicates whether the audio is currently playing.
-   * @returns {boolean} True if the audio is playing, false otherwise.
    */
 
   get isPlaying() {
@@ -184,7 +183,6 @@ export class MicrophoneStream extends FilterManager implements BaseSound {
 
   /**
    * A boolean indicating whether the sound is currently playing.
-   * @returns {boolean} True if the sound is playing, false otherwise.
    */
 
   get isPlaying(): boolean {

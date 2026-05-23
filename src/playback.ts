@@ -62,9 +62,6 @@ export class Playback extends BasePlayback implements BaseSound {
 
   /**
    * Creates an instance of the Playback class.
-   * @param {Sound} origin - The Sound instance that the Playback is associated with.
-   * @param {SourceNode} source - The audio source node.
-   * @param {GainNode} gainNode - The gain node for controlling volume.
    * @throws {Error} Throws an error if an invalid pan type is provided.
    */
 
@@ -123,7 +120,6 @@ export class Playback extends BasePlayback implements BaseSound {
 
   /**
    * Gets the current playback rate of the audio.
-   * @returns {number} The current playback rate.
    */
 
   get playbackRate() {
@@ -141,7 +137,6 @@ export class Playback extends BasePlayback implements BaseSound {
 
   /**
    * Sets the playback rate of the audio.
-   * @param {number} rate - The playback rate to set.
    * @throws {Error} Throws an error if the sound has been cleaned up or if the source type is unsupported.
    */
 
@@ -517,7 +512,6 @@ export class Playback extends BasePlayback implements BaseSound {
 
   /**
    * Sets whether the audio source should loop.
-   * @param {boolean} loop - Whether the audio should loop.
    * @throws {Error} Throws an error if the sound has been cleaned up.
    */
   set sourceLoop(loop: boolean) {
@@ -647,7 +641,6 @@ export class Playback extends BasePlayback implements BaseSound {
    * Connects this playback's output to an AudioNode or AudioParam.
    * Follows the Web Audio API connection pattern.
    *
-   * @param {AudioNode | AudioParam} destination - The node or param to connect to.
    * @returns {AudioNode} The destination node (for chaining).
    * @throws {Error} Throws an error if the playback has been cleaned up.
    *
@@ -686,8 +679,6 @@ export class Playback extends BasePlayback implements BaseSound {
    * Creates a clone of the current Playback instance with optional overrides for certain properties.
    * This method allows for the creation of a new Playback instance that shares the same audio context
    * and source node but can have different settings such as loop count or pan type.
-   * @param {Partial<Playback>} overrides - An object containing properties to override in the cloned instance.
-   * @returns {Playback} A new Playback instance cloned from the current one with the specified overrides applied.
    * @throws {Error} Throws an error if the sound has been cleaned up.
    */
 

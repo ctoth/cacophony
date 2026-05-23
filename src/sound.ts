@@ -121,7 +121,6 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
    * @param {SoundCloneOverrides} overrides - An object specifying properties to override in the cloned instance.
    *        This can include audio settings like volume, playback rate, and spatial positioning, as well as
    *        more complex configurations like 3D audio options and filter adjustments.
-   * @returns {Sound} A new Sound instance that is a clone of the current sound.
    */
 
   clone(overrides: Partial<SoundCloneOverrides> = {}): Sound {
@@ -163,7 +162,6 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
   /**
    * Generates a Playback instance for the sound without starting playback.
    * This allows for pre-configuration of playback properties such as volume and position before the sound is actually played.
-   * @returns {Playback[]} An array of Playback instances that are ready to be played.
    */
 
   preplay(): Playback[] {
