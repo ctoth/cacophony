@@ -132,7 +132,14 @@ boom.play();
 Recognised extensions: `.webm`, `.mp3`, `.ogg`, `.wav`, `.flac`, `.m4a`,
 `.aac`, `.opus`. If no candidate is reported playable, or every playable
 candidate fails to decode, the promise rejects with an error naming the
-URLs that were tried.
+URLs that were tried and the reason each failed (codec unsupported or
+decode failure).
+
+Only decode failures advance to the next candidate. Fetch/network/cache
+failures of the selected source propagate immediately so the caller sees
+the real cause instead of a silent format swap. Decode failures are
+detected by the Web Audio spec marker -- `DOMException` with name
+`EncodingError`.
 
 v1 limitation: format fallback is only available for the default `'buffer'`
 sound type. Passing an array together with `'html'` or `'streaming'`

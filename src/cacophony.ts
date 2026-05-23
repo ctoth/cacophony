@@ -504,10 +504,15 @@ export class Cacophony {
     if (soundType === "streaming") {
       return this.createMediaSound(url, "streaming", panType, signal);
     }
-    return this.loadBufferSound(url, panType, signal);
+    return this.loadBufferSound(url, soundType, panType, signal);
   }
 
-  private async loadBufferSound(url: string, panType: PanType, signal?: AbortSignal): Promise<Sound> {
+  private async loadBufferSound(
+    url: string,
+    soundType: SoundType,
+    panType: PanType,
+    signal?: AbortSignal,
+  ): Promise<Sound> {
     const buffer = await this.cache.getAudioBuffer(this.context, url, signal, {
       onLoadingStart: (event) => this.emitAsync("loadingStart", event),
       onLoadingProgress: (event) => this.emitAsync("loadingProgress", event),
@@ -517,7 +522,24 @@ export class Cacophony {
       onCacheMiss: (event) => this.emitAsync("cacheMiss", event),
       onCacheError: (event) => this.emitAsync("cacheError", event),
     });
-    return new Sound(url, buffer, this.context, this.globalGainNode, "buffer", panType, this);
+    return new Sound(url, buffer, this.context, this.globalGainNode, soundType, panType, this);
+  }
+
+  /**
+   * Returns true if the error came from `AudioContext.decodeAudioData`.
+   *
+   * Per the Web Audio spec, decode failures throw a `DOMException` with name
+   * `EncodingError`. We deliberately do NOT treat plain `Error` instances as
+   * decode failures: fetch/cache/network errors must propagate so the caller
+   * sees the real cause instead of silently falling through to a different
+   * format. See `reports/format-fallback-codex-review.md` (Major 1).
+   */
+  private static isDecodeError(error: unknown): boolean {
+    if (error === null || typeof error !== "object") {
+      return false;
+    }
+    const name = (error as { name?: unknown }).name;
+    return name === "EncodingError";
   }
 
   private async createSoundFromUrlArray(
@@ -535,29 +557,43 @@ export class Cacophony {
           `Format fallback is only available for buffer sounds in this version.`,
       );
     }
-    const playable = urls.filter((url) => this.canPlaySource(url));
+    const candidateReasons = new Map<string, string>();
+    const playable: string[] = [];
+    for (const url of urls) {
+      if (this.canPlaySource(url)) {
+        playable.push(url);
+      } else {
+        const ext = url.match(/\.([a-z0-9]+)(?:\?|#|$)/i)?.[1]?.toLowerCase();
+        candidateReasons.set(url, ext ? `codec unsupported: .${ext}` : "codec unsupported: unknown extension");
+      }
+    }
     if (playable.length === 0) {
+      const detail = urls.map((u) => `${u}: ${candidateReasons.get(u) ?? "codec unsupported"}`).join("; ");
       throw new Error(
         `createSound: no playable source found among [${urls.join(", ")}] ` +
-          `(no candidate's MIME type was reported as supported by HTMLAudioElement.canPlayType)`,
+          `(no candidate's MIME type was reported as supported by HTMLAudioElement.canPlayType). ` +
+          `Reasons: ${detail}`,
       );
     }
-    const decodeErrors: Array<{ url: string; error: unknown }> = [];
     for (const url of playable) {
       try {
-        return await this.loadBufferSound(url, panType, signal);
+        // Array path always produces buffer sounds; html/streaming were rejected above.
+        return await this.loadBufferSound(url, "buffer", panType, signal);
       } catch (error) {
         if ((error as { name?: string } | null)?.name === "AbortError") {
           throw error;
         }
-        decodeErrors.push({ url, error });
+        if (!Cacophony.isDecodeError(error)) {
+          // Fetch/cache/network failure of the selected source — propagate.
+          // Only decode failures fall through to the next candidate.
+          throw error;
+        }
+        candidateReasons.set(url, `decode failed: ${(error as Error)?.message ?? String(error)}`);
       }
     }
-    const detail = decodeErrors
-      .map(({ url, error }) => `${url}: ${(error as Error)?.message ?? String(error)}`)
-      .join("; ");
+    const detail = urls.map((u) => `${u}: ${candidateReasons.get(u) ?? "unknown"}`).join("; ");
     throw new Error(
-      `createSound: every playable candidate failed to decode. Tried [${urls.join(", ")}]. Decode errors: ${detail}`,
+      `createSound: every playable candidate failed to decode. Tried [${urls.join(", ")}]. Reasons: ${detail}`,
     );
   }
 
