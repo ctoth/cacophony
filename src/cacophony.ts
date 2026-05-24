@@ -2,6 +2,7 @@ import { installAutoplayUnlock } from "./autoplayUnlock";
 import dattorroReverbProcessorWorkletUrl from "./bundles/dattorro-reverb-bundle.js?url";
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
 import stereoToBFormatProcessorWorkletUrl from "./bundles/stereo-to-bformat-bundle.js?url";
+import { Bus } from "./bus";
 import { AudioCache, type ICache } from "./cache";
 import type {
   AudioBuffer,
@@ -15,7 +16,6 @@ import type {
   GainNode,
   PannerNode,
 } from "./context";
-import { Bus } from "./bus";
 import { type CacophonyEffect, markAsCacophonyBiquad, ReverbEffect, type ReverbOptions, ShareEffect } from "./effects";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { CacophonyEvents } from "./events";
@@ -394,12 +394,7 @@ export class Cacophony {
    *   own (cross-context use) can load the worklet on the right context.
    */
   async loadDattorroReverb(signal?: AbortSignal, context?: BaseContext): Promise<void> {
-    await this.loadAudioWorkletModule(
-      "dattorro-reverb",
-      dattorroReverbProcessorWorkletUrl,
-      signal,
-      context,
-    );
+    await this.loadAudioWorkletModule("dattorro-reverb", dattorroReverbProcessorWorkletUrl, signal, context);
   }
 
   /**
@@ -413,17 +408,8 @@ export class Cacophony {
    *   host Cacophony instance's `context`. See {@link loadDattorroReverb}
    *   for the cross-context rationale.
    */
-  async createDattorroReverbNode(
-    options: AudioWorkletNodeOptions,
-    context?: BaseContext,
-  ): Promise<AudioWorkletNode> {
-    return this.createWorkletNode(
-      "dattorro-reverb",
-      dattorroReverbProcessorWorkletUrl,
-      undefined,
-      options,
-      context,
-    );
+  async createDattorroReverbNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("dattorro-reverb", dattorroReverbProcessorWorkletUrl, undefined, options, context);
   }
 
   async createWorkletNode(

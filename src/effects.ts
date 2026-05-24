@@ -152,10 +152,7 @@ export class ReverbEffect implements CacophonyEffect {
 
   async build(context: BaseContext): Promise<AudioWorkletNode> {
     await this.host.loadDattorroReverb(undefined, context);
-    return this.host.createDattorroReverbNode(
-      { parameterData: this.options as Record<string, number> },
-      context,
-    );
+    return this.host.createDattorroReverbNode({ parameterData: this.options as Record<string, number> }, context);
   }
 }
 

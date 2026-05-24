@@ -19,9 +19,9 @@
  * parameters affects both.
  */
 
+import type { AudioNode, BaseContext, BiquadFilterNode, GainNode } from "./context";
 import type { CacophonyEffect } from "./effects";
 import { isCacophonyBuiltBiquad, isCacophonyEffect } from "./effects";
-import type { AudioNode, BaseContext, BiquadFilterNode, GainNode } from "./context";
 
 /**
  * Connection target for {@link Bus.connect} / {@link Bus.disconnect}. Either
@@ -70,12 +70,7 @@ export class Bus {
    *   fresh GainNode is allocated.
    * @param onDestroy Optional registry-cleanup hook fired by destroy().
    */
-  constructor(
-    context: BaseContext,
-    name: string | null = null,
-    input?: GainNode,
-    onDestroy?: () => void,
-  ) {
+  constructor(context: BaseContext, name: string | null = null, input?: GainNode, onDestroy?: () => void) {
     this._context = context;
     this.name = name;
     this.input = input ?? context.createGain();

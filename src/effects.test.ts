@@ -1,12 +1,6 @@
 import { AudioContext } from "standardized-audio-context-mock";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  BiquadEffect,
-  isCacophonyBuiltBiquad,
-  isCacophonyEffect,
-  markAsCacophonyBiquad,
-  ShareEffect,
-} from "./effects";
+import { BiquadEffect, isCacophonyBuiltBiquad, isCacophonyEffect, markAsCacophonyBiquad, ShareEffect } from "./effects";
 import { audioContextMock, cacophony } from "./setupTests";
 
 /**
@@ -138,9 +132,7 @@ describe("Cacophony.createReverb / loadDattorroReverb", () => {
   });
 
   it("createReverb passes options as parameterData to the worklet (and forwards the build context)", async () => {
-    const createNodeSpy = vi
-      .spyOn(cacophony, "createDattorroReverbNode")
-      .mockResolvedValue({} as any);
+    const createNodeSpy = vi.spyOn(cacophony, "createDattorroReverbNode").mockResolvedValue({} as any);
     const effect = cacophony.createReverb({ wet: 0.7, dry: 0.3, decay: 0.8 });
     await effect.build(cacophony.context);
     // ReverbEffect.build forwards the supplied context as the second arg so
