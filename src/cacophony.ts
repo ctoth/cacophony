@@ -14,6 +14,7 @@ import type {
   GainNode,
   PannerNode,
 } from "./context";
+import { Bus } from "./bus";
 import { type CacophonyEffect, markAsCacophonyBiquad, ShareEffect } from "./effects";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { CacophonyEvents } from "./events";
@@ -172,6 +173,13 @@ function mimeTypeForUrl(url: string): string | null {
 export class Cacophony {
   context: BaseContext;
   globalGainNode: GainNode;
+  /**
+   * The master bus — `master.input` IS `globalGainNode` (literally the same
+   * GainNode), so every existing `.connect(globalGainNode)` call in the
+   * codebase remains correct. `cacophony.volume` and `cacophony.mute` still
+   * read and write `master.input.gain.value` through that alias.
+   */
+  master: Bus;
   listener: AudioListener;
   private prevVolume: number = 1;
   private loadedAudioWorklets: Set<string> = new Set();
@@ -179,6 +187,11 @@ export class Cacophony {
   private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
   private createAudioWorkletNode: (context: BaseContext, name: string, options?: AudioWorkletNodeOptions) => any;
+  /**
+   * Named-bus registry. Populated by {@link createBus} when a name is
+   * supplied; entries are removed by the bus's onDestroy hook.
+   */
+  private _busRegistry: Map<string, Bus> = new Map();
   // Tracks the lifecycle state we have explicitly transitioned to. This avoids
   // duplicate wrapper-driven suspend calls, but resume() still delegates because
   // the underlying AudioContext can be suspended externally.
@@ -211,6 +224,10 @@ export class Cacophony {
     this.listener = this.context.listener;
     this.globalGainNode = this.context.createGain();
     this.globalGainNode.connect(this.context.destination);
+    // master bus wraps globalGainNode as its input — same node, two accessors.
+    // master is exempt from the named-bus registry (its name 'master' is
+    // reserved and not user-creatable via createBus).
+    this.master = new Bus(this.context, "master", this.globalGainNode);
     this.cache = cache ?? new AudioCache();
     this.createAudioWorkletNode =
       runtimeOptions.createAudioWorkletNode ??
@@ -747,6 +764,52 @@ export class Cacophony {
    */
   shareEffect(node: AudioNode): CacophonyEffect {
     return new ShareEffect(node);
+  }
+
+  /**
+   * Creates a new {@link Bus}. If `name` is provided, the bus is registered
+   * so {@link getBus} can look it up by name. Anonymous buses (no name) are
+   * not registered and cannot be retrieved by name.
+   *
+   * @throws if a named bus with the same name already exists, or if the
+   *   reserved name 'master' is used (the master bus is auto-created).
+   */
+  createBus(name?: string): Bus {
+    if (name === "master") {
+      throw new Error("The name 'master' is reserved — use cacophony.master to access the master bus.");
+    }
+    if (name !== undefined && this._busRegistry.has(name)) {
+      throw new Error(`A bus named '${name}' already exists.`);
+    }
+    const onDestroy = name !== undefined ? () => this._busRegistry.delete(name) : undefined;
+    const bus = new Bus(this.context, name ?? null, undefined, onDestroy);
+    if (name !== undefined) {
+      this._busRegistry.set(name, bus);
+    }
+    // New buses default-route to master so audio flows out somewhere unless
+    // the user wires it elsewhere. master is intentionally not destroyable.
+    bus.connect(this.master);
+    return bus;
+  }
+
+  /**
+   * Retrieves a bus by name from the named-bus registry. Returns `undefined`
+   * if no bus with that name exists. The special name `'master'` returns
+   * the auto-created master bus.
+   */
+  getBus(name: string): Bus | undefined {
+    if (name === "master") {
+      return this.master;
+    }
+    return this._busRegistry.get(name);
+  }
+
+  /**
+   * Returns the names of every registered named bus. Anonymous buses are
+   * not included. The master bus's name (`'master'`) is included.
+   */
+  listBuses(): string[] {
+    return ["master", ...this._busRegistry.keys()];
   }
 
   createSplitter(numChannels: number = 2): ChannelSplitterNode {

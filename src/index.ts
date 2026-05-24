@@ -59,6 +59,8 @@ export type {
   SoundEvents,
   SynthEvents,
 } from "./events";
+export type { BusConnectionTarget } from "./bus";
+export { Bus } from "./bus";
 export type { CacophonyEffect } from "./effects";
 export { BiquadEffect, ShareEffect } from "./effects";
 export { Group } from "./group";
