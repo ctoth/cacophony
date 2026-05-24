@@ -545,13 +545,14 @@ export class Cacophony {
    * Cache and loading events fire only for the URL actually fetched.
    *
    * v1 limitation: only the default `'buffer'` sound type participates in
-   * fallback. Passing an array together with `'html'` or `'streaming'`
-   * rejects with a clear "not yet supported" error.
+   * fallback. Passing an array with any non-`'buffer'` soundType (e.g.
+   * `'html'`, `'streaming'`, `'oscillator'`) rejects with a clear "not yet
+   * supported" error.
    *
    * @param urls - Non-empty array of candidate URLs in priority order.
-   * @throws If the array is empty, if `soundType` is `'html'`/`'streaming'`,
-   *   or if no candidate is playable (codec unsupported or every decode
-   *   failed). The error message names the URLs that were tried.
+   * @throws If the array is empty, if `soundType` is not `'buffer'`, or if
+   *   no candidate is playable (codec unsupported or every decode failed).
+   *   The error message names the URLs that were tried.
    */
   async createSound(urls: string[], soundType?: SoundType, panType?: PanType, signal?: AbortSignal): Promise<Sound>;
 
@@ -605,11 +606,10 @@ export class Cacophony {
    * format. See `reports/format-fallback-codex-review.md` (Major 1).
    */
   private static isDecodeError(error: unknown): boolean {
-    if (error === null || typeof error !== "object") {
+    if (typeof DOMException === "undefined") {
       return false;
     }
-    const name = (error as { name?: unknown }).name;
-    return name === "EncodingError";
+    return error instanceof DOMException && error.name === "EncodingError";
   }
 
   private async createSoundFromUrlArray(
@@ -621,7 +621,7 @@ export class Cacophony {
     if (urls.length === 0) {
       throw new Error("createSound: URL array is empty; provide at least one URL");
     }
-    if (soundType === "html" || soundType === "streaming") {
+    if (soundType !== "buffer") {
       throw new Error(
         `createSound: URL array with soundType='${soundType}' is not yet supported. ` +
           `Format fallback is only available for buffer sounds in this version.`,
