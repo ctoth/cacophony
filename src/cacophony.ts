@@ -224,11 +224,18 @@ export class Cacophony {
     this.context = context ?? new AudioContext();
     this.listener = this.context.listener;
     this.globalGainNode = this.context.createGain();
-    this.globalGainNode.connect(this.context.destination);
     // master bus wraps globalGainNode as its input — same node, two accessors.
     // master is exempt from the named-bus registry (its name 'master' is
     // reserved and not user-creatable via createBus).
+    // The Bus constructor wires input → output. We then connect master.output
+    // to context.destination so the full audible path is:
+    //   master.input (= globalGainNode) → [filters] → master.output → destination.
+    // Critical: connect master.output AFTER constructing the Bus, NOT
+    // globalGainNode directly. If globalGainNode were pre-connected to
+    // destination, adding a master filter would call _refreshFilters() which
+    // disconnects master.input's outgoing edges, severing the audible path.
     this.master = new Bus(this.context, "master", this.globalGainNode);
+    this.master.output.connect(this.context.destination);
     this.cache = cache ?? new AudioCache();
     this.createAudioWorkletNode =
       runtimeOptions.createAudioWorkletNode ??

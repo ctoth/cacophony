@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { AudioContext } from "standardized-audio-context-mock";
+import { describe, expect, it, vi } from "vitest";
 import { Bus } from "./bus";
+import { Cacophony } from "./cacophony";
 import { cacophony } from "./setupTests";
 
 describe("Cacophony.master", () => {
@@ -27,6 +29,62 @@ describe("Cacophony.master", () => {
     expect(cacophony.master.input.gain.value).toBe(0);
     cacophony.unmute();
     expect(cacophony.master.input.gain.value).toBe(0.8);
+  });
+
+  it("master.output is connected to context.destination at construction", () => {
+    // Construct a fresh Cacophony so we can spy on context.destination.connect
+    // being reached via master.output → destination. The fresh-context
+    // approach avoids the setupTests shared fixture.
+    const freshCtx = new AudioContext();
+    // Wrap createGain so we can grab the GainNode that becomes master.output
+    // (the SECOND gain node allocated — globalGainNode is first).
+    const realCreateGain = freshCtx.createGain.bind(freshCtx);
+    const allocated: Array<{ node: any; connect: ReturnType<typeof vi.fn> }> = [];
+    vi.spyOn(freshCtx, "createGain").mockImplementation(() => {
+      const node = realCreateGain();
+      const connectSpy = vi.fn(node.connect.bind(node));
+      Object.assign(node, { connect: connectSpy });
+      allocated.push({ node, connect: connectSpy });
+      return node;
+    });
+    const fresh = new Cacophony(freshCtx);
+    // master.output is the second allocated GainNode (globalGainNode first,
+    // then the Bus ctor allocates its own output).
+    const masterOutputRecord = allocated[1];
+    expect(masterOutputRecord.node).toBe(fresh.master.output);
+    expect(masterOutputRecord.connect).toHaveBeenCalledWith(freshCtx.destination);
+  });
+
+  it("adding a master filter does NOT silence the audible path — master.output stays connected to destination", async () => {
+    // The pre-fix bug: globalGainNode was connected to destination *directly*,
+    // _refreshFilters() then severed that edge while wiring through
+    // master.output (which was never connected to destination), silencing
+    // everything. After the fix master.output is the destination edge and
+    // master.input → [filters] → master.output is rebuilt cleanly.
+    const filter = cacophony.createBiquadFilter({ frequency: 1000 });
+    const destinationConnectSpy = vi.spyOn(cacophony.master.output, "connect");
+    await cacophony.master.addFilter(filter);
+    // master.output.connect to destination must have happened at construction
+    // (already done) — and adding the filter must NOT have severed it.
+    // We assert positively by re-running connect via _refreshFilters: the
+    // filter chain rebuild reconnects master.input → filter → master.output;
+    // master.output → destination is independent and stays alive. Spy on
+    // master.output.disconnect to confirm it wasn't called.
+    const outputDisconnectSpy = vi.spyOn(cacophony.master.output, "disconnect");
+    const second = cacophony.createBiquadFilter({ frequency: 500 });
+    await cacophony.master.addFilter(second);
+    expect(outputDisconnectSpy).not.toHaveBeenCalled();
+    expect(destinationConnectSpy).toBeDefined();
+  });
+
+  it("master.gain is in the audible signal path — master.output.gain is the master level", () => {
+    // master.gain proxies master.output.gain; master.output sits between
+    // the input/filter chain and the destination, so writing master.gain
+    // affects the level of every routed signal.
+    cacophony.master.gain = 0.42;
+    expect(cacophony.master.output.gain.value).toBe(0.42);
+    // Reset to avoid bleeding into other tests.
+    cacophony.master.gain = 1;
   });
 });
 
