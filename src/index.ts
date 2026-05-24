@@ -61,8 +61,8 @@ export type {
 } from "./events";
 export type { BusConnectionTarget } from "./bus";
 export { Bus } from "./bus";
-export type { CacophonyEffect } from "./effects";
-export { BiquadEffect, ShareEffect } from "./effects";
+export type { CacophonyEffect, ReverbOptions } from "./effects";
+export { BiquadEffect, ReverbEffect, ShareEffect } from "./effects";
 export { Group } from "./group";
 export type { MediaStreamSoundOptions } from "./mediaStream";
 export { MediaStreamPlayback, MediaStreamSound } from "./mediaStream";

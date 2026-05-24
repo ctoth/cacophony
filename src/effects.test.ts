@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BiquadEffect,
   isCacophonyBuiltBiquad,
@@ -6,7 +6,23 @@ import {
   markAsCacophonyBiquad,
   ShareEffect,
 } from "./effects";
-import { cacophony } from "./setupTests";
+import { audioContextMock, cacophony } from "./setupTests";
+
+/**
+ * The standardized-audio-context mock used in setupTests doesn't expose
+ * `audioWorklet`. Every test that exercises a worklet-backed code path
+ * needs a per-test stub so `addModule` is callable. Returns the spy so
+ * tests can assert on it if needed.
+ */
+const mockAudioWorklet = () => {
+  const addModule = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(audioContextMock, "audioWorklet", {
+    value: { addModule },
+    writable: true,
+    configurable: true,
+  });
+  return addModule;
+};
 
 describe("effects: markAsCacophonyBiquad / isCacophonyBuiltBiquad", () => {
   it("returns false for a raw biquad created directly on the context", () => {
@@ -77,5 +93,59 @@ describe("Cacophony.shareEffect", () => {
     const effect = cacophony.shareEffect(node);
     expect(isCacophonyEffect(effect)).toBe(true);
     expect(effect.build(cacophony.context)).toBe(node);
+  });
+});
+
+describe("Cacophony.createReverb / loadDattorroReverb", () => {
+  beforeEach(() => {
+    mockAudioWorklet();
+  });
+
+  it("createReverb returns a CacophonyEffect (ReverbEffect)", () => {
+    const effect = cacophony.createReverb();
+    expect(isCacophonyEffect(effect)).toBe(true);
+  });
+
+  it("ReverbEffect.build awaits loadDattorroReverb and returns an AudioWorkletNode", async () => {
+    const loadSpy = vi.spyOn(cacophony, "loadDattorroReverb");
+    const effect = cacophony.createReverb({ wet: 0.5, dry: 0.5 });
+    const node = await effect.build(cacophony.context);
+    expect(loadSpy).toHaveBeenCalled();
+    expect(node).toBeDefined();
+    loadSpy.mockRestore();
+  });
+
+  it("loadDattorroReverb is idempotent — second call does not re-add the module", async () => {
+    const addModule = mockAudioWorklet();
+    // Force AudioWorkletNode construction to fail first time so addModule
+    // is reached; cacophony's createWorkletNode falls back to loadAudioWorkletModule.
+    vi.mocked(AudioWorkletNode).mockImplementationOnce(() => {
+      throw new Error("Worklet not loaded");
+    });
+    await cacophony.loadDattorroReverb();
+    const addModuleCallsAfterFirst = addModule.mock.calls.length;
+    await cacophony.loadDattorroReverb();
+    // Second call should short-circuit (loadedAudioWorklets has the name).
+    expect(addModule.mock.calls.length).toBe(addModuleCallsAfterFirst);
+  });
+
+  it("createReverb passes options as parameterData to the worklet", async () => {
+    const createNodeSpy = vi
+      .spyOn(cacophony, "createDattorroReverbNode")
+      .mockResolvedValue({} as any);
+    const effect = cacophony.createReverb({ wet: 0.7, dry: 0.3, decay: 0.8 });
+    await effect.build(cacophony.context);
+    expect(createNodeSpy).toHaveBeenCalledWith({
+      parameterData: { wet: 0.7, dry: 0.3, decay: 0.8 },
+    });
+    createNodeSpy.mockRestore();
+  });
+
+  it("createReverb effect can be added to a bus's filter chain", async () => {
+    const bus = cacophony.createBus("reverb-bus");
+    const reverb = cacophony.createReverb({ wet: 0.4 });
+    await bus.addFilter(reverb);
+    expect(bus.filters.length).toBe(1);
+    bus.destroy();
   });
 });

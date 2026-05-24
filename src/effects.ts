@@ -15,7 +15,16 @@
  * GainNode wrappers) can return synchronously.
  */
 
-import type { AudioNode, BaseContext, BiquadFilterNode } from "./context";
+import type { AudioNode, AudioWorkletNode, BaseContext, BiquadFilterNode } from "./context";
+
+/**
+ * Minimal structural interface for the Cacophony surface ReverbEffect needs.
+ * Declared locally so this module avoids a circular import on cacophony.ts.
+ */
+interface ReverbHost {
+  loadDattorroReverb(): Promise<void>;
+  createDattorroReverbNode(options: AudioWorkletNodeOptions): Promise<AudioWorkletNode>;
+}
 
 /**
  * Public surface every Cacophony effect implements. `build` is called by
@@ -79,6 +88,61 @@ export class ShareEffect implements CacophonyEffect {
 
   build(_context: BaseContext): AudioNode {
     return this.node;
+  }
+}
+
+/**
+ * Subset of the {@link import('./processors/dattorro-reverb').DattorroReverbProcessor}
+ * AudioWorkletProcessor's AudioParam set that we expose for construction-time
+ * configuration via {@link Cacophony.createReverb}. All values are optional
+ * and clamped to the worklet's documented ranges (0..1 for most params).
+ *
+ * Every field corresponds to a `parameterData` entry passed to the
+ * AudioWorkletNode constructor; the worklet handles validation downstream.
+ */
+export interface ReverbOptions {
+  /** Pre-delay in samples (0..sampleRate-1). Default 0. */
+  preDelay?: number;
+  /** Input bandwidth (0..1). Default 0.9999. */
+  bandwidth?: number;
+  /** First input diffusion stage (0..1). Default 0.75. */
+  inputDiffusion1?: number;
+  /** Second input diffusion stage (0..1). Default 0.625. */
+  inputDiffusion2?: number;
+  /** Tail decay (0..1). Default 0.5. */
+  decay?: number;
+  /** First decay diffusion stage (0..0.999999). Default 0.7. */
+  decayDiffusion1?: number;
+  /** Second decay diffusion stage (0..0.999999). Default 0.5. */
+  decayDiffusion2?: number;
+  /** Frequency damping (0..1). Default 0.005. */
+  damping?: number;
+  /** Modulation rate (0..2). Default 0.5. */
+  excursionRate?: number;
+  /** Modulation depth (0..2). Default 0.7. */
+  excursionDepth?: number;
+  /** Wet mix (0..1). Default 0.3. */
+  wet?: number;
+  /** Dry mix (0..1). Default 0.6. */
+  dry?: number;
+}
+
+/**
+ * CacophonyEffect that builds a DattorroReverb AudioWorkletNode. Calls
+ * `cacophony.loadDattorroReverb()` first to idempotently ensure the worklet
+ * module is registered, then constructs the worklet node with the supplied
+ * options as `parameterData`. The returned node is the head AND tail of
+ * the subgraph (single-node wet/dry handled internally by the processor).
+ */
+export class ReverbEffect implements CacophonyEffect {
+  constructor(
+    private readonly host: ReverbHost,
+    private readonly options: ReverbOptions = {},
+  ) {}
+
+  async build(_context: BaseContext): Promise<AudioWorkletNode> {
+    await this.host.loadDattorroReverb();
+    return this.host.createDattorroReverbNode({ parameterData: this.options as Record<string, number> });
   }
 }
 

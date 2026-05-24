@@ -1,4 +1,5 @@
 import { installAutoplayUnlock } from "./autoplayUnlock";
+import dattorroReverbProcessorWorkletUrl from "./bundles/dattorro-reverb-bundle.js?url";
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
 import stereoToBFormatProcessorWorkletUrl from "./bundles/stereo-to-bformat-bundle.js?url";
 import { AudioCache, type ICache } from "./cache";
@@ -15,7 +16,7 @@ import type {
   PannerNode,
 } from "./context";
 import { Bus } from "./bus";
-import { type CacophonyEffect, markAsCacophonyBiquad, ShareEffect } from "./effects";
+import { type CacophonyEffect, markAsCacophonyBiquad, ReverbEffect, type ReverbOptions, ShareEffect } from "./effects";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { CacophonyEvents } from "./events";
 import { Group } from "./group";
@@ -354,6 +355,7 @@ export class Cacophony {
     if (this.context.audioWorklet) {
       await this.createWorkletNode("phase-vocoder", phaseVocoderProcessorWorkletUrl, signal);
       await this.loadStereoToBFormatWorklet(signal);
+      await this.loadDattorroReverb(signal);
     } else {
       console.warn("AudioWorklet not supported");
     }
@@ -361,6 +363,26 @@ export class Cacophony {
 
   async loadStereoToBFormatWorklet(signal?: AbortSignal): Promise<void> {
     await this.loadAudioWorkletModule("stereo-to-bformat", stereoToBFormatProcessorWorkletUrl, signal);
+  }
+
+  /**
+   * Idempotently registers the DattorroReverb AudioWorkletProcessor on this
+   * context. Safe to call repeatedly — subsequent calls short-circuit via
+   * the {@link loadedAudioWorklets} set used by
+   * {@link loadAudioWorkletModule}.
+   */
+  async loadDattorroReverb(signal?: AbortSignal): Promise<void> {
+    await this.loadAudioWorkletModule("dattorro-reverb", dattorroReverbProcessorWorkletUrl, signal);
+  }
+
+  /**
+   * Constructs a DattorroReverb AudioWorkletNode. Caller is expected to have
+   * loaded the module already (via {@link loadDattorroReverb} or by reaching
+   * here through {@link ReverbEffect.build}). Uses the same construct/fallback
+   * path as {@link createWorkletNode}.
+   */
+  async createDattorroReverbNode(options: AudioWorkletNodeOptions): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("dattorro-reverb", dattorroReverbProcessorWorkletUrl, undefined, options);
   }
 
   async createWorkletNode(
@@ -764,6 +786,17 @@ export class Cacophony {
    */
   shareEffect(node: AudioNode): CacophonyEffect {
     return new ShareEffect(node);
+  }
+
+  /**
+   * Creates a DattorroReverb {@link CacophonyEffect}. The effect's `build`
+   * lazily registers the worklet module (no-op if already loaded) and
+   * constructs the AudioWorkletNode with the supplied {@link ReverbOptions}
+   * as `parameterData`. Add the returned effect to a {@link Bus}'s filter
+   * chain via `bus.addFilter(effect)`.
+   */
+  createReverb(options: ReverbOptions = {}): ReverbEffect {
+    return new ReverbEffect(this, options);
   }
 
   /**
