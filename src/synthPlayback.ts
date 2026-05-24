@@ -1,6 +1,6 @@
 import type { Bus } from "./bus";
 import type { BaseSound } from "./cacophony";
-import type { AudioNode, BaseContext, GainNode, OscillatorNode } from "./context";
+import type { AudioNode, AudioParam, BaseContext, GainNode, OscillatorNode } from "./context";
 import { FilterManager } from "./filters";
 import { OscillatorMixin } from "./oscillatorMixin";
 import { PannerMixin } from "./pannerMixin";
@@ -160,14 +160,14 @@ export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(Filte
   }
 
   /**
-   * Connects this synth playback's output to an AudioNode. Mirrors
+   * Connects this synth playback's output to an AudioNode or AudioParam. Mirrors
    * Playback.connect.
    *
    * @returns The destination node (for chaining).
    * @throws if the playback has been cleaned up.
    */
-  connect(destination: AudioNode): AudioNode {
-    return this.outputNode.connect(destination);
+  connect(destination: AudioNode | AudioParam): AudioNode {
+    return this.outputNode.connect(destination as any);
   }
 
   /**
@@ -176,9 +176,9 @@ export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(Filte
    *
    * @throws if the playback has been cleaned up.
    */
-  disconnect(destination?: AudioNode): void {
+  disconnect(destination?: AudioNode | AudioParam): void {
     if (destination) {
-      this.outputNode.disconnect(destination);
+      this.outputNode.disconnect(destination as any);
     } else {
       this.outputNode.disconnect();
     }

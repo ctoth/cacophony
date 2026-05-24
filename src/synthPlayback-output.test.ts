@@ -41,6 +41,20 @@ describe("SynthPlayback: outputNode / connect / disconnect parity with Playback"
     synth.stop();
   });
 
+  it("connects and disconnects AudioParam targets", () => {
+    const synth = cacophony.createOscillator({});
+    const [playback] = synth.play();
+    const target = cacophony.createBiquadFilter({ frequency: 440 }).frequency;
+    const connectSpy = vi.spyOn(playback.outputNode, "connect");
+    playback.connect(target);
+    expect(connectSpy).toHaveBeenCalledWith(target);
+
+    const disconnectSpy = vi.spyOn(playback.outputNode, "disconnect");
+    playback.disconnect(target);
+    expect(disconnectSpy).toHaveBeenCalledWith(target);
+    synth.stop();
+  });
+
   it("outputNode returns the same GainNode across calls", () => {
     const synth = cacophony.createOscillator({});
     const [playback] = synth.play();
