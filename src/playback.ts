@@ -19,6 +19,7 @@
  */
 
 import { BasePlayback } from "./basePlayback";
+import type { Bus } from "./bus";
 import type { BaseSound, FadeType, LoopCount, PanType } from "./cacophony";
 import type {
   AudioBuffer,
@@ -59,6 +60,17 @@ export class Playback extends BasePlayback implements BaseSound {
   _fadeInConfig?: { duration: number; type: FadeType; perLoop: boolean; targetVolume: number };
   _fadeOutConfig?: { duration: number; type: FadeType };
   _loopEndCallback?: () => void;
+  /**
+   * Per-playback send-gain allocations: bus → allocated GainNode. Sounds
+   * record send intent in `Sound._sends` (value-only), and the actual
+   * GainNode lifecycle is owned here — allocated at preplay or
+   * `Sound.routeTo(bus, gain)`, torn down in {@link cleanup}.
+   *
+   * Iterable Map (not WeakMap) so cleanup can walk every send and call
+   * `disconnect()` on it; relying on GC for disconnect would leave the bus
+   * graph holding the allocation indirectly.
+   */
+  _sendGains: Map<Bus, GainNode> = new Map();
 
   /**
    * Creates an instance of the Playback class.
@@ -549,6 +561,17 @@ export class Playback extends BasePlayback implements BaseSound {
     this.currentLoop = 0;
     this.source.disconnect();
     this.source = undefined;
+    // Tear down any per-playback send-gain nodes allocated by Sound.routeTo
+    // (or preplay) before the gainNode is severed by super.cleanup(). The
+    // gainNode → sendGain → bus.input chain is now fully disconnected.
+    for (const sendGain of this._sendGains.values()) {
+      try {
+        sendGain.disconnect();
+      } catch {
+        // Best-effort — node may already have been disconnected externally.
+      }
+    }
+    this._sendGains.clear();
     super.cleanup();
   }
 

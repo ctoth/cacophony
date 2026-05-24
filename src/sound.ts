@@ -78,17 +78,11 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
    * GainNode per send per playback so each playback has its own send edges
    * (a per-Sound shared sendGain would crash the second simultaneous
    * playback because both gainNodes would connect into the same single
-   * sendGain, doubling the dry signal). Send GainNodes are tracked in the
-   * playback-local map below.
+   * sendGain, doubling the dry signal). The actual GainNode lifecycle is
+   * owned by each Playback in {@link Playback._sendGains} — iterable so
+   * cleanup can walk every send and call `disconnect()`.
    */
   private _sends: Map<Bus, number> = new Map();
-  /**
-   * Per-playback send-gain allocations: playback → (bus → allocated
-   * GainNode). Tracked so {@link routeTo}(bus, sendGain) can update the
-   * gain in place when called twice, and so cleanup tears down only the
-   * nodes this Sound allocated.
-   */
-  private _playbackSendGains: WeakMap<Playback, Map<Bus, GainNode>> = new WeakMap();
 
   constructor(
     public url: string,
@@ -230,9 +224,10 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
       gainNode.connect(primaryTargetNode);
       const playback = new Playback(this, source, gainNode);
       // Establish send edges (per-playback allocation so each playback owns
-      // its own send-gain nodes — see _sends docstring).
+      // its own send-gain nodes — see _sends docstring). The allocated
+      // GainNode lives on the Playback (`playback._sendGains`) so it gets
+      // torn down explicitly in Playback.cleanup().
       if (this._sends.size > 0) {
-        const sendMap = new Map<Bus, GainNode>();
         for (const [bus, gainValue] of this._sends) {
           if (bus.destroyed) {
             console.warn(`Sound has a send to destroyed bus '${bus.name ?? "<anonymous>"}'; skipping`);
@@ -242,9 +237,8 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
           sendGain.gain.value = gainValue;
           gainNode.connect(sendGain);
           sendGain.connect(bus.input);
-          sendMap.set(bus, sendGain);
+          playback._sendGains.set(bus, sendGain);
         }
-        this._playbackSendGains.set(playback, sendMap);
       }
       this._holdings.sources.push(source);
       this._holdings.gainNodes.push(gainNode);
@@ -543,8 +537,16 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
    * Apply a new primary route. If a bus is passed and it's the master bus,
    * collapse to `null` so the canonical "route to master" representation is
    * always `null` (matches the default).
+   *
+   * @throws if `bus` is destroyed. Symmetric with {@link _addSend}'s guard;
+   *   a destroyed bus is an invalid mutation target. (Sounds already routed
+   *   BEFORE the bus was destroyed still fall back to master at preplay via
+   *   {@link _resolveRouteTargetNode} — that path is separate.)
    */
   private _setPrimary(bus: Bus): void {
+    if (bus.destroyed) {
+      throw new Error(`Cannot route to destroyed bus '${bus.name ?? "<anonymous>"}'`);
+    }
     // master.input === globalGainNode — normalize to null in either case so
     // there is one canonical "route to master" state.
     const collapseToMaster = bus.input === this.globalGainNode;
@@ -574,10 +576,11 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
       throw new Error(`Cannot add a send to destroyed bus '${bus.name ?? "<anonymous>"}'`);
     }
     this._sends.set(bus, gainValue);
-    // Establish send edges on existing playbacks.
+    // Establish send edges on existing playbacks. The per-playback Map is
+    // the canonical owner of the GainNode lifecycle (so cleanup can iterate
+    // and disconnect every send).
     for (const playback of this.playbacks) {
-      const sendMap = this._playbackSendGains.get(playback) ?? new Map<Bus, GainNode>();
-      const existing = sendMap.get(bus);
+      const existing = playback._sendGains.get(bus);
       if (existing) {
         existing.gain.value = gainValue;
         continue;
@@ -591,8 +594,7 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
         continue;
       }
       sendGain.connect(bus.input);
-      sendMap.set(bus, sendGain);
-      this._playbackSendGains.set(playback, sendMap);
+      playback._sendGains.set(bus, sendGain);
     }
   }
 

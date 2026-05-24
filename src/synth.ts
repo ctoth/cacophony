@@ -21,8 +21,6 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
   private _routeTarget: Bus | null = null;
   /** Send target → send gain value. See Sound._sends for notes. */
   private _sends: Map<Bus, number> = new Map();
-  /** Per-playback send-gain allocations. See Sound._playbackSendGains. */
-  private _playbackSendGains: WeakMap<SynthPlayback, Map<Bus, GainNode>> = new WeakMap();
 
   /**
    * Register event listener.
@@ -122,8 +120,9 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     gainNode.connect(primaryTargetNode);
     const playback = new SynthPlayback(this, oscillator, gainNode);
     // Establish send edges (per-playback allocation; see Sound docstring).
+    // Send-gain GainNodes are owned by the playback (`playback._sendGains`)
+    // so cleanup can iterate and disconnect them explicitly.
     if (this._sends.size > 0) {
-      const sendMap = new Map<Bus, GainNode>();
       for (const [bus, gainValue] of this._sends) {
         if (bus.destroyed) {
           console.warn(`Synth has a send to destroyed bus '${bus.name ?? "<anonymous>"}'; skipping`);
@@ -133,9 +132,8 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         sendGain.gain.value = gainValue;
         gainNode.connect(sendGain);
         sendGain.connect(bus.input);
-        sendMap.set(bus, sendGain);
+        playback._sendGains.set(bus, sendGain);
       }
-      this._playbackSendGains.set(playback, sendMap);
     }
     playback.volume = this.volume;
     // Clone filters from synth to playback (each playback gets independent filter instances)
@@ -264,6 +262,9 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
   }
 
   private _setPrimary(bus: Bus): void {
+    if (bus.destroyed) {
+      throw new Error(`Cannot route to destroyed bus '${bus.name ?? "<anonymous>"}'`);
+    }
     const collapseToMaster = bus.input === this.globalGainNode;
     const oldTargetNode = this._resolveRouteTargetNode();
     this._routeTarget = collapseToMaster ? null : bus;
@@ -287,8 +288,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     }
     this._sends.set(bus, gainValue);
     for (const playback of this.playbacks) {
-      const sendMap = this._playbackSendGains.get(playback) ?? new Map<Bus, GainNode>();
-      const existing = sendMap.get(bus);
+      const existing = playback._sendGains.get(bus);
       if (existing) {
         existing.gain.value = gainValue;
         continue;
@@ -301,8 +301,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
         continue;
       }
       sendGain.connect(bus.input);
-      sendMap.set(bus, sendGain);
-      this._playbackSendGains.set(playback, sendMap);
+      playback._sendGains.set(bus, sendGain);
     }
   }
 

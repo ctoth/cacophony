@@ -86,27 +86,50 @@ describe("Sound.routeTo: primary redirection", () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/destroyed bus.*master/));
     warnSpy.mockRestore();
   });
+
+  it("primary routeTo(destroyedBus) throws — caller is mutating a torn-down resource", async () => {
+    const sound = await buildSound();
+    const bus = cacophony.createBus("predead");
+    bus.destroy();
+    expect(() => sound.routeTo(bus)).toThrow(/destroyed/);
+  });
 });
 
 describe("Sound.routeTo: additive send", () => {
-  it("routeTo(bus, 0.3) adds a send without changing primary routing", async () => {
+  it("routeTo(bus, 0.3) adds a send without changing primary routing — playback feeds BOTH primary master AND the bus via sendGain", async () => {
     const sound = await buildSound();
     const bus = cacophony.createBus("send-test");
     const [playback] = sound.play();
-    // Capture the next createGain (the send gain).
+    // The primary edge already exists from preplay: playback.outputNode →
+    // globalGainNode (master.input). Establishing a send must NOT remove it.
+    // Snapshot the primary edge by spying on outputNode.disconnect — it must
+    // not be invoked. Then capture the send-gain allocation + its outgoing
+    // connect to assert the new edge actually targets bus.input.
     const realCreateGain = cacophony.context.createGain.bind(cacophony.context);
-    const allocatedSendGains: any[] = [];
+    const allocatedSendGains: Array<{ node: any; connect: ReturnType<typeof vi.fn> }> = [];
     vi.spyOn(cacophony.context, "createGain").mockImplementationOnce(() => {
       const node = realCreateGain();
-      allocatedSendGains.push(node);
+      const connectSpy = vi.fn(node.connect.bind(node));
+      Object.assign(node, { connect: connectSpy });
+      allocatedSendGains.push({ node, connect: connectSpy });
       return node;
     });
     const playbackConnectSpy = vi.spyOn(playback.outputNode, "connect");
+    const playbackDisconnectSpy = vi.spyOn(playback.outputNode, "disconnect");
     sound.routeTo(bus, 0.3);
+    // Primary edge to master untouched.
+    expect(playbackDisconnectSpy).not.toHaveBeenCalled();
+    // New send edge from the playback's outputNode goes to the allocated sendGain.
     expect(playbackConnectSpy).toHaveBeenCalled();
-    // Verify a send-gain was allocated with value 0.3.
     expect(allocatedSendGains.length).toBe(1);
-    expect(allocatedSendGains[0].gain.value).toBe(0.3);
+    const sendGain = allocatedSendGains[0];
+    expect(sendGain.node.gain.value).toBe(0.3);
+    expect(playbackConnectSpy).toHaveBeenCalledWith(sendGain.node);
+    // Send edge's second hop: sendGain → bus.input. This is the additive
+    // "playback also reaches the bus" half of the contract.
+    expect(sendGain.connect).toHaveBeenCalledWith(bus.input);
+    // And after destroy + cleanup, the sendGain (owned by the playback) must
+    // have its disconnect called — see playback._sendGains teardown.
     bus.destroy();
   });
 
@@ -136,6 +159,23 @@ describe("Sound.routeTo: additive send", () => {
     // No playback yet; play and check no throw.
     const [playback] = sound.play();
     expect(playback).toBeDefined();
+    bus.destroy();
+  });
+
+  it("cleanup disconnects every allocated send-gain node (no GC reliance)", async () => {
+    const sound = await buildSound();
+    const bus = cacophony.createBus("cleanup-send");
+    sound.routeTo(bus, 0.6);
+    const [playback] = sound.play();
+    // The sendGain is owned by the playback under playback._sendGains.
+    const sendGain = playback._sendGains.get(bus);
+    expect(sendGain).toBeDefined();
+    const sendGainDisconnect = vi.spyOn(sendGain!, "disconnect");
+    sound.cleanup();
+    // The sendGain.disconnect() call is the deterministic "this allocation
+    // is torn down" signal — without it we'd be waiting on GC for the bus
+    // graph to lose the reference.
+    expect(sendGainDisconnect).toHaveBeenCalled();
     bus.destroy();
   });
 });
@@ -179,6 +219,34 @@ describe("Synth.routeTo", () => {
   it("routeTo('nonexistent') throws", () => {
     const synth = cacophony.createOscillator({});
     expect(() => synth.routeTo("never-existed")).toThrow(/No bus registered/);
+  });
+
+  it("primary routeTo(destroyedBus) throws", () => {
+    const synth = cacophony.createOscillator({});
+    const bus = cacophony.createBus("synth-predead");
+    bus.destroy();
+    expect(() => synth.routeTo(bus)).toThrow(/destroyed/);
+  });
+
+  it("SynthPlayback cleanup disconnects every allocated send-gain node", () => {
+    const synth = cacophony.createOscillator({});
+    const bus = cacophony.createBus("synth-cleanup-send");
+    synth.routeTo(bus, 0.5);
+    const [playback] = synth.play();
+    const sendGain = playback._sendGains.get(bus);
+    expect(sendGain).toBeDefined();
+    const sendGainDisconnect = vi.spyOn(sendGain!, "disconnect");
+    playback.cleanup();
+    expect(sendGainDisconnect).toHaveBeenCalled();
+    bus.destroy();
+  });
+
+  it("SynthPlayback.outputNode throws after cleanup (parity with Playback)", () => {
+    const synth = cacophony.createOscillator({});
+    const [playback] = synth.play();
+    expect(playback.outputNode).toBeDefined();
+    playback.cleanup();
+    expect(() => playback.outputNode).toThrow(/cleaned up/);
   });
 });
 

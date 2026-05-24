@@ -99,17 +99,34 @@ describe("Bus: per-edge gain on connect", () => {
     expect(connectSpy).toHaveBeenCalledWith(b.input);
   });
 
-  it("allocates a sendGain when gain !== 1; output → sendGain → target", () => {
+  it("allocates a sendGain when gain !== 1; output → sendGain → target.input", () => {
     const a = new Bus(cacophony.context, null);
     const b = new Bus(cacophony.context, null);
+    // Wrap createGain so the allocated sendGain's connect call is observable.
+    const realCreateGain = cacophony.context.createGain.bind(cacophony.context);
+    const allocated: Array<{ node: any; connect: ReturnType<typeof vi.fn> }> = [];
+    vi.spyOn(cacophony.context, "createGain").mockImplementation(() => {
+      const node = realCreateGain();
+      const connectSpy = vi.fn(node.connect.bind(node));
+      Object.assign(node, { connect: connectSpy });
+      allocated.push({ node, connect: connectSpy });
+      return node;
+    });
     const outputConnectSpy = vi.spyOn(a.output, "connect");
     a.connect(b, 0.5);
-    // First connect on a.output is to the sendGain, not to b.input directly.
+    // First hop: a.output → sendGain (not b.input directly).
     expect(outputConnectSpy).toHaveBeenCalled();
     const firstCallTarget = outputConnectSpy.mock.calls[0]?.[0] as { gain?: { value: number } };
     expect(firstCallTarget).toBeDefined();
     expect(firstCallTarget).not.toBe(b.input);
     expect(firstCallTarget.gain?.value).toBe(0.5);
+    // Second hop: sendGain → b.input. The sendGain was the LAST allocated
+    // gain in this connect call (a.output and b.input were allocated earlier
+    // when the buses were constructed).
+    const sendGainRecord = allocated[allocated.length - 1];
+    expect(sendGainRecord).toBeDefined();
+    expect(sendGainRecord.node).toBe(firstCallTarget);
+    expect(sendGainRecord.connect).toHaveBeenCalledWith(b.input);
   });
 
   it("connects to a raw AudioNode target", () => {
@@ -132,12 +149,27 @@ describe("Bus: per-edge gain on connect", () => {
   it("disconnect(target) tears down the sendGain when one was allocated", () => {
     const a = new Bus(cacophony.context, null);
     const b = new Bus(cacophony.context, null);
+    // Capture the sendGain node by wrapping its disconnect so we can assert
+    // the allocated GainNode itself was disconnected (not just the output edge).
+    const realCreateGain = cacophony.context.createGain.bind(cacophony.context);
+    const sendDisconnectSpies: ReturnType<typeof vi.fn>[] = [];
+    vi.spyOn(cacophony.context, "createGain").mockImplementation(() => {
+      const node = realCreateGain();
+      const disconnectSpy = vi.fn(node.disconnect.bind(node));
+      Object.assign(node, { disconnect: disconnectSpy });
+      sendDisconnectSpies.push(disconnectSpy);
+      return node;
+    });
     a.connect(b, 0.3);
-    // After connect with gain, an internal sendGain exists. Disconnect should
-    // disconnect it from a.output AND disconnect the sendGain itself.
+    // The sendGain is the LAST allocated GainNode.
+    const sendGainDisconnect = sendDisconnectSpies[sendDisconnectSpies.length - 1];
+    expect(sendGainDisconnect).toBeDefined();
     const outputDisconnectSpy = vi.spyOn(a.output, "disconnect");
     a.disconnect(b);
+    // a.output disconnected from the sendGain.
     expect(outputDisconnectSpy).toHaveBeenCalled();
+    // AND the sendGain itself was disconnected (its outgoing edge to b.input).
+    expect(sendGainDisconnect).toHaveBeenCalled();
     // Re-connecting after disconnect uses the no-gain path → direct edge again.
     const reconnectSpy = vi.spyOn(a.output, "connect");
     a.connect(b);
@@ -201,6 +233,46 @@ describe("Bus: destroy lifecycle", () => {
     bus.destroy();
     const filter = cacophony.createBiquadFilter({ frequency: 200 });
     expect(() => bus.removeFilter(filter)).toThrow(/destroyed/);
+  });
+
+  it("destroy() disconnects input, output, every filter, every sendGain, and fires onDestroy", async () => {
+    // Wrap createGain so we can spy on each allocated node's disconnect.
+    const realCreateGain = cacophony.context.createGain.bind(cacophony.context);
+    const allocated: Array<ReturnType<typeof vi.fn>> = [];
+    vi.spyOn(cacophony.context, "createGain").mockImplementation(() => {
+      const node = realCreateGain();
+      const disconnectSpy = vi.fn(node.disconnect.bind(node));
+      Object.assign(node, { disconnect: disconnectSpy });
+      allocated.push(disconnectSpy);
+      return node;
+    });
+
+    const onDestroy = vi.fn();
+    const bus = new Bus(cacophony.context, "destroy-paths", undefined, onDestroy);
+    // bus.input and bus.output were the first two GainNodes allocated.
+    const inputDisconnect = allocated[0];
+    const outputDisconnect = allocated[1];
+
+    // Add a filter so the destroy() path walks the filter list too.
+    const filter = cacophony.createBiquadFilter({ frequency: 500 });
+    const filterDisconnectSpy = vi.spyOn(filter, "disconnect");
+    await bus.addFilter(filter);
+
+    // Add a gained connection so destroy walks the _sendGains map.
+    const target = new Bus(cacophony.context, null);
+    bus.connect(target, 0.4);
+    // The sendGain is the LAST createGain allocation (target's input/output
+    // were allocated by the Bus(target) ctor before connect ran).
+    const sendGainDisconnect = allocated[allocated.length - 1];
+
+    bus.destroy();
+
+    expect(inputDisconnect).toHaveBeenCalled();
+    expect(outputDisconnect).toHaveBeenCalled();
+    expect(filterDisconnectSpy).toHaveBeenCalled();
+    expect(sendGainDisconnect).toHaveBeenCalled();
+    expect(onDestroy).toHaveBeenCalledTimes(1);
+    expect(bus.destroyed).toBe(true);
   });
 });
 
