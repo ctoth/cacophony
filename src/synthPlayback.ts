@@ -107,6 +107,45 @@ export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(Filte
     this.eventEmitter.removeAllListeners();
   }
 
+  /**
+   * Gets the output node of this synth playback's audio graph — the final
+   * GainNode before connection to the destination. Use this to manually
+   * wire the playback into custom audio graphs.
+   *
+   * @throws if the playback has been cleaned up.
+   */
+  get outputNode(): GainNode {
+    if (!this.gainNode) {
+      throw new Error("Cannot access output node of a synth playback that has been cleaned up");
+    }
+    return this.gainNode;
+  }
+
+  /**
+   * Connects this synth playback's output to an AudioNode. Mirrors
+   * Playback.connect.
+   *
+   * @returns The destination node (for chaining).
+   * @throws if the playback has been cleaned up.
+   */
+  connect(destination: AudioNode): AudioNode {
+    return this.outputNode.connect(destination);
+  }
+
+  /**
+   * Disconnects this synth playback's output from a specific destination
+   * or from all destinations. Mirrors Playback.disconnect.
+   *
+   * @throws if the playback has been cleaned up.
+   */
+  disconnect(destination?: AudioNode): void {
+    if (destination) {
+      this.outputNode.disconnect(destination);
+    } else {
+      this.outputNode.disconnect();
+    }
+  }
+
   private recreateSource(): void {
     if (!this.panner) {
       throw new Error("Cannot recreate source of a synth that has been cleaned up");
