@@ -966,6 +966,45 @@ describe("Cacophony advanced features", () => {
       expect(sound.soundType).toBe("oscillator");
     });
 
+    it("array with first URL rejecting with a non-DOMException whose name is 'EncodingError' — propagates, does NOT fall back", async () => {
+      const urls = ["https://example.com/a.webm", "https://example.com/a.mp3"];
+      mockCanPlayType({
+        "audio/webm": "probably",
+        "audio/mpeg": "probably",
+      });
+      const spoofedDecodeError = new Error("spoofed encoding error from cache layer");
+      spoofedDecodeError.name = "EncodingError";
+      const getAudioBufferSpy = vi.spyOn(mockCache, "getAudioBuffer").mockRejectedValueOnce(spoofedDecodeError);
+
+      await expect(cacophony.createSound(urls)).rejects.toThrow(/spoofed encoding error from cache layer/);
+      expect(getAudioBufferSpy).toHaveBeenCalledTimes(1);
+      expect(getAudioBufferSpy).toHaveBeenCalledWith(audioContextMock, urls[0], undefined, expect.any(Object));
+    });
+
+    it("array with DOMException EncodingError still falls back (positive regression)", async () => {
+      const urls = ["https://example.com/a.webm", "https://example.com/a.mp3"];
+      const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      mockCanPlayType({
+        "audio/webm": "maybe",
+        "audio/mpeg": "probably",
+      });
+      const getAudioBufferSpy = vi
+        .spyOn(mockCache, "getAudioBuffer")
+        .mockRejectedValueOnce(new DOMException("Unable to decode audio data", "EncodingError"))
+        .mockResolvedValueOnce(mockBuffer);
+
+      const sound = await cacophony.createSound(urls);
+
+      expect(getAudioBufferSpy).toHaveBeenCalledTimes(2);
+      expect(sound.url).toBe(urls[1]);
+    });
+
+    it("array with soundType='oscillator' — throws not-yet-supported", async () => {
+      await expect(cacophony.createSound(["https://example.com/a.mp3"], "oscillator")).rejects.toThrow(
+        /not yet supported/i,
+      );
+    });
+
     it("array all-failed error message contains per-URL reasons for both codec-unsupported and decode-failed candidates", async () => {
       const urls = [
         "https://example.com/a.webm", // unsupported by canPlayType
