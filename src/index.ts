@@ -59,6 +59,8 @@ export type {
   SoundEvents,
   SynthEvents,
 } from "./events";
+export type { CacophonyEffect } from "./effects";
+export { BiquadEffect, ShareEffect } from "./effects";
 export { Group } from "./group";
 export type { MediaStreamSoundOptions } from "./mediaStream";
 export { MediaStreamPlayback, MediaStreamSound } from "./mediaStream";

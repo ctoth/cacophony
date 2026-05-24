@@ -5,6 +5,7 @@ import { AudioCache, type ICache } from "./cache";
 import type {
   AudioBuffer,
   AudioListener,
+  AudioNode,
   AudioWorkletNode,
   BaseContext,
   BiquadFilterNode,
@@ -13,6 +14,7 @@ import type {
   GainNode,
   PannerNode,
 } from "./context";
+import { type CacophonyEffect, markAsCacophonyBiquad, ShareEffect } from "./effects";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { CacophonyEvents } from "./events";
 import { Group } from "./group";
@@ -732,8 +734,20 @@ export class Cacophony {
     filter.frequency.value = frequency;
     filter.gain.value = gain ?? 0;
     filter.Q.value = Q ?? 1;
+    markAsCacophonyBiquad(filter);
     return filter;
   };
+
+  /**
+   * Wraps a raw AudioNode in a {@link CacophonyEffect} so it can be added
+   * to a {@link Bus} filter chain. By default `Bus.addFilter` rejects raw
+   * AudioNodes — wrapping via `shareEffect` is the explicit opt-in that
+   * signals "yes, I understand this single node will be shared across every
+   * bus I add it to."
+   */
+  shareEffect(node: AudioNode): CacophonyEffect {
+    return new ShareEffect(node);
+  }
 
   createSplitter(numChannels: number = 2): ChannelSplitterNode {
     if (!this.context.createChannelSplitter) {
