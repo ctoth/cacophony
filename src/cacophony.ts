@@ -137,6 +137,36 @@ export interface SoundCleanupHoldings {
 
 const WORKLET_LOG_PREFIX = "[cacophony/worklet]";
 
+/**
+ * Extension → MIME type map used by `createSound` format fallback to query
+ * `HTMLAudioElement.canPlayType`. Keys are lower-cased extensions without
+ * the leading dot.
+ */
+const EXTENSION_MIME_MAP: Readonly<Record<string, string>> = Object.freeze({
+  webm: "audio/webm",
+  mp3: "audio/mpeg",
+  ogg: "audio/ogg",
+  wav: "audio/wav",
+  flac: "audio/flac",
+  m4a: "audio/mp4",
+  aac: "audio/aac",
+  opus: "audio/ogg; codecs=opus",
+});
+
+/**
+ * Returns the MIME type for a URL based on its file extension, or `null` if
+ * the extension is not recognised. Query strings and fragments are ignored.
+ */
+function mimeTypeForUrl(url: string): string | null {
+  const withoutQuery = url.split(/[?#]/, 1)[0];
+  const dotIndex = withoutQuery.lastIndexOf(".");
+  if (dotIndex < 0) {
+    return null;
+  }
+  const ext = withoutQuery.slice(dotIndex + 1).toLowerCase();
+  return EXTENSION_MIME_MAP[ext] ?? null;
+}
+
 export class Cacophony {
   context: BaseContext;
   globalGainNode: GainNode;
@@ -499,12 +529,41 @@ export class Cacophony {
 
   async createSound(url: string, soundType?: SoundType, panType?: PanType, signal?: AbortSignal): Promise<Sound>;
 
+  /**
+   * Creates a Sound from the first playable URL in a Howler-style fallback
+   * array. The browser's `HTMLAudioElement.canPlayType` is queried per
+   * extension; the first source it reports as supported (`'probably'` or
+   * `'maybe'`) is fetched and decoded. If decoding rejects for a candidate,
+   * the next playable candidate is tried — a `'maybe'` can still fail at
+   * decode time.
+   *
+   * MIME types are inferred from file extensions: `.webm` → `audio/webm`,
+   * `.mp3` → `audio/mpeg`, `.ogg` → `audio/ogg`, `.wav` → `audio/wav`,
+   * `.flac` → `audio/flac`, `.m4a` → `audio/mp4`, `.aac` → `audio/aac`,
+   * `.opus` → `audio/ogg; codecs=opus`.
+   *
+   * Cache and loading events fire only for the URL actually fetched.
+   *
+   * v1 limitation: only the default `'buffer'` sound type participates in
+   * fallback. Passing an array together with `'html'` or `'streaming'`
+   * rejects with a clear "not yet supported" error.
+   *
+   * @param urls - Non-empty array of candidate URLs in priority order.
+   * @throws If the array is empty, if `soundType` is `'html'`/`'streaming'`,
+   *   or if no candidate is playable (codec unsupported or every decode
+   *   failed). The error message names the URLs that were tried.
+   */
+  async createSound(urls: string[], soundType?: SoundType, panType?: PanType, signal?: AbortSignal): Promise<Sound>;
+
   async createSound(
-    bufferOrUrl: AudioBuffer | string,
+    bufferOrUrl: AudioBuffer | string | string[],
     soundType: SoundType = "buffer",
     panType: PanType = "HRTF",
     signal?: AbortSignal,
   ): Promise<Sound> {
+    if (Array.isArray(bufferOrUrl)) {
+      return this.createSoundFromUrlArray(bufferOrUrl, soundType, panType, signal);
+    }
     if (typeof bufferOrUrl === "object") {
       return Promise.resolve(new Sound("", bufferOrUrl, this.context, this.globalGainNode, soundType, panType, this));
     }
@@ -515,17 +574,111 @@ export class Cacophony {
     if (soundType === "streaming") {
       return this.createMediaSound(url, "streaming", panType, signal);
     }
-    return this.cache
-      .getAudioBuffer(this.context, url, signal, {
-        onLoadingStart: (event) => this.emitAsync("loadingStart", event),
-        onLoadingProgress: (event) => this.emitAsync("loadingProgress", event),
-        onLoadingComplete: (event) => this.emitAsync("loadingComplete", event),
-        onLoadingError: (event) => this.emitAsync("loadingError", event),
-        onCacheHit: (event) => this.emitAsync("cacheHit", event),
-        onCacheMiss: (event) => this.emitAsync("cacheMiss", event),
-        onCacheError: (event) => this.emitAsync("cacheError", event),
-      })
-      .then((buffer) => new Sound(url as string, buffer, this.context, this.globalGainNode, soundType, panType, this));
+    return this.loadBufferSound(url, soundType, panType, signal);
+  }
+
+  private async loadBufferSound(
+    url: string,
+    soundType: SoundType,
+    panType: PanType,
+    signal?: AbortSignal,
+  ): Promise<Sound> {
+    const buffer = await this.cache.getAudioBuffer(this.context, url, signal, {
+      onLoadingStart: (event) => this.emitAsync("loadingStart", event),
+      onLoadingProgress: (event) => this.emitAsync("loadingProgress", event),
+      onLoadingComplete: (event) => this.emitAsync("loadingComplete", event),
+      onLoadingError: (event) => this.emitAsync("loadingError", event),
+      onCacheHit: (event) => this.emitAsync("cacheHit", event),
+      onCacheMiss: (event) => this.emitAsync("cacheMiss", event),
+      onCacheError: (event) => this.emitAsync("cacheError", event),
+    });
+    return new Sound(url, buffer, this.context, this.globalGainNode, soundType, panType, this);
+  }
+
+  /**
+   * Returns true if the error came from `AudioContext.decodeAudioData`.
+   *
+   * Per the Web Audio spec, decode failures throw a `DOMException` with name
+   * `EncodingError`. We deliberately do NOT treat plain `Error` instances as
+   * decode failures: fetch/cache/network errors must propagate so the caller
+   * sees the real cause instead of silently falling through to a different
+   * format. See `reports/format-fallback-codex-review.md` (Major 1).
+   */
+  private static isDecodeError(error: unknown): boolean {
+    if (error === null || typeof error !== "object") {
+      return false;
+    }
+    const name = (error as { name?: unknown }).name;
+    return name === "EncodingError";
+  }
+
+  private async createSoundFromUrlArray(
+    urls: string[],
+    soundType: SoundType,
+    panType: PanType,
+    signal?: AbortSignal,
+  ): Promise<Sound> {
+    if (urls.length === 0) {
+      throw new Error("createSound: URL array is empty; provide at least one URL");
+    }
+    if (soundType === "html" || soundType === "streaming") {
+      throw new Error(
+        `createSound: URL array with soundType='${soundType}' is not yet supported. ` +
+          `Format fallback is only available for buffer sounds in this version.`,
+      );
+    }
+    const candidateReasons = new Map<string, string>();
+    const playable: string[] = [];
+    for (const url of urls) {
+      if (this.canPlaySource(url)) {
+        playable.push(url);
+      } else {
+        const ext = url.match(/\.([a-z0-9]+)(?:\?|#|$)/i)?.[1]?.toLowerCase();
+        candidateReasons.set(url, ext ? `codec unsupported: .${ext}` : "codec unsupported: unknown extension");
+      }
+    }
+    if (playable.length === 0) {
+      const detail = urls.map((u) => `${u}: ${candidateReasons.get(u) ?? "codec unsupported"}`).join("; ");
+      throw new Error(
+        `createSound: no playable source found among [${urls.join(", ")}] ` +
+          `(no candidate's MIME type was reported as supported by HTMLAudioElement.canPlayType). ` +
+          `Reasons: ${detail}`,
+      );
+    }
+    for (const url of playable) {
+      try {
+        // Array path always produces buffer sounds; html/streaming were rejected above.
+        return await this.loadBufferSound(url, "buffer", panType, signal);
+      } catch (error) {
+        if ((error as { name?: string } | null)?.name === "AbortError") {
+          throw error;
+        }
+        if (!Cacophony.isDecodeError(error)) {
+          // Fetch/cache/network failure of the selected source — propagate.
+          // Only decode failures fall through to the next candidate.
+          throw error;
+        }
+        candidateReasons.set(url, `decode failed: ${(error as Error)?.message ?? String(error)}`);
+      }
+    }
+    const detail = urls.map((u) => `${u}: ${candidateReasons.get(u) ?? "unknown"}`).join("; ");
+    throw new Error(
+      `createSound: every playable candidate failed to decode. Tried [${urls.join(", ")}]. Reasons: ${detail}`,
+    );
+  }
+
+  private canPlaySource(url: string): boolean {
+    const mime = mimeTypeForUrl(url);
+    if (!mime) {
+      return false;
+    }
+    try {
+      const probe = new Audio();
+      const result = probe.canPlayType(mime);
+      return result === "probably" || result === "maybe";
+    } catch {
+      return false;
+    }
   }
 
   async createGroup(sounds: Sound[]): Promise<Group> {

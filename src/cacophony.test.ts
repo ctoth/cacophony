@@ -806,6 +806,186 @@ describe("Cacophony advanced features", () => {
     });
   });
 
+  describe("createSound format fallback (URL array)", () => {
+    beforeEach(() => {
+      vi.clearAllMocks();
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    const mockCanPlayType = (responses: Record<string, CanPlayTypeResult>) => {
+      vi.spyOn(global, "Audio").mockImplementation(
+        () =>
+          ({
+            canPlayType: (mime: string): CanPlayTypeResult => responses[mime] ?? "",
+          }) as unknown as HTMLAudioElement,
+      );
+    };
+
+    it("array with one URL behaves like single-string URL", async () => {
+      const url = "https://example.com/audio.mp3";
+      const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      mockCanPlayType({ "audio/mpeg": "probably" });
+      const getAudioBufferSpy = vi.spyOn(mockCache, "getAudioBuffer").mockResolvedValueOnce(mockBuffer);
+
+      const sound = await cacophony.createSound([url]);
+
+      expect(getAudioBufferSpy).toHaveBeenCalledTimes(1);
+      expect(getAudioBufferSpy).toHaveBeenCalledWith(audioContextMock, url, undefined, expect.any(Object));
+      expect(sound.url).toBe(url);
+      expect(sound.buffer).toBe(mockBuffer);
+    });
+
+    it("array with multiple URLs, all supported — picks the first", async () => {
+      const urls = ["https://example.com/a.webm", "https://example.com/a.mp3", "https://example.com/a.wav"];
+      const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      mockCanPlayType({
+        "audio/webm": "probably",
+        "audio/mpeg": "probably",
+        "audio/wav": "probably",
+      });
+      const getAudioBufferSpy = vi.spyOn(mockCache, "getAudioBuffer").mockResolvedValueOnce(mockBuffer);
+
+      const sound = await cacophony.createSound(urls);
+
+      expect(getAudioBufferSpy).toHaveBeenCalledTimes(1);
+      expect(getAudioBufferSpy).toHaveBeenCalledWith(audioContextMock, urls[0], undefined, expect.any(Object));
+      expect(sound.url).toBe(urls[0]);
+    });
+
+    it("array with first URL unsupported by canPlayType — picks the second", async () => {
+      const urls = ["https://example.com/a.webm", "https://example.com/a.mp3"];
+      const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      mockCanPlayType({
+        "audio/webm": "",
+        "audio/mpeg": "probably",
+      });
+      const getAudioBufferSpy = vi.spyOn(mockCache, "getAudioBuffer").mockResolvedValueOnce(mockBuffer);
+
+      const sound = await cacophony.createSound(urls);
+
+      expect(getAudioBufferSpy).toHaveBeenCalledTimes(1);
+      expect(getAudioBufferSpy).toHaveBeenCalledWith(audioContextMock, urls[1], undefined, expect.any(Object));
+      expect(sound.url).toBe(urls[1]);
+    });
+
+    it("array with first URL passing canPlayType but decode throws — falls back and decodes the second", async () => {
+      const urls = ["https://example.com/a.webm", "https://example.com/a.mp3"];
+      const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      mockCanPlayType({
+        "audio/webm": "maybe",
+        "audio/mpeg": "probably",
+      });
+      const getAudioBufferSpy = vi
+        .spyOn(mockCache, "getAudioBuffer")
+        .mockRejectedValueOnce(new DOMException("Unable to decode audio data", "EncodingError"))
+        .mockResolvedValueOnce(mockBuffer);
+
+      const sound = await cacophony.createSound(urls);
+
+      expect(getAudioBufferSpy).toHaveBeenCalledTimes(2);
+      expect(getAudioBufferSpy).toHaveBeenNthCalledWith(1, audioContextMock, urls[0], undefined, expect.any(Object));
+      expect(getAudioBufferSpy).toHaveBeenNthCalledWith(2, audioContextMock, urls[1], undefined, expect.any(Object));
+      expect(sound.url).toBe(urls[1]);
+    });
+
+    it("array with no playable URLs — throws an error listing all URLs", async () => {
+      const urls = ["https://example.com/a.webm", "https://example.com/a.flac"];
+      mockCanPlayType({
+        "audio/webm": "",
+        "audio/flac": "",
+      });
+      const getAudioBufferSpy = vi.spyOn(mockCache, "getAudioBuffer");
+
+      await expect(cacophony.createSound(urls)).rejects.toThrow(/a\.webm[\s\S]*a\.flac/);
+      expect(getAudioBufferSpy).not.toHaveBeenCalled();
+    });
+
+    it("array with all canPlayType candidates failing decode — throws listing tried URLs", async () => {
+      const urls = ["https://example.com/a.webm", "https://example.com/a.mp3"];
+      mockCanPlayType({
+        "audio/webm": "maybe",
+        "audio/mpeg": "maybe",
+      });
+      vi.spyOn(mockCache, "getAudioBuffer").mockRejectedValue(
+        new DOMException("Unable to decode audio data", "EncodingError"),
+      );
+
+      await expect(cacophony.createSound(urls)).rejects.toThrow(/a\.webm[\s\S]*a\.mp3/);
+    });
+
+    it("empty array — throws with clear error", async () => {
+      await expect(cacophony.createSound([])).rejects.toThrow(/empty|at least one/i);
+    });
+
+    it("array with SoundType.html — throws not-yet-supported", async () => {
+      await expect(cacophony.createSound(["https://example.com/a.mp3"], "html")).rejects.toThrow(/not yet supported/i);
+    });
+
+    it("array with SoundType.streaming — throws not-yet-supported", async () => {
+      await expect(cacophony.createSound(["https://example.com/a.mp3"], "streaming")).rejects.toThrow(
+        /not yet supported/i,
+      );
+    });
+
+    it("single-string URL — existing behavior unchanged (regression)", async () => {
+      const url = "https://example.com/audio.mp3";
+      const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const getAudioBufferSpy = vi.spyOn(mockCache, "getAudioBuffer").mockResolvedValueOnce(mockBuffer);
+
+      const sound = await cacophony.createSound(url);
+
+      expect(getAudioBufferSpy).toHaveBeenCalledTimes(1);
+      expect(getAudioBufferSpy).toHaveBeenCalledWith(audioContextMock, url, undefined, expect.any(Object));
+      expect(sound.url).toBe(url);
+    });
+
+    it("array with first URL fetch failure (non-decode error) — propagates, does NOT fall back", async () => {
+      const urls = ["https://example.com/a.webm", "https://example.com/a.mp3"];
+      mockCanPlayType({
+        "audio/webm": "probably",
+        "audio/mpeg": "probably",
+      });
+      const fetchError = new Error("network unreachable");
+      const getAudioBufferSpy = vi.spyOn(mockCache, "getAudioBuffer").mockRejectedValueOnce(fetchError);
+
+      await expect(cacophony.createSound(urls)).rejects.toThrow(/network unreachable/);
+      expect(getAudioBufferSpy).toHaveBeenCalledTimes(1);
+      expect(getAudioBufferSpy).toHaveBeenCalledWith(audioContextMock, urls[0], undefined, expect.any(Object));
+    });
+
+    it("single-string URL preserves caller's soundType (regression for refactor)", async () => {
+      const url = "https://example.com/audio.mp3";
+      const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      vi.spyOn(mockCache, "getAudioBuffer").mockResolvedValueOnce(mockBuffer);
+
+      const sound = await cacophony.createSound(url, "oscillator");
+
+      expect(sound.soundType).toBe("oscillator");
+    });
+
+    it("array all-failed error message contains per-URL reasons for both codec-unsupported and decode-failed candidates", async () => {
+      const urls = [
+        "https://example.com/a.webm", // unsupported by canPlayType
+        "https://example.com/a.flac", // unsupported by canPlayType
+        "https://example.com/a.mp3", // playable but decode fails
+      ];
+      mockCanPlayType({
+        "audio/webm": "",
+        "audio/flac": "",
+        "audio/mpeg": "maybe",
+      });
+      const decodeErr = new DOMException("Unable to decode audio data", "EncodingError");
+      vi.spyOn(mockCache, "getAudioBuffer").mockRejectedValue(decodeErr);
+
+      await expect(cacophony.createSound(urls)).rejects.toThrow(
+        /a\.webm.*codec unsupported[\s\S]*a\.flac.*codec unsupported[\s\S]*a\.mp3.*decode failed/i,
+      );
+    });
+  });
+
   describe("Global playback events", () => {
     it("emits globalPlay event when a Sound plays", async () => {
       const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });

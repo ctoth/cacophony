@@ -148,6 +148,40 @@ const music = await cacophony.createSound('bgm.mp3', 'html');
 const radio = await cacophony.createStream('https://example.com/stream.m3u8');
 ```
 
+### Format Fallback (Howler-style)
+
+Pass an array of URLs and Cacophony picks the first one the browser can play.
+It queries `HTMLAudioElement.canPlayType` per extension and fetches only the
+chosen source (cache and loading events fire only for that URL). If the
+selected source's `canPlayType` was `'maybe'` and decoding actually fails,
+the next playable candidate is tried.
+
+```typescript
+// First playable source wins. Cacophony fetches only that one.
+const boom = await cacophony.createSound([
+  'sfx/boom.webm',  // small/modern, preferred when supported
+  'sfx/boom.mp3',   // universal fallback
+  'sfx/boom.wav',   // last-resort uncompressed
+]);
+boom.play();
+```
+
+Recognised extensions: `.webm`, `.mp3`, `.ogg`, `.wav`, `.flac`, `.m4a`,
+`.aac`, `.opus`. If no candidate is reported playable, or every playable
+candidate fails to decode, the promise rejects with an error naming the
+URLs that were tried and the reason each failed (codec unsupported or
+decode failure).
+
+Only decode failures advance to the next candidate. Fetch/network/cache
+failures of the selected source propagate immediately so the caller sees
+the real cause instead of a silent format swap. Decode failures are
+detected by the Web Audio spec marker -- `DOMException` with name
+`EncodingError`.
+
+v1 limitation: format fallback is only available for the default `'buffer'`
+sound type. Passing an array together with `'html'` or `'streaming'`
+rejects with a "not yet supported" error.
+
 ## Playback Control
 
 ### Seeking
