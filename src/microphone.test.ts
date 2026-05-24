@@ -231,4 +231,34 @@ describe("MicrophoneStream", () => {
     mic.playbackRate = 2;
     expect(mic.playbackRate).toBe(1);
   });
+
+  it("connects the internal microphoneGainNode to the provided outputNode", () => {
+    // Regression test for routing bug: MicrophoneStream previously created
+    // a microphoneGainNode that was never connected to anything downstream,
+    // so volume/mute on the chain were inaudible. The fix wires the gain
+    // node through an optional outputNode in the constructor.
+    // See notes/scout-routing-graph.md ("MicrophonePlayback" / dangling
+    // gain node observation).
+    const outputNode = context.createGain();
+    const gainConnectSpy = vi.fn();
+    const realCreateGain = (context as any).createGain.bind(context);
+    let firstGain: any;
+    vi.spyOn(context as any, "createGain").mockImplementation(() => {
+      const node = realCreateGain();
+      if (!firstGain) {
+        firstGain = node;
+        const realConnect = node.connect.bind(node);
+        node.connect = (...args: any[]) => {
+          gainConnectSpy(...args);
+          return realConnect(...args);
+        };
+      }
+      return node;
+    });
+
+    const _mic = new MicrophoneStream(context, mockStream, outputNode);
+
+    expect(gainConnectSpy).toHaveBeenCalled();
+    expect(gainConnectSpy.mock.calls.some((call) => call[0] === outputNode)).toBe(true);
+  });
 });

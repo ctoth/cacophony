@@ -128,6 +128,54 @@ describe("Stream operations with AbortController", () => {
     expect(mockResponse.body.getReader).toHaveBeenCalled();
   });
 
+  it("routes decoded BufferSource through outputNode (not context.destination) when outputNode is provided", async () => {
+    // Regression test for routing bug: stream.ts previously connected the
+    // decoded BufferSource directly to context.destination, bypassing the
+    // library's globalGainNode. Now the function accepts an optional
+    // outputNode so callers can route streamed audio through their shared
+    // gain node. See notes/scout-routing-graph.md.
+    const sourceConnectSpy = vi.fn();
+    const originalCreateBufferSource = audioContextMock.createBufferSource.bind(audioContextMock);
+    vi.spyOn(audioContextMock, "createBufferSource").mockImplementation(() => {
+      const realSource = originalCreateBufferSource();
+      const wrapped = new Proxy(realSource, {
+        get(target, prop, receiver) {
+          if (prop === "connect") {
+            return (...args: any[]) => {
+              sourceConnectSpy(...args);
+              return (target as any).connect(...args);
+            };
+          }
+          return Reflect.get(target, prop, receiver);
+        },
+        set(target, prop, value, receiver) {
+          return Reflect.set(target, prop, value, receiver);
+        },
+      });
+      return wrapped as any;
+    });
+
+    const outputNode = audioContextMock.createGain();
+    const chunk = new Uint8Array(48);
+    chunk.set([82, 73, 70, 70], 0);
+    chunk.set([87, 65, 86, 69], 8);
+
+    mockReader.read
+      .mockResolvedValueOnce({ value: chunk, done: false })
+      .mockResolvedValueOnce({ value: undefined, done: true });
+
+    createStream("https://example.com/audio.wav", audioContextMock, undefined, outputNode);
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(sourceConnectSpy).toHaveBeenCalled();
+    // Every call must target outputNode, never the raw context.destination.
+    for (const call of sourceConnectSpy.mock.calls) {
+      expect(call[0]).toBe(outputNode);
+      expect(call[0]).not.toBe(audioContextMock.destination);
+    }
+  });
+
   it("should prepend the WAV header when decoding chunks after the first", async () => {
     const firstChunk = new Uint8Array(48);
     firstChunk.set([82, 73, 70, 70], 0);
