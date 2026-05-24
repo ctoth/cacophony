@@ -1,3 +1,4 @@
+import { AudioContext } from "standardized-audio-context-mock";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BiquadEffect,
@@ -158,5 +159,49 @@ describe("Cacophony.createReverb / loadDattorroReverb", () => {
     await bus.addFilter(reverb);
     expect(bus.filters.length).toBe(1);
     bus.destroy();
+  });
+
+  it("ReverbEffect.build(contextB) calls addModule on contextB even after the worklet was loaded on contextA", async () => {
+    // Regression for codex MAJOR finding: `loadedAudioWorklets` was a single
+    // `Set<string>` on the host Cacophony. After loading "dattorro-reverb"
+    // on contextA, calling effect.build(contextB) skipped
+    // `contextB.audioWorklet.addModule()` because the name was in the host
+    // set, leaving B with no registered worklet and the construct path
+    // throwing. Per-context keying (WeakMap<BaseContext, Set<string>>) fixes
+    // this — module loaded for context X is not "loaded" for context Y.
+
+    // Step 1: load "dattorro-reverb" on contextA (the host context).
+    // `loadDattorroReverb()` calls `audioWorklet.addModule()` directly — it
+    // does NOT construct an AudioWorkletNode, so no construct-mock is needed.
+    const addModuleA = mockAudioWorklet();
+    await cacophony.loadDattorroReverb();
+    expect(addModuleA).toHaveBeenCalledTimes(1);
+
+    // Step 2: build a second, distinct mock context with its own addModule
+    // spy. This is the cross-context case (e.g. a Bus on a different context).
+    const contextB = new AudioContext();
+    const addModuleB = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(contextB, "audioWorklet", {
+      value: { addModule: addModuleB },
+      writable: true,
+      configurable: true,
+    });
+
+    // Step 3: force the first construct on B to throw so the fallback load
+    // path runs. Under the pre-fix host-scoped cache, the fallback skipped
+    // addModule on B by name alone, leaving B without the module.
+    vi.mocked(AudioWorkletNode).mockImplementationOnce(() => {
+      throw new Error("Worklet not loaded on B");
+    });
+
+    const effect = cacophony.createReverb({ wet: 0.5 });
+    await effect.build(contextB as any);
+
+    // The fix: addModule must run on contextB. Pre-fix this assertion fails
+    // because the host-set short-circuit skipped the load.
+    expect(addModuleB).toHaveBeenCalledTimes(1);
+    // And addModule must NOT have been re-called on contextA — the per-context
+    // cache still short-circuits same-context reloads.
+    expect(addModuleA).toHaveBeenCalledTimes(1);
   });
 });

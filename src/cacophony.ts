@@ -183,7 +183,16 @@ export class Cacophony {
   master: Bus;
   listener: AudioListener;
   private prevVolume: number = 1;
-  private loadedAudioWorklets: Set<string> = new Set();
+  /**
+   * Per-context cache of "module-name has been loaded on this BaseContext".
+   * Keyed on the context itself because `AudioWorklet.addModule()` registers
+   * the module against ONE context — a module loaded on context A is NOT
+   * loaded on context B. A previous host-scoped `Set<string>` short-circuited
+   * `loadAudioWorkletModule()` on name alone, so cross-context
+   * {@link ReverbEffect.build} would skip `addModule` on the new context and
+   * the second construct would throw with no module registered.
+   */
+  private loadedAudioWorklets: WeakMap<BaseContext, Set<string>> = new WeakMap();
   private finalizationRegistry: FinalizationRegistry<SoundCleanupHoldings>;
   private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
@@ -437,13 +446,13 @@ export class Cacophony {
       const node = this.createAudioWorkletNode(ctx, name, options);
       console.info(`${WORKLET_LOG_PREFIX} construct succeeded`, {
         name,
-        loaded: this.loadedAudioWorklets.has(name),
+        loaded: this.isWorkletLoadedOn(ctx, name),
       });
       return node;
     } catch (err) {
       console.warn(`${WORKLET_LOG_PREFIX} construct failed`, {
         name,
-        loaded: this.loadedAudioWorklets.has(name),
+        loaded: this.isWorkletLoadedOn(ctx, name),
         error: err,
       });
       try {
@@ -481,6 +490,26 @@ export class Cacophony {
     });
   }
 
+  /**
+   * Lookup helper: has worklet `name` been loaded on `ctx` (per the
+   * per-context {@link loadedAudioWorklets} cache).
+   */
+  private isWorkletLoadedOn(ctx: BaseContext, name: string): boolean {
+    return this.loadedAudioWorklets.get(ctx)?.has(name) ?? false;
+  }
+
+  /**
+   * Record `name` as loaded on `ctx`, lazily allocating the per-context Set.
+   */
+  private markWorkletLoadedOn(ctx: BaseContext, name: string): void {
+    let names = this.loadedAudioWorklets.get(ctx);
+    if (!names) {
+      names = new Set<string>();
+      this.loadedAudioWorklets.set(ctx, names);
+    }
+    names.add(name);
+  }
+
   private async loadAudioWorkletModule(
     name: string,
     url: string,
@@ -491,7 +520,11 @@ export class Cacophony {
     if (!ctx.audioWorklet) {
       throw new Error("AudioWorklet not supported");
     }
-    if (this.loadedAudioWorklets.has(name)) {
+    // Per-context membership: a module loaded on context A is NOT loaded on
+    // context B. The previous host-scoped check by name only would skip the
+    // addModule on B after A had loaded the same name, leaving B without
+    // the worklet registered.
+    if (this.isWorkletLoadedOn(ctx, name)) {
       console.info(`${WORKLET_LOG_PREFIX} load skipped`, { name });
       return;
     }
@@ -505,7 +538,7 @@ export class Cacophony {
         credentials: "same-origin",
         ...(signal && { signal }),
       });
-      this.loadedAudioWorklets.add(name);
+      this.markWorkletLoadedOn(ctx, name);
       console.info(`${WORKLET_LOG_PREFIX} addModule resolved`, { name });
     } catch (err) {
       console.error(`${WORKLET_LOG_PREFIX} addModule rejected`, {
