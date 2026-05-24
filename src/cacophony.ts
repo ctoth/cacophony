@@ -377,9 +377,20 @@ export class Cacophony {
    * context. Safe to call repeatedly — subsequent calls short-circuit via
    * the {@link loadedAudioWorklets} set used by
    * {@link loadAudioWorkletModule}.
+   *
+   * @param signal Optional abort signal forwarded to the module load.
+   * @param context Optional BaseContext to load the worklet on. Defaults to
+   *   the host Cacophony instance's `context`. Supplied so a
+   *   {@link ReverbEffect} added to a bus whose context is NOT this host's
+   *   own (cross-context use) can load the worklet on the right context.
    */
-  async loadDattorroReverb(signal?: AbortSignal): Promise<void> {
-    await this.loadAudioWorkletModule("dattorro-reverb", dattorroReverbProcessorWorkletUrl, signal);
+  async loadDattorroReverb(signal?: AbortSignal, context?: BaseContext): Promise<void> {
+    await this.loadAudioWorkletModule(
+      "dattorro-reverb",
+      dattorroReverbProcessorWorkletUrl,
+      signal,
+      context,
+    );
   }
 
   /**
@@ -387,9 +398,23 @@ export class Cacophony {
    * loaded the module already (via {@link loadDattorroReverb} or by reaching
    * here through {@link ReverbEffect.build}). Uses the same construct/fallback
    * path as {@link createWorkletNode}.
+   *
+   * @param options AudioWorkletNode construction options.
+   * @param context Optional BaseContext to construct on. Defaults to the
+   *   host Cacophony instance's `context`. See {@link loadDattorroReverb}
+   *   for the cross-context rationale.
    */
-  async createDattorroReverbNode(options: AudioWorkletNodeOptions): Promise<AudioWorkletNode> {
-    return this.createWorkletNode("dattorro-reverb", dattorroReverbProcessorWorkletUrl, undefined, options);
+  async createDattorroReverbNode(
+    options: AudioWorkletNodeOptions,
+    context?: BaseContext,
+  ): Promise<AudioWorkletNode> {
+    return this.createWorkletNode(
+      "dattorro-reverb",
+      dattorroReverbProcessorWorkletUrl,
+      undefined,
+      options,
+      context,
+    );
   }
 
   async createWorkletNode(
@@ -397,13 +422,19 @@ export class Cacophony {
     url: string,
     signal?: AbortSignal,
     options?: AudioWorkletNodeOptions,
+    context?: BaseContext,
   ): Promise<AudioWorkletNode> {
+    // Use the supplied context for cross-context worklet construction
+    // (e.g. ReverbEffect built against a context other than this host's
+    // own). Default to this host's `context` for the common single-context
+    // case so all existing callers keep working without a change.
+    const ctx = context ?? this.context;
     // ensure audioWorklet has been loaded
-    if (!this.context.audioWorklet) {
+    if (!ctx.audioWorklet) {
       throw new Error("AudioWorklet not supported");
     }
     try {
-      const node = this.createAudioWorkletNode(this.context, name, options);
+      const node = this.createAudioWorkletNode(ctx, name, options);
       console.info(`${WORKLET_LOG_PREFIX} construct succeeded`, {
         name,
         loaded: this.loadedAudioWorklets.has(name),
@@ -416,7 +447,7 @@ export class Cacophony {
         error: err,
       });
       try {
-        await this.loadAudioWorkletModule(name, url, signal);
+        await this.loadAudioWorkletModule(name, url, signal, ctx);
       } catch (err) {
         console.error(`${WORKLET_LOG_PREFIX} load failed`, {
           name,
@@ -426,7 +457,7 @@ export class Cacophony {
       }
 
       try {
-        const node = this.createAudioWorkletNode(this.context, name, options);
+        const node = this.createAudioWorkletNode(ctx, name, options);
         console.info(`${WORKLET_LOG_PREFIX} construct after load succeeded`, { name });
         return node;
       } catch (err) {
@@ -450,8 +481,14 @@ export class Cacophony {
     });
   }
 
-  private async loadAudioWorkletModule(name: string, url: string, signal?: AbortSignal): Promise<void> {
-    if (!this.context.audioWorklet) {
+  private async loadAudioWorkletModule(
+    name: string,
+    url: string,
+    signal?: AbortSignal,
+    context?: BaseContext,
+  ): Promise<void> {
+    const ctx = context ?? this.context;
+    if (!ctx.audioWorklet) {
       throw new Error("AudioWorklet not supported");
     }
     if (this.loadedAudioWorklets.has(name)) {
@@ -464,7 +501,7 @@ export class Cacophony {
       aborted: signal?.aborted ?? false,
     });
     try {
-      await this.context.audioWorklet.addModule(url, {
+      await ctx.audioWorklet.addModule(url, {
         credentials: "same-origin",
         ...(signal && { signal }),
       });

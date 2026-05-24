@@ -106,13 +106,20 @@ describe("Cacophony.createReverb / loadDattorroReverb", () => {
     expect(isCacophonyEffect(effect)).toBe(true);
   });
 
-  it("ReverbEffect.build awaits loadDattorroReverb and returns an AudioWorkletNode", async () => {
+  it("ReverbEffect.build awaits loadDattorroReverb and constructs the 'dattorro-reverb' worklet node", async () => {
     const loadSpy = vi.spyOn(cacophony, "loadDattorroReverb");
+    const workletSpy = vi.spyOn(cacophony, "createWorkletNode");
     const effect = cacophony.createReverb({ wet: 0.5, dry: 0.5 });
     const node = await effect.build(cacophony.context);
     expect(loadSpy).toHaveBeenCalled();
     expect(node).toBeDefined();
+    // The constructed AudioWorkletNode must be the dattorro-reverb processor
+    // (not some other worklet). Asserting the name pins the routing through
+    // createWorkletNode("dattorro-reverb", ...).
+    expect(workletSpy).toHaveBeenCalled();
+    expect(workletSpy.mock.calls[0]?.[0]).toBe("dattorro-reverb");
     loadSpy.mockRestore();
+    workletSpy.mockRestore();
   });
 
   it("loadDattorroReverb is idempotent — second call does not re-add the module", async () => {
@@ -129,15 +136,19 @@ describe("Cacophony.createReverb / loadDattorroReverb", () => {
     expect(addModule.mock.calls.length).toBe(addModuleCallsAfterFirst);
   });
 
-  it("createReverb passes options as parameterData to the worklet", async () => {
+  it("createReverb passes options as parameterData to the worklet (and forwards the build context)", async () => {
     const createNodeSpy = vi
       .spyOn(cacophony, "createDattorroReverbNode")
       .mockResolvedValue({} as any);
     const effect = cacophony.createReverb({ wet: 0.7, dry: 0.3, decay: 0.8 });
     await effect.build(cacophony.context);
-    expect(createNodeSpy).toHaveBeenCalledWith({
-      parameterData: { wet: 0.7, dry: 0.3, decay: 0.8 },
-    });
+    // ReverbEffect.build forwards the supplied context as the second arg so
+    // cross-context use (effect on a bus whose context differs from the
+    // host's own) constructs the worklet on the right context.
+    expect(createNodeSpy).toHaveBeenCalledWith(
+      { parameterData: { wet: 0.7, dry: 0.3, decay: 0.8 } },
+      cacophony.context,
+    );
     createNodeSpy.mockRestore();
   });
 

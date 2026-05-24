@@ -20,10 +20,14 @@ import type { AudioNode, AudioWorkletNode, BaseContext, BiquadFilterNode } from 
 /**
  * Minimal structural interface for the Cacophony surface ReverbEffect needs.
  * Declared locally so this module avoids a circular import on cacophony.ts.
+ *
+ * Both methods accept an optional `BaseContext` so the effect can build on a
+ * context different from the host Cacophony instance's own — required for the
+ * cross-context contract `CacophonyEffect.build(context)` promises.
  */
 interface ReverbHost {
-  loadDattorroReverb(): Promise<void>;
-  createDattorroReverbNode(options: AudioWorkletNodeOptions): Promise<AudioWorkletNode>;
+  loadDattorroReverb(signal?: AbortSignal, context?: BaseContext): Promise<void>;
+  createDattorroReverbNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode>;
 }
 
 /**
@@ -129,10 +133,16 @@ export interface ReverbOptions {
 
 /**
  * CacophonyEffect that builds a DattorroReverb AudioWorkletNode. Calls
- * `cacophony.loadDattorroReverb()` first to idempotently ensure the worklet
- * module is registered, then constructs the worklet node with the supplied
- * options as `parameterData`. The returned node is the head AND tail of
- * the subgraph (single-node wet/dry handled internally by the processor).
+ * `cacophony.loadDattorroReverb(undefined, context)` first to idempotently
+ * ensure the worklet module is registered on the supplied context, then
+ * constructs the worklet node on the same context with the supplied options
+ * as `parameterData`. The returned node is the head AND tail of the
+ * subgraph (single-node wet/dry handled internally by the processor).
+ *
+ * Cross-context support: `build(context)` honors the {@link CacophonyEffect}
+ * contract — when the effect is added to a Bus whose context differs from
+ * the creating Cacophony's own context, the worklet is loaded and the
+ * AudioWorkletNode is constructed against the bus's context, not the host's.
  */
 export class ReverbEffect implements CacophonyEffect {
   constructor(
@@ -140,9 +150,12 @@ export class ReverbEffect implements CacophonyEffect {
     private readonly options: ReverbOptions = {},
   ) {}
 
-  async build(_context: BaseContext): Promise<AudioWorkletNode> {
-    await this.host.loadDattorroReverb();
-    return this.host.createDattorroReverbNode({ parameterData: this.options as Record<string, number> });
+  async build(context: BaseContext): Promise<AudioWorkletNode> {
+    await this.host.loadDattorroReverb(undefined, context);
+    return this.host.createDattorroReverbNode(
+      { parameterData: this.options as Record<string, number> },
+      context,
+    );
   }
 }
 
