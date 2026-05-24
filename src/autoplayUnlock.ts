@@ -80,6 +80,17 @@ export function installAutoplayUnlock(opts: AutoplayUnlockOptions): () => void {
     return () => {};
   }
 
+  // `BaseContext.resume` is optional. If this context has no resume() we
+  // cannot actually unlock it — installing gesture listeners would be noise,
+  // and firing the `unlock` event without a fulfilled resume() would violate
+  // the contract (caller would see `unlock` while `Cacophony.locked` stays
+  // true, since `locked` is derived from `context.state === "suspended"`).
+  // Treat the absence as "this context isn't ours to unlock" and bail.
+  const resume = (context as unknown as { resume?: () => Promise<void> }).resume;
+  if (typeof resume !== "function") {
+    return () => {};
+  }
+
   const doc = document as unknown as DocumentLike;
   const target: EventTargetLike = (doc.body as EventTargetLike | null | undefined) ?? doc;
 
@@ -132,30 +143,20 @@ export function installAutoplayUnlock(opts: AutoplayUnlockOptions): () => void {
     // Resume the context, then emit unlock. The `unlock` event signals that
     // audio is actually playable, so we must wait for resume() to fulfill
     // before emitting. On rejection we surface the error and do NOT emit
-    // unlock — a failed resume is not an unlock.
-    const resume = (context as unknown as { resume?: () => Promise<void> }).resume;
-    if (typeof resume === "function") {
-      resume.call(context).then(
-        () => {
-          try {
-            onUnlock();
-          } catch (err) {
-            console.error("[cacophony/autoplayUnlock] onUnlock callback threw:", err);
-          }
-        },
-        (err: unknown) => {
-          console.warn("[cacophony/autoplayUnlock] resume failed:", err);
-        },
-      );
-    } else {
-      // No resume() available (unusual, but possible in stubbed contexts).
-      // The primer is enough to consider the context unlocked.
-      try {
-        onUnlock();
-      } catch (err) {
-        console.error("[cacophony/autoplayUnlock] onUnlock callback threw:", err);
-      }
-    }
+    // unlock — a failed resume is not an unlock. `resume` is guaranteed to
+    // be a function here (guarded at install time above).
+    resume.call(context).then(
+      () => {
+        try {
+          onUnlock();
+        } catch (err) {
+          console.error("[cacophony/autoplayUnlock] onUnlock callback threw:", err);
+        }
+      },
+      (err: unknown) => {
+        console.warn("[cacophony/autoplayUnlock] resume failed:", err);
+      },
+    );
   };
 
   for (const type of UNLOCK_EVENT_TYPES) {

@@ -2,6 +2,7 @@ import { AudioBuffer, AudioContext } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Cacophony } from "./cacophony";
+import { installAutoplayUnlock } from "./autoplayUnlock";
 import type { BaseContext, AudioBuffer as CacophonyAudioBuffer } from "./context";
 import { mockCache } from "./setupTests";
 
@@ -352,6 +353,36 @@ describe("Autoplay unlock", () => {
       expect(stopSpy).toHaveBeenCalledWith(0);
       // start must precede stop
       expect(startSpy.mock.invocationCallOrder[0]).toBeLessThan(stopSpy.mock.invocationCallOrder[0]);
+    });
+  });
+
+  describe("missing resume() on context", () => {
+    it("does NOT install gesture listeners when context.resume is not a function", () => {
+      const doc = installMockDocument();
+      // Hand-built minimal BaseContext-like stub: suspended, no resume method.
+      // Models the optional-resume shape declared at src/context.ts:182 and the
+      // codex PR-#81 finding — installing listeners is pointless when we can't
+      // actually unlock the context, and would cause `unlock` to fire while
+      // `Cacophony.locked` stays true (locked is derived from state).
+      const stub = {
+        state: "suspended",
+        sampleRate: 44100,
+        // No `resume` property at all.
+      } as unknown as BaseContext;
+
+      const onUnlock = vi.fn();
+      const cleanup = installAutoplayUnlock({ context: stub, onUnlock });
+
+      expect(doc.addEventListenerSpy).not.toHaveBeenCalled();
+      expect(typeof cleanup).toBe("function");
+      // Cleanup must be a safe no-op.
+      expect(() => cleanup()).not.toThrow();
+
+      // And no gesture path could have fired onUnlock (nothing listening).
+      doc.fire("click");
+      doc.fire("touchend");
+      doc.fire("keydown");
+      expect(onUnlock).not.toHaveBeenCalled();
     });
   });
 
