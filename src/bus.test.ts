@@ -296,6 +296,23 @@ describe("Bus: filter chain refresh", () => {
     expect(bus.filters).toEqual([f2]);
   });
 
+  it("refreshes only this bus's edges when a filter node is shared", async () => {
+    const shared = cacophony.context.createGain();
+    const busA = new Bus(cacophony.context, "a");
+    const busB = new Bus(cacophony.context, "b");
+
+    await busA.addFilter(cacophony.shareEffect(shared));
+    await busB.addFilter(cacophony.shareEffect(shared));
+
+    const disconnectShared = vi.spyOn(shared, "disconnect");
+    const secondFilter = cacophony.createBiquadFilter({ frequency: 200 });
+    await busB.addFilter(secondFilter);
+
+    expect(disconnectShared).not.toHaveBeenCalledWith();
+    expect(disconnectShared).not.toHaveBeenCalledWith(busA.output);
+    expect(disconnectShared).toHaveBeenCalledWith(busB.output);
+  });
+
   it("removeFilter throws if the node was never added", () => {
     const bus = new Bus(cacophony.context, null);
     const filter = cacophony.createBiquadFilter({ frequency: 100 });

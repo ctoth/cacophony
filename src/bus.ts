@@ -52,6 +52,7 @@ export class Bus {
 
   private readonly _context: BaseContext;
   private readonly _filterNodes: AudioNode[] = [];
+  private readonly _filterChainEdges: Array<readonly [AudioNode, AudioNode]> = [];
   private readonly _sendGains: Map<BusConnectionTarget, GainNode> = new Map();
   private readonly _directConnections: Set<BusConnectionTarget> = new Set();
   /**
@@ -80,7 +81,7 @@ export class Bus {
     this.input = input ?? context.createGain();
     this.output = context.createGain();
     this._onDestroy = onDestroy;
-    this.input.connect(this.output);
+    this._connectFilterChainEdge(this.input, this.output);
   }
 
   /** True after {@link destroy} has been called. */
@@ -148,12 +149,6 @@ export class Bus {
       throw new Error("Cannot remove filter that was never added to this bus");
     }
     this._filterNodes.splice(idx, 1);
-    try {
-      node.disconnect();
-    } catch {
-      // Filter node may have been disconnected by hand; we tolerate that on
-      // removal so cleanup is not blocked by a no-op disconnect throw.
-    }
     this._refreshFilters();
   }
 
@@ -263,12 +258,10 @@ export class Bus {
     }
     this._sendGains.clear();
     this._directConnections.clear();
-    // Disconnect every filter and the input/output nodes.
-    for (const node of this._filterNodes) {
-      try {
-        node.disconnect();
-      } catch {}
-    }
+    // Disconnect only this bus's internal chain edges. Filter nodes may be
+    // shared with other buses, so broad node.disconnect() would steal their
+    // routes.
+    this._disconnectFilterChainEdges();
     this._filterNodes.length = 0;
     try {
       this.input.disconnect();
@@ -281,29 +274,36 @@ export class Bus {
 
   /**
    * Rebuild the chain `input → [filter1 → ... → filterN] → output`. Called
-   * after any add/remove of a filter. Disconnects the input's outgoing edges
-   * (and each filter's outgoing edges) first, then reapplies the chain.
-   * The output node's edges to downstream targets are not touched.
+   * after any add/remove of a filter. Disconnects only the internal chain
+   * edges this bus created, then reapplies the chain. The output node's edges
+   * to downstream targets are not touched.
    */
   private _refreshFilters(): void {
-    try {
-      this.input.disconnect();
-    } catch {}
-    for (const f of this._filterNodes) {
-      try {
-        f.disconnect();
-      } catch {}
-    }
+    this._disconnectFilterChainEdges();
     if (this._filterNodes.length === 0) {
-      this.input.connect(this.output);
+      this._connectFilterChainEdge(this.input, this.output);
       return;
     }
     let prev: AudioNode = this.input;
     for (const f of this._filterNodes) {
-      prev.connect(f);
+      this._connectFilterChainEdge(prev, f);
       prev = f;
     }
-    prev.connect(this.output);
+    this._connectFilterChainEdge(prev, this.output);
+  }
+
+  private _connectFilterChainEdge(source: AudioNode, destination: AudioNode): void {
+    source.connect(destination);
+    this._filterChainEdges.push([source, destination]);
+  }
+
+  private _disconnectFilterChainEdges(): void {
+    for (const [source, destination] of this._filterChainEdges) {
+      try {
+        source.disconnect(destination);
+      } catch {}
+    }
+    this._filterChainEdges.length = 0;
   }
 
   private _throwIfDestroyed(): void {
