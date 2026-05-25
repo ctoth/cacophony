@@ -1,5 +1,6 @@
+import type { Bus } from "./bus";
 import type { BaseSound } from "./cacophony";
-import type { AudioNode, BaseContext, GainNode, OscillatorNode } from "./context";
+import type { AudioNode, AudioParam, BaseContext, GainNode, OscillatorNode } from "./context";
 import { FilterManager } from "./filters";
 import { OscillatorMixin } from "./oscillatorMixin";
 import { PannerMixin } from "./pannerMixin";
@@ -11,13 +12,27 @@ type SynthPlaybackState = "unplayed" | "playing" | "paused" | "stopped";
 export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(FilterManager))) implements BaseSound {
   context: BaseContext;
   private _state: SynthPlaybackState = "unplayed";
+  /**
+   * Per-playback send-gain allocations: bus → allocated GainNode. Mirrors
+   * {@link Playback._sendGains}. Owned/teardown contract is identical:
+   * Synth allocates send gains at preplay or `routeTo(bus, gain)`; cleanup
+   * walks this map and calls `disconnect()` on every send.
+   */
+  _sendGains: Map<Bus, GainNode> = new Map();
+  /**
+   * Live oscillator node. Set in the constructor; cleared to `undefined` in
+   * {@link cleanup} (matches Playback's `source?` shape so post-cleanup
+   * checks of `!this.source` work uniformly).
+   */
+  public declare source?: OscillatorNode;
   constructor(
     public origin: Synth,
-    public source: OscillatorNode,
+    source: OscillatorNode,
     gainNode: GainNode,
   ) {
     super(origin);
     this.context = origin.context;
+    this.source = source;
     this.setPanType(origin.panType, origin.context);
     // setPanType synchronously assigns this.panner; capture locally so TS
     // narrows to non-undefined for the connect calls below.
@@ -25,7 +40,7 @@ export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(Filte
     if (!panner) {
       throw new Error("setPanType did not produce a panner node");
     }
-    this.source.connect(panner);
+    source.connect(panner);
     this.setGainNode(gainNode);
     panner.connect(gainNode);
     this.refreshFilters();
@@ -99,16 +114,78 @@ export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(Filte
   }
 
   cleanup(): void {
-    if (this.panner && this.gainNode) {
-      this.source.disconnect(this.panner);
-      this.panner.disconnect();
-      this.gainNode.disconnect();
+    if (!this.source) {
+      // Already cleaned up — same idempotency guard as Playback.cleanup.
+      return;
     }
+    if (this.panner && this.gainNode) {
+      try {
+        this.source.disconnect(this.panner);
+      } catch {
+        // Tolerate already-disconnected source.
+      }
+      try {
+        this.panner.disconnect();
+      } catch {}
+    }
+    this.source = undefined;
+    this.panner = undefined;
+    this._state = "stopped";
+    // Tear down per-playback send-gain nodes before super.cleanup() severs
+    // the gainNode edges they feed off of.
+    for (const sendGain of this._sendGains.values()) {
+      try {
+        sendGain.disconnect();
+      } catch {}
+    }
+    this._sendGains.clear();
     this.eventEmitter.removeAllListeners();
+    // super.cleanup() (VolumeMixin) disconnects + clears `gainNode`; after
+    // this call `outputNode` throws (parity with Playback.cleanup).
+    super.cleanup();
+  }
+
+  /**
+   * Gets the output node of this synth playback's audio graph — the final
+   * GainNode before connection to the destination. Use this to manually
+   * wire the playback into custom audio graphs.
+   *
+   * @throws if the playback has been cleaned up.
+   */
+  get outputNode(): GainNode {
+    if (!this.gainNode) {
+      throw new Error("Cannot access output node of a synth playback that has been cleaned up");
+    }
+    return this.gainNode;
+  }
+
+  /**
+   * Connects this synth playback's output to an AudioNode or AudioParam. Mirrors
+   * Playback.connect.
+   *
+   * @returns The destination node (for chaining).
+   * @throws if the playback has been cleaned up.
+   */
+  connect(destination: AudioNode | AudioParam): AudioNode {
+    return this.outputNode.connect(destination as any);
+  }
+
+  /**
+   * Disconnects this synth playback's output from a specific destination
+   * or from all destinations. Mirrors Playback.disconnect.
+   *
+   * @throws if the playback has been cleaned up.
+   */
+  disconnect(destination?: AudioNode | AudioParam): void {
+    if (destination) {
+      this.outputNode.disconnect(destination as any);
+    } else {
+      this.outputNode.disconnect();
+    }
   }
 
   private recreateSource(): void {
-    if (!this.panner) {
+    if (!this.panner || !this.source) {
       throw new Error("Cannot recreate source of a synth that has been cleaned up");
     }
 

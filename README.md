@@ -340,25 +340,97 @@ playback.connect(distortion)
 
 ### Parallel Effects (Send/Return)
 
-Create parallel effect sends like a mixing console:
+For mixing-console-style routing — named buses, shared effects, and
+per-edge send gain — use the first-class [Buses and Sends](#buses-and-sends)
+API documented below. The Bus class supersedes the older user-built
+`playback.connect()` send/return pattern.
+
+## Buses and Sends
+
+A `Bus` is a named summing node with its own filter chain and per-edge
+gain on outgoing connections. Sounds and synths route to buses via
+`routeTo`; buses can carry rich effects (not just BiquadFilter) by
+adding a `CacophonyEffect` to their filter chain. The built-in
+`cacophony.createReverb()` returns a DattorroReverb effect ready to drop
+into a bus.
 
 ```typescript
-const sound = await cacophony.createSound('vocals.mp3');
-const [playback] = sound.play();
+// 1. Create a named bus
+const reverbBus = cacophony.createBus('reverb');
 
-// Create send effects
-const reverb = cacophony.context.createConvolver();
-const reverbReturn = cacophony.context.createGain();
-reverbReturn.gain.value = 0.3;  // 30% wet
+// 2. Add a DattorroReverb effect to the bus
+const reverb = cacophony.createReverb({ wet: 0.6, dry: 0.4, decay: 0.7 });
+await reverbBus.addFilter(reverb);
 
-// Dry signal to destination
-playback.connect(cacophony.context.destination);
+// 3. Lower the bus's level a bit before it hits master
+reverbBus.gain = 0.5;
 
-// Parallel wet signal: playback → reverb → reverbReturn → destination
-playback.connect(reverb)
-        .connect(reverbReturn)
-        .connect(cacophony.context.destination);
+// 4. Route one sound's primary output to the bus
+const vocals = await cacophony.createSound('vocals.mp3');
+vocals.routeTo(reverbBus);
+vocals.play();
+
+// 5. Send another sound to the bus at 30% (primary route still goes to master)
+const drums = await cacophony.createSound('drums.mp3');
+drums.routeTo(reverbBus, 0.3);
+drums.play();
 ```
+
+### Looking up buses by name
+
+```typescript
+const fx = cacophony.createBus('fx');
+cacophony.getBus('fx');       // → same Bus instance
+cacophony.listBuses();        // → ['master', 'fx']
+sound.routeTo('fx');          // string lookup via the registry
+```
+
+### The master bus
+
+`cacophony.master` is the built-in master bus. Its `input` is literally
+the same node as `cacophony.globalGainNode`, so the existing
+`cacophony.volume` and `cacophony.mute` APIs continue to work
+transparently. Routing a sound to `cacophony.master` (or never calling
+`routeTo`) sends it through the master path.
+
+### Bus-to-bus routing with per-edge gain
+
+```typescript
+const groupBus = cacophony.createBus('group');
+const sendBus = cacophony.createBus('aux');
+groupBus.connect(sendBus, 0.2);   // 20% send: groupBus.output → sendGain(0.2) → sendBus.input
+groupBus.disconnect(sendBus);     // tears down the sendGain too
+```
+
+### Adding custom effects to a bus
+
+Bus filter chains accept Cacophony-built BiquadFilters and any
+`CacophonyEffect`. Raw third-party AudioNodes are rejected unless you
+wrap them explicitly with `cacophony.shareEffect(node)` — this surfaces
+the shared-state intent (the same node will run on every bus that adds it).
+
+```typescript
+const eq = cacophony.createBiquadFilter({ type: 'highshelf', frequency: 4000, gain: 3 });
+await bus.addFilter(eq);
+
+const sharedWorklet = new AudioWorkletNode(cacophony.context, 'my-fx');
+await bus.addFilter(cacophony.shareEffect(sharedWorklet));
+```
+
+### Cleaning up
+
+```typescript
+reverbBus.destroy();   // disconnects everything, deregisters the name
+```
+
+Sounds still routed to a destroyed bus fall back to master on their
+next playback with a `console.warn`.
+
+### Legacy: user-built send/return
+
+Before buses existed, send/return was a manual `playback.connect()`
+chain (see the [Custom Audio Routing](#custom-audio-routing) section
+for the low-level pattern). New code should use a Bus and `routeTo`.
 
 ### Dynamic Routing
 

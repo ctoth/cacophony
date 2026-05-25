@@ -1,3 +1,4 @@
+import type { Bus } from "./bus";
 import type { BaseSound, Cacophony, PanType, SoundType } from "./cacophony";
 import { PlaybackContainer } from "./container";
 import type { BaseContext, GainNode, OscillatorNode } from "./context";
@@ -16,6 +17,10 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
   _oscillatorOptions: Partial<OscillatorOptions>;
   playbacks: SynthPlayback[] = [];
   private eventEmitter: TypedEventEmitter<SynthEvents> = new TypedEventEmitter<SynthEvents>();
+  /** Primary route target. `null` means master. See Sound for full notes. */
+  private _routeTarget: Bus | null = null;
+  /** Send target → send gain value. See Sound._sends for notes. */
+  private _sends: Map<Bus, number> = new Map();
 
   /**
    * Register event listener.
@@ -111,8 +116,25 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     if (this.oscillatorOptions.type) oscillator.type = this.oscillatorOptions.type;
 
     const gainNode = this.context.createGain();
-    gainNode.connect(this.globalGainNode);
+    const primaryTargetNode = this._resolveRouteTargetNode();
+    gainNode.connect(primaryTargetNode);
     const playback = new SynthPlayback(this, oscillator, gainNode);
+    // Establish send edges (per-playback allocation; see Sound docstring).
+    // Send-gain GainNodes are owned by the playback (`playback._sendGains`)
+    // so cleanup can iterate and disconnect them explicitly.
+    if (this._sends.size > 0) {
+      for (const [bus, gainValue] of this._sends) {
+        if (bus.destroyed) {
+          console.warn(`Synth has a send to destroyed bus '${bus.name ?? "<anonymous>"}'; skipping`);
+          continue;
+        }
+        const sendGain = this.context.createGain();
+        sendGain.gain.value = gainValue;
+        gainNode.connect(sendGain);
+        sendGain.connect(bus.input);
+        playback._sendGains.set(bus, sendGain);
+      }
+    }
     playback.volume = this.volume;
     // Clone filters from synth to playback (each playback gets independent filter instances)
     this._filters.forEach((filter) => {
@@ -200,6 +222,87 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
     this._oscillatorOptions.detune = detune;
     this.playbacks.forEach((p) => (p.detune = detune));
     this.emit("detuneChange", detune);
+  }
+
+  /**
+   * Routes this Synth to a Bus (or back to master). See Sound.routeTo for
+   * full semantics — Synth mirrors the behavior exactly.
+   */
+  routeTo(target: Bus | string, sendGain?: number): void {
+    const bus = this._resolveBusArg(target);
+    if (sendGain !== undefined) {
+      this._addSend(bus, sendGain);
+      return;
+    }
+    this._setPrimary(bus);
+  }
+
+  private _resolveBusArg(target: Bus | string): Bus {
+    if (typeof target !== "string") {
+      return target;
+    }
+    const bus = this.cacophony?.getBus(target);
+    if (!bus) {
+      throw new Error(`No bus registered with name '${target}'`);
+    }
+    return bus;
+  }
+
+  private _resolveRouteTargetNode(): GainNode {
+    if (!this._routeTarget) {
+      return this.globalGainNode;
+    }
+    if (this._routeTarget.destroyed) {
+      console.warn(
+        `Synth routed to destroyed bus '${this._routeTarget.name ?? "<anonymous>"}'; falling back to master`,
+      );
+      return this.globalGainNode;
+    }
+    return this._routeTarget.input;
+  }
+
+  private _setPrimary(bus: Bus): void {
+    if (bus.destroyed) {
+      throw new Error(`Cannot route to destroyed bus '${bus.name ?? "<anonymous>"}'`);
+    }
+    const collapseToMaster = bus.input === this.globalGainNode;
+    const oldTargetNode = this._resolveRouteTargetNode();
+    this._routeTarget = collapseToMaster ? null : bus;
+    const newTargetNode = this._resolveRouteTargetNode();
+    if (oldTargetNode === newTargetNode) {
+      return;
+    }
+    for (const playback of this.playbacks) {
+      try {
+        playback.outputNode.disconnect(oldTargetNode);
+      } catch {}
+      try {
+        playback.outputNode.connect(newTargetNode);
+      } catch {}
+    }
+  }
+
+  private _addSend(bus: Bus, gainValue: number): void {
+    if (bus.destroyed) {
+      throw new Error(`Cannot add a send to destroyed bus '${bus.name ?? "<anonymous>"}'`);
+    }
+    this._sends.set(bus, gainValue);
+    for (const playback of this.playbacks) {
+      const existing = playback._sendGains.get(bus);
+      if (existing) {
+        existing.gain.value = gainValue;
+        continue;
+      }
+      const sendGain = this.context.createGain();
+      sendGain.gain.value = gainValue;
+      try {
+        playback.outputNode.connect(sendGain);
+      } catch {
+        continue;
+      }
+      sendGain.connect(bus.input);
+      playback._sendGains.set(bus, sendGain);
+    }
   }
 
   get type(): OscillatorType {

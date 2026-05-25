@@ -1,10 +1,13 @@
 import { installAutoplayUnlock } from "./autoplayUnlock";
+import dattorroReverbProcessorWorkletUrl from "./bundles/dattorro-reverb-bundle.js?url";
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
 import stereoToBFormatProcessorWorkletUrl from "./bundles/stereo-to-bformat-bundle.js?url";
+import { Bus } from "./bus";
 import { AudioCache, type ICache } from "./cache";
 import type {
   AudioBuffer,
   AudioListener,
+  AudioNode,
   AudioWorkletNode,
   BaseContext,
   BiquadFilterNode,
@@ -13,6 +16,7 @@ import type {
   GainNode,
   PannerNode,
 } from "./context";
+import { type CacophonyEffect, markAsCacophonyBiquad, ReverbEffect, type ReverbOptions, ShareEffect } from "./effects";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { CacophonyEvents } from "./events";
 import { Group } from "./group";
@@ -170,13 +174,34 @@ function mimeTypeForUrl(url: string): string | null {
 export class Cacophony {
   context: BaseContext;
   globalGainNode: GainNode;
+  /**
+   * The master bus — `master.input` IS `globalGainNode` (literally the same
+   * GainNode), so every existing `.connect(globalGainNode)` call in the
+   * codebase remains correct. `cacophony.volume` and `cacophony.mute` still
+   * read and write `master.input.gain.value` through that alias.
+   */
+  master: Bus;
   listener: AudioListener;
   private prevVolume: number = 1;
-  private loadedAudioWorklets: Set<string> = new Set();
+  /**
+   * Per-context cache of "module-name has been loaded on this BaseContext".
+   * Keyed on the context itself because `AudioWorklet.addModule()` registers
+   * the module against ONE context — a module loaded on context A is NOT
+   * loaded on context B. A previous host-scoped `Set<string>` short-circuited
+   * `loadAudioWorkletModule()` on name alone, so cross-context
+   * {@link ReverbEffect.build} would skip `addModule` on the new context and
+   * the second construct would throw with no module registered.
+   */
+  private loadedAudioWorklets: WeakMap<BaseContext, Set<string>> = new WeakMap();
   private finalizationRegistry: FinalizationRegistry<SoundCleanupHoldings>;
   private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
   private createAudioWorkletNode: (context: BaseContext, name: string, options?: AudioWorkletNodeOptions) => any;
+  /**
+   * Named-bus registry. Populated by {@link createBus} when a name is
+   * supplied; entries are removed by the bus's onDestroy hook.
+   */
+  private _busRegistry: Map<string, Bus> = new Map();
   // Tracks the lifecycle state we have explicitly transitioned to. This avoids
   // duplicate wrapper-driven suspend calls, but resume() still delegates because
   // the underlying AudioContext can be suspended externally.
@@ -208,7 +233,18 @@ export class Cacophony {
     this.context = context ?? new AudioContext();
     this.listener = this.context.listener;
     this.globalGainNode = this.context.createGain();
-    this.globalGainNode.connect(this.context.destination);
+    // master bus wraps globalGainNode as its input — same node, two accessors.
+    // master is exempt from the named-bus registry (its name 'master' is
+    // reserved and not user-creatable via createBus).
+    // The Bus constructor wires input → output. We then connect master.output
+    // to context.destination so the full audible path is:
+    //   master.input (= globalGainNode) → [filters] → master.output → destination.
+    // Critical: connect master.output AFTER constructing the Bus, NOT
+    // globalGainNode directly. If globalGainNode were pre-connected to
+    // destination, adding a master filter would call _refreshFilters() which
+    // disconnects master.input's outgoing edges, severing the audible path.
+    this.master = new Bus(this.context, "master", this.globalGainNode);
+    this.master.output.connect(this.context.destination);
     this.cache = cache ?? new AudioCache();
     this.createAudioWorkletNode =
       runtimeOptions.createAudioWorkletNode ??
@@ -335,6 +371,7 @@ export class Cacophony {
     if (this.context.audioWorklet) {
       await this.createWorkletNode("phase-vocoder", phaseVocoderProcessorWorkletUrl, signal);
       await this.loadStereoToBFormatWorklet(signal);
+      await this.loadDattorroReverb(signal);
     } else {
       console.warn("AudioWorklet not supported");
     }
@@ -344,31 +381,68 @@ export class Cacophony {
     await this.loadAudioWorkletModule("stereo-to-bformat", stereoToBFormatProcessorWorkletUrl, signal);
   }
 
+  /**
+   * Idempotently registers the DattorroReverb AudioWorkletProcessor on this
+   * context. Safe to call repeatedly — subsequent calls short-circuit via
+   * the {@link loadedAudioWorklets} set used by
+   * {@link loadAudioWorkletModule}.
+   *
+   * @param signal Optional abort signal forwarded to the module load.
+   * @param context Optional BaseContext to load the worklet on. Defaults to
+   *   the host Cacophony instance's `context`. Supplied so a
+   *   {@link ReverbEffect} added to a bus whose context is NOT this host's
+   *   own (cross-context use) can load the worklet on the right context.
+   */
+  async loadDattorroReverb(signal?: AbortSignal, context?: BaseContext): Promise<void> {
+    await this.loadAudioWorkletModule("dattorro-reverb", dattorroReverbProcessorWorkletUrl, signal, context);
+  }
+
+  /**
+   * Constructs a DattorroReverb AudioWorkletNode. Caller is expected to have
+   * loaded the module already (via {@link loadDattorroReverb} or by reaching
+   * here through {@link ReverbEffect.build}). Uses the same construct/fallback
+   * path as {@link createWorkletNode}.
+   *
+   * @param options AudioWorkletNode construction options.
+   * @param context Optional BaseContext to construct on. Defaults to the
+   *   host Cacophony instance's `context`. See {@link loadDattorroReverb}
+   *   for the cross-context rationale.
+   */
+  async createDattorroReverbNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("dattorro-reverb", dattorroReverbProcessorWorkletUrl, undefined, options, context);
+  }
+
   async createWorkletNode(
     name: string,
     url: string,
     signal?: AbortSignal,
     options?: AudioWorkletNodeOptions,
+    context?: BaseContext,
   ): Promise<AudioWorkletNode> {
+    // Use the supplied context for cross-context worklet construction
+    // (e.g. ReverbEffect built against a context other than this host's
+    // own). Default to this host's `context` for the common single-context
+    // case so all existing callers keep working without a change.
+    const ctx = context ?? this.context;
     // ensure audioWorklet has been loaded
-    if (!this.context.audioWorklet) {
+    if (!ctx.audioWorklet) {
       throw new Error("AudioWorklet not supported");
     }
     try {
-      const node = this.createAudioWorkletNode(this.context, name, options);
+      const node = this.createAudioWorkletNode(ctx, name, options);
       console.info(`${WORKLET_LOG_PREFIX} construct succeeded`, {
         name,
-        loaded: this.loadedAudioWorklets.has(name),
+        loaded: this.isWorkletLoadedOn(ctx, name),
       });
       return node;
     } catch (err) {
       console.warn(`${WORKLET_LOG_PREFIX} construct failed`, {
         name,
-        loaded: this.loadedAudioWorklets.has(name),
+        loaded: this.isWorkletLoadedOn(ctx, name),
         error: err,
       });
       try {
-        await this.loadAudioWorkletModule(name, url, signal);
+        await this.loadAudioWorkletModule(name, url, signal, ctx);
       } catch (err) {
         console.error(`${WORKLET_LOG_PREFIX} load failed`, {
           name,
@@ -378,7 +452,7 @@ export class Cacophony {
       }
 
       try {
-        const node = this.createAudioWorkletNode(this.context, name, options);
+        const node = this.createAudioWorkletNode(ctx, name, options);
         console.info(`${WORKLET_LOG_PREFIX} construct after load succeeded`, { name });
         return node;
       } catch (err) {
@@ -402,11 +476,41 @@ export class Cacophony {
     });
   }
 
-  private async loadAudioWorkletModule(name: string, url: string, signal?: AbortSignal): Promise<void> {
-    if (!this.context.audioWorklet) {
+  /**
+   * Lookup helper: has worklet `name` been loaded on `ctx` (per the
+   * per-context {@link loadedAudioWorklets} cache).
+   */
+  private isWorkletLoadedOn(ctx: BaseContext, name: string): boolean {
+    return this.loadedAudioWorklets.get(ctx)?.has(name) ?? false;
+  }
+
+  /**
+   * Record `name` as loaded on `ctx`, lazily allocating the per-context Set.
+   */
+  private markWorkletLoadedOn(ctx: BaseContext, name: string): void {
+    let names = this.loadedAudioWorklets.get(ctx);
+    if (!names) {
+      names = new Set<string>();
+      this.loadedAudioWorklets.set(ctx, names);
+    }
+    names.add(name);
+  }
+
+  private async loadAudioWorkletModule(
+    name: string,
+    url: string,
+    signal?: AbortSignal,
+    context?: BaseContext,
+  ): Promise<void> {
+    const ctx = context ?? this.context;
+    if (!ctx.audioWorklet) {
       throw new Error("AudioWorklet not supported");
     }
-    if (this.loadedAudioWorklets.has(name)) {
+    // Per-context membership: a module loaded on context A is NOT loaded on
+    // context B. The previous host-scoped check by name only would skip the
+    // addModule on B after A had loaded the same name, leaving B without
+    // the worklet registered.
+    if (this.isWorkletLoadedOn(ctx, name)) {
       console.info(`${WORKLET_LOG_PREFIX} load skipped`, { name });
       return;
     }
@@ -416,11 +520,11 @@ export class Cacophony {
       aborted: signal?.aborted ?? false,
     });
     try {
-      await this.context.audioWorklet.addModule(url, {
+      await ctx.audioWorklet.addModule(url, {
         credentials: "same-origin",
         ...(signal && { signal }),
       });
-      this.loadedAudioWorklets.add(name);
+      this.markWorkletLoadedOn(ctx, name);
       console.info(`${WORKLET_LOG_PREFIX} addModule resolved`, { name });
     } catch (err) {
       console.error(`${WORKLET_LOG_PREFIX} addModule rejected`, {
@@ -732,8 +836,77 @@ export class Cacophony {
     filter.frequency.value = frequency;
     filter.gain.value = gain ?? 0;
     filter.Q.value = Q ?? 1;
+    markAsCacophonyBiquad(filter);
     return filter;
   };
+
+  /**
+   * Wraps a raw AudioNode in a {@link CacophonyEffect} so it can be added
+   * to a {@link Bus} filter chain. By default `Bus.addFilter` rejects raw
+   * AudioNodes — wrapping via `shareEffect` is the explicit opt-in that
+   * signals "yes, I understand this single node will be shared across every
+   * bus I add it to."
+   */
+  shareEffect(node: AudioNode): CacophonyEffect {
+    return new ShareEffect(node);
+  }
+
+  /**
+   * Creates a DattorroReverb {@link CacophonyEffect}. The effect's `build`
+   * lazily registers the worklet module (no-op if already loaded) and
+   * constructs the AudioWorkletNode with the supplied {@link ReverbOptions}
+   * as `parameterData`. Add the returned effect to a {@link Bus}'s filter
+   * chain via `bus.addFilter(effect)`.
+   */
+  createReverb(options: ReverbOptions = {}): ReverbEffect {
+    return new ReverbEffect(this, options);
+  }
+
+  /**
+   * Creates a new {@link Bus}. If `name` is provided, the bus is registered
+   * so {@link getBus} can look it up by name. Anonymous buses (no name) are
+   * not registered and cannot be retrieved by name.
+   *
+   * @throws if a named bus with the same name already exists, or if the
+   *   reserved name 'master' is used (the master bus is auto-created).
+   */
+  createBus(name?: string): Bus {
+    if (name === "master") {
+      throw new Error("The name 'master' is reserved — use cacophony.master to access the master bus.");
+    }
+    if (name !== undefined && this._busRegistry.has(name)) {
+      throw new Error(`A bus named '${name}' already exists.`);
+    }
+    const onDestroy = name !== undefined ? () => this._busRegistry.delete(name) : undefined;
+    const bus = new Bus(this.context, name ?? null, undefined, onDestroy);
+    if (name !== undefined) {
+      this._busRegistry.set(name, bus);
+    }
+    // New buses default-route to master so audio flows out somewhere unless
+    // the user wires it elsewhere. master is intentionally not destroyable.
+    bus.connect(this.master);
+    return bus;
+  }
+
+  /**
+   * Retrieves a bus by name from the named-bus registry. Returns `undefined`
+   * if no bus with that name exists. The special name `'master'` returns
+   * the auto-created master bus.
+   */
+  getBus(name: string): Bus | undefined {
+    if (name === "master") {
+      return this.master;
+    }
+    return this._busRegistry.get(name);
+  }
+
+  /**
+   * Returns the names of every registered named bus. Anonymous buses are
+   * not included. The master bus's name (`'master'`) is included.
+   */
+  listBuses(): string[] {
+    return ["master", ...this._busRegistry.keys()];
+  }
 
   createSplitter(numChannels: number = 2): ChannelSplitterNode {
     if (!this.context.createChannelSplitter) {

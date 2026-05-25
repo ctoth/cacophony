@@ -1,8 +1,7 @@
 import { AudioBuffer, AudioContext } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-import { Cacophony } from "./cacophony";
 import { installAutoplayUnlock } from "./autoplayUnlock";
+import { Cacophony } from "./cacophony";
 import type { BaseContext, AudioBuffer as CacophonyAudioBuffer } from "./context";
 import { mockCache } from "./setupTests";
 

@@ -1,3 +1,4 @@
+import type { Bus } from "./bus";
 import type { BaseSound, FadeType, LoopCount, Position } from "./cacophony";
 import type { BiquadFilterNode } from "./context";
 import type { Playback } from "./playback";
@@ -178,6 +179,20 @@ export class Group implements BaseSound {
    */
   removeFilter(filter: BiquadFilterNode): void {
     this.sounds.forEach((sound) => sound.removeFilter(filter));
+  }
+
+  /**
+   * Routes every sound in this group to the specified Bus (or back to
+   * master). Fans the call out to every member; see {@link Sound.routeTo}
+   * for full semantics. With a `sendGain`, adds a per-sound send instead
+   * of redirecting primary routing.
+   */
+  routeTo(target: Bus | string, sendGain?: number): void {
+    if (sendGain !== undefined) {
+      this.sounds.forEach((sound) => sound.routeTo(target, sendGain));
+    } else {
+      this.sounds.forEach((sound) => sound.routeTo(target));
+    }
   }
 
   set position(position: [number, number, number]) {

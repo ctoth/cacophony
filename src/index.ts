@@ -2,6 +2,8 @@
 // supported surface. Do NOT add `export *` — every value/type must be listed
 // explicitly so additions to internal modules cannot leak out without review.
 
+export type { BusConnectionTarget } from "./bus";
+export { Bus } from "./bus";
 export { AudioCache } from "./cache";
 export type {
   BaseSound,
@@ -37,6 +39,8 @@ export type {
   SourceNode,
   StereoPannerNode,
 } from "./context";
+export type { CacophonyEffect, ReverbOptions } from "./effects";
+export { BiquadEffect, ReverbEffect, ShareEffect } from "./effects";
 export type {
   AudioEventCallbacks,
   BaseAudioEvents,
