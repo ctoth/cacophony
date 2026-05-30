@@ -8,6 +8,15 @@ describe("AudioCache", () => {
   let mockFetch: typeof fetch;
   let mockCaches: typeof caches;
 
+  function audioBufferShape(length: number, numberOfChannels = 1): AudioBuffer {
+    return {
+      length,
+      numberOfChannels,
+      sampleRate: 44100,
+      duration: length / 44100,
+    } as AudioBuffer;
+  }
+
   beforeEach(() => {
     cache = new AudioCache();
 
@@ -67,6 +76,33 @@ describe("AudioCache", () => {
     const result2 = await cache.getAudioBuffer(audioContextMock, url);
     expect(result2).toBe(mockAudioBuffer);
     expect(mockFetch).toHaveBeenCalledTimes(1); // Still just one fetch
+  });
+
+  it("evicts decoded buffers by estimated bytes under many large sounds", async () => {
+    const urls = ["data:audio/wav;base64,QQ==", "data:audio/wav;base64,Qg==", "data:audio/wav;base64,Qw=="];
+    const thirtyTwoMiBSamples = 8 * 1024 * 1024;
+    const buffers = [
+      audioBufferShape(thirtyTwoMiBSamples),
+      audioBufferShape(thirtyTwoMiBSamples),
+      audioBufferShape(thirtyTwoMiBSamples),
+      audioBufferShape(thirtyTwoMiBSamples),
+    ];
+    const decodeSpy = vi.spyOn(audioContextMock, "decodeAudioData");
+    decodeSpy
+      .mockResolvedValueOnce(buffers[0])
+      .mockResolvedValueOnce(buffers[1])
+      .mockResolvedValueOnce(buffers[2])
+      .mockResolvedValueOnce(buffers[3]);
+
+    await cache.getAudioBuffer(audioContextMock, urls[0]);
+    await cache.getAudioBuffer(audioContextMock, urls[1]);
+    await cache.getAudioBuffer(audioContextMock, urls[2]);
+
+    const reloadedFirst = await cache.getAudioBuffer(audioContextMock, urls[0]);
+
+    expect(reloadedFirst).toBe(buffers[3]);
+    expect(decodeSpy).toHaveBeenCalledTimes(4);
+    expect(mockFetch).not.toHaveBeenCalled();
   });
 
   it("reports decoded duration in loadingComplete callbacks", async () => {
@@ -519,6 +555,61 @@ describe("AudioCache", () => {
     // Second request should fetch again
     await cache.getAudioBuffer(audioContextMock, url);
     expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("clears pending requests from memory cache state", async () => {
+    const url = "https://example.com/audio.mp3";
+    const mockArrayBuffer = new ArrayBuffer(8);
+    const firstAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    const secondAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    let resolveFirstFetch!: (response: Response) => void;
+    const firstFetchStarted = new Promise<void>((resolveStarted) => {
+      mockFetch.mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveFirstFetch = resolve;
+            resolveStarted();
+          }),
+      );
+    });
+    const secondFetchStarted = new Promise<void>((resolveStarted) => {
+      mockFetch.mockImplementationOnce(() => {
+        resolveStarted();
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          clone: () => ({ arrayBuffer: () => Promise.resolve(mockArrayBuffer) }),
+          arrayBuffer: () => Promise.resolve(mockArrayBuffer),
+          headers: new Headers(),
+        } as Response);
+      });
+    });
+    const decodeSpy = vi
+      .spyOn(audioContextMock, "decodeAudioData")
+      .mockResolvedValueOnce(firstAudioBuffer)
+      .mockResolvedValueOnce(secondAudioBuffer);
+
+    const firstRequest = cache.getAudioBuffer(audioContextMock, url);
+    await firstFetchStarted;
+
+    cache.clearMemoryCache();
+    const secondRequest = cache.getAudioBuffer(audioContextMock, url);
+    await secondFetchStarted;
+
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+
+    resolveFirstFetch({
+      ok: true,
+      status: 200,
+      clone: () => ({ arrayBuffer: () => Promise.resolve(mockArrayBuffer) }),
+      arrayBuffer: () => Promise.resolve(mockArrayBuffer),
+      headers: new Headers(),
+    } as Response);
+
+    const results = await Promise.all([firstRequest, secondRequest]);
+    expect(results).toContain(firstAudioBuffer);
+    expect(results).toContain(secondAudioBuffer);
+    expect(decodeSpy).toHaveBeenCalledTimes(2);
   });
 
   it("makes conditional requests with ETag within TTL window", async () => {

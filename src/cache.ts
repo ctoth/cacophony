@@ -34,37 +34,51 @@ function metaKey(url: string): string {
   return `${url}:meta`;
 }
 
-class LRUCache<K, V> {
-  private maxSize: number;
-  private cache: Map<K, V>;
+class ByteBoundedLRUCache<K, V> {
+  private maxBytes: number;
+  private cachedBytes = 0;
+  private cache: Map<K, { value: V; bytes: number }>;
+  private estimateBytes: (value: V) => number;
 
-  constructor(maxSize: number) {
-    this.maxSize = maxSize;
+  constructor(maxBytes: number, estimateBytes: (value: V) => number) {
+    this.maxBytes = maxBytes;
+    this.estimateBytes = estimateBytes;
     this.cache = new Map();
   }
 
   get(key: K): V | undefined {
-    const value = this.cache.get(key);
-    if (value === undefined) return undefined;
+    const entry = this.cache.get(key);
+    if (entry === undefined) return undefined;
     this.cache.delete(key);
-    this.cache.set(key, value);
-    return value;
+    this.cache.set(key, entry);
+    return entry.value;
   }
 
   set(key: K, value: V): void {
-    if (this.cache.has(key)) {
-      this.cache.delete(key);
-    } else if (this.cache.size >= this.maxSize) {
-      const firstKey = this.cache.keys().next().value;
-      if (firstKey !== undefined) {
-        this.cache.delete(firstKey);
-      }
-    }
-    this.cache.set(key, value);
-  }
+    const bytes = this.estimateBytes(value);
 
-  has(key: K): boolean {
-    return this.cache.has(key);
+    if (this.cache.has(key)) {
+      this.cachedBytes -= this.cache.get(key)?.bytes ?? 0;
+      this.cache.delete(key);
+    }
+
+    if (bytes > this.maxBytes) {
+      return;
+    }
+
+    while (this.cachedBytes + bytes > this.maxBytes) {
+      const first = this.cache.keys().next();
+      if (first.done) {
+        break;
+      }
+      const firstKey = first.value;
+      const oldest = this.cache.get(firstKey);
+      this.cachedBytes -= oldest?.bytes ?? 0;
+      this.cache.delete(firstKey);
+    }
+
+    this.cache.set(key, { value, bytes });
+    this.cachedBytes += bytes;
   }
 }
 
@@ -82,7 +96,12 @@ interface CacheMetadata {
  */
 type CacheValidators = Pick<CacheMetadata, "etag" | "lastModified">;
 
-const DEFAULT_CACHE_SIZE = 100;
+const DEFAULT_DECODED_BUFFER_CACHE_BYTES = 64 * 1024 * 1024;
+const BYTES_PER_FLOAT32_SAMPLE = 4;
+
+function estimateAudioBufferBytes(audioBuffer: AudioBuffer): number {
+  return audioBuffer.length * audioBuffer.numberOfChannels * BYTES_PER_FLOAT32_SAMPLE;
+}
 
 /**
  * Parse the max-age value from a Cache-Control header.
@@ -195,7 +214,10 @@ export interface ICache {
 export class AudioCache implements ICache {
   private static pendingRequests = new Map<string, Promise<AudioBuffer>>();
   private static pendingCallbacks = new Map<string, Array<Pick<CacheCallbacks, "onLoadingProgress">>>();
-  private static decodedBuffers = new LRUCache<string, AudioBuffer>(DEFAULT_CACHE_SIZE);
+  private static decodedBuffers = new ByteBoundedLRUCache<string, AudioBuffer>(
+    DEFAULT_DECODED_BUFFER_CACHE_BYTES,
+    estimateAudioBufferBytes,
+  );
   private static cacheExpirationTime: number = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
   public static setCacheExpirationTime(time: number): void {
@@ -865,7 +887,11 @@ export class AudioCache implements ICache {
   }
 
   public clearMemoryCache(): void {
-    AudioCache.decodedBuffers = new LRUCache<string, AudioBuffer>(DEFAULT_CACHE_SIZE);
+    AudioCache.decodedBuffers = new ByteBoundedLRUCache<string, AudioBuffer>(
+      DEFAULT_DECODED_BUFFER_CACHE_BYTES,
+      estimateAudioBufferBytes,
+    );
     AudioCache.pendingRequests.clear();
+    AudioCache.pendingCallbacks.clear();
   }
 }
