@@ -47,15 +47,17 @@
  * uses small, mutually-spread κ_i so the DFM genuinely scatters.
  *
  * ── Per-line velvet diffusion: VFDN "single" (Fagerström 2020 §3, Fig. 4) ──
- * Fagerström 2020's VFDN inserts a velvet-noise FIR per delay line, so each
- * circulating impulse is re-smeared into M sparse echoes on EVERY round trip;
- * the echo density compounds multiplicatively — E_loop ≈ M² for per-line VNS
- * versus only ≈ 2M for a single input/output VNS (Fagerström 2020 eqs. 11-12).
- * A VNS has taps ∈ {+1, 0, −1}, so the convolution is a sum of signed delayed
- * samples — multiplication-free (Fagerström 2020 eq. 8). This core gives each
- * delay line its OWN distinct VNS filter (the "VFDN single" configuration), so
- * the lines are decorrelated and the density compounds through the FDN, instead
- * of one shared diffuser writing the same value into every line. Grid size
+ * Fagerström 2020's VFDN inserts velvet-noise FIRs into the FDN. This core
+ * applies a DISTINCT per-line VNS to the INPUT injection of each delay line —
+ * the single input-set placement (Fagerström 2020 eq. 11): each line is
+ * decorrelated and early echo density rises to ~M sparse echoes per line.
+ * NOTE — honest scope: this core does NOT place VNS on the output branch or
+ * inside the feedback loop, so the density does NOT compound to the ≈ M² of the
+ * full input+output configuration (eq. 12) — that would require additional VNS
+ * sets not implemented here. A VNS has taps ∈ {+1, 0, −1}, so the convolution is
+ * a sum of signed delayed samples — multiplication-free (Fagerström 2020 eq. 8).
+ * Distinct per-line filters (the "VFDN single" configuration) decorrelate the
+ * lines, instead of one shared diffuser writing the same value into every line. Grid size
  * T_d = fs/ρ_d (eq. 4), M = L_s/T_d impulses (eq. 5), tap location
  * k(m) = round(m·T_d + r₂(m)(T_d − 1)) (eq. 7), sign s₁(m) = 2·round(r₁) − 1
  * ∈ {+1,−1} (eq. 6). Jittered locations avoid comb coloration (Fagerström 2020
@@ -198,7 +200,8 @@ export function buildVelvetNoise(
  * its own sparse ±1 tap list and a power-of-two ring buffer of recent inputs so
  * `process(x)` returns Σ_m s₁(m)·x(n − k(m)) — a sum of signed delayed samples,
  * no multiplications. One of these lives on each FDN delay line in the VFDN
- * "single" configuration, so each line is decorrelated and density compounds.
+ * "single" configuration (input-set placement), so each line is decorrelated and
+ * early echo density rises (input injection only — no M² loop compounding).
  */
 class VelvetFilter {
   private readonly taps: VelvetTap[];
@@ -405,7 +408,8 @@ export class FdnReverbProcessor {
     // Per-delay-line velvet-noise diffusers (Fagerström 2020 VFDN "single").
     // Each line gets its OWN distinct VNS (~20 ms span, ρ_d = 1000 pulses/s ⇒
     // ~20 taps), drawn from the shared RNG stream so the N filters differ. With
-    // a filter per line the density compounds (E_loop ≈ M²) through the loop.
+    // a distinct filter per line, each line's input injection is decorrelated
+    // (single input-set, ~M echoes/line; NOT the M² input+output case, eq. 12).
     const velvetLen = Math.max(1, Math.round(0.02 * sampleRate));
     this.velvets = [];
     for (let i = 0; i < n; i++) {
@@ -519,7 +523,7 @@ export class FdnReverbProcessor {
       // single, eq. 8). Each line gets its OWN VNS-filtered copy of the input
       // (multiplication-free), blended dry↔diffused by `diffusion`, then added
       // to that line's feedback. Distinct per-line filters decorrelate the
-      // lines so density compounds (E_loop ≈ M²) through the loop.
+      // lines and raise early echo density (input-set placement; not M² loop compounding).
       for (let i = 0; i < this.n; i++) {
         const diffused = this.velvets[i].process(preDelayed);
         const injected = ((1 - diffusion) * preDelayed + diffusion * diffused) * inGain;

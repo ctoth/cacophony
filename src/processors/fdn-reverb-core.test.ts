@@ -326,12 +326,13 @@ describe("Per-line velvet diffusion — VFDN single (Fagerström 2020 §3, eqs. 
     expect(nonzeroTaps(diffused, 0, win)).toBeGreaterThan(nonzeroTaps(dry, 0, win));
   });
 
-  it("property: distinct per-line velvet compounds density more than identical shared filters", () => {
-    // Fagerström 2020 eqs. 11-12: per-line VNS gives E_loop ≈ M² echo density,
-    // a single shared diffuser only ≈ 2M. Compare the genuine VFDN-single build
-    // (a DISTINCT VNS per line) against the degenerate case codex flagged: every
-    // line carrying the SAME velvet sequence (correlated injection). The genuine
-    // per-line build must reach a higher early echo density.
+  it("property: distinct per-line velvet raises early density more than identical shared filters", () => {
+    // Fagerström 2020 eq. 11 (single input-set placement): a DISTINCT per-line VNS
+    // on each line's input injection decorrelates the lines and raises early echo
+    // density vs. one shared diffuser writing the same sequence into every line
+    // (correlated injection — the degenerate case codex flagged). This is the
+    // input-set effect, NOT the ≈ M² input+output compounding of eq. 12 (not
+    // implemented here). The genuine per-line build must reach a higher early density.
     const win = Math.round(0.1 * FS);
     const p = { ...baseParams, decayTime: 1.5, diffusion: 1 };
 
