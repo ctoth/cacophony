@@ -338,9 +338,10 @@ export function timeStretch(input: Float32Array, factor: number, opts: TimeStret
 
   // ---- PGHI heap integration (Průša 2022, Algorithm 1) ------------------
   // Produce the synthesis phase φ_s frame by frame. The frequency update uses
-  // synthesis freq step b_s = α·b_a; since dfInc holds the per-bin centered
-  // difference (already in "per b_a" units of radians/binstep), scaling it by
-  // the factor α = a_s/a_a converts the b_a step to the b_s step (b_s = α·b_a).
+  // synthesis freq step b_s = α·b_a; since dfFwd holds the per-bin directional
+  // (forward/backward, Eq.16/17) difference (already in "per b_a" units of
+  // radians/binstep), scaling it by the factor α = a_s/a_a converts the b_a
+  // step to the b_s step (b_s = α·b_a).
   const ratio = aS / aA; // = α, the time-scaling factor (Eq.7)
   const synthPhase: Float32Array[] = new Array(nFrames);
   for (let n = 0; n < nFrames; n++) synthPhase[n] = new Float32Array(nBins);
