@@ -42,6 +42,17 @@ interface DynamicsHost {
 }
 
 /**
+ * Minimal structural interface for the Cacophony surface FdnReverbEffect needs.
+ * Declared locally (like {@link ReverbHost}) so this module avoids a circular
+ * import on cacophony.ts. Both methods accept an optional `BaseContext` for the
+ * cross-context contract `CacophonyEffect.build(context)` promises.
+ */
+interface FdnReverbHost {
+  loadFdnReverb(signal?: AbortSignal, context?: BaseContext): Promise<void>;
+  createFdnReverbNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode>;
+}
+
+/**
  * Public surface every Cacophony effect implements. `build` is called by
  * `Bus.addFilter` to materialize the effect's live node graph against a
  * specific audio context. An effect may be built more than once (e.g. on
@@ -210,6 +221,51 @@ export class DynamicsEffect implements CacophonyEffect {
   async build(context: BaseContext): Promise<AudioWorkletNode> {
     await this.host.loadDynamics(undefined, context);
     return this.host.createDynamicsNode({ parameterData: this.options as Record<string, number> }, context);
+  }
+}
+
+/**
+ * Construction-time configuration for an {@link FdnReverbEffect}, mirroring the
+ * `fdn-reverb` AudioWorkletProcessor's AudioParam set (see
+ * {@link import('./processors/fdn-reverb').FdnReverbWorkletProcessor}). All
+ * fields are optional; the worklet clamps to its documented ranges downstream.
+ *
+ * The reverb is a Feedback Delay Network: a lossless paraunitary Hadamard
+ * feedback core keeps it stable (Schlecht & Habets 2019), per-line absorption
+ * filters set the decay (Jot & Chaigne 1991), and a sparse velvet-noise FIR
+ * adds early echo density at no multiply cost (Fagerström et al. 2020).
+ */
+export interface FdnReverbOptions {
+  /** Reverberation time T60 in seconds (−60 dB decay). Default 1.5. Range 0.001..20. */
+  decayTime?: number;
+  /** Pre-delay before the wet path in seconds. Default 0. Range 0..1. */
+  preDelay?: number;
+  /** High-frequency damping (0..1); higher shortens the HF tail. Default 0.3. */
+  damping?: number;
+  /** Velvet-noise diffusion amount (0..1); 0 bypasses. Default 0.5. */
+  diffusion?: number;
+  /** Wet/dry mix (0..1); 0 = dry, 1 = wet. Default 0.3. */
+  mix?: number;
+}
+
+/**
+ * CacophonyEffect that builds an `fdn-reverb` AudioWorkletNode — a Feedback
+ * Delay Network reverberator (lossless paraunitary Hadamard feedback, Schlecht
+ * & Habets 2019; Jot 1991 absorption-filter decay; Fagerström 2020 velvet-noise
+ * diffusion). Mirrors {@link ReverbEffect}: `build` idempotently loads the
+ * worklet module on the supplied context, then constructs the node with the
+ * supplied {@link FdnReverbOptions} as `parameterData`. Honors the
+ * cross-context contract (builds against the bus's context, not the host's own).
+ */
+export class FdnReverbEffect implements CacophonyEffect {
+  constructor(
+    private readonly host: FdnReverbHost,
+    private readonly options: FdnReverbOptions = {},
+  ) {}
+
+  async build(context: BaseContext): Promise<AudioWorkletNode> {
+    await this.host.loadFdnReverb(undefined, context);
+    return this.host.createFdnReverbNode({ parameterData: this.options as Record<string, number> }, context);
   }
 }
 

@@ -1,6 +1,7 @@
 import { installAutoplayUnlock } from "./autoplayUnlock";
 import dattorroReverbProcessorWorkletUrl from "./bundles/dattorro-reverb-bundle.js?url";
 import dynamicsProcessorWorkletUrl from "./bundles/dynamics-bundle.js?url";
+import fdnReverbProcessorWorkletUrl from "./bundles/fdn-reverb-bundle.js?url";
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
 import stereoToBFormatProcessorWorkletUrl from "./bundles/stereo-to-bformat-bundle.js?url";
 import { Bus } from "./bus";
@@ -21,6 +22,8 @@ import {
   type CacophonyEffect,
   DynamicsEffect,
   type DynamicsOptions,
+  FdnReverbEffect,
+  type FdnReverbOptions,
   markAsCacophonyBiquad,
   ReverbEffect,
   type ReverbOptions,
@@ -382,6 +385,7 @@ export class Cacophony {
       await this.loadStereoToBFormatWorklet(signal);
       await this.loadDattorroReverb(signal);
       await this.loadDynamics(signal);
+      await this.loadFdnReverb(signal);
     } else {
       console.warn("AudioWorklet not supported");
     }
@@ -441,6 +445,29 @@ export class Cacophony {
    */
   async createDynamicsNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
     return this.createWorkletNode("dynamics", dynamicsProcessorWorkletUrl, undefined, options, context);
+  }
+
+  /**
+   * Idempotently registers the `fdn-reverb` AudioWorkletProcessor (Feedback
+   * Delay Network reverb — lossless paraunitary Hadamard feedback per Schlecht
+   * & Habets 2019, per-line absorption T60 per Jot 1991, velvet-noise diffusion
+   * per Fagerström 2020) on this context. Safe to call repeatedly — subsequent
+   * calls short-circuit via the per-context {@link loadedAudioWorklets} set.
+   * Cross-context: pass `context` so an {@link FdnReverbEffect} added to a bus
+   * on a different context loads there.
+   */
+  async loadFdnReverb(signal?: AbortSignal, context?: BaseContext): Promise<void> {
+    await this.loadAudioWorkletModule("fdn-reverb", fdnReverbProcessorWorkletUrl, signal, context);
+  }
+
+  /**
+   * Constructs an `fdn-reverb` AudioWorkletNode. Caller is expected to have
+   * loaded the module already (via {@link loadFdnReverb} or by reaching here
+   * through {@link FdnReverbEffect.build}). Uses the same construct/fallback
+   * path as {@link createWorkletNode}.
+   */
+  async createFdnReverbNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("fdn-reverb", fdnReverbProcessorWorkletUrl, undefined, options, context);
   }
 
   async createWorkletNode(
@@ -891,6 +918,21 @@ export class Cacophony {
    */
   createReverb(options: ReverbOptions = {}): ReverbEffect {
     return new ReverbEffect(this, options);
+  }
+
+  /**
+   * Creates a Feedback Delay Network (FDN) {@link CacophonyEffect} — an
+   * algorithmic reverb with a lossless degree-0 paraunitary Hadamard feedback
+   * matrix (Schlecht & Habets 2019), per-delay-line absorption filters setting
+   * the reverberation time T60 (Jot & Chaigne 1991), and multiplication-free
+   * velvet-noise input diffusion (Fagerström et al. 2020). The effect's
+   * `build` lazily registers the worklet module (no-op if already loaded) and
+   * constructs the AudioWorkletNode with the supplied {@link FdnReverbOptions}
+   * as `parameterData`. Add the returned effect to a {@link Bus} via
+   * `bus.addFilter(effect)`.
+   */
+  createFdnReverb(options: FdnReverbOptions = {}): FdnReverbEffect {
+    return new FdnReverbEffect(this, options);
   }
 
   /**
