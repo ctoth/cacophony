@@ -7,13 +7,14 @@ import { type FdnReverbParams, FdnReverbProcessor } from "./fdn-reverb-core";
  * only the worklet plumbing (parameterDescriptors, process(), the
  * registerProcessor call); the algorithm lives in the unit-tested core.
  *
- * Algorithm: a Feedback Delay Network reverberator with a lossless (degree-0
- * paraunitary Hadamard) feedback matrix (Schlecht & Habets 2019, "Scattering in
- * Feedback Delay Networks"), per-delay-line absorption filters setting T60 (Jot
- * & Chaigne 1991), and multiplication-free velvet-noise input diffusion
- * (Fagerström, Alary, Schlecht & Välimäki 2020, "Velvet-Noise Feedback Delay
- * Network"). See fdn-reverb-core.ts for the full citation and per-equation
- * comments.
+ * Algorithm: a Feedback Delay Network reverberator with a lossless Delay
+ * Feedback Matrix A(z)=H·D_κ(z) — a Hadamard matrix scattered by per-feedback-
+ * path pure delays (Schlecht & Habets 2020, "Scattering in Feedback Delay
+ * Networks", §IV-A eq. 14) — per-delay-line absorption filters setting T60 (Jot
+ * & Chaigne 1991), and a multiplication-free velvet-noise diffuser on EACH delay
+ * line, the VFDN "single" configuration (Fagerström, Alary, Schlecht & Välimäki
+ * 2020, "Velvet-Noise Feedback Delay Network", §3). See fdn-reverb-core.ts for
+ * the full citation and per-equation comments.
  */
 
 const WORKLET_LOG_PREFIX = "[cacophony/worklet:fdn-reverb]";
