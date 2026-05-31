@@ -31,6 +31,17 @@ interface ReverbHost {
 }
 
 /**
+ * Minimal structural interface for the Cacophony surface DynamicsEffect needs.
+ * Declared locally (like {@link ReverbHost}) so this module avoids a circular
+ * import on cacophony.ts. Both methods accept an optional `BaseContext` for the
+ * cross-context contract `CacophonyEffect.build(context)` promises.
+ */
+interface DynamicsHost {
+  loadDynamics(signal?: AbortSignal, context?: BaseContext): Promise<void>;
+  createDynamicsNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode>;
+}
+
+/**
  * Public surface every Cacophony effect implements. `build` is called by
  * `Bus.addFilter` to materialize the effect's live node graph against a
  * specific audio context. An effect may be built more than once (e.g. on
@@ -153,6 +164,52 @@ export class ReverbEffect implements CacophonyEffect {
   async build(context: BaseContext): Promise<AudioWorkletNode> {
     await this.host.loadDattorroReverb(undefined, context);
     return this.host.createDattorroReverbNode({ parameterData: this.options as Record<string, number> }, context);
+  }
+}
+
+/**
+ * Construction-time configuration for a {@link DynamicsEffect}, mirroring the
+ * `dynamics` AudioWorkletProcessor's AudioParam set (see
+ * {@link import('./processors/dynamics').DynamicsWorkletProcessor}). All fields
+ * are optional; the worklet clamps to its documented ranges downstream.
+ *
+ * A single parameter set drives compressor, limiter, expander and gate
+ * (Giannoulis 2012): ratio > 1 compresses, a very large ratio limits, and
+ * ratio < 1 is downward expansion (an extreme low ratio is a gate). The
+ * `createLimiter` / `createGate` factories are presets over these same params.
+ */
+export interface DynamicsOptions {
+  /** Threshold T (dB), level above which compression starts. Default -24. Range -100..0. */
+  threshold?: number;
+  /** Ratio R (reciprocal of slope above T). Default 4. >1 compress, large=limit, <1 expand. Range 0.05..1000. */
+  ratio?: number;
+  /** Knee width W (dB), soft-knee transition centered on T (0 = hard). Default 6. Range 0..40. */
+  knee?: number;
+  /** Attack time tau_A (s). Default 0.003. Range 0..1. */
+  attack?: number;
+  /** Release time tau_R (s). Default 0.25. Range 0..5. */
+  release?: number;
+  /** Make-up gain M (dB), constant output boost. Default 0. Range -24..24. */
+  makeup?: number;
+}
+
+/**
+ * CacophonyEffect that builds a `dynamics` AudioWorkletNode — a feed-forward
+ * dynamics processor (compressor/limiter/expander/gate) implementing Giannoulis,
+ * Massberg & Reiss 2012. Mirrors {@link ReverbEffect}: `build` idempotently
+ * loads the worklet module on the supplied context, then constructs the node
+ * with the supplied {@link DynamicsOptions} as `parameterData`. Honors the
+ * cross-context contract (builds against the bus's context, not the host's own).
+ */
+export class DynamicsEffect implements CacophonyEffect {
+  constructor(
+    private readonly host: DynamicsHost,
+    private readonly options: DynamicsOptions = {},
+  ) {}
+
+  async build(context: BaseContext): Promise<AudioWorkletNode> {
+    await this.host.loadDynamics(undefined, context);
+    return this.host.createDynamicsNode({ parameterData: this.options as Record<string, number> }, context);
   }
 }
 

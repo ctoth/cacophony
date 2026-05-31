@@ -1,5 +1,6 @@
 import { installAutoplayUnlock } from "./autoplayUnlock";
 import dattorroReverbProcessorWorkletUrl from "./bundles/dattorro-reverb-bundle.js?url";
+import dynamicsProcessorWorkletUrl from "./bundles/dynamics-bundle.js?url";
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
 import stereoToBFormatProcessorWorkletUrl from "./bundles/stereo-to-bformat-bundle.js?url";
 import { Bus } from "./bus";
@@ -16,7 +17,15 @@ import type {
   GainNode,
   PannerNode,
 } from "./context";
-import { type CacophonyEffect, markAsCacophonyBiquad, ReverbEffect, type ReverbOptions, ShareEffect } from "./effects";
+import {
+  type CacophonyEffect,
+  DynamicsEffect,
+  type DynamicsOptions,
+  markAsCacophonyBiquad,
+  ReverbEffect,
+  type ReverbOptions,
+  ShareEffect,
+} from "./effects";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { CacophonyEvents } from "./events";
 import { Group } from "./group";
@@ -372,6 +381,7 @@ export class Cacophony {
       await this.createWorkletNode("phase-vocoder", phaseVocoderProcessorWorkletUrl, signal);
       await this.loadStereoToBFormatWorklet(signal);
       await this.loadDattorroReverb(signal);
+      await this.loadDynamics(signal);
     } else {
       console.warn("AudioWorklet not supported");
     }
@@ -410,6 +420,27 @@ export class Cacophony {
    */
   async createDattorroReverbNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
     return this.createWorkletNode("dattorro-reverb", dattorroReverbProcessorWorkletUrl, undefined, options, context);
+  }
+
+  /**
+   * Idempotently registers the `dynamics` AudioWorkletProcessor (feed-forward
+   * compressor/limiter/expander/gate, Giannoulis 2012) on this context. Safe to
+   * call repeatedly — subsequent calls short-circuit via the per-context
+   * {@link loadedAudioWorklets} set. Cross-context: pass `context` so a
+   * {@link DynamicsEffect} added to a bus on a different context loads there.
+   */
+  async loadDynamics(signal?: AbortSignal, context?: BaseContext): Promise<void> {
+    await this.loadAudioWorkletModule("dynamics", dynamicsProcessorWorkletUrl, signal, context);
+  }
+
+  /**
+   * Constructs a `dynamics` AudioWorkletNode. Caller is expected to have loaded
+   * the module already (via {@link loadDynamics} or by reaching here through
+   * {@link DynamicsEffect.build}). Uses the same construct/fallback path as
+   * {@link createWorkletNode}.
+   */
+  async createDynamicsNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("dynamics", dynamicsProcessorWorkletUrl, undefined, options, context);
   }
 
   async createWorkletNode(
@@ -860,6 +891,39 @@ export class Cacophony {
    */
   createReverb(options: ReverbOptions = {}): ReverbEffect {
     return new ReverbEffect(this, options);
+  }
+
+  /**
+   * Creates a dynamics {@link CacophonyEffect} configured as a COMPRESSOR
+   * (ratio > 1 reduces the level of signals above threshold). Implements the
+   * feed-forward design of Giannoulis, Massberg & Reiss 2012. Add the returned
+   * effect to a {@link Bus} via `bus.addFilter(effect)`. The same machinery
+   * (gain computer + log-domain smooth-branching detector) backs the limiter
+   * and gate presets below.
+   */
+  createCompressor(options: DynamicsOptions = {}): DynamicsEffect {
+    return new DynamicsEffect(this, options);
+  }
+
+  /**
+   * Creates a dynamics {@link CacophonyEffect} preset as a LIMITER — a
+   * compressor with an effectively infinite ratio so output is clamped at the
+   * threshold (Giannoulis 2012 eqs 18-19). The ratio is fixed to the worklet's
+   * limiter sentinel; caller-supplied `ratio` is ignored. Other params
+   * (threshold, knee, attack, release, makeup) remain configurable.
+   */
+  createLimiter(options: Omit<DynamicsOptions, "ratio"> = {}): DynamicsEffect {
+    return new DynamicsEffect(this, { ...options, ratio: 1000 });
+  }
+
+  /**
+   * Creates a dynamics {@link CacophonyEffect} preset as a downward EXPANDER /
+   * GATE — ratio < 1 so signals BELOW the threshold are pushed further down
+   * (Giannoulis 2012 p.403). The default `ratio` of 0.1 gives gate-like
+   * downward expansion; pass a `ratio` closer to 1 for gentler expansion.
+   */
+  createGate(options: DynamicsOptions = {}): DynamicsEffect {
+    return new DynamicsEffect(this, { ratio: 0.1, ...options });
   }
 
   /**
