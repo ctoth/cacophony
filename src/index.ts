@@ -81,6 +81,23 @@ export type {
 export { Group } from "./group";
 export type { MediaStreamSoundOptions } from "./mediaStream";
 export { MediaStreamPlayback, MediaStreamSound } from "./mediaStream";
+export type {
+  BiquadCoefficients,
+  LoudnessChannel,
+  LoudnessChannelInput,
+} from "./meters/loudness-core";
+export {
+  CHANNEL_WEIGHTS,
+  integratedLoudness,
+  integratedUngatedLoudness,
+  K_WEIGHTING_STAGE1_48K,
+  K_WEIGHTING_STAGE2_48K,
+  KWeightingFilter,
+  loudnessRange,
+} from "./meters/loudness-core";
+export type { LoudnessReading } from "./meters/loudness-meter";
+export { LoudnessMeter } from "./meters/loudness-meter";
+export { TruePeakDetector, truePeakDb } from "./meters/truepeak-core";
 export { MicrophonePlayback } from "./microphone";
 export type { HrtfPannerOptions, PanCloneOverrides, ThreeDOptions } from "./pannerMixin";
 export { Playback } from "./playback";

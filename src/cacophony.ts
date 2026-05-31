@@ -1,11 +1,12 @@
+import foaHrirUrl from "./assets/sh_hrir_order_1.wav?url";
 import { installAutoplayUnlock } from "./autoplayUnlock";
 import dattorroReverbProcessorWorkletUrl from "./bundles/dattorro-reverb-bundle.js?url";
 import dynamicsProcessorWorkletUrl from "./bundles/dynamics-bundle.js?url";
 import fdnReverbProcessorWorkletUrl from "./bundles/fdn-reverb-bundle.js?url";
+import loudnessMeterProcessorWorkletUrl from "./bundles/loudness-meter-bundle.js?url";
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
 import stereoToBFormatProcessorWorkletUrl from "./bundles/stereo-to-bformat-bundle.js?url";
 import waveshaperProcessorWorkletUrl from "./bundles/waveshaper-bundle.js?url";
-import foaHrirUrl from "./assets/sh_hrir_order_1.wav?url";
 import { Bus } from "./bus";
 import { AudioCache, type ICache } from "./cache";
 import type {
@@ -39,6 +40,7 @@ import { TypedEventEmitter } from "./eventEmitter";
 import type { CacophonyEvents } from "./events";
 import { Group } from "./group";
 import { MediaStreamSound, type MediaStreamSoundOptions } from "./mediaStream";
+import { LoudnessMeter } from "./meters/loudness-meter";
 import { MicrophoneStream } from "./microphone";
 import type { ThreeDOptions } from "./pannerMixin";
 import { type TimeStretchOptions, timeStretch } from "./processors/timestretch-core";
@@ -454,6 +456,7 @@ export class Cacophony {
       await this.loadDynamics(signal);
       await this.loadFdnReverb(signal);
       await this.loadWaveshaper(signal);
+      await this.loadLoudnessMeter(signal);
     } else {
       console.warn("AudioWorklet not supported");
     }
@@ -579,6 +582,27 @@ export class Cacophony {
    */
   async createWaveshaperNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
     return this.createWorkletNode("waveshaper", waveshaperProcessorWorkletUrl, undefined, options, context);
+  }
+
+  /**
+   * Idempotently registers the `loudness-meter` AudioWorkletProcessor (ITU-R
+   * BS.1770-5 momentary / short-term / integrated loudness + true-peak) on this
+   * context. Safe to call repeatedly — subsequent calls short-circuit via the
+   * per-context {@link loadedAudioWorklets} set. Cross-context: pass `context`
+   * so a meter tapping a bus on a different context loads there.
+   */
+  async loadLoudnessMeter(signal?: AbortSignal, context?: BaseContext): Promise<void> {
+    await this.loadAudioWorkletModule("loudness-meter", loudnessMeterProcessorWorkletUrl, signal, context);
+  }
+
+  /**
+   * Constructs a `loudness-meter` AudioWorkletNode. Caller is expected to have
+   * loaded the module already (via {@link loadLoudnessMeter} or {@link createLoudnessMeter}).
+   * The node is a PASS-THROUGH metering tap (1 input, 1 output) that posts
+   * momentary/short-term/integrated loudness and true-peak back over its port.
+   */
+  async createLoudnessMeterNode(options?: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("loudness-meter", loudnessMeterProcessorWorkletUrl, undefined, options, context);
   }
 
   /**
@@ -1155,6 +1179,34 @@ export class Cacophony {
    */
   createFoaDecoder(options: FoaDecoderOptions = {}): FoaDecoderEffect {
     return new FoaDecoderEffect(this, options);
+  }
+
+  /**
+   * Creates an ITU-R BS.1770-5 {@link LoudnessMeter} that TAPS the output of a
+   * target node without altering the audible path. The meter reports momentary
+   * (400 ms), short-term (3 s), and gated integrated loudness in LKFS/LUFS, plus
+   * true-peak level in dBTP (Annex 2 4× oversampling).
+   *
+   * The tap is a BRANCH: the target's output is connected to the metering
+   * worklet in ADDITION to its existing forward edge, and the worklet's output
+   * is left unconnected (a silent dead-end sink). By default the target is the
+   * master bus output (`master.output`), measuring everything that reaches the
+   * destination — the integrated-loudness target. Pass a {@link Bus} to meter
+   * one bus's output, or any {@link AudioNode} to meter that node.
+   *
+   * Lazily registers the `loudness-meter` worklet module (no-op if already
+   * loaded) on the target's context, then constructs the node and branch-taps.
+   *
+   * @param target Node or bus whose output to meter. Defaults to the master bus.
+   * @returns A {@link LoudnessMeter} handle exposing the live readings.
+   */
+  async createLoudnessMeter(target: Bus | AudioNode = this.master): Promise<LoudnessMeter> {
+    const sourceNode: AudioNode = target instanceof Bus ? target.output : target;
+    // Load the worklet on the SAME context the source node lives on (the master
+    // and user buses share this host's context, but be explicit for clarity).
+    await this.loadLoudnessMeter(undefined, this.context);
+    const node = await this.createLoudnessMeterNode({ numberOfInputs: 1, numberOfOutputs: 1 }, this.context);
+    return new LoudnessMeter(node, sourceNode);
   }
 
   /**
