@@ -6,7 +6,7 @@
  * the four first-order spherical-harmonic channels `[W, Y, Z, X]` (ACN indices
  * 0,1,2,3). This is the physically-correct, normalized counterpart to the
  * perceptual `StereoToFoaUpmixer`, and is the clean way to drive
- * {@link import('../effects').FoaDecoderEffect}: encode a mono source to FOA,
+ * {@link import('../effects').FoaDecoder}: encode a mono source to FOA,
  * then decode that FOA to binaural.
  *
  * Convention (LOCKED by reports/scout-b2-decode-decision.md, Decision 4):

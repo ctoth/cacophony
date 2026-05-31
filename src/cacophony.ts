@@ -27,7 +27,7 @@ import {
   type DynamicsOptions,
   FdnReverbEffect,
   type FdnReverbOptions,
-  FoaDecoderEffect,
+  FoaDecoder,
   type FoaDecoderOptions,
   markAsCacophonyBiquad,
   ReverbEffect,
@@ -216,7 +216,7 @@ export class Cacophony {
   private loadedAudioWorklets: WeakMap<BaseContext, Set<string>> = new WeakMap();
   /**
    * Per-context cache of the decoded order-1 SH-HRIR `AudioBuffer` used by
-   * {@link FoaDecoderEffect}. Keyed on the context (like
+   * {@link FoaDecoder}. Keyed on the context (like
    * {@link loadedAudioWorklets}) because `decodeAudioData` produces a buffer
    * bound to ONE context's sample rate; a buffer decoded on context A must not
    * be reused on context B. Stores the in-flight Promise so concurrent
@@ -610,7 +610,7 @@ export class Cacophony {
    * (`sh_hrir_order_1.wav`, from Omnitone, Apache-2.0 — see
    * `src/assets/NOTICE`) into an `AudioBuffer`, memoized per context. The
    * buffer is the 4-channel (ACN rows W,Y,Z,X) SH-domain HRIR consumed by
-   * {@link FoaDecoderEffect} to drive its WY/ZX stereo ConvolverNodes
+   * {@link FoaDecoder} to drive its WY/ZX stereo ConvolverNodes
    * (Ahrens 2022 eq.31 decode).
    *
    * The WAV is 48 kHz; `decodeAudioData` resamples it to the context's sample
@@ -618,7 +618,7 @@ export class Cacophony {
    * Omnitone relies on).
    *
    * @param context Optional BaseContext to decode on. Defaults to this host's
-   *   own `context`. Supplied so a {@link FoaDecoderEffect} added to a bus on
+   *   own `context`. Supplied so a {@link FoaDecoder} added to a bus on
    *   a different context decodes the HRIR on the right context.
    */
   async loadFoaHrir(context?: BaseContext): Promise<AudioBuffer> {
@@ -1164,21 +1164,35 @@ export class Cacophony {
     return new WaveshaperEffect(this, { drive: 4, shape: 1, ...options });
   }
 
+  /** The default audio context for this Cacophony instance (used by
+   * {@link FoaDecoder} when no explicit context is supplied). */
+  defaultContext(): BaseContext {
+    return this.context;
+  }
+
   /**
-   * Creates a {@link FoaDecoderEffect} — a first-order ambisonic (FOA) ->
-   * binaural decoder built from native Web Audio nodes (no worklet). It decodes
-   * a 4-channel ACN/SN3D `[W, Y, Z, X]` bus to headphone stereo via the
-   * per-SH-channel HRIR decode of Ahrens 2022 (eq.31), using Omnitone's WY/ZX
-   * 2-stereo-ConvolverNode packing and the bundled order-1 SH-HRIR.
+   * Creates a {@link FoaDecoder} — a standalone first-order ambisonic (FOA) ->
+   * binaural FORMAT CONVERTER built from native Web Audio nodes (no worklet).
+   * It decodes a 4-channel ACN/SN3D `[W, Y, Z, X]` signal to headphone stereo
+   * via the per-SH-channel HRIR decode of Ahrens 2022 (eq.31), using
+   * Omnitone's WY/ZX 2-stereo-ConvolverNode packing and the bundled order-1
+   * SH-HRIR.
    *
-   * Add it to a {@link Bus} via `bus.addFilter(effect)` — it MUST be the
-   * head-of-chain filter so the bus input stays 4-channel and the output is
-   * 2-channel. Pair it with {@link encodeMonoToFoaSN3D} (clean, physically
-   * correct) or with `createStereoToBFormatNode` (the perceptual,
-   * approximate stereo-upmix path).
+   * It is 4-channel-in / 2-channel-out, so it is NOT a `CacophonyEffect` and is
+   * NOT added via `bus.addFilter`. Wire it EXPLICITLY using its two endpoints:
+   * feed FOA into `decoder.input` (4-ch) and route `decoder.output` (2-ch
+   * stereo) downstream:
+   * ```ts
+   *   const decoder = await cacophony.createFoaDecoder();
+   *   foaSource.connect(decoder.input);
+   *   decoder.output.connect(bus.input); // or context.destination
+   * ```
+   * Build is async (the bundled HRIR is fetched + decoded). Pair it with
+   * {@link encodeMonoToFoaSN3D} (clean, physically correct) or with
+   * `createStereoToBFormatNode` (the perceptual, approximate stereo-upmix path).
    */
-  createFoaDecoder(options: FoaDecoderOptions = {}): FoaDecoderEffect {
-    return new FoaDecoderEffect(this, options);
+  async createFoaDecoder(options: FoaDecoderOptions = {}, context?: BaseContext): Promise<FoaDecoder> {
+    return FoaDecoder.create(this, options, context);
   }
 
   /**

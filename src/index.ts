@@ -51,7 +51,7 @@ export {
   BiquadEffect,
   DynamicsEffect,
   FdnReverbEffect,
-  FoaDecoderEffect,
+  FoaDecoder,
   ReverbEffect,
   ShareEffect,
   WaveshaperEffect,

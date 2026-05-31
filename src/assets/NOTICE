@@ -5,7 +5,7 @@ sh_hrir_order_1.wav
 -------------------
 A 4-channel, 48 kHz, 16-bit, 256-sample order-1 spherical-harmonic HRIR
 (Head-Related Impulse Response) used by the FOA -> binaural decoder
-(FoaDecoderEffect). The four channels are the SH-domain HRIR rows used by the
+(FoaDecoder). The four channels are the SH-domain HRIR rows used by the
 WY / ZX stereo-ConvolverNode decode graph (see src/effects.ts).
 
   Source:    https://github.com/GoogleChrome/omnitone

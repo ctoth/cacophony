@@ -1,17 +1,21 @@
 import { AudioContext } from "standardized-audio-context-mock";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FoaDecoderEffect, isCacophonyEffect } from "./effects";
+import { FoaDecoder } from "./effects";
 import { encodeMonoToFoaSN3D } from "./spatial/foa-encode";
 import { audioContextMock, cacophony } from "./setupTests";
 
 /**
  * The standardized-audio-context mock returns bare `{}` stubs for
  * createChannelSplitter / createChannelMerger / createConvolver (they have no
- * `connect`). To assert the FoaDecoderEffect graph we install spy-wrapped
- * fakes for those factories (generalizing the "wrap createGain" idiom from
+ * `connect`). To assert the FoaDecoder graph we install spy-wrapped fakes for
+ * those factories (generalizing the "wrap createGain" idiom from
  * scout-effect-bus-system.md §5) and capture every created node so we can
- * inspect the edges. createGain is left as the real GainNodeMock (it has a
- * real `gain` AudioParam the effect writes -1 into).
+ * inspect the edges. createGain is ALSO wrapped (it has a real `gain`
+ * AudioParam the decoder writes -1 into) so the inverter and output gain are
+ * captured with their own `connect` spies.
+ *
+ * IMPORTANT: the mock GainNode is a singleton-ish object whose identity we rely
+ * on to distinguish nodes, so each captured node carries an `id`.
  */
 interface CapturedNode {
   kind: string;
@@ -19,18 +23,21 @@ interface CapturedNode {
   connect: ReturnType<typeof vi.fn>;
   normalize?: boolean;
   buffer?: unknown;
+  gain?: { value: number };
+  node: unknown;
 }
 
 function instrumentGraphFactories(): { created: CapturedNode[] } {
   const created: CapturedNode[] = [];
   const make = (kind: string) => (arg?: number) => {
-    const node: CapturedNode = {
+    const node = {
       kind,
       arg,
       connect: vi.fn(),
       normalize: true,
       buffer: null,
-    };
+    } as CapturedNode;
+    node.node = node;
     created.push(node);
     return node as unknown as never;
   };
@@ -38,7 +45,46 @@ function instrumentGraphFactories(): { created: CapturedNode[] } {
   vi.spyOn(audioContextMock, "createChannelMerger").mockImplementation(make("merger") as never);
   // createConvolver / createBuffer are `@todo` stubs returning {} in the mock.
   (audioContextMock as unknown as { createConvolver: () => unknown }).createConvolver = make("convolver") as never;
+  // Wrap createGain too so the inverter (-1) and the output GainNode are
+  // captured as CapturedNodes with their own connect spies.
+  vi.spyOn(audioContextMock, "createGain").mockImplementation((() => {
+    const gainValue = { value: 1 };
+    const node = {
+      kind: "gain",
+      connect: vi.fn(),
+      gain: gainValue,
+    } as CapturedNode;
+    node.node = node;
+    created.push(node);
+    return node as unknown as never;
+  }) as never);
   return { created };
+}
+
+/** A 4-channel stub HRIR so create() never touches decodeAudioData/fetch. */
+const stubHrir = () => new AudioContext().createBuffer(4, 256, 48000);
+
+/**
+ * Identify the canonical decoder nodes from the captured-node list, by the
+ * deterministic creation order in FoaDecoder.create:
+ *   splitter[0]=input(4ch), splitter[1]=splitterWY(2ch), splitter[2]=splitterZX(2ch)
+ *   merger[0]=mergerWY, merger[1]=mergerZX, merger[2]=mergerBinaural
+ *   gain[0]=yRightInverter(-1), gain[1]=output
+ */
+function namedNodes(created: CapturedNode[]) {
+  const splitters = created.filter((n) => n.kind === "splitter");
+  const mergers = created.filter((n) => n.kind === "merger");
+  const gains = created.filter((n) => n.kind === "gain");
+  return {
+    input: splitters[0],
+    splitterWY: splitters[1],
+    splitterZX: splitters[2],
+    mergerWY: mergers[0],
+    mergerZX: mergers[1],
+    mergerBinaural: mergers[2],
+    inverter: gains.find((g) => g.gain?.value === -1)!,
+    output: gains.find((g) => g.gain?.value !== -1)!,
+  };
 }
 
 describe("encodeMonoToFoaSN3D — SN3D/ACN positional FOA encoder (ambiX; Zotter & Frank 2019)", () => {
@@ -112,27 +158,26 @@ describe("encodeMonoToFoaSN3D — SN3D/ACN positional FOA encoder (ambiX; Zotter
   });
 });
 
-describe("FoaDecoderEffect — FOA->binaural decoder (Ahrens 2022 eq.31; Omnitone WY/ZX)", () => {
-  // A 4-channel stub HRIR so build() never touches decodeAudioData/fetch.
-  const stubHrir = () => new AudioContext().createBuffer(4, 256, 48000);
-
-  it("createFoaDecoder returns a CacophonyEffect", () => {
-    const effect = cacophony.createFoaDecoder();
-    expect(isCacophonyEffect(effect)).toBe(true);
-    expect(effect).toBeInstanceOf(FoaDecoderEffect);
+describe("FoaDecoder — standalone FOA->binaural format converter (Ahrens 2022 eq.31; Omnitone WY/ZX)", () => {
+  it("createFoaDecoder returns a FoaDecoder with .input and .output (NOT a CacophonyEffect)", async () => {
+    instrumentGraphFactories();
+    const decoder = await cacophony.createFoaDecoder({ hrir: stubHrir() });
+    expect(decoder).toBeInstanceOf(FoaDecoder);
+    expect(decoder.input).toBeDefined();
+    expect(decoder.output).toBeDefined();
+    // It is a standalone construct, not a bus filter: it has no `build` method.
+    expect((decoder as unknown as { build?: unknown }).build).toBeUndefined();
   });
 
-  it("build() constructs the locked node graph: 4ch splitter -> 2 mergers -> 2 convolvers", async () => {
+  it("constructs the node graph: 4ch input splitter -> 2 mergers -> 2 convolvers", async () => {
     const { created } = instrumentGraphFactories();
-    const effect = cacophony.createFoaDecoder({ hrir: stubHrir() });
-
-    await effect.build(audioContextMock);
+    await cacophony.createFoaDecoder({ hrir: stubHrir() });
 
     const splitters = created.filter((n) => n.kind === "splitter");
     const mergers = created.filter((n) => n.kind === "merger");
     const convolvers = created.filter((n) => n.kind === "convolver");
 
-    // foaInput(4ch) + splitterWY(2ch) + splitterZX(2ch)
+    // input(4ch) + splitterWY(2ch) + splitterZX(2ch)
     expect(splitters.map((s) => s.arg)).toEqual([4, 2, 2]);
     // mergerWY(2ch) + mergerZX(2ch) + mergerBinaural(2ch)
     expect(mergers.map((m) => m.arg)).toEqual([2, 2, 2]);
@@ -141,7 +186,7 @@ describe("FoaDecoderEffect — FOA->binaural decoder (Ahrens 2022 eq.31; Omniton
 
   it("sets convolver.normalize = false on both convolvers (HRIR is pre-scaled)", async () => {
     const { created } = instrumentGraphFactories();
-    await cacophony.createFoaDecoder({ hrir: stubHrir() }).build(audioContextMock);
+    await cacophony.createFoaDecoder({ hrir: stubHrir() });
 
     const convolvers = created.filter((n) => n.kind === "convolver");
     expect(convolvers.length).toBe(2);
@@ -152,61 +197,109 @@ describe("FoaDecoderEffect — FOA->binaural decoder (Ahrens 2022 eq.31; Omniton
 
   it("packs W+Y into the first convolver and Z+X into the second (Omnitone grouping)", async () => {
     const { created } = instrumentGraphFactories();
-    await cacophony.createFoaDecoder({ hrir: stubHrir() }).build(audioContextMock);
-
-    const foaInput = created.find((n) => n.kind === "splitter" && n.arg === 4)!;
-    const [mergerWY, mergerZX] = created.filter((n) => n.kind === "merger");
+    await cacophony.createFoaDecoder({ hrir: stubHrir() });
+    const { input, mergerWY, mergerZX } = namedNodes(created);
 
     // ch0(W)->mergerWY in0, ch1(Y)->mergerWY in1
-    expect(foaInput.connect).toHaveBeenCalledWith(mergerWY, 0, 0);
-    expect(foaInput.connect).toHaveBeenCalledWith(mergerWY, 1, 1);
+    expect(input.connect).toHaveBeenCalledWith(mergerWY, 0, 0);
+    expect(input.connect).toHaveBeenCalledWith(mergerWY, 1, 1);
     // ch2(Z)->mergerZX in0, ch3(X)->mergerZX in1
-    expect(foaInput.connect).toHaveBeenCalledWith(mergerZX, 2, 0);
-    expect(foaInput.connect).toHaveBeenCalledWith(mergerZX, 3, 1);
+    expect(input.connect).toHaveBeenCalledWith(mergerZX, 2, 0);
+    expect(input.connect).toHaveBeenCalledWith(mergerZX, 3, 1);
   });
 
-  it("applies a -1 GainNode on the Y right-ear path (asymmetric-degree inversion)", async () => {
+  // === BLOCKER 1 REGRESSION TEST (Ahrens eq.31 per-ear completeness) =========
+  // The decode must route ALL FOUR SH channels (W, Y, Z, X) into BOTH the left
+  // ear (mergerBinaural input 0) AND the right ear (mergerBinaural input 1).
+  // The previously-broken graph sent only W+Z to the left ear and only -Y+X to
+  // the right ear; this test FAILS on that graph (it asserts edges that graph
+  // never made: W/Z into the right ear, Y/X into the left ear).
+  //
+  // Channel carriers after the WY/ZX stereo convolvers:
+  //   splitterWY ch0 = W,  splitterWY ch1 = Y
+  //   splitterZX ch0 = Z,  splitterZX ch1 = X
+  // mergerBinaural input 0 = LEFT ear, input 1 = RIGHT ear.
+  it("routes ALL FOUR SH channels into BOTH ears (Ahrens eq.31 per-ear completeness)", async () => {
     const { created } = instrumentGraphFactories();
-    // Capture the GainNodes the effect creates so we can read their gain.value.
-    const realCreateGain = audioContextMock.createGain.bind(audioContextMock);
-    const gains: Array<{ node: ReturnType<typeof realCreateGain>; connect: ReturnType<typeof vi.fn> }> = [];
-    vi.spyOn(audioContextMock, "createGain").mockImplementation(() => {
-      const node = realCreateGain();
-      const connect = vi.fn();
-      Object.assign(node, { connect });
-      gains.push({ node, connect });
-      return node;
-    });
+    await cacophony.createFoaDecoder({ hrir: stubHrir() });
+    const { splitterWY, splitterZX, mergerBinaural, inverter } = namedNodes(created);
 
-    await cacophony.createFoaDecoder({ hrir: stubHrir() }).build(audioContextMock);
+    // --- LEFT ear (mergerBinaural input 0) gets W, Y, Z, X ---
+    // W: splitterWY ch0 -> mergerBinaural (in0)
+    expect(splitterWY.connect).toHaveBeenCalledWith(mergerBinaural, 0, 0);
+    // Y: splitterWY ch1 -> mergerBinaural (in0)
+    expect(splitterWY.connect).toHaveBeenCalledWith(mergerBinaural, 1, 0);
+    // Z: splitterZX ch0 -> mergerBinaural (in0)
+    expect(splitterZX.connect).toHaveBeenCalledWith(mergerBinaural, 0, 0);
+    // X: splitterZX ch1 -> mergerBinaural (in0)
+    expect(splitterZX.connect).toHaveBeenCalledWith(mergerBinaural, 1, 0);
 
-    // Exactly one gain is set to -1 (the Y right-ear inverter); the output gain
-    // is left at its default 1.
-    const inverters = gains.filter((g) => g.node.gain.value === -1);
-    expect(inverters.length).toBe(1);
-    // The inverter is fed by splitterWY's right channel (output index 1).
-    const splitterWY = created.filter((n) => n.kind === "splitter" && n.arg === 2)[0];
-    expect(splitterWY.connect).toHaveBeenCalledWith(inverters[0].node, 1);
+    // --- RIGHT ear (mergerBinaural input 1) gets W, -Y, Z, X ---
+    // W: splitterWY ch0 -> mergerBinaural (in1)
+    expect(splitterWY.connect).toHaveBeenCalledWith(mergerBinaural, 0, 1);
+    // Z: splitterZX ch0 -> mergerBinaural (in1)
+    expect(splitterZX.connect).toHaveBeenCalledWith(mergerBinaural, 0, 1);
+    // X: splitterZX ch1 -> mergerBinaural (in1)
+    expect(splitterZX.connect).toHaveBeenCalledWith(mergerBinaural, 1, 1);
+    // Y (sign-flipped): splitterWY ch1 -> inverter(-1) -> mergerBinaural (in1)
+    expect(splitterWY.connect).toHaveBeenCalledWith(inverter, 1, 0);
+    expect(inverter.connect).toHaveBeenCalledWith(mergerBinaural, 0, 1);
   });
 
-  it("build() throws if the context lacks channel split/merge/convolve support", async () => {
-    const bare = { createGain: audioContextMock.createGain.bind(audioContextMock) } as never;
-    await expect(cacophony.createFoaDecoder({ hrir: stubHrir() }).build(bare)).rejects.toThrow(
-      /createChannelSplitter/,
-    );
+  it("applies exactly one -1 GainNode and feeds it from the Y (splitterWY ch1) path", async () => {
+    const { created } = instrumentGraphFactories();
+    await cacophony.createFoaDecoder({ hrir: stubHrir() });
+
+    const inverters = created.filter((n) => n.kind === "gain" && n.gain?.value === -1);
+    expect(inverters.length).toBe(1);
+    const { splitterWY, inverter } = namedNodes(created);
+    expect(splitterWY.connect).toHaveBeenCalledWith(inverter, 1, 0);
+  });
+
+  // === BLOCKER 2: .output is the 2-channel stereo node, NOT the 4-ch input ===
+  it("exposes .output as the binaural stereo GainNode (mergerBinaural -> output), distinct from .input", async () => {
+    const { created } = instrumentGraphFactories();
+    const decoder = await cacophony.createFoaDecoder({ hrir: stubHrir() });
+    const { input, mergerBinaural, output } = namedNodes(created);
+
+    // The decoder's externally-visible endpoints are distinct nodes.
+    expect(decoder.input).toBe(input as unknown);
+    expect(decoder.output).toBe(output as unknown);
+    expect(decoder.output).not.toBe(decoder.input);
+    // The binaural merger feeds the output GainNode.
+    expect(mergerBinaural.connect).toHaveBeenCalledWith(output);
+  });
+
+  it("routing downstream goes from .output (stereo), not the 4-channel .input", async () => {
+    const { created } = instrumentGraphFactories();
+    const decoder = await cacophony.createFoaDecoder({ hrir: stubHrir() });
+    const { input, output } = namedNodes(created);
+
+    // A downstream destination the caller connects the decoder to.
+    const destination = { connect: vi.fn() } as unknown as Parameters<typeof decoder.output.connect>[0];
+    decoder.output.connect(destination);
+
+    // The stereo output carried the edge; the 4-ch input did NOT connect to it.
+    expect(output.connect).toHaveBeenCalledWith(destination);
+    expect(input.connect).not.toHaveBeenCalledWith(destination);
+  });
+
+  it("throws if the context lacks channel split/merge/convolve support", async () => {
+    const bare = { createGain: vi.fn() } as never;
+    await expect(cacophony.createFoaDecoder({ hrir: stubHrir() }, bare)).rejects.toThrow(/createChannelSplitter/);
   });
 
   it("falls back to loadFoaHrir when no hrir option is supplied", async () => {
     instrumentGraphFactories();
     const loadSpy = vi.spyOn(cacophony, "loadFoaHrir").mockResolvedValue(stubHrir());
 
-    await cacophony.createFoaDecoder().build(audioContextMock);
+    await cacophony.createFoaDecoder();
 
     expect(loadSpy).toHaveBeenCalledWith(audioContextMock);
   });
 });
 
-describe("Resurrection: StereoToFoaUpmixer -> FoaDecoderEffect (perceptual stereo->binaural)", () => {
+describe("Resurrection: StereoToFoaUpmixer -> FoaDecoder (perceptual stereo->binaural)", () => {
   const mockAudioWorklet = () => {
     const addModule = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(audioContextMock, "audioWorklet", {
@@ -221,53 +314,42 @@ describe("Resurrection: StereoToFoaUpmixer -> FoaDecoderEffect (perceptual stere
     mockAudioWorklet();
   });
 
-  it("the upmixer's 4-ch output node connects into the decoder's 4-ch input splitter", async () => {
+  // === MAJOR FIX: REAL resurrection wiring (no vi.fn() replacement of connect) =
+  // Build the real upmixer node and the real decoder through the library API,
+  // wire the upmixer's actual output node into decoder.input, and assert the
+  // upmixer's OWN connect spy recorded the edge into the decoder's 4-ch input.
+  it("wires the real upmixer output node into decoder.input (real graph edge, not a self-spy)", async () => {
     const { created } = instrumentGraphFactories();
-    const stubHrir = new AudioContext().createBuffer(4, 256, 48000);
 
     // The dead encoder: createStereoToBFormatNode builds a 4-ch worklet node.
+    // setupTests mocks AudioWorkletNode with a real vi.fn() `connect` — we spy
+    // on THAT node's own connect (no replacement), so the assertion proves the
+    // upmixer node really emitted an edge, not that we called our own stub.
     const upmixer = await cacophony.createStereoToBFormatNode();
-    // Wrap its connect so we can prove signal leaves the encoder.
-    const upmixerConnect = vi.fn();
-    Object.assign(upmixer, { connect: upmixerConnect });
+    const upmixerConnect = vi.spyOn(upmixer, "connect");
 
-    // Build the decoder; its head node is the 4-ch input ChannelSplitter.
-    const decoderHead = await cacophony.createFoaDecoder({ hrir: stubHrir }).build(audioContextMock);
+    const decoder = await cacophony.createFoaDecoder({ hrir: stubHrir() });
 
-    // Route the previously-dead encoder output AS-IS into the decoder input
-    // (no normalization bridge — ACN ordering already lines up).
-    upmixer.connect(decoderHead as never);
+    // Resurrection wiring through the public endpoint: upmixer -> decoder.input.
+    upmixer.connect(decoder.input as never);
 
-    // Proof the encoder now carries signal to the decoder.
-    expect(upmixerConnect).toHaveBeenCalledWith(decoderHead);
-    // And the decoder head is the 4-channel input splitter (head-of-chain).
-    const foaInput = created.find((n) => n.kind === "splitter" && n.arg === 4);
-    expect(decoderHead).toBe(foaInput as unknown);
+    // The real upmixer node emitted the edge into the decoder's input...
+    expect(upmixerConnect).toHaveBeenCalledWith(decoder.input);
+    // ...and decoder.input is the 4-channel input splitter (head-of-chain).
+    const { input } = namedNodes(created);
+    expect(decoder.input).toBe(input as unknown);
+    expect(input.arg).toBe(4);
   });
 
-  it("the decoder produces a 2-channel binaural output node (mergerBinaural -> outputGain)", async () => {
+  it("the decoder produces a 2-channel binaural output node fed by the binaural merger", async () => {
     const { created } = instrumentGraphFactories();
-    const stubHrir = new AudioContext().createBuffer(4, 256, 48000);
-    // Capture the output GainNode the binaural merger feeds.
-    const realCreateGain = audioContextMock.createGain.bind(audioContextMock);
-    const gains: Array<{ connect: ReturnType<typeof vi.fn> }> = [];
-    vi.spyOn(audioContextMock, "createGain").mockImplementation(() => {
-      const node = realCreateGain();
-      const connect = vi.fn();
-      Object.assign(node, { connect });
-      gains.push({ connect });
-      return node;
-    });
 
-    await cacophony.createFoaDecoder({ hrir: stubHrir }).build(audioContextMock);
+    const decoder = await cacophony.createFoaDecoder({ hrir: stubHrir() });
+    const { mergerBinaural, output } = namedNodes(created);
 
-    // mergerBinaural is the third (2ch) merger; it must connect into a GainNode.
-    const mergerBinaural = created.filter((n) => n.kind === "merger")[2];
-    const outputGainConnectedFrom = (mergerBinaural.connect as ReturnType<typeof vi.fn>).mock.calls.some(
-      (call) => gains.some((g) => g.connect === (call[0] as { connect?: unknown })?.connect),
-    );
-    // mergerBinaural connected to *something* (the output gain). Assert it was called.
-    expect((mergerBinaural.connect as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0);
-    expect(outputGainConnectedFrom).toBe(true);
+    // mergerBinaural (the 3rd 2ch merger) feeds the output GainNode the caller
+    // routes downstream — the decoder's stereo tail.
+    expect(mergerBinaural.connect).toHaveBeenCalledWith(output);
+    expect(decoder.output).toBe(output as unknown);
   });
 });

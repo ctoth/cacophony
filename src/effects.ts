@@ -64,15 +64,16 @@ interface WaveshaperHost {
 }
 
 /**
- * Minimal structural interface for the Cacophony surface FoaDecoderEffect needs.
+ * Minimal structural interface for the Cacophony surface {@link FoaDecoder} needs.
  * Declared locally (like {@link ReverbHost}) so this module avoids a circular
  * import on cacophony.ts. `loadFoaHrir` resolves (and per-context memoizes) the
- * bundled order-1 SH-HRIR `AudioBuffer`; `build` slices it into the two stereo
- * ConvolverNode buffers. Accepts an optional `BaseContext` for the
- * cross-context contract `CacophonyEffect.build(context)` promises.
+ * bundled order-1 SH-HRIR `AudioBuffer`; the decoder slices it into the two
+ * stereo ConvolverNode buffers.
  */
 interface FoaDecoderHost {
   loadFoaHrir(context?: BaseContext): Promise<AudioBuffer>;
+  /** The host's own default audio context, used when no context is supplied. */
+  defaultContext(): BaseContext;
 }
 
 /**
@@ -337,57 +338,84 @@ export class WaveshaperEffect implements CacophonyEffect {
 }
 
 /**
- * Construction-time configuration for a {@link FoaDecoderEffect}.
+ * Construction-time configuration for a {@link FoaDecoder}.
  */
 export interface FoaDecoderOptions {
   /**
-   * Caller-supplied order-1 SH-HRIR. When omitted, the effect resolves the
+   * Caller-supplied order-1 SH-HRIR. When omitted, the decoder resolves the
    * bundled Omnitone `sh_hrir_order_1.wav` (Apache-2.0) via
    * {@link FoaDecoderHost.loadFoaHrir}. Supply a 4-channel `AudioBuffer` (ACN
    * rows W,Y,Z,X) to override — e.g. in tests, or to ship a different
    * measured SH-HRIR. If you substitute a different file the WY/ZX row
    * grouping and the Y right-ear sign inversion must still match Omnitone's
-   * convention (see {@link FoaDecoderEffect}).
+   * convention (see {@link FoaDecoder}).
    */
   hrir?: AudioBuffer;
 }
 
 /**
- * CacophonyEffect that decodes a 4-channel first-order ambisonic (FOA) bus —
- * ACN-ordered, SN3D-normalized `[W, Y, Z, X]` — to binaural stereo using a
- * per-SH-channel HRIR, built entirely from native Web Audio nodes (NO worklet).
+ * Standalone 4-channel-in / 2-channel-out FOA → binaural FORMAT CONVERTER,
+ * built entirely from native Web Audio nodes (NO worklet).
+ *
+ * ## Why this is NOT a `CacophonyEffect`
+ * A `CacophonyEffect` (and the `Bus.addFilter` chain) assumes ONE node that is
+ * both the input the chain connects into and the output it connects out of
+ * (see the module docstring above). A FOA decoder cannot satisfy that contract:
+ * its input is a **4-channel** FOA node and its output is a **2-channel**
+ * binaural node — two distinct nodes with different channel counts. Squeezing
+ * it into `build(): AudioNode` forced the head splitter to masquerade as both,
+ * so downstream routing read the 4-channel splitter, not the stereo tail.
+ *
+ * Instead this is a standalone construct exposing the two endpoints explicitly:
+ *   - {@link input}  — the 4-channel `ChannelSplitterNode` you feed FOA into.
+ *   - {@link output} — the 2-channel binaural `GainNode` you route downstream.
+ *
+ * Wire it EXPLICITLY (it is NOT a bus filter):
+ * ```ts
+ *   const decoder = await cacophony.createFoaDecoder();
+ *   foaSourceNode.connect(decoder.input);          // 4-ch FOA in
+ *   decoder.output.connect(bus.input /* or context.destination *\/); // stereo out
+ * ```
  *
  * ## Math (Ahrens 2022, eq. 31)
  * Under a real (SN3D/ACN) SH basis the binaural decode collapses to a single
- * per-ear multiply-accumulate over the SH channels:
+ * per-EAR multiply-accumulate over ALL the SH channels:
  *   B^{L,R}(w) = sum_{n,m} S_{n,m}(w) * H_{n,m}^{L,R}(w)
  * (Ahrens, "Binaural Audio Rendering in the Spherical Harmonic Domain", 2022,
  * eq. 31 — the real-basis form where the conjugation and m -> -m degree flip
- * vanish). Each SH channel is routed through its own L/R HRIR FIR
- * (`ConvolverNode`) and the four channels are summed per ear.
+ * vanish). EACH ear sums the contribution of EVERY FOA channel (W, Y, Z, X)
+ * convolved with that ear's HRIR — neither ear may drop a channel. With a
+ * single stored SH-HRIR the L/R-symmetric channels (W, Z, X) share the same
+ * coefficient for both ears while the L/R-ANTISYMMETRIC channel (Y) is the
+ * sign-flip for the right ear, so:
+ *   B^L = W*H_W + Y*H_Y + Z*H_Z + X*H_X
+ *   B^R = W*H_W - Y*H_Y + Z*H_Z + X*H_X   (only the Y term differs, by sign)
  *
  * ## Topology (Omnitone WY/ZX packing — GoogleChrome/omnitone foa-convolver.js)
  * Rather than 8 mono convolvers, the four SH channels are grouped into two
  * STEREO `ConvolverNode`s — W+Y into one, Z+X into the other — each convolved
  * against a 2-row slice of the 4-row SH-HRIR. A 4-channel ConvolverNode would
  * do unwanted cross-channel convolution per the Web Audio spec; the stereo
- * packing is Omnitone's production graph and is mirrored here verbatim:
+ * packing is Omnitone's production graph and is mirrored here VERBATIM (the
+ * `.connect` calls below are line-for-line Omnitone's `_buildAudioGraph`):
  *
- *   foaInput (ChannelSplitter, 4ch)
+ *   input (ChannelSplitter, 4ch)
  *     ch0(W),ch1(Y) -> mergerWY(2ch) -> convolverWY (HRIR rows {W,Y}, stereo)
  *     ch2(Z),ch3(X) -> mergerZX(2ch) -> convolverZX (HRIR rows {Z,X}, stereo)
  *   convolverWY -> splitterWY(2ch); convolverZX -> splitterZX(2ch)
- *     L ear: splitterWY.ch0 + splitterZX.ch0
- *     R ear: (-1)*splitterWY.ch1 [Y right-ear inversion] + splitterWY...
- *            see below; Omnitone applies gain=-1 on the Y right-ear path.
- *   mergerBinaural(2ch) -> outputGain (stereo)
+ *     splitterWY.ch0 (W) -> L AND R
+ *     splitterWY.ch1 (Y) -> L,   and (via -1 inverter) -> R
+ *     splitterZX.ch0 (Z) -> L AND R
+ *     splitterZX.ch1 (X) -> L AND R
+ *   mergerBinaural(2ch) -> output (stereo)
  *
- * The Y channel is the only left/right-antisymmetric FOA channel, so its
- * right-ear HRIR is the sign-flip of its left-ear one — implemented by a
- * `GainNode(-1)` on the Y contribution to the right ear, exactly as Omnitone's
- * `foa-convolver.js` does. `convolver.normalize` is set `false` on both: the
- * SH-HRIR is already correctly scaled and Web Audio convolver normalization
- * would corrupt it.
+ * The result is exactly eq.31: BOTH ears receive ALL four SH channels; only the
+ * Y channel's right-ear contribution is sign-flipped by a `GainNode(-1)`,
+ * because Y is the sole left/right-antisymmetric FOA channel. (This is the fix
+ * for the prior broken graph, which sent only W+Z to the left ear and only
+ * -Y+X to the right — each ear missing two channels.) `convolver.normalize` is
+ * set `false` on both: the SH-HRIR is already correctly scaled and Web Audio
+ * convolver normalization would corrupt it.
  *
  * ## Normalization (SN3D end-to-end — NO sqrt(3) rescale)
  * The decoder, the bundled Omnitone HRIR, and {@link encodeMonoToFoaSN3D} are
@@ -395,90 +423,95 @@ export interface FoaDecoderOptions {
  * so NO per-channel sqrt(3) (N3D<->SN3D) rescale is applied — inserting one
  * would double-normalize.
  *
- * The returned head node is the input `ChannelSplitterNode` (it is both the
- * externally-visible input and, via the internal wiring to `outputGain`,
- * carries the stereo output) per the {@link CacophonyEffect} single-node
- * contract. A `FoaDecoderEffect` MUST be the head-of-chain on its bus so
- * upstream stays 4-channel and downstream is 2-channel.
- *
  * NOTE on the resurrection path: the dormant `StereoToFoaUpmixer`
  * (`createStereoToBFormatNode`) emits ACN `[W,Y,Z,X]` but is a perceptual,
  * frequency-banded, coherence-gated mix with per-channel non-constant gain — it
  * is NEITHER N3D nor SN3D and no single normalization bridge exists. Its 4-ch
- * output plugs straight into this decoder (ACN ordering already lines up), and
+ * output plugs straight into {@link input} (ACN ordering already lines up), and
  * the resulting binaural is a documented PERCEPTUAL APPROXIMATION, not a
  * physically-correct sound field. The clean, physically-correct path is
  * {@link encodeMonoToFoaSN3D} -> this decoder.
  */
-export class FoaDecoderEffect implements CacophonyEffect {
-  constructor(
-    private readonly host: FoaDecoderHost,
-    private readonly options: FoaDecoderOptions = {},
-  ) {}
+export class FoaDecoder {
+  /** The 4-channel FOA `[W, Y, Z, X]` (ACN) entry node. Feed FOA into this. */
+  readonly input: AudioNode;
+  /** The 2-channel binaural stereo node. Route THIS downstream. */
+  readonly output: AudioNode;
 
-  async build(context: BaseContext): Promise<AudioNode> {
-    if (!context.createChannelSplitter || !context.createChannelMerger || !context.createConvolver) {
-      throw new Error("FoaDecoderEffect requires createChannelSplitter, createChannelMerger and createConvolver");
+  private constructor(input: AudioNode, output: AudioNode) {
+    this.input = input;
+    this.output = output;
+  }
+
+  /**
+   * Builds the live decode graph against `context`, resolving the SH-HRIR
+   * (caller-supplied or bundled Omnitone) and wiring the Omnitone WY/ZX graph.
+   * Async because the bundled HRIR is fetched + `decodeAudioData`-d.
+   */
+  static async create(host: FoaDecoderHost, options: FoaDecoderOptions = {}, context?: BaseContext): Promise<FoaDecoder> {
+    const ctx = context ?? host.defaultContext();
+    if (!ctx.createChannelSplitter || !ctx.createChannelMerger || !ctx.createConvolver) {
+      throw new Error("FoaDecoder requires createChannelSplitter, createChannelMerger and createConvolver");
     }
 
     // SN3D SH-HRIR (4 rows: ACN W,Y,Z,X). Caller override or bundled Omnitone.
-    const hrir = this.options.hrir ?? (await this.host.loadFoaHrir(context));
+    const hrir = options.hrir ?? (await host.loadFoaHrir(ctx));
 
-    // Input: 4-channel FOA [W, Y, Z, X] (ACN). This splitter is the effect head.
-    const foaInput = context.createChannelSplitter(4);
+    // Input: 4-channel FOA [W, Y, Z, X] (ACN). Externally-visible input node.
+    const input = ctx.createChannelSplitter(4);
 
     // --- WY / ZX stereo grouping (Omnitone foa-convolver.js) ---
-    const mergerWY = context.createChannelMerger(2);
-    const mergerZX = context.createChannelMerger(2);
+    const mergerWY = ctx.createChannelMerger(2);
+    const mergerZX = ctx.createChannelMerger(2);
     // W(ch0)->mergerWY in0, Y(ch1)->mergerWY in1
-    foaInput.connect(mergerWY, 0, 0);
-    foaInput.connect(mergerWY, 1, 1);
+    input.connect(mergerWY, 0, 0);
+    input.connect(mergerWY, 1, 1);
     // Z(ch2)->mergerZX in0, X(ch3)->mergerZX in1
-    foaInput.connect(mergerZX, 2, 0);
-    foaInput.connect(mergerZX, 3, 1);
+    input.connect(mergerZX, 2, 0);
+    input.connect(mergerZX, 3, 1);
 
-    const convolverWY = context.createConvolver();
-    const convolverZX = context.createConvolver();
+    const convolverWY = ctx.createConvolver();
+    const convolverZX = ctx.createConvolver();
     // The SH-HRIR is already correctly scaled; Web Audio convolver
     // normalization would corrupt it (Omnitone sets disableNormalization=true).
     convolverWY.normalize = false;
     convolverZX.normalize = false;
-    convolverWY.buffer = this.sliceHrirRows(context, hrir, 0, 1); // {W, Y} rows
-    convolverZX.buffer = this.sliceHrirRows(context, hrir, 2, 3); // {Z, X} rows
+    convolverWY.buffer = FoaDecoder.sliceHrirRows(ctx, hrir, 0, 1); // {W, Y} rows
+    convolverZX.buffer = FoaDecoder.sliceHrirRows(ctx, hrir, 2, 3); // {Z, X} rows
     mergerWY.connect(convolverWY);
     mergerZX.connect(convolverZX);
 
     // --- Per-ear sum (Ahrens eq.31 MAC, executed by the convolver graph) ---
-    const splitterWY = context.createChannelSplitter(2);
-    const splitterZX = context.createChannelSplitter(2);
+    // This is Omnitone foa-convolver.js _buildAudioGraph VERBATIM: both convolved
+    // SH-channel pairs fan into BOTH ears, so each ear sums all four SH channels;
+    // only the Y (splitterWY ch1) right-ear path is inverted.
+    const splitterWY = ctx.createChannelSplitter(2);
+    const splitterZX = ctx.createChannelSplitter(2);
     convolverWY.connect(splitterWY);
     convolverZX.connect(splitterZX);
 
-    const mergerBinaural = context.createChannelMerger(2);
-    // Left ear (merger input 0): WY.left + ZX.left
-    splitterWY.connect(mergerBinaural, 0, 0);
-    splitterZX.connect(mergerBinaural, 0, 0);
-    // Right ear (merger input 1): WY.right (Y inverted by -1) + ZX.right.
-    // Y is the only L/R-antisymmetric FOA channel: its right-ear HRIR is the
-    // sign-flip of its left-ear one (Omnitone applies gain=-1 on the Y/WY
-    // right-ear path).
-    const yRightInverter = context.createGain();
+    const mergerBinaural = ctx.createChannelMerger(2);
+    const yRightInverter = ctx.createGain();
     yRightInverter.gain.value = -1;
-    splitterWY.connect(yRightInverter, 1);
+
+    // W (splitterWY ch0) -> L (in0) and R (in1)
+    splitterWY.connect(mergerBinaural, 0, 0);
+    splitterWY.connect(mergerBinaural, 0, 1);
+    // Y (splitterWY ch1) -> L (in0) directly; -> R (in1) through the -1 inverter
+    splitterWY.connect(mergerBinaural, 1, 0);
+    splitterWY.connect(yRightInverter, 1, 0);
     yRightInverter.connect(mergerBinaural, 0, 1);
+    // Z (splitterZX ch0) -> L (in0) and R (in1)
+    splitterZX.connect(mergerBinaural, 0, 0);
+    splitterZX.connect(mergerBinaural, 0, 1);
+    // X (splitterZX ch1) -> L (in0) and R (in1)
+    splitterZX.connect(mergerBinaural, 1, 0);
     splitterZX.connect(mergerBinaural, 1, 1);
 
-    const outputGain = context.createGain();
-    mergerBinaural.connect(outputGain);
+    const output = ctx.createGain();
+    mergerBinaural.connect(output);
 
-    // The head node (foaInput) is the externally-visible input; the internal
-    // graph carries the decoded stereo to outputGain. Stash the output so a
-    // bus chain that reads `.connect` from the head still routes correctly when
-    // it treats this as input==output — we expose outputGain via a property so
-    // routing code that understands the effect can use it, while the head
-    // satisfies the single-node contract.
-    (foaInput as AudioNode & { output?: AudioNode }).output = outputGain;
-    return foaInput;
+    return new FoaDecoder(input, output);
   }
 
   /**
@@ -488,7 +521,7 @@ export class FoaDecoderEffect implements CacophonyEffect {
    * a buffer or the source lacks the rows (e.g. a stubbed mock buffer in tests
    * with fewer channels): the graph wiring is unaffected.
    */
-  private sliceHrirRows(context: BaseContext, hrir: AudioBuffer, rowA: number, rowB: number): AudioBuffer {
+  private static sliceHrirRows(context: BaseContext, hrir: AudioBuffer, rowA: number, rowB: number): AudioBuffer {
     if (!context.createBuffer || hrir.numberOfChannels < rowB + 1) {
       return hrir;
     }
