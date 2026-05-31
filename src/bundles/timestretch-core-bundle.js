@@ -745,10 +745,9 @@ var timestretchCore = (function (exports) {
 	    // the centered+trapezoidal form of Algorithm 1 lines 17/22. The paper presents
 	    // forward (Eq.17), backward (Eq.16) AND centered (Eq.18) and says "Any of the
 	    // schemes can be used in place of Δf" — only that centered is "the most
-	    // suitable" in the authors' experience. Crucially the paper's OWN evaluation
-	    // implementation did NOT use the trapezoidal-rule integration (paper p.4,
-	    // Conclusion/Limitations: the implementation "does not include the trapezoidal
-	    // rule" and adding it is noted as future work). Directional forward/backward
+	    // suitable" in the authors' experience. Algorithm 1 as written (lines 17/22)
+	    // itself uses trapezoidal frequency integration; we DELIBERATELY do not, for
+	    // the measured reason documented below. Directional forward/backward
 	    // integration telescopes EXACTLY to the analysis phase along a ridge:
 	    //   up:   φ_s(m+1) = φ_s(m) + Δf,fwd(m)  ⇒ φ_a(m+1) − φ_a(m)
 	    //   down: φ_s(m-1) = φ_s(m) − Δf,fwd(m-1) ⇒ φ_a(m-1) − φ_a(m)
@@ -759,9 +758,11 @@ var timestretchCore = (function (exports) {
 	    // of an off-bin tone at factor≠1 (440 Hz, bin 41 → 45 at factor=2), breaking
 	    // pitch preservation, while improving chirp spectral spread only marginally
 	    // (≈8% at factor 2, ≈1% at factor 3) and single-impulse temporal spread ≈11%.
-	    // See reports/fix-B3-timestretch.md for the full measurements. The trapezoidal
-	    // refinement is the paper's acknowledged-omitted future work, not its baseline;
-	    // we keep the paper's directional integration that the authors actually shipped.
+	    // See reports/fix-B3-timestretch.md for the full measurements. This is a
+	    // DELIBERATE, MEASURED deviation from Algorithm 1's trapezoidal frequency
+	    // propagation (NOT the paper's baseline), chosen because trapezoidal broke
+	    // pitch preservation in our tests; the forward/backward directional schemes
+	    // are themselves paper-sanctioned gradient estimates (Eq.16/17).
 	    const dtInc = new Array(nFrames);
 	    const dfFwd = new Array(nFrames);
 	    for (let n = 0; n < nFrames; n++) {

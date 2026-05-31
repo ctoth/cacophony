@@ -4,16 +4,17 @@ import { timeStretch, timeStretchChannels } from "./timestretch-core";
 /*
  * Tests for the OFFLINE PGHI time-stretch core (Průša 2022, "Phase Vocoder
  * Done Right"). The phase is reconstructed from the analysis-phase gradients via
- * Phase Gradient Heap Integration with the paper's CENTERED frequency-direction
- * derivative (Eqs 16-18) and TRAPEZOIDAL frequency integration (Algorithm 1,
- * lines 17/22). The load-bearing properties this suite proves:
+ * Phase Gradient Heap Integration. The frequency direction uses the paper's
+ * DIRECTIONAL forward/backward gradient schemes (Eqs 16/17), propagated
+ * directionally rather than via Algorithm 1's trapezoidal step (lines 17/22) — a
+ * DELIBERATE, MEASURED deviation (see timestretch-core.ts): the trapezoidal
+ * variant was implemented and measured to break pitch preservation, so the
+ * directional scheme is used instead. The load-bearing properties this suite proves:
  *   1. SPECTRAL identity at factor=1 — output is the same tone at the same
  *      amplitude (PGHI reconstructs phase only up to a global shift, so the
  *      correct tight identity metric is spectral, not sample-exact waveform).
- *   2. CHIRP / TRANSIENT vertical phase coherence — a swept chirp and an impulse
- *      stay spectrally/temporally concentrated. These bounds are tight enough to
- *      FAIL on the previous forward-only one-sided frequency scheme (measured:
- *      that scheme produced larger spectral/temporal spread).
+ *   2. CHIRP / TRANSIENT coherence under the directional scheme — a swept chirp
+ *      and an impulse stay spectrally/temporally concentrated.
  *   3. Framing-geometry validation — invalid fftSize/analysisHop is rejected, so
  *      no fractional hop reads off-grid and injects NaN.
  */
