@@ -649,11 +649,13 @@ var timestretchCore = (function (exports) {
 	 *
 	 * Pipeline (Průša 2022, the STFT analysis-modify-synthesis loop, p.2-3):
 	 *   1. Whole-signal STFT (Hann window, analysis hop a_a) → magnitude s + phase φ_a.
-	 *   2. Centered finite-difference phase gradients Δt φ_a (Eqs 13-15) and Δf φ_a
-	 *      (Eqs 16-18), heterodyned for the time direction.
+	 *   2. Phase gradients: CENTERED time derivative Δt φ_a (Eqs 13-15, heterodyned)
+	 *      and the directional forward/backward frequency difference Δf φ_a (Eqs
+	 *      16-17). See the gradient block below for why the directional (rather than
+	 *      the centered+trapezoidal) frequency integration is used.
 	 *   3. Per frame: PGHI heap integration (Algorithm 1) → synthesis phase φ_s,
-	 *      using synthesis hop a_s for the trapezoidal time update (Eq.8) and
-	 *      synthesis freq step b_s = α·b_a for the frequency update.
+	 *      using synthesis hop a_s for the trapezoidal TIME update (Eq.8) and
+	 *      synthesis freq step b_s = α·b_a for the directional FREQUENCY update.
 	 *   4. ISTFT each synthesis frame (s·e^{iφ_s}) + Hann window, overlap-add at
 	 *      synthesis hop a_s, normalized by the COLA window-energy envelope.
 	 */
@@ -661,19 +663,31 @@ var timestretchCore = (function (exports) {
 	    if (!(factor > 0)) {
 	        throw new Error(`timeStretch: factor must be > 0, got ${factor}`);
 	    }
+	    // FFT length M must be a power of two (fft.js radix constraint) and large
+	    // enough that the default hop M/4 is a positive integer with real overlap.
+	    // M < 4 would make the default hop fractional (M=2 → 0.5); require M ≥ 16 so
+	    // a Hann window has a meaningful main lobe and the default 75%-overlap hop is
+	    // a sensible integer.
 	    const M = opts.fftSize ?? 2048;
-	    if (M < 2 || (M & (M - 1)) !== 0) {
-	        throw new Error(`timeStretch: fftSize must be a power of two ≥ 2, got ${M}`);
+	    if (!Number.isInteger(M) || M < 16 || (M & (M - 1)) !== 0) {
+	        throw new Error(`timeStretch: fftSize must be a power of two ≥ 16, got ${M}`);
 	    }
-	    const aA = opts.analysisHop ?? M / 4; // analysis hop a_a
+	    const aA = opts.analysisHop ?? M / 4; // analysis hop a_a (M/4 is integer since M is a power of two ≥ 16)
+	    // The analysis hop must be a positive INTEGER: the frame loop reads
+	    // padded[n*aA + i], and a fractional hop reads off-grid (undefined → NaN).
+	    // It must also not exceed M (hops larger than the window leave gaps with no
+	    // COLA coverage).
+	    if (!Number.isInteger(aA) || aA < 1 || aA > M) {
+	        throw new Error(`timeStretch: analysisHop must be a positive integer in [1, fftSize=${M}], got ${aA}`);
+	    }
 	    const aS = Math.max(1, Math.round(aA * factor)); // synthesis hop a_s = round(α·a_a), Eq.7
 	    const tol = opts.tol ?? 1e-6;
 	    const rand = mulberry32(opts.randomSeed ?? 1);
 	    const nyq = M / 2; // index of the Nyquist bin
 	    const nBins = nyq + 1; // non-redundant bins 0..M/2
 	    // Analysis (b_a) and synthesis (b_s = α·b_a) frequency steps. The per-bin
-	    // angular spacing on the unwrapped axis is 2π·bin/M; the trapezoidal freq
-	    // update accumulates the centered Δf gradient scaled by the synthesis step.
+	    // angular spacing on the unwrapped axis is 2π·bin/M; the frequency update
+	    // accumulates the directional Δf gradient scaled by the synthesis step.
 	    // We carry the ratio (b_s/b_a) = a_s/a_a directly via the gradient scaling
 	    // below (see freq-update comment), so b_a/b_s never need explicit values.
 	    const win = hannWindow(M);
@@ -722,20 +736,32 @@ var timestretchCore = (function (exports) {
 	    // update (Eq.8) just scale by (a_s/a_a)/... See the heap loop below.
 	    //
 	    // dtInc[n][m] = a_a · (Δt,cent φ_a)(m,n)  (radians advanced per analysis hop)
-	    // dfFwd[n][m] = [φ_a(m+1,n) − φ_a(m,n)]_2π  (the FORWARD wrapped phase
-	    //               increment from bin m to bin m+1, Eq.17 numerator / b_a=1).
+	    // dfFwd[n][m] = [φ_a(m+1,n) − φ_a(m,n)]_2π  — the FORWARD wrapped frequency-
+	    //              direction difference (Eq.17 numerator, b_a units). Used
+	    //              DIRECTIONALLY: forward (Δf,fwd) for up-propagation, backward
+	    //              (Δf,back(m) = Δf,fwd(m-1)) for down-propagation.
 	    //
-	    // NOTE on the frequency increment: PGHI integrates the phase across frequency
-	    // by accumulating the *directed* adjacent-bin wrapped difference. The centered
-	    // average of forward+backward (Eq.18) does NOT telescope under integration
-	    // because the analysis phase across a window main lobe is piecewise (jumps by
-	    // ~π between the two sides of the lobe) — averaging the two one-sided wrapped
-	    // differences yields a value that, re-integrated, does not return the original
-	    // phase. The forward increment used directionally (Δf,fwd up, Δf,back down)
-	    // telescopes EXACTLY at α=1, which is the COLA identity requirement. We
-	    // therefore use the one-sided forward difference (Eq.17) as the integration
-	    // increment, with the synthesis freq step b_s = α·b_a applied as the `ratio`
-	    // scale (Průša 2022, p.2-3: b_s = α b_a).
+	    // FREQUENCY-INTEGRATION SCHEME — why forward/backward (rectangle) rather than
+	    // the centered+trapezoidal form of Algorithm 1 lines 17/22. The paper presents
+	    // forward (Eq.17), backward (Eq.16) AND centered (Eq.18) and says "Any of the
+	    // schemes can be used in place of Δf" — only that centered is "the most
+	    // suitable" in the authors' experience. Crucially the paper's OWN evaluation
+	    // implementation did NOT use the trapezoidal-rule integration (paper p.4,
+	    // Conclusion/Limitations: the implementation "does not include the trapezoidal
+	    // rule" and adding it is noted as future work). Directional forward/backward
+	    // integration telescopes EXACTLY to the analysis phase along a ridge:
+	    //   up:   φ_s(m+1) = φ_s(m) + Δf,fwd(m)  ⇒ φ_a(m+1) − φ_a(m)
+	    //   down: φ_s(m-1) = φ_s(m) − Δf,fwd(m-1) ⇒ φ_a(m-1) − φ_a(m)
+	    // so it preserves both spectral identity at α=1 and the off-bin tone's peak
+	    // location. The centered+trapezoidal variant was implemented faithfully and
+	    // MEASURED to be strictly worse here: it lowers tonal spectral purity in every
+	    // tested case (e.g. 440 Hz factor=1: 0.94 → 0.56) and SHIFTS the dominant bin
+	    // of an off-bin tone at factor≠1 (440 Hz, bin 41 → 45 at factor=2), breaking
+	    // pitch preservation, while improving chirp spectral spread only marginally
+	    // (≈8% at factor 2, ≈1% at factor 3) and single-impulse temporal spread ≈11%.
+	    // See reports/fix-B3-timestretch.md for the full measurements. The trapezoidal
+	    // refinement is the paper's acknowledged-omitted future work, not its baseline;
+	    // we keep the paper's directional integration that the authors actually shipped.
 	    const dtInc = new Array(nFrames);
 	    const dfFwd = new Array(nFrames);
 	    for (let n = 0; n < nFrames; n++) {
@@ -838,18 +864,19 @@ var timestretchCore = (function (exports) {
 	                remaining--;
 	                heap.push(s[seed], (seed << 1) | 1);
 	            }
-	            // Frequency-only spreading for the first frame.
+	            // Frequency-only spreading for the first frame. Directional integration
+	            // (b_s = α·b_a folded into `ratio`):
+	            //   up:   φ_s(m+1)=φ_s(m)+b_s·Δf,fwd(m)
+	            //   down: φ_s(m-1)=φ_s(m)−b_s·Δf,fwd(m-1)   [= Δf,back(m)]
 	            while (heap.length > 0 && remaining > 0) {
 	                const top = heap.pop();
 	                const mh = top >> 1;
-	                // propagate up (m → m+1): φ_s(m+1)=φ_s(m)+b_s·Δf,fwd(m) (b_s=α·b_a → ratio).
 	                if (mh + 1 < nBins && inSet[mh + 1] && !assigned[mh + 1]) {
 	                    phiS[mh + 1] = phiS[mh] + ratio * dfFwd[n][mh];
 	                    assigned[mh + 1] = 1;
 	                    remaining--;
 	                    heap.push(s[mh + 1], ((mh + 1) << 1) | 1);
 	                }
-	                // propagate down (m → m-1): φ_s(m-1)=φ_s(m)−b_s·Δf,fwd(m-1).
 	                if (mh - 1 >= 0 && inSet[mh - 1] && !assigned[mh - 1]) {
 	                    phiS[mh - 1] = phiS[mh] - ratio * dfFwd[n][mh - 1];
 	                    assigned[mh - 1] = 1;
@@ -889,10 +916,10 @@ var timestretchCore = (function (exports) {
 	            else {
 	                // Top is a current-frame coefficient (n) with known synthesis phase:
 	                // propagate in FREQUENCY to m±1 (Algorithm 1 lines 15-26) using the
-	                // directed forward increment Δf,fwd with synthesis freq step b_s = α·b_a
-	                // (folded into `ratio`):
+	                // directed forward/backward gradient Δf,fwd with synthesis freq step
+	                // b_s = α·b_a (folded into `ratio`):
 	                //   φ_s(m+1,n) = φ_s(m,n) + b_s·Δf,fwd(m,n)
-	                //   φ_s(m-1,n) = φ_s(m,n) − b_s·Δf,fwd(m-1,n)
+	                //   φ_s(m-1,n) = φ_s(m,n) − b_s·Δf,fwd(m-1,n)   [= Δf,back(m,n)]
 	                if (mh + 1 < nBins && inSet[mh + 1] && !assigned[mh + 1]) {
 	                    phiS[mh + 1] = phiS[mh] + ratio * dfFwd[n][mh];
 	                    assigned[mh + 1] = 1;
