@@ -697,6 +697,26 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     this._pitchFactor = factor;
 
+    // factor === 1 is the documented "no shift" contract and MUST be a genuine
+    // passthrough. The peak/region phase-vocoder pipeline does NOT guarantee
+    // identity for peakless / edge-bin / broadband content (it zero-fills and
+    // only repopulates detected peak regions), so we cannot leave the node in
+    // the chain at factor 1. Tear it down and rebuild the chain so the signal
+    // bypasses the worklet entirely (panner → [filters] → gainNode). A later
+    // non-unity factor rebuilds a fresh node.
+    if (factor === 1) {
+      if (this._pitchShiftNode) {
+        try {
+          this._pitchShiftNode.disconnect();
+        } catch {
+          // Best-effort — node may already have been disconnected.
+        }
+        this._pitchShiftNode = undefined;
+        this.refreshFilters();
+      }
+      return;
+    }
+
     if (!this._pitchShiftNode) {
       const cacophony = this.origin.cacophony;
       if (!cacophony) {

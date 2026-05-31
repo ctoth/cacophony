@@ -548,6 +548,14 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
    *   and its `pitchFactor` param updated.
    */
   async setPitchShift(factor: number): Promise<void> {
+    // Validate UP FRONT, before storing. With no live playbacks `Promise.all([])`
+    // resolves immediately, so a missing guard here would let setPitchShift(0)
+    // / NaN / negative "succeed" and leave an invalid pitchShift on the Sound
+    // that future preplay() would silently swallow. Mirrors the per-playback
+    // guard in Playback.setPitchShift.
+    if (!Number.isFinite(factor) || factor <= 0) {
+      throw new Error("Pitch-shift factor must be greater than 0");
+    }
     this._pitchFactor = factor;
     await Promise.all(this.playbacks.map((p) => p.setPitchShift(factor)));
   }

@@ -131,6 +131,65 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
     expect(fakeNode.connect).toHaveBeenCalledWith(playback.outputNode);
   });
 
+  it("setPitchShift(1) tears the phase-vocoder node out and bypasses it (true passthrough)", async () => {
+    // Codex finding #4 (major): factor 1 is the documented "no shift" contract.
+    // The peak/region pipeline does NOT guarantee identity for peakless/broadband
+    // content, so factor 1 must remove the node from the graph, not just set the
+    // param. We assert the node is disconnected, dropped, and the chain rebuilt
+    // so the panner feeds the gainNode directly (no pv node in between).
+    sound = await cacophony.createSound(buffer);
+    const fakeNode = makeFakePvNode();
+    vi.spyOn(cacophony, "createPhaseVocoderNode").mockResolvedValue(
+      fakeNode as unknown as Awaited<ReturnType<typeof cacophony.createPhaseVocoderNode>>,
+    );
+
+    const playback = sound.preplay()[0];
+    await playback.setPitchShift(1.5);
+    expect(playback["_pitchShiftNode"]).toBe(fakeNode); // node spliced in
+
+    const panner = playback["panner"] as { connect: ReturnType<typeof vi.fn> };
+    const pannerConnectSpy = vi.spyOn(panner, "connect");
+    fakeNode.disconnect.mockClear();
+
+    await playback.setPitchShift(1);
+
+    // node disconnected and dropped (genuine bypass, not param=1 with node live).
+    expect(fakeNode.disconnect).toHaveBeenCalled();
+    expect(playback["_pitchShiftNode"]).toBeUndefined();
+    expect(playback.pitchShift).toBe(1);
+    // chain rebuilt so panner now feeds the gainNode directly, NOT the pv node.
+    expect(pannerConnectSpy).toHaveBeenCalledWith(playback.outputNode);
+    expect(pannerConnectSpy).not.toHaveBeenCalledWith(fakeNode);
+  });
+
+  it("Sound.setPitchShift rejects invalid factors (0/NaN/negative) WITHOUT storing them", async () => {
+    // Codex finding #5 (minor): with no live playbacks, Promise.all([]) resolves,
+    // so an unguarded setPitchShift(0) would "succeed" and leave pitchShift
+    // invalid, which preplay later swallows. Validate up front.
+    sound = await cacophony.createSound(buffer);
+    expect(sound.pitchShift).toBe(1);
+
+    await expect(sound.setPitchShift(0)).rejects.toThrow();
+    expect(sound.pitchShift).toBe(1); // unchanged — 0 not stored
+
+    await expect(sound.setPitchShift(Number.NaN)).rejects.toThrow();
+    expect(sound.pitchShift).toBe(1);
+
+    await expect(sound.setPitchShift(-2)).rejects.toThrow();
+    expect(sound.pitchShift).toBe(1);
+
+    await expect(sound.setPitchShift(Number.POSITIVE_INFINITY)).rejects.toThrow();
+    expect(sound.pitchShift).toBe(1);
+
+    // a valid factor still works and IS stored.
+    const fakeNode = makeFakePvNode();
+    vi.spyOn(cacophony, "createPhaseVocoderNode").mockResolvedValue(
+      fakeNode as unknown as Awaited<ReturnType<typeof cacophony.createPhaseVocoderNode>>,
+    );
+    await sound.setPitchShift(2);
+    expect(sound.pitchShift).toBe(2);
+  });
+
   it("Sound.setPitchShift fans out to live playbacks and is picked up by future playbacks", async () => {
     sound = await cacophony.createSound(buffer);
     const built: ReturnType<typeof makeFakePvNode>[] = [];

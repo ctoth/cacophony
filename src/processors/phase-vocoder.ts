@@ -1,6 +1,6 @@
 import FFT from "fft.js";
 import OLAProcessor from "./ola";
-import { computeMagnitudes, findPeaks, shiftPeaks } from "./phase-vocoder-core";
+import { computeMagnitudes, findPeaks, PeakRotatorState, shiftPeaks } from "./phase-vocoder-core";
 
 /*
  * Phase-vocoder AudioWorklet shell — peak-based pitch-shifter with Identity
@@ -31,6 +31,7 @@ interface PhaseVocoderProcessorOptions {
 export class PhaseVocoderProcessor extends OLAProcessor {
   fftSize: number;
   timeCursor: number;
+  rotators: PeakRotatorState;
   hannWindow: Float32Array;
   fft: FFT;
   // fft.js with a Float32Array input returns a flat interleaved Float32Array
@@ -64,6 +65,9 @@ export class PhaseVocoderProcessor extends OLAProcessor {
 
     this.fftSize = this.blockSize;
     this.timeCursor = 0;
+    // Per-peak cumulative phase-lock state (Laroche-Dolson 1999 Section 3.5):
+    // Z_{u+1} = Z_u * exp(j*Delta-omega*R), advanced once per frame.
+    this.rotators = new PeakRotatorState();
 
     this.hannWindow = genHannWindow(this.blockSize);
 
@@ -95,6 +99,10 @@ export class PhaseVocoderProcessor extends OLAProcessor {
         // uniformly to its region). All math in the unit-tested core.
         computeMagnitudes(this.freqComplexBuffer, this.magnitudes);
         this.nbPeaks = findPeaks(this.magnitudes, this.peakIndexes);
+        // Accumulate each peak's cumulative rotator Z_u by this frame's
+        // exp(j*Delta-omega*R) BEFORE applying it (Laroche-Dolson 1999 Section
+        // 3.5 cross-frame cumulation). hopSize is the synthesis hop R.
+        this.rotators.advance(this.peakIndexes, this.nbPeaks, this.fftSize, pitchFactor, this.hopSize);
         shiftPeaks(
           this.freqComplexBuffer,
           this.freqComplexBufferShifted,
@@ -103,7 +111,7 @@ export class PhaseVocoderProcessor extends OLAProcessor {
           this.fftSize,
           this.magnitudes.length,
           pitchFactor,
-          this.timeCursor,
+          this.rotators,
         );
 
         this.fft.completeSpectrum(this.freqComplexBufferShifted);
