@@ -384,7 +384,7 @@ export class Cacophony {
 
   async loadWorklets(signal?: AbortSignal) {
     if (this.context.audioWorklet) {
-      await this.createWorkletNode("phase-vocoder", phaseVocoderProcessorWorkletUrl, signal);
+      await this.loadPhaseVocoder(signal);
       await this.loadStereoToBFormatWorklet(signal);
       await this.loadDattorroReverb(signal);
       await this.loadDynamics(signal);
@@ -397,6 +397,27 @@ export class Cacophony {
 
   async loadStereoToBFormatWorklet(signal?: AbortSignal): Promise<void> {
     await this.loadAudioWorkletModule("stereo-to-bformat", stereoToBFormatProcessorWorkletUrl, signal);
+  }
+
+  /**
+   * Idempotently registers the `phase-vocoder` AudioWorkletProcessor (peak-based
+   * pitch-shifter with Identity Phase-Locking, Laroche & Dolson 1999 WASPAA) on
+   * this context. Safe to call repeatedly — subsequent calls short-circuit via
+   * the per-context {@link loadedAudioWorklets} set. Cross-context: pass
+   * `context` so a node built against a bus on a different context loads there.
+   */
+  async loadPhaseVocoder(signal?: AbortSignal, context?: BaseContext): Promise<void> {
+    await this.loadAudioWorkletModule("phase-vocoder", phaseVocoderProcessorWorkletUrl, signal, context);
+  }
+
+  /**
+   * Constructs a `phase-vocoder` AudioWorkletNode. Caller is expected to have
+   * loaded the module already (via {@link loadPhaseVocoder} or {@link loadWorklets}).
+   * Uses the same construct/fallback path as {@link createWorkletNode}. The
+   * returned node carries a single `pitchFactor` AudioParam (1 = no shift).
+   */
+  async createPhaseVocoderNode(options?: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("phase-vocoder", phaseVocoderProcessorWorkletUrl, undefined, options, context);
   }
 
   /**

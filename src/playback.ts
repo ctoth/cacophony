@@ -25,6 +25,7 @@ import type {
   AudioBuffer,
   AudioNode,
   AudioParam,
+  AudioWorkletNode,
   BaseContext,
   BiquadFilterNode,
   GainNode,
@@ -71,6 +72,22 @@ export class Playback extends BasePlayback implements BaseSound {
    * graph holding the allocation indirectly.
    */
   _sendGains: Map<Bus, GainNode> = new Map();
+
+  /**
+   * Desired pitch-shift factor (1 = no shift, 2 = +1 octave, 0.5 = -1 octave).
+   * Stored even before the worklet node exists so a value set on a cleaned-up /
+   * not-yet-built playback is honoured once {@link setPitchShift} builds the node.
+   */
+  private _pitchFactor: number = 1;
+  /**
+   * The phase-vocoder AudioWorkletNode (Laroche & Dolson 1999 peak-based
+   * pitch-shift with Identity Phase-Locking) spliced into this playback's chain
+   * between the filter tail and {@link gainNode}. `undefined` until
+   * {@link setPitchShift} is first called with a factor != 1; lazily built via
+   * `cacophony.createPhaseVocoderNode`. {@link refreshFilters} re-inserts it on
+   * every chain rebuild so it is never bypassed.
+   */
+  private _pitchShiftNode?: AudioWorkletNode;
 
   /**
    * Creates an instance of the Playback class.
@@ -572,6 +589,15 @@ export class Playback extends BasePlayback implements BaseSound {
       }
     }
     this._sendGains.clear();
+    // Tear down the phase-vocoder pitch-shift worklet node if one was spliced in.
+    if (this._pitchShiftNode) {
+      try {
+        this._pitchShiftNode.disconnect();
+      } catch {
+        // Best-effort — node may already have been disconnected externally.
+      }
+      this._pitchShiftNode = undefined;
+    }
     super.cleanup();
   }
 
@@ -636,7 +662,62 @@ export class Playback extends BasePlayback implements BaseSound {
     let connection: AudioNode = this.panner;
     connection.disconnect();
     connection = this.applyFilters(connection);
+    // Splice the phase-vocoder pitch-shift worklet (if active) AFTER the filter
+    // chain and BEFORE the gainNode, so the rebuilt chain is
+    // panner → [filters] → pitchShiftNode → gainNode. Re-inserted on every
+    // rebuild so it is never bypassed when filters change. (Laroche & Dolson
+    // 1999 peak-based pitch shift — see Playback.setPitchShift.)
+    if (this._pitchShiftNode) {
+      this._pitchShiftNode.disconnect();
+      connection.connect(this._pitchShiftNode);
+      connection = this._pitchShiftNode;
+    }
     connection.connect(this.gainNode);
+  }
+
+  /**
+   * Sets the pitch-shift factor for this playback, resurrecting the dormant
+   * phase-vocoder worklet (Jean Laroche & Mark Dolson, "New Phase-Vocoder
+   * Techniques for Pitch-Shifting, Harmonizing and Other Exotic Effects",
+   * 1999 IEEE WASPAA — peak-based pitch shift with Identity Phase-Locking).
+   *
+   * On first use (factor !== 1) the phase-vocoder AudioWorkletNode is built via
+   * `cacophony.createPhaseVocoderNode` and spliced into this playback's graph at
+   * the {@link refreshFilters} seam (panner → [filters] → pitchShiftNode →
+   * gainNode). The factor is forwarded to the node's `pitchFactor` AudioParam
+   * (1 = no shift, 2 = +1 octave, 0.5 = -1 octave).
+   *
+   * @param factor Pitch multiplier (> 0).
+   * @throws {Error} if the playback has been cleaned up or factor <= 0.
+   */
+  async setPitchShift(factor: number): Promise<void> {
+    this.assertNotCleanedUp();
+    if (!Number.isFinite(factor) || factor <= 0) {
+      throw new Error("Pitch-shift factor must be greater than 0");
+    }
+    this._pitchFactor = factor;
+
+    if (!this._pitchShiftNode) {
+      const cacophony = this.origin.cacophony;
+      if (!cacophony) {
+        throw new Error("Cannot pitch-shift a playback whose Sound has no Cacophony instance");
+      }
+      this._pitchShiftNode = await cacophony.createPhaseVocoderNode(undefined, this.context);
+      // Insert the freshly built node into the live chain.
+      this.refreshFilters();
+    }
+
+    const pitchParam = this._pitchShiftNode.parameters?.get("pitchFactor");
+    if (pitchParam) {
+      pitchParam.value = factor;
+    }
+  }
+
+  /**
+   * The current pitch-shift factor (1 = no shift). See {@link setPitchShift}.
+   */
+  get pitchShift(): number {
+    return this._pitchFactor;
   }
 
   /**

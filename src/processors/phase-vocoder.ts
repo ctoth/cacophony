@@ -1,5 +1,18 @@
 import FFT from "fft.js";
 import OLAProcessor from "./ola";
+import { computeMagnitudes, findPeaks, shiftPeaks } from "./phase-vocoder-core";
+
+/*
+ * Phase-vocoder AudioWorklet shell — peak-based pitch-shifter with Identity
+ * Phase-Locking, Jean Laroche & Mark Dolson, "New Phase-Vocoder Techniques for
+ * Pitch-Shifting, Harmonizing and Other Exotic Effects", Proc. 1999 IEEE WASPAA.
+ *
+ * This file owns the worklet plumbing (FFT framing on top of OLAProcessor,
+ * parameterDescriptors, the registerProcessor call). The peak detection,
+ * region-of-influence translation and the Laroche-Dolson 1999 Section 3.5
+ * identity-phase-lock rotation live in the context-free, unit-tested
+ * phase-vocoder-core.ts (mirroring the waveshaper / dynamics core/shell split).
+ */
 
 const BUFFERED_BLOCK_SIZE = 2048;
 
@@ -77,9 +90,21 @@ export class PhaseVocoderProcessor extends OLAProcessor {
 
         this.fft.realTransform(this.freqComplexBuffer, input);
 
-        this.computeMagnitudes();
-        this.findPeaks();
-        this.shiftPeaks(pitchFactor);
+        // Peak detect + region-of-influence translate + Laroche-Dolson 1999
+        // Section 3.5 identity-phase-lock rotation (one Z_u per peak applied
+        // uniformly to its region). All math in the unit-tested core.
+        computeMagnitudes(this.freqComplexBuffer, this.magnitudes);
+        this.nbPeaks = findPeaks(this.magnitudes, this.peakIndexes);
+        shiftPeaks(
+          this.freqComplexBuffer,
+          this.freqComplexBufferShifted,
+          this.peakIndexes,
+          this.nbPeaks,
+          this.fftSize,
+          this.magnitudes.length,
+          pitchFactor,
+          this.timeCursor,
+        );
 
         this.fft.completeSpectrum(this.freqComplexBufferShifted);
         this.fft.inverseTransform(this.timeComplexBuffer, this.freqComplexBufferShifted);
@@ -95,75 +120,6 @@ export class PhaseVocoderProcessor extends OLAProcessor {
   private applyHannWindow(input: Float32Array) {
     for (let i = 0; i < this.blockSize; i++) {
       input[i] *= this.hannWindow[i];
-    }
-  }
-
-  private computeMagnitudes() {
-    for (let i = 0, j = 0; i < this.magnitudes.length; i++, j += 2) {
-      const real = this.freqComplexBuffer[j];
-      const imag = this.freqComplexBuffer[j + 1];
-      this.magnitudes[i] = real ** 2 + imag ** 2;
-    }
-  }
-
-  private findPeaks() {
-    this.nbPeaks = 0;
-    for (let i = 2, end = this.magnitudes.length - 2; i < end; i++) {
-      const mag = this.magnitudes[i];
-
-      if (
-        this.magnitudes[i - 1] >= mag ||
-        this.magnitudes[i - 2] >= mag ||
-        this.magnitudes[i + 1] >= mag ||
-        this.magnitudes[i + 2] >= mag
-      ) {
-        continue;
-      }
-
-      this.peakIndexes[this.nbPeaks++] = i;
-    }
-  }
-
-  private shiftPeaks(pitchFactor: number) {
-    this.freqComplexBufferShifted.fill(0);
-
-    for (let i = 0; i < this.nbPeaks; i++) {
-      const peakIndex = this.peakIndexes[i];
-      const peakIndexShifted = Math.round(peakIndex * pitchFactor);
-
-      if (peakIndexShifted > this.magnitudes.length) {
-        break;
-      }
-
-      const startIndex = i > 0 ? peakIndex - Math.floor((peakIndex - this.peakIndexes[i - 1]) / 2) : 0;
-      const endIndex =
-        i < this.nbPeaks - 1 ? peakIndex + Math.ceil((this.peakIndexes[i + 1] - peakIndex) / 2) : this.fftSize;
-
-      for (let j = startIndex - peakIndex; j < endIndex - peakIndex; j++) {
-        const binIndex = peakIndex + j;
-        const binIndexShifted = peakIndexShifted + j;
-
-        if (binIndexShifted >= this.magnitudes.length) {
-          break;
-        }
-
-        const omegaDelta = (2 * Math.PI * (binIndexShifted - binIndex)) / this.fftSize;
-        const phaseShiftReal = Math.cos(omegaDelta * this.timeCursor);
-        const phaseShiftImag = Math.sin(omegaDelta * this.timeCursor);
-
-        const indexReal = binIndex * 2;
-        const indexImag = indexReal + 1;
-        const valueReal = this.freqComplexBuffer[indexReal];
-        const valueImag = this.freqComplexBuffer[indexImag];
-
-        const valueShiftedReal = valueReal * phaseShiftReal - valueImag * phaseShiftImag;
-        const valueShiftedImag = valueReal * phaseShiftImag + valueImag * phaseShiftReal;
-
-        const indexShiftedReal = binIndexShifted * 2;
-        const indexShiftedImag = indexShiftedReal + 1;
-        this.freqComplexBufferShifted[indexShiftedReal] += valueShiftedReal;
-        this.freqComplexBufferShifted[indexShiftedImag] += valueShiftedImag;
-      }
     }
   }
 }

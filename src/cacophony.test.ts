@@ -471,12 +471,17 @@ describe("Cacophony advanced features", () => {
 
     it("loadWorklets passes AbortSignal to worklet preload paths", async () => {
       const controller = new AbortController();
+      // loadWorklets now REGISTERS phase-vocoder via loadAudioWorkletModule
+      // (like every other worklet), rather than constructing then discarding a
+      // throwaway node. So it must NOT call createWorkletNode for phase-vocoder.
       const createWorkletSpy = vi.spyOn(cacophony, "createWorkletNode").mockResolvedValue({} as any);
+      const loadPhaseVocoderSpy = vi.spyOn(cacophony, "loadPhaseVocoder");
 
       await cacophony.loadWorklets(controller.signal);
 
-      expect(createWorkletSpy).toHaveBeenNthCalledWith(1, "phase-vocoder", expect.any(String), controller.signal);
-      expect(createWorkletSpy).toHaveBeenCalledTimes(1);
+      expect(loadPhaseVocoderSpy).toHaveBeenCalledWith(controller.signal);
+      expect(createWorkletSpy).not.toHaveBeenCalledWith("phase-vocoder", expect.any(String), controller.signal);
+      // the phase-vocoder module is registered via addModule with the signal
       expect(mockAudioWorklet.addModule).toHaveBeenCalledWith(expect.any(String), {
         credentials: "same-origin",
         signal: controller.signal,
@@ -762,11 +767,12 @@ describe("Cacophony advanced features", () => {
 
     it("loadWorklets works without AbortSignal (backward compatibility)", async () => {
       const createWorkletSpy = vi.spyOn(cacophony, "createWorkletNode").mockResolvedValue({} as any);
+      const loadPhaseVocoderSpy = vi.spyOn(cacophony, "loadPhaseVocoder");
 
       await cacophony.loadWorklets();
 
-      expect(createWorkletSpy).toHaveBeenNthCalledWith(1, "phase-vocoder", expect.any(String), undefined);
-      expect(createWorkletSpy).toHaveBeenCalledTimes(1);
+      expect(loadPhaseVocoderSpy).toHaveBeenCalledWith(undefined);
+      expect(createWorkletSpy).not.toHaveBeenCalledWith("phase-vocoder", expect.any(String), undefined);
       expect(mockAudioWorklet.addModule).toHaveBeenCalledWith(expect.any(String), {
         credentials: "same-origin",
       });

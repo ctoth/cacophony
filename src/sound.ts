@@ -53,6 +53,13 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
   context: BaseContext;
   loopCount: LoopCount = 0;
   private _playbackRate: number = 1;
+  /**
+   * Pitch-shift factor applied to every playback of this Sound (1 = no shift).
+   * Fanned out across live playbacks by {@link setPitchShift} and applied to
+   * future playbacks at {@link preplay}. Drives the phase-vocoder worklet
+   * (Laroche & Dolson 1999 peak-based pitch shift).
+   */
+  private _pitchFactor: number = 1;
   private eventEmitter: TypedEventEmitter<SoundEvents> = new TypedEventEmitter<SoundEvents>();
   private _holdings: SoundCleanupHoldings = { sources: [], gainNodes: [], mediaElements: [] };
   private _unregisterToken: object = {};
@@ -248,6 +255,15 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
       playback.setGainNode(gainNode);
       playback.volume = this.volume;
       playback.playbackRate = this.playbackRate;
+      // Carry the Sound's pitch-shift factor onto the new playback. Building the
+      // phase-vocoder worklet node is async; preplay is sync, so this is a
+      // fire-and-forget that splices the node in once the worklet resolves
+      // (no-op when no shift is set).
+      if (this._pitchFactor !== 1) {
+        void playback.setPitchShift(this._pitchFactor).catch(() => {
+          /* worklet unavailable on this context — playback proceeds unshifted */
+        });
+      }
       // Clone filters from sound to playback (each playback gets independent filter instances)
       this._filters.forEach((filter) => {
         const clonedFilter = this.context.createBiquadFilter();
@@ -475,6 +491,29 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
   set volume(volume: number) {
     super.volume = volume;
     this.emit("volumeChange", volume);
+  }
+
+  /**
+   * Current pitch-shift factor (1 = no shift). See {@link setPitchShift}.
+   */
+  get pitchShift(): number {
+    return this._pitchFactor;
+  }
+
+  /**
+   * Pitch-shifts every live playback of this Sound, resurrecting the dormant
+   * phase-vocoder worklet (Jean Laroche & Mark Dolson, 1999 IEEE WASPAA —
+   * peak-based pitch shift with Identity Phase-Locking). Mirrors how
+   * {@link playbackRate} fans a per-playback control out across `this.playbacks`.
+   * The factor is also stored so future playbacks pick it up at preplay.
+   *
+   * @param factor Pitch multiplier (> 0; 2 = +1 octave, 0.5 = -1 octave).
+   * @returns Resolves once every live playback's worklet node has been built
+   *   and its `pitchFactor` param updated.
+   */
+  async setPitchShift(factor: number): Promise<void> {
+    this._pitchFactor = factor;
+    await Promise.all(this.playbacks.map((p) => p.setPitchShift(factor)));
   }
 
   /**

@@ -81,6 +81,13 @@ export interface ChannelMergerNode extends AudioNode {}
 
 export interface AudioWorkletNode extends AudioNode {
   readonly port: MessagePort;
+  /**
+   * The node's AudioParam map (Web Audio `AudioParamMap`). Modelled as the
+   * minimal `get(name)` surface this library uses to drive worklet params
+   * (e.g. the phase-vocoder `pitchFactor`). Optional because test/mock
+   * contexts may not synthesise the param map.
+   */
+  readonly parameters?: { get(name: string): AudioParam | undefined };
 }
 
 export interface AudioBufferSourceNode extends AudioNode {
