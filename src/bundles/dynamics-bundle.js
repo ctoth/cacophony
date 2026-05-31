@@ -30,6 +30,25 @@ var dynamics = (function (exports) {
      * unit-tested directly (the worklet shell in dynamics.ts delegates to it).
      */
     /**
+     * Default AudioParam values for the dynamics worklet, in the worklet's own
+     * units. SINGLE SOURCE OF TRUTH — the worklet's `parameterDescriptors`
+     * (dynamics.ts) builds its descriptors from this table, and tests that need the
+     * shipped defaults import it here rather than re-typing literals. Living in the
+     * worklet-global-free core keeps it importable from plain Node test runners.
+     *
+     * Defaults: a gentle, audible-but-safe compressor. Ratios cover compressor
+     * (ratio >= 1), limiter (ratio -> large) and downward expander/gate (ratio < 1)
+     * from one parameter set.
+     */
+    const DYNAMICS_DEFAULTS = {
+        threshold: -24,
+        ratio: 4,
+        knee: 6,
+        attack: 0.003,
+        release: 0.25,
+        makeup: 0,
+    };
+    /**
      * Smallest linear level we are willing to take a logarithm of. Below this the
      * input is treated as silence (gain-reduction control = 0), avoiding -Infinity
      * dB from log10(0).
@@ -221,16 +240,17 @@ var dynamics = (function (exports) {
         // envelope (eq.16 detector state) across process() blocks.
         cores = [];
         static get parameterDescriptors() {
-            // Defaults: a gentle, audible-but-safe compressor. Ranges chosen to cover
-            // compressor (ratio >= 1), limiter (ratio -> large), and downward
+            // Default VALUES come from DYNAMICS_DEFAULTS (dynamics-core.ts) — the single
+            // source of truth shared with the gate regression tests. Ranges live here
+            // and cover compressor (ratio >= 1), limiter (ratio -> large), and downward
             // expander/gate (ratio < 1) from one parameter set.
             return [
-                ["threshold", -24, -100, 0, "k-rate"],
-                ["ratio", 4, 0.05, LIMITER_RATIO, "k-rate"],
-                ["knee", 6, 0, 40, "k-rate"],
-                ["attack", 0.003, 0, 1, "k-rate"],
-                ["release", 0.25, 0, 5, "k-rate"],
-                ["makeup", 0, -24, 24, "k-rate"],
+                ["threshold", DYNAMICS_DEFAULTS.threshold, -100, 0, "k-rate"],
+                ["ratio", DYNAMICS_DEFAULTS.ratio, 0.05, LIMITER_RATIO, "k-rate"],
+                ["knee", DYNAMICS_DEFAULTS.knee, 0, 40, "k-rate"],
+                ["attack", DYNAMICS_DEFAULTS.attack, 0, 1, "k-rate"],
+                ["release", DYNAMICS_DEFAULTS.release, 0, 5, "k-rate"],
+                ["makeup", DYNAMICS_DEFAULTS.makeup, -24, 24, "k-rate"],
             ].map(([name, defaultValue, minValue, maxValue, automationRate]) => ({
                 name: name,
                 defaultValue: defaultValue,
