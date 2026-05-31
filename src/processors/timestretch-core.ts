@@ -274,9 +274,10 @@ export function timeStretch(input: Float32Array, factor: number, opts: TimeStret
   //
   // FREQUENCY-INTEGRATION SCHEME — why forward/backward (rectangle) rather than
   // the centered+trapezoidal form of Algorithm 1 lines 17/22. The paper presents
-  // forward (Eq.17), backward (Eq.16) AND centered (Eq.18) and says "Any of the
-  // schemes can be used in place of Δf" — only that centered is "the most
-  // suitable" in the authors' experience. Algorithm 1 as written (lines 17/22)
+  // backward (Eq.16), forward (Eq.17) AND centered (Eq.18) finite-difference
+  // schemes for the frequency-direction gradient (it makes the explicit "any of
+  // the schemes can be used" remark for the time-direction derivative and applies
+  // the same backward/forward/centered choice to frequency). Algorithm 1 as written (lines 17/22)
   // itself uses trapezoidal frequency integration; we DELIBERATELY do not, for
   // the measured reason documented below. Directional forward/backward
   // integration telescopes EXACTLY to the analysis phase along a ridge:

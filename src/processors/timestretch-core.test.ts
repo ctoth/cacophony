@@ -111,9 +111,8 @@ function dominantBinAt(signal: Float32Array, center: number, nFft: number): numb
  * Average per-frame spectral spread (energy-weighted std-dev of bin index about
  * the per-frame peak bin), over Hann-windowed frames. A phase-coherent stretched
  * chirp keeps a single sharp instantaneous frequency per frame → low spread;
- * decoherence smears energy → high spread. This is the metric that distinguishes
- * the paper's centered/trapezoidal frequency integration from the old forward-
- * only scheme.
+ * decoherence smears energy → high spread. Used to bound chirp coherence under
+ * the directional frequency-propagation scheme this core actually uses.
  */
 function avgSpectralSpread(signal: Float32Array, nFft: number, hop: number): number {
   let total = 0;
