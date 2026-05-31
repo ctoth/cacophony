@@ -39,8 +39,23 @@ export type {
   SourceNode,
   StereoPannerNode,
 } from "./context";
-export type { CacophonyEffect, DynamicsOptions, FdnReverbOptions, ReverbOptions, WaveshaperOptions } from "./effects";
-export { BiquadEffect, DynamicsEffect, FdnReverbEffect, ReverbEffect, ShareEffect, WaveshaperEffect } from "./effects";
+export type {
+  CacophonyEffect,
+  DynamicsOptions,
+  FdnReverbOptions,
+  FoaDecoderOptions,
+  ReverbOptions,
+  WaveshaperOptions,
+} from "./effects";
+export {
+  BiquadEffect,
+  DynamicsEffect,
+  FdnReverbEffect,
+  FoaDecoderEffect,
+  ReverbEffect,
+  ShareEffect,
+  WaveshaperEffect,
+} from "./effects";
 export type {
   AudioEventCallbacks,
   BaseAudioEvents,
@@ -70,5 +85,6 @@ export { MicrophonePlayback } from "./microphone";
 export type { HrtfPannerOptions, PanCloneOverrides, ThreeDOptions } from "./pannerMixin";
 export { Playback } from "./playback";
 export { Sound } from "./sound";
+export { encodeMonoToFoaSN3D } from "./spatial/foa-encode";
 export { Synth } from "./synth";
 export { SynthGroup } from "./synthGroup";

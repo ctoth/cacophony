@@ -5,6 +5,7 @@ import fdnReverbProcessorWorkletUrl from "./bundles/fdn-reverb-bundle.js?url";
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
 import stereoToBFormatProcessorWorkletUrl from "./bundles/stereo-to-bformat-bundle.js?url";
 import waveshaperProcessorWorkletUrl from "./bundles/waveshaper-bundle.js?url";
+import foaHrirUrl from "./assets/sh_hrir_order_1.wav?url";
 import { Bus } from "./bus";
 import { AudioCache, type ICache } from "./cache";
 import type {
@@ -25,6 +26,8 @@ import {
   type DynamicsOptions,
   FdnReverbEffect,
   type FdnReverbOptions,
+  FoaDecoderEffect,
+  type FoaDecoderOptions,
   markAsCacophonyBiquad,
   ReverbEffect,
   type ReverbOptions,
@@ -208,6 +211,15 @@ export class Cacophony {
    * the second construct would throw with no module registered.
    */
   private loadedAudioWorklets: WeakMap<BaseContext, Set<string>> = new WeakMap();
+  /**
+   * Per-context cache of the decoded order-1 SH-HRIR `AudioBuffer` used by
+   * {@link FoaDecoderEffect}. Keyed on the context (like
+   * {@link loadedAudioWorklets}) because `decodeAudioData` produces a buffer
+   * bound to ONE context's sample rate; a buffer decoded on context A must not
+   * be reused on context B. Stores the in-flight Promise so concurrent
+   * `loadFoaHrir` calls share a single fetch/decode.
+   */
+  private foaHrirCache: WeakMap<BaseContext, Promise<AudioBuffer>> = new WeakMap();
   private finalizationRegistry: FinalizationRegistry<SoundCleanupHoldings>;
   private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
@@ -515,6 +527,43 @@ export class Cacophony {
    */
   async createWaveshaperNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
     return this.createWorkletNode("waveshaper", waveshaperProcessorWorkletUrl, undefined, options, context);
+  }
+
+  /**
+   * Fetches and decodes the bundled order-1 SH-HRIR
+   * (`sh_hrir_order_1.wav`, from Omnitone, Apache-2.0 — see
+   * `src/assets/NOTICE`) into an `AudioBuffer`, memoized per context. The
+   * buffer is the 4-channel (ACN rows W,Y,Z,X) SH-domain HRIR consumed by
+   * {@link FoaDecoderEffect} to drive its WY/ZX stereo ConvolverNodes
+   * (Ahrens 2022 eq.31 decode).
+   *
+   * The WAV is 48 kHz; `decodeAudioData` resamples it to the context's sample
+   * rate automatically when they differ (standard Web Audio behavior, which
+   * Omnitone relies on).
+   *
+   * @param context Optional BaseContext to decode on. Defaults to this host's
+   *   own `context`. Supplied so a {@link FoaDecoderEffect} added to a bus on
+   *   a different context decodes the HRIR on the right context.
+   */
+  async loadFoaHrir(context?: BaseContext): Promise<AudioBuffer> {
+    const ctx = context ?? this.context;
+    const cached = this.foaHrirCache.get(ctx);
+    if (cached) {
+      return cached;
+    }
+    const pending = (async () => {
+      const response = await fetch(foaHrirUrl);
+      const encoded = await response.arrayBuffer();
+      return ctx.decodeAudioData(encoded);
+    })();
+    this.foaHrirCache.set(ctx, pending);
+    try {
+      return await pending;
+    } catch (err) {
+      // Drop the rejected promise so a later call can retry the fetch/decode.
+      this.foaHrirCache.delete(ctx);
+      throw err;
+    }
   }
 
   async createWorkletNode(
@@ -1037,6 +1086,23 @@ export class Cacophony {
    */
   createDistortion(options: WaveshaperOptions = {}): WaveshaperEffect {
     return new WaveshaperEffect(this, { drive: 4, shape: 1, ...options });
+  }
+
+  /**
+   * Creates a {@link FoaDecoderEffect} — a first-order ambisonic (FOA) ->
+   * binaural decoder built from native Web Audio nodes (no worklet). It decodes
+   * a 4-channel ACN/SN3D `[W, Y, Z, X]` bus to headphone stereo via the
+   * per-SH-channel HRIR decode of Ahrens 2022 (eq.31), using Omnitone's WY/ZX
+   * 2-stereo-ConvolverNode packing and the bundled order-1 SH-HRIR.
+   *
+   * Add it to a {@link Bus} via `bus.addFilter(effect)` — it MUST be the
+   * head-of-chain filter so the bus input stays 4-channel and the output is
+   * 2-channel. Pair it with {@link encodeMonoToFoaSN3D} (clean, physically
+   * correct) or with `createStereoToBFormatNode` (the perceptual,
+   * approximate stereo-upmix path).
+   */
+  createFoaDecoder(options: FoaDecoderOptions = {}): FoaDecoderEffect {
+    return new FoaDecoderEffect(this, options);
   }
 
   /**

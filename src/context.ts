@@ -79,6 +79,11 @@ export interface ChannelSplitterNode extends AudioNode {}
 
 export interface ChannelMergerNode extends AudioNode {}
 
+export interface ConvolverNode extends AudioNode {
+  buffer: AudioBuffer | null;
+  normalize: boolean;
+}
+
 export interface AudioWorkletNode extends AudioNode {
   readonly port: MessagePort;
   /**
@@ -174,6 +179,8 @@ export interface BaseContext {
   createStereoPanner(): StereoPannerNode;
   createChannelSplitter?(numberOfOutputs?: number): ChannelSplitterNode;
   createChannelMerger?(numberOfInputs?: number): ChannelMergerNode;
+  createConvolver?(): ConvolverNode;
+  createBuffer?(numberOfChannels: number, length: number, sampleRate: number): AudioBuffer;
   createOscillator(): OscillatorNode;
   decodeAudioData(audioData: ArrayBuffer): Promise<AudioBuffer>;
   decodeAudioData(
