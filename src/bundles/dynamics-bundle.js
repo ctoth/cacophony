@@ -71,8 +71,15 @@ var dynamics = (function (exports) {
             // side): blend the unity slope (above) into slope 1/R (below).
             if (knee > 0 && Math.abs(2 * delta) <= knee) {
                 // eq.4 quadratic interpolation, mirrored about T for the expander.
-                const t = delta - knee / 2;
-                return xG + (slope - 1) * (t * t) / (2 * knee);
+                // The expander's slope-altered region is BELOW T, so the knee must join
+                // the slope line at the LOWER edge (delta = -W/2) and unity at the UPPER
+                // edge (delta = +W/2). Anchor the parabola to the upper edge (t = 0 there)
+                // and subtract the curvature so y_G meets the slope line below: this
+                // yields y_G <= x_G everywhere (never boosts) and C0/C1 continuity at both
+                // edges (slope 1/R below, unity above). The MINUS sign is the mirror of
+                // the compressor branch's PLUS — same eq.4 form, opposite altered side.
+                const t = delta - knee / 2; // 0 at the upper edge (delta = +W/2)
+                return xG - (slope - 1) * (t * t) / (2 * knee);
             }
             if (delta >= 0) {
                 // x_G >= T (above threshold) — unity for a downward expander.
