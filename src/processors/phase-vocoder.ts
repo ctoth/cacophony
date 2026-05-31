@@ -31,7 +31,13 @@ interface PhaseVocoderProcessorOptions {
 export class PhaseVocoderProcessor extends OLAProcessor {
   fftSize: number;
   timeCursor: number;
-  rotators: PeakRotatorState;
+  // Laroche-Dolson 1999 Section 3.5 cumulative phase Z_u is PER SIGNAL STREAM:
+  // each channel is its own stream, so each gets its own PeakRotatorState. A
+  // single shared state would let channel 0 advance/use Z_u and then channel 1
+  // advance the SAME peak to Z_{u+1} in the same OLA frame (inter-channel phase
+  // mismatch) and would let one channel's peak set prune the other's. Indexed
+  // [inputIndex][channelIndex]; grown lazily as channels appear.
+  rotators: PeakRotatorState[][];
   hannWindow: Float32Array;
   fft: FFT;
   // fft.js with a Float32Array input returns a flat interleaved Float32Array
@@ -65,9 +71,11 @@ export class PhaseVocoderProcessor extends OLAProcessor {
 
     this.fftSize = this.blockSize;
     this.timeCursor = 0;
-    // Per-peak cumulative phase-lock state (Laroche-Dolson 1999 Section 3.5):
-    // Z_{u+1} = Z_u * exp(j*Delta-omega*R), advanced once per frame.
-    this.rotators = new PeakRotatorState();
+    // Per-channel per-peak cumulative phase-lock state (Laroche-Dolson 1999
+    // Section 3.5): Z_{u+1} = Z_u * exp(j*Delta-omega*R), advanced once per
+    // frame, kept independently for each channel (signal stream). Grown lazily
+    // per channel in processOLA() so it matches the live channel count.
+    this.rotators = [];
 
     this.hannWindow = genHannWindow(this.blockSize);
 
@@ -86,9 +94,14 @@ export class PhaseVocoderProcessor extends OLAProcessor {
     const pitchFactor = parameters.pitchFactor[parameters.pitchFactor.length - 1];
 
     for (let i = 0; i < this.nbInputs; i++) {
+      const inputRotators = (this.rotators[i] ??= []);
       for (let j = 0; j < inputs[i].length; j++) {
         const input = inputs[i][j];
         const output = outputs[i][j];
+        // Each channel keeps its OWN cumulative rotator state (Laroche-Dolson
+        // 1999 Section 3.5 per-stream phase). Sharing one across channels would
+        // double-advance shared peaks within a frame and cross-prune peak sets.
+        const channelRotators = (inputRotators[j] ??= new PeakRotatorState());
 
         this.applyHannWindow(input);
 
@@ -102,7 +115,7 @@ export class PhaseVocoderProcessor extends OLAProcessor {
         // Accumulate each peak's cumulative rotator Z_u by this frame's
         // exp(j*Delta-omega*R) BEFORE applying it (Laroche-Dolson 1999 Section
         // 3.5 cross-frame cumulation). hopSize is the synthesis hop R.
-        this.rotators.advance(this.peakIndexes, this.nbPeaks, this.fftSize, pitchFactor, this.hopSize);
+        channelRotators.advance(this.peakIndexes, this.nbPeaks, this.fftSize, pitchFactor, this.hopSize);
         shiftPeaks(
           this.freqComplexBuffer,
           this.freqComplexBufferShifted,
@@ -111,7 +124,7 @@ export class PhaseVocoderProcessor extends OLAProcessor {
           this.fftSize,
           this.magnitudes.length,
           pitchFactor,
-          this.rotators,
+          channelRotators,
         );
 
         this.fft.completeSpectrum(this.freqComplexBufferShifted);
