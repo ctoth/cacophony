@@ -39,8 +39,8 @@ export type {
   SourceNode,
   StereoPannerNode,
 } from "./context";
-export type { CacophonyEffect, DynamicsOptions, FdnReverbOptions, ReverbOptions } from "./effects";
-export { BiquadEffect, DynamicsEffect, FdnReverbEffect, ReverbEffect, ShareEffect } from "./effects";
+export type { CacophonyEffect, DynamicsOptions, FdnReverbOptions, ReverbOptions, WaveshaperOptions } from "./effects";
+export { BiquadEffect, DynamicsEffect, FdnReverbEffect, ReverbEffect, ShareEffect, WaveshaperEffect } from "./effects";
 export type {
   AudioEventCallbacks,
   BaseAudioEvents,

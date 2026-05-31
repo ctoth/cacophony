@@ -53,6 +53,17 @@ interface FdnReverbHost {
 }
 
 /**
+ * Minimal structural interface for the Cacophony surface WaveshaperEffect needs.
+ * Declared locally (like {@link ReverbHost}) so this module avoids a circular
+ * import on cacophony.ts. Both methods accept an optional `BaseContext` for the
+ * cross-context contract `CacophonyEffect.build(context)` promises.
+ */
+interface WaveshaperHost {
+  loadWaveshaper(signal?: AbortSignal, context?: BaseContext): Promise<void>;
+  createWaveshaperNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode>;
+}
+
+/**
  * Public surface every Cacophony effect implements. `build` is called by
  * `Bus.addFilter` to materialize the effect's live node graph against a
  * specific audio context. An effect may be built more than once (e.g. on
@@ -266,6 +277,50 @@ export class FdnReverbEffect implements CacophonyEffect {
   async build(context: BaseContext): Promise<AudioWorkletNode> {
     await this.host.loadFdnReverb(undefined, context);
     return this.host.createFdnReverbNode({ parameterData: this.options as Record<string, number> }, context);
+  }
+}
+
+/**
+ * Construction-time configuration for a {@link WaveshaperEffect}, mirroring the
+ * `waveshaper` AudioWorkletProcessor's AudioParam set (see
+ * {@link import('./processors/waveshaper').WaveshaperWorkletProcessor}). All
+ * fields are optional; the worklet clamps to its documented ranges downstream.
+ *
+ * The effect is an antialiased distortion/waveshaper using first-order
+ * Antiderivative Antialiasing (Parker, Zavalishin & Le Bivic 2016, DAFx-16):
+ * y[n] = (F0(x_n) - F0(x_{n-1})) / (x_n - x_{n-1}) (eq.9), with an f(midpoint)
+ * fallback at the 0/0 singularity (eq.10). It carries an inherent 0.5-sample
+ * group delay (first-order ADAA, eq.17).
+ */
+export interface WaveshaperOptions {
+  /** Pre-gain (drive) into the nonlinearity. Default 1. Range 0..100; >1 = harder saturation. */
+  drive?: number;
+  /** Nonlinearity index: 0 = hard clip (polynomial F0, eq.25), 1 = tanh soft clip (F0 = log cosh, eq.20). Default 0. */
+  shape?: number;
+  /** Wet/dry mix (0..1); 0 = dry bypass, 1 = fully shaped. Default 1. */
+  mix?: number;
+  /** Post-nonlinearity output gain (linear). Default 1. Range 0..4. */
+  output?: number;
+}
+
+/**
+ * CacophonyEffect that builds a `waveshaper` AudioWorkletNode — an antialiased
+ * distortion/waveshaper implementing first-order Antiderivative Antialiasing
+ * (Parker, Zavalishin & Le Bivic 2016, DAFx-16). Mirrors {@link ReverbEffect}:
+ * `build` idempotently loads the worklet module on the supplied context, then
+ * constructs the node with the supplied {@link WaveshaperOptions} as
+ * `parameterData`. Honors the cross-context contract (builds against the bus's
+ * context, not the host's own).
+ */
+export class WaveshaperEffect implements CacophonyEffect {
+  constructor(
+    private readonly host: WaveshaperHost,
+    private readonly options: WaveshaperOptions = {},
+  ) {}
+
+  async build(context: BaseContext): Promise<AudioWorkletNode> {
+    await this.host.loadWaveshaper(undefined, context);
+    return this.host.createWaveshaperNode({ parameterData: this.options as Record<string, number> }, context);
   }
 }
 

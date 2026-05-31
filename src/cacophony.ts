@@ -4,6 +4,7 @@ import dynamicsProcessorWorkletUrl from "./bundles/dynamics-bundle.js?url";
 import fdnReverbProcessorWorkletUrl from "./bundles/fdn-reverb-bundle.js?url";
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
 import stereoToBFormatProcessorWorkletUrl from "./bundles/stereo-to-bformat-bundle.js?url";
+import waveshaperProcessorWorkletUrl from "./bundles/waveshaper-bundle.js?url";
 import { Bus } from "./bus";
 import { AudioCache, type ICache } from "./cache";
 import type {
@@ -28,6 +29,8 @@ import {
   ReverbEffect,
   type ReverbOptions,
   ShareEffect,
+  WaveshaperEffect,
+  type WaveshaperOptions,
 } from "./effects";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { CacophonyEvents } from "./events";
@@ -386,6 +389,7 @@ export class Cacophony {
       await this.loadDattorroReverb(signal);
       await this.loadDynamics(signal);
       await this.loadFdnReverb(signal);
+      await this.loadWaveshaper(signal);
     } else {
       console.warn("AudioWorklet not supported");
     }
@@ -468,6 +472,28 @@ export class Cacophony {
    */
   async createFdnReverbNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
     return this.createWorkletNode("fdn-reverb", fdnReverbProcessorWorkletUrl, undefined, options, context);
+  }
+
+  /**
+   * Idempotently registers the `waveshaper` AudioWorkletProcessor (antialiased
+   * distortion/waveshaper via first-order Antiderivative Antialiasing, Parker,
+   * Zavalishin & Le Bivic 2016, DAFx-16) on this context. Safe to call
+   * repeatedly — subsequent calls short-circuit via the per-context
+   * {@link loadedAudioWorklets} set. Cross-context: pass `context` so a
+   * {@link WaveshaperEffect} added to a bus on a different context loads there.
+   */
+  async loadWaveshaper(signal?: AbortSignal, context?: BaseContext): Promise<void> {
+    await this.loadAudioWorkletModule("waveshaper", waveshaperProcessorWorkletUrl, signal, context);
+  }
+
+  /**
+   * Constructs a `waveshaper` AudioWorkletNode. Caller is expected to have
+   * loaded the module already (via {@link loadWaveshaper} or by reaching here
+   * through {@link WaveshaperEffect.build}). Uses the same construct/fallback
+   * path as {@link createWorkletNode}.
+   */
+  async createWaveshaperNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("waveshaper", waveshaperProcessorWorkletUrl, undefined, options, context);
   }
 
   async createWorkletNode(
@@ -966,6 +992,30 @@ export class Cacophony {
    */
   createGate(options: DynamicsOptions = {}): DynamicsEffect {
     return new DynamicsEffect(this, { ratio: 0.1, ...options });
+  }
+
+  /**
+   * Creates a {@link WaveshaperEffect} — an antialiased distortion/waveshaper
+   * implementing first-order Antiderivative Antialiasing (Parker, Zavalishin &
+   * Le Bivic 2016, DAFx-16): y[n] = (F0(x_n) - F0(x_{n-1}))/(x_n - x_{n-1})
+   * (eq.9), with an f(midpoint) fallback at the 0/0 singularity (eq.10). Ships
+   * two nonlinearities — `shape: 0` hard clip (polynomial F0, eq.25), `shape: 1`
+   * tanh soft clip (F0 = log cosh, eq.20). Carries an inherent 0.5-sample group
+   * delay (eq.17). Add the returned effect to a {@link Bus} via
+   * `bus.addFilter(effect)`.
+   */
+  createWaveshaper(options: WaveshaperOptions = {}): WaveshaperEffect {
+    return new WaveshaperEffect(this, options);
+  }
+
+  /**
+   * Creates a {@link WaveshaperEffect} preset as a DISTORTION — the tanh soft
+   * clipper (`shape: 1`, F0 = log cosh, Parker 2016 eq.20) with a default drive
+   * of 4 for an audible saturated tone. A convenience wrapper over
+   * {@link createWaveshaper}; caller-supplied options override the defaults.
+   */
+  createDistortion(options: WaveshaperOptions = {}): WaveshaperEffect {
+    return new WaveshaperEffect(this, { drive: 4, shape: 1, ...options });
   }
 
   /**
