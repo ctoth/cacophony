@@ -308,8 +308,8 @@ describe("Per-line velvet diffusion — VFDN single (Fagerström 2020 §3, eqs. 
 
   it("property: per-line velvet diffusion raises early echo density vs diffusion off", () => {
     // Same processor (same delays, same DFM, same RNG) — only `diffusion`
-    // differs. Turning the per-line VNS filters on must smear each circulating
-    // impulse into many more sparse echoes (Fagerström 2020 eq. 8), so the
+    // differs. Turning the per-line VNS filters on must smear each line's INPUT
+    // INJECTION into many more sparse echoes (Fagerström 2020 eq. 8), so the
     // early-window tap count rises. With diffusion OFF the only spreading is the
     // DFM; ON adds the per-line velvet on top.
     const dry = impulseResponse(new FdnReverbProcessor(FS, 8, makeRng(9)), FS, {
