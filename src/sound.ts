@@ -38,6 +38,7 @@ import type { SoundEvents } from "./events";
 import { FilterManager } from "./filters";
 import type { PanCloneOverrides } from "./pannerMixin";
 import { Playback } from "./playback";
+import type { TimeStretchOptions } from "./processors/timestretch-core";
 import type { VolumeCloneOverrides } from "./volumeMixin";
 
 type SoundCloneOverrides = PanCloneOverrides &
@@ -458,6 +459,41 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
       return this.playbacks[0].duration;
     }
     return this.buffer?.duration || NaN;
+  }
+
+  /**
+   * OFFLINE independent time-stretch: produce a NEW buffer-based Sound whose
+   * tempo is changed by `factor` WITHOUT changing pitch (Phase Gradient Heap
+   * Integration, Průša & Holighaus, "Phase Vocoder Done Right", EUSIPCO 2017 /
+   * arXiv:2202.07382). `factor > 1` is slower/longer, `factor < 1` is
+   * faster/shorter. Only valid for buffer-based sounds (a loaded AudioBuffer);
+   * streaming / media-element sounds have no decoded buffer to transform.
+   *
+   * The original Sound is left untouched; a fresh Sound wrapping the stretched
+   * buffer is returned. Delegates to {@link Cacophony.timeStretchBuffer}.
+   *
+   * @param factor Stretch factor (`> 0`); pitch is preserved.
+   * @param options Optional PGHI parameters (fftSize, analysisHop, tol, seed).
+   * @returns A new buffer-based Sound at the stretched tempo.
+   * @throws If this Sound has no AudioBuffer (e.g. streaming/HTML5 audio).
+   */
+  timeStretch(factor: number, options?: TimeStretchOptions): Sound {
+    if (!this.buffer) {
+      throw new Error("Sound.timeStretch requires a buffer-based sound (a loaded AudioBuffer).");
+    }
+    if (!this._cacophony) {
+      throw new Error("Sound.timeStretch requires the owning Cacophony instance.");
+    }
+    const stretched = this._cacophony.timeStretchBuffer(this.buffer, factor, options);
+    return new Sound(
+      this.url,
+      stretched,
+      this.context,
+      this.globalGainNode,
+      "buffer",
+      this.panType,
+      this._cacophony,
+    );
   }
 
   /**

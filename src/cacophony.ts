@@ -41,6 +41,7 @@ import { Group } from "./group";
 import { MediaStreamSound, type MediaStreamSoundOptions } from "./mediaStream";
 import { MicrophoneStream } from "./microphone";
 import type { ThreeDOptions } from "./pannerMixin";
+import { type TimeStretchOptions, timeStretch } from "./processors/timestretch-core";
 import { Sound } from "./sound";
 import { Synth } from "./synth";
 
@@ -369,6 +370,57 @@ export class Cacophony {
       );
     }
     return this.context.startRendering();
+  }
+
+  /**
+   * OFFLINE independent time-stretch: change an AudioBuffer's tempo WITHOUT
+   * changing its pitch, returning a NEW AudioBuffer of length ≈
+   * `round(buffer.length · factor)` at the same sample rate.
+   *
+   * Algorithm: Phase Gradient Heap Integration (PGHI) per Zdeněk Průša & Nicki
+   * Holighaus, "Phase Vocoder Done Right" (EUSIPCO 2017 / arXiv:2202.07382).
+   * The signal is STFT'd, the synthesis phase is reconstructed by integrating
+   * the analysis-phase time/frequency gradients along the magnitude ridges
+   * (max-heap), then overlap-added at the stretched synthesis hop. No peak
+   * picking and no transient detection. Each channel is processed independently.
+   *
+   * This is an OFFLINE buffer transform, NOT a real-time worklet: the project's
+   * OLA worklet base is unity-rate (analysis hop == synthesis hop, fixed to the
+   * 128-sample render quantum) and cannot change the time base in real time. A
+   * genuine independent stretch needs analysis hop ≠ synthesis hop, which only
+   * the whole-buffer offline path provides.
+   *
+   * @param buffer The source AudioBuffer to time-stretch.
+   * @param factor Stretch factor (`> 0`). `> 1` lengthens (slower tempo), `< 1`
+   *               shortens (faster tempo); pitch is preserved either way.
+   * @param options Optional PGHI parameters (fftSize, analysisHop, tol, seed).
+   * @returns A new, time-stretched AudioBuffer.
+   * @throws If the context cannot create buffers, or `factor <= 0`.
+   */
+  timeStretchBuffer(buffer: AudioBuffer, factor: number, options?: TimeStretchOptions): AudioBuffer {
+    if (typeof this.context.createBuffer !== "function") {
+      throw new Error("timeStretchBuffer requires an audio context that supports createBuffer().");
+    }
+    if (!(factor > 0)) {
+      throw new Error(`timeStretchBuffer: factor must be > 0, got ${factor}`);
+    }
+
+    const numberOfChannels = buffer.numberOfChannels;
+    const outLength = Math.max(1, Math.round(buffer.length * factor));
+    const output = this.context.createBuffer(numberOfChannels, outLength, buffer.sampleRate);
+
+    for (let ch = 0; ch < numberOfChannels; ch++) {
+      // Copy out of the (possibly mocked) AudioBuffer into a plain Float32Array
+      // the pure core can consume, then write the stretched result back.
+      const inData = buffer.getChannelData(ch);
+      const input = inData instanceof Float32Array ? inData : Float32Array.from(inData);
+      const stretched = timeStretch(input, factor, options);
+      // The core returns exactly round(input.length·factor) samples; copy what
+      // fits the output buffer (lengths match by construction).
+      output.copyToChannel(stretched.subarray(0, outLength), ch);
+    }
+
+    return output;
   }
 
   /**

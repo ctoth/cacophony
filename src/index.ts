@@ -84,6 +84,8 @@ export { MediaStreamPlayback, MediaStreamSound } from "./mediaStream";
 export { MicrophonePlayback } from "./microphone";
 export type { HrtfPannerOptions, PanCloneOverrides, ThreeDOptions } from "./pannerMixin";
 export { Playback } from "./playback";
+export type { TimeStretchOptions } from "./processors/timestretch-core";
+export { timeStretch, timeStretchChannels } from "./processors/timestretch-core";
 export { Sound } from "./sound";
 export { encodeMonoToFoaSN3D } from "./spatial/foa-encode";
 export { Synth } from "./synth";
