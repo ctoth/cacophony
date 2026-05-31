@@ -44,6 +44,34 @@ export interface DynamicsParams {
 }
 
 /**
+ * Default AudioParam values for the dynamics worklet, in the worklet's own
+ * units. SINGLE SOURCE OF TRUTH — the worklet's `parameterDescriptors`
+ * (dynamics.ts) builds its descriptors from this table, and tests that need the
+ * shipped defaults import it here rather than re-typing literals. Living in the
+ * worklet-global-free core keeps it importable from plain Node test runners.
+ *
+ * Defaults: a gentle, audible-but-safe compressor. Ratios cover compressor
+ * (ratio >= 1), limiter (ratio -> large) and downward expander/gate (ratio < 1)
+ * from one parameter set.
+ */
+export const DYNAMICS_DEFAULTS: Readonly<DynamicsParams> = {
+  threshold: -24,
+  ratio: 4,
+  knee: 6,
+  attack: 0.003,
+  release: 0.25,
+  makeup: 0,
+};
+
+/**
+ * Ratio override the `createGate` factory (cacophony.ts) applies to turn the
+ * shared dynamics worklet into a gate-like downward expander. SINGLE SOURCE OF
+ * TRUTH for that override — `createGate` and the gate regression tests both
+ * import it so a drift in the gate's ratio breaks the test.
+ */
+export const GATE_DEFAULT_RATIO = 0.1;
+
+/**
  * Smallest linear level we are willing to take a logarithm of. Below this the
  * input is treated as silence (gain-reduction control = 0), avoiding -Infinity
  * dB from log10(0).

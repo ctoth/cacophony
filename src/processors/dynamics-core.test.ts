@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { computeStaticGain, DynamicsProcessor, timeConstantToCoefficient } from "./dynamics-core";
+import {
+  computeStaticGain,
+  DYNAMICS_DEFAULTS,
+  DynamicsProcessor,
+  GATE_DEFAULT_RATIO,
+  timeConstantToCoefficient,
+} from "./dynamics-core";
 
 const FS = 48000;
 
@@ -196,14 +202,22 @@ describe("computeStaticGain — gain computer (Giannoulis 2012 eqs 2-4)", () => 
     });
 
     it("default createGate() params do not boost at the lower knee edge", () => {
-      // createGate() (src/cacophony.ts) overrides only ratio: 0.1; the worklet's
-      // threshold/knee AudioParams default to -24 dB / 6 dB (dynamics.ts:35,37).
-      // The shipped default gate therefore runs the expander soft-knee branch
-      // with W = 6. Before the fix this produced a +27 dB BOOST / 64 dB jump at
-      // the lower knee edge. Assert no boost there (and across the knee span).
-      const T = -24; // worklet threshold default
-      const R = 0.1; // createGate ratio override
-      const W = 6; // worklet knee default
+      // Source the shipped gate defaults from the REAL source of truth rather
+      // than re-typing literals, so this regression test FAILS if those defaults
+      // drift: createGate() (cacophony.ts) overrides only ratio (GATE_DEFAULT_RATIO);
+      // the worklet's threshold/knee AudioParams default to DYNAMICS_DEFAULTS
+      // (consumed by dynamics.ts parameterDescriptors). The shipped default gate
+      // therefore runs the expander soft-knee branch with W = knee default.
+      // Before the fix this produced a +27 dB BOOST / 64 dB jump at the lower
+      // knee edge. Assert no boost there (and across the knee span).
+      const T = DYNAMICS_DEFAULTS.threshold; // worklet threshold default (-24 dB)
+      const R = GATE_DEFAULT_RATIO; // createGate ratio override (0.1)
+      const W = DYNAMICS_DEFAULTS.knee; // worklet knee default (6 dB)
+      // The gate runs the expander soft-knee branch only while ratio < 1 and
+      // knee > 0; if a defaults drift broke that precondition this test would no
+      // longer exercise the regression, so pin it explicitly.
+      expect(R).toBeLessThan(1);
+      expect(W).toBeGreaterThan(0);
       const lowerEdge = T - W / 2; // -27 dB, the spot the bug spiked
       expect(computeStaticGain(lowerEdge, T, R, W)).toBeLessThanOrEqual(lowerEdge + 1e-9);
       for (let xG = lowerEdge; xG <= T + W / 2; xG += 0.05) {

@@ -21,6 +21,7 @@ import type {
   GainNode,
   PannerNode,
 } from "./context";
+import { GATE_DEFAULT_RATIO } from "./processors/dynamics-core";
 import {
   type CacophonyEffect,
   DynamicsEffect,
@@ -1137,7 +1138,7 @@ export class Cacophony {
    * downward expansion; pass a `ratio` closer to 1 for gentler expansion.
    */
   createGate(options: DynamicsOptions = {}): DynamicsEffect {
-    return new DynamicsEffect(this, { ratio: 0.1, ...options });
+    return new DynamicsEffect(this, { ratio: GATE_DEFAULT_RATIO, ...options });
   }
 
   /**
