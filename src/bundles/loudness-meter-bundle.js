@@ -265,7 +265,72 @@
             -0.0594482421875, 0.033203125, -0.0196533203125, 0.010986328125, 0.001708984375,
         ],
     ];
+    /** Oversampling ratio of the verbatim Annex 2 FIR (4×). */
+    const TRUE_PEAK_OVERSAMPLE = TRUE_PEAK_POLYPHASE_FIR_48K.length;
     const FIR_TAPS = TRUE_PEAK_POLYPHASE_FIR_48K[0].length;
+    /**
+     * BS.1770-5 Annex 2 requires the oversampled rate to be **at least 192 kHz**
+     * (p.18: "The 4× over-sampling filter increases the sampling rate of the signal
+     * from 48 kHz to 192 kHz"). The verbatim FIR's 4× only reaches that at ≥48 kHz;
+     * at 44.1 kHz, 4× = 176.4 kHz, BELOW the requirement.
+     */
+    const TRUE_PEAK_MIN_OVERSAMPLED_RATE = 192_000;
+    /**
+     * Chooses the integer oversampling factor for a given input sample rate so the
+     * oversampled rate reaches BS.1770-5's ≥192 kHz requirement (Annex 2, p.18). The
+     * factor is never below 4 (the verbatim FIR's design ratio), and at sample rates
+     * the verbatim 4× already covers (≥48 kHz) it stays 4. Examples: 48 kHz → 4×
+     * (192 kHz); 44.1 kHz → 5× (220.5 kHz); 96 kHz → 4× (the spec notes 2× would
+     * suffice, but the verbatim FIR floor of 4× is kept as the conservative default).
+     */
+    function truePeakOversampleFactor(sampleRate) {
+        if (!(sampleRate > 0)) {
+            return TRUE_PEAK_OVERSAMPLE;
+        }
+        return Math.max(TRUE_PEAK_OVERSAMPLE, Math.ceil(TRUE_PEAK_MIN_OVERSAMPLED_RATE / sampleRate));
+    }
+    /**
+     * Builds an N-phase polyphase interpolating FIR (each phase a 12-tap subfilter,
+     * matching the verbatim filter's order) from a Hann-windowed-sinc prototype. The
+     * BS.1770-5 verbatim coefficients are "one set ... that would satisfy the
+     * requirements" (Annex 2, p.18) for the 4× case; for sample rates that need a
+     * higher factor to clear 192 kHz, an equivalent windowed-sinc low-pass
+     * interpolator of the same order is generated here. Phase k samples the
+     * continuous-time reconstruction at fractional offset k/N between input samples.
+     */
+    function buildPolyphaseFir(oversample) {
+        if (oversample === TRUE_PEAK_OVERSAMPLE) {
+            return TRUE_PEAK_POLYPHASE_FIR_48K;
+        }
+        const taps = FIR_TAPS;
+        const center = (taps - 1) / 2; // symmetric about the middle tap
+        const phases = [];
+        for (let phase = 0; phase < oversample; phase++) {
+            const frac = phase / oversample; // fractional sample position 0 ≤ frac < 1
+            const coeffs = new Array(taps);
+            for (let k = 0; k < taps; k++) {
+                // Ideal interpolation kernel sampled at distance (k - center - frac):
+                const t = k - center - frac;
+                const sincArg = Math.PI * t;
+                const sinc = t === 0 ? 1 : Math.sin(sincArg) / sincArg;
+                // Hann window across the tap span keeps the FIR finite & low-ripple.
+                const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * k) / (taps - 1));
+                coeffs[k] = sinc * w;
+            }
+            // Normalize each phase to unity DC gain so a constant reconstructs exactly.
+            let sum = 0;
+            for (const c of coeffs) {
+                sum += c;
+            }
+            if (sum !== 0) {
+                for (let k = 0; k < taps; k++) {
+                    coeffs[k] /= sum;
+                }
+            }
+            phases.push(coeffs);
+        }
+        return phases;
+    }
     /**
      * Streaming 4× polyphase true-peak detector for ONE channel (ITU-R BS.1770-5
      * Annex 2). Maintains a 12-sample input history so successive blocks join
@@ -280,11 +345,22 @@
         history;
         writeIndex = 0;
         peak = 0;
-        constructor() {
+        /** The polyphase FIR actually used (verbatim at 4×, generated for >4×). */
+        fir;
+        /** Oversampling factor chosen for the input sample rate (≥4; ≥192 kHz). */
+        oversample;
+        /**
+         * @param sampleRate Input sample rate in Hz. Selects the oversampling factor
+         *   so the oversampled rate reaches BS.1770-5's ≥192 kHz requirement (Annex 2,
+         *   p.18). Defaults to 48 kHz (the rate the verbatim FIR is quoted at → 4×).
+         */
+        constructor(sampleRate = 48_000) {
+            this.oversample = truePeakOversampleFactor(sampleRate);
+            this.fir = buildPolyphaseFir(this.oversample);
             this.history = new Float32Array(FIR_TAPS);
         }
         /**
-         * Pushes a block of input samples through the 4× polyphase interpolator and
+         * Pushes a block of input samples through the polyphase interpolator and
          * updates the running true peak (max absolute oversampled value).
          */
         process(samples) {
@@ -294,8 +370,8 @@
                 this.writeIndex = (this.writeIndex + 1) % FIR_TAPS;
                 // For each polyphase branch, convolve the 12-tap history. tap 0 is the
                 // oldest sample; the newest sample is at (writeIndex - 1).
-                for (let phase = 0; phase < TRUE_PEAK_POLYPHASE_FIR_48K.length; phase++) {
-                    const coeffs = TRUE_PEAK_POLYPHASE_FIR_48K[phase];
+                for (let phase = 0; phase < this.fir.length; phase++) {
+                    const coeffs = this.fir[phase];
                     let acc = 0;
                     for (let k = 0; k < FIR_TAPS; k++) {
                         const idx = (this.writeIndex + k) % FIR_TAPS;
@@ -364,7 +440,9 @@
         truePeak;
         constructor(sampleRate) {
             this.kFilter = new KWeightingFilter(sampleRate);
-            this.truePeak = new TruePeakDetector();
+            // Sample-rate-aware: the detector picks an oversampling factor reaching
+            // BS.1770-5's ≥192 kHz requirement (4× at 48 kHz, ≥5× at 44.1 kHz).
+            this.truePeak = new TruePeakDetector(sampleRate);
         }
     }
     /**
@@ -471,6 +549,40 @@
             }
             return powerSumToLoudness(weightedSum);
         }
+        /**
+         * Closes the current 100 ms sub-block exactly at its boundary: converts the
+         * accumulated per-channel power sum to a mean, pushes it onto the ring of the
+         * four most-recent sub-blocks, forms a 400 ms gating block (eq.3) when four
+         * sub-blocks are available, applies the absolute gate (eq.6), then resets the
+         * sub-block accumulator. Called the instant `samplesIntoSubBlock` reaches the
+         * boundary so no sample lands in the wrong sub-block.
+         */
+        closeSubBlock() {
+            const subMean = this.subBlockSumPerChannel.map((s) => s / this.subBlockSamples);
+            this.recentSubBlocks.push(subMean);
+            if (this.recentSubBlocks.length > 4) {
+                this.recentSubBlocks.shift();
+            }
+            // A complete 400 ms gating block exists once four sub-blocks accumulate.
+            if (this.recentSubBlocks.length === 4) {
+                const blockMean = new Array(this.channelCount).fill(0);
+                for (let c = 0; c < this.channelCount; c++) {
+                    let s = 0;
+                    for (const sub of this.recentSubBlocks) {
+                        s += sub[c];
+                    }
+                    blockMean[c] = s / 4;
+                }
+                const l = this.loudnessOf(blockMean);
+                // Absolute gate Γ_a (-70 LKFS): only store passing blocks (Annex 1 eq.6).
+                if (l > ABSOLUTE_GATE_LKFS) {
+                    this.gatedBlocksPerChannel.push(blockMean);
+                    this.gatedBlockLoudness.push(l);
+                }
+            }
+            this.subBlockSumPerChannel = new Array(this.channelCount).fill(0);
+            this.samplesIntoSubBlock -= this.subBlockSamples;
+        }
         /** Gated integrated loudness over surviving blocks (Annex 1, eqs.5-7). */
         computeIntegrated() {
             if (this.gatedBlocksPerChannel.length === 0) {
@@ -511,54 +623,55 @@
             }
             this.ensureChannels(input.length);
             const frameCount = input[0]?.length ?? 0;
+            // True-peak runs on the RAW (un-weighted) channel signal (Annex 2); it has
+            // no sub-block boundary dependency, so process whole quanta per channel.
             for (let c = 0; c < input.length; c++) {
-                const inCh = input[c];
-                const outCh = output?.[c];
-                const meter = this.channelMeters[c];
-                // True-peak runs on the RAW (un-weighted) channel signal (Annex 2).
-                meter.truePeak.process(inCh);
-                for (let i = 0; i < frameCount; i++) {
-                    const x = inCh[i];
-                    // Pass-through copy: metering must not alter the audible path.
+                this.channelMeters[c].truePeak.process(input[c]);
+            }
+            // Pass-through copy: metering must not alter the audible path. Done in one
+            // pass so the boundary-split loudness loop below need not also copy.
+            if (output) {
+                for (let c = 0; c < input.length; c++) {
+                    const inCh = input[c];
+                    const outCh = output[c];
                     if (outCh) {
-                        outCh[i] = x;
+                        outCh.set(inCh);
                     }
-                    // K-weight then square for the loudness windows / blocks.
-                    const y = meter.kFilter.process(x);
-                    const sq = y * y;
-                    this.momentaryWindows[c].push(sq);
-                    this.shortTermWindows[c].push(sq);
-                    this.subBlockSumPerChannel[c] += sq;
                 }
             }
-            // Advance the 100 ms sub-block accumulator.
-            this.samplesIntoSubBlock += frameCount;
-            while (this.samplesIntoSubBlock >= this.subBlockSamples && this.subBlockSamples > 0) {
-                // Close a 100 ms sub-block: convert summed power to per-channel mean.
-                const subMean = this.subBlockSumPerChannel.map((s) => s / this.subBlockSamples);
-                this.recentSubBlocks.push(subMean);
-                if (this.recentSubBlocks.length > 4) {
-                    this.recentSubBlocks.shift();
-                }
-                // A complete 400 ms gating block exists once four sub-blocks accumulate.
-                if (this.recentSubBlocks.length === 4) {
-                    const blockMean = new Array(this.channelCount).fill(0);
-                    for (let c = 0; c < this.channelCount; c++) {
-                        let s = 0;
-                        for (const sub of this.recentSubBlocks) {
-                            s += sub[c];
-                        }
-                        blockMean[c] = s / 4;
+            // K-weight, square, and accumulate the sliding windows + 100 ms sub-block.
+            // CRITICAL (ITU-R BS.1770-5 Annex 1, eq.3 / p.6 — a gating block is a set of
+            // CONTIGUOUS samples of exactly the block duration): a 128-sample render
+            // quantum can STRADDLE a sub-block boundary (4800 samples at 48 kHz). We must
+            // close the sub-block exactly AT the boundary so no sample lands in the wrong
+            // 100 ms sub-block. Walk the quantum in segments bounded by the next sub-block
+            // edge; close (and form gating blocks from) the sub-block when it fills.
+            let offset = 0;
+            while (offset < frameCount) {
+                const remainingInSubBlock = this.subBlockSamples > 0 ? this.subBlockSamples - this.samplesIntoSubBlock : frameCount - offset;
+                const segment = Math.min(remainingInSubBlock, frameCount - offset);
+                for (let c = 0; c < input.length; c++) {
+                    const inCh = input[c];
+                    const meter = this.channelMeters[c];
+                    const momentary = this.momentaryWindows[c];
+                    const shortTerm = this.shortTermWindows[c];
+                    let subSum = this.subBlockSumPerChannel[c];
+                    for (let i = offset; i < offset + segment; i++) {
+                        // K-weight then square for the loudness windows / blocks.
+                        const y = meter.kFilter.process(inCh[i]);
+                        const sq = y * y;
+                        momentary.push(sq);
+                        shortTerm.push(sq);
+                        subSum += sq;
                     }
-                    const l = this.loudnessOf(blockMean);
-                    // Absolute gate Γ_a (-70 LKFS): only store passing blocks (Annex 1 eq.6).
-                    if (l > ABSOLUTE_GATE_LKFS) {
-                        this.gatedBlocksPerChannel.push(blockMean);
-                        this.gatedBlockLoudness.push(l);
-                    }
+                    this.subBlockSumPerChannel[c] = subSum;
                 }
-                this.subBlockSumPerChannel = new Array(this.channelCount).fill(0);
-                this.samplesIntoSubBlock -= this.subBlockSamples;
+                offset += segment;
+                this.samplesIntoSubBlock += segment;
+                // Close a 100 ms sub-block exactly at the boundary.
+                if (this.subBlockSamples > 0 && this.samplesIntoSubBlock >= this.subBlockSamples) {
+                    this.closeSubBlock();
+                }
             }
             this.samplesSincePost += frameCount;
             if (this.samplesSincePost >= this.postEverySamples) {

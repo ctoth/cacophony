@@ -1,5 +1,7 @@
+import { AudioContext } from "standardized-audio-context-mock";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { Cacophony } from "../cacophony";
 import { audioContextMock, cacophony } from "../setupTests";
 import { LoudnessMeter } from "./loudness-meter";
 
@@ -90,5 +92,55 @@ describe("createLoudnessMeter — graph wiring (ITU-R BS.1770-5 tap)", () => {
 
     // Disconnect targets ONLY the worklet node, not a blanket node.disconnect().
     expect(disconnectSpy).toHaveBeenCalledWith(meter.workletNode);
+  });
+
+  it("builds the meter on the TARGET node's OWN context, not always this.context (no cross-context connect)", async () => {
+    // The bug: createLoudnessMeter loaded/constructed on `this.context` even when
+    // the target node lived on a DIFFERENT BaseContext, which would cross-connect
+    // two contexts (illegal in Web Audio). The meter must load the worklet AND
+    // build the node on the target node's own context.
+
+    // A second, FOREIGN context with its own addModule spy.
+    const foreignCtx = new AudioContext();
+    const foreignAddModule = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(foreignCtx, "audioWorklet", {
+      value: { addModule: foreignAddModule },
+      writable: true,
+      configurable: true,
+    });
+    // The host context (this.context) gets its own DISTINCT addModule spy.
+    const hostAddModule = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(audioContextMock, "audioWorklet", {
+      value: { addModule: hostAddModule },
+      writable: true,
+      configurable: true,
+    });
+
+    // Record which BaseContext the worklet node was constructed against.
+    const builtOn: unknown[] = [];
+    const host = new Cacophony(audioContextMock, undefined, {
+      createAudioWorkletNode: (workletContext) => {
+        builtOn.push(workletContext);
+        return {
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+          port: { postMessage: vi.fn(), addEventListener: vi.fn(), start: vi.fn() },
+        } as never;
+      },
+    });
+
+    // A node on the FOREIGN context.
+    const foreignNode = foreignCtx.createGain();
+    const meter = await host.createLoudnessMeter(foreignNode);
+
+    expect(meter).toBeInstanceOf(LoudnessMeter);
+    // The worklet module was registered on the FOREIGN context, never the host's.
+    expect(foreignAddModule).toHaveBeenCalled();
+    expect(hostAddModule).not.toHaveBeenCalled();
+    // The node was constructed against the FOREIGN context (no cross-context).
+    expect(builtOn).toContain(foreignCtx);
+    expect(builtOn).not.toContain(audioContextMock);
+
+    foreignCtx.close();
   });
 });

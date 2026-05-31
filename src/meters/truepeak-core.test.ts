@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  TRUE_PEAK_MIN_OVERSAMPLED_RATE,
   TRUE_PEAK_OVERSAMPLE,
   TRUE_PEAK_POLYPHASE_FIR_48K,
   TruePeakDetector,
   truePeakDb,
   truePeakDbForChannel,
+  truePeakOversampleFactor,
 } from "./truepeak-core";
 
 const SR = 48_000;
@@ -89,6 +91,54 @@ describe("truepeak-core — ITU-R BS.1770-5 Annex 2", () => {
     const loud = sine(1000, 1.0, 0.2);
     const tp = truePeakDb([quiet, loud]);
     expect(tp).toBeCloseTo(truePeakDbForChannel(loud), 6);
+  });
+
+  describe("sample-rate-aware oversampling (BS.1770-5 Annex 2 — oversampled rate ≥192 kHz)", () => {
+    it("chooses an oversample factor whose oversampled rate reaches ≥192 kHz", () => {
+      // 48 kHz: 4× = 192 kHz (exactly the requirement).
+      expect(truePeakOversampleFactor(48_000)).toBe(4);
+      expect(truePeakOversampleFactor(48_000) * 48_000).toBeGreaterThanOrEqual(TRUE_PEAK_MIN_OVERSAMPLED_RATE);
+      // 44.1 kHz: hard-coded 4× would give only 176.4 kHz — BELOW 192 kHz; the
+      // factor must rise to 5× (220.5 kHz). This is the bug the old hard-4× had.
+      expect(44_100 * 4).toBeLessThan(TRUE_PEAK_MIN_OVERSAMPLED_RATE); // documents the bug
+      expect(truePeakOversampleFactor(44_100)).toBeGreaterThanOrEqual(5);
+      expect(truePeakOversampleFactor(44_100) * 44_100).toBeGreaterThanOrEqual(TRUE_PEAK_MIN_OVERSAMPLED_RATE);
+      // Never below 4 (the verbatim FIR's design ratio), even at high rates.
+      expect(truePeakOversampleFactor(96_000)).toBeGreaterThanOrEqual(4);
+      expect(truePeakOversampleFactor(192_000)).toBeGreaterThanOrEqual(4);
+    });
+
+    it("a 44.1 kHz detector oversamples to ≥192 kHz (FAILS on the hard-coded-4× version)", () => {
+      const SR_44 = 44_100;
+      const detector = new TruePeakDetector(SR_44);
+      // The bug: hard-coded 4× → 176.4 kHz < 192 kHz. The fixed detector must
+      // pick ≥5×, so its effective oversampled rate clears the requirement.
+      expect(detector.oversample).toBeGreaterThanOrEqual(5);
+      expect(detector.oversample * SR_44).toBeGreaterThanOrEqual(TRUE_PEAK_MIN_OVERSAMPLED_RATE);
+      expect(detector.fir.length).toBe(detector.oversample);
+    });
+
+    it("a 48 kHz detector keeps the verbatim 4-phase FIR (no regression)", () => {
+      const detector = new TruePeakDetector(48_000);
+      expect(detector.oversample).toBe(4);
+      expect(detector.fir).toBe(TRUE_PEAK_POLYPHASE_FIR_48K);
+    });
+
+    it("the higher-rate detector still measures sane levels (−6 dB ⇒ ~−6 dBTP at 44.1 kHz)", () => {
+      const SR_44 = 44_100;
+      const n = Math.round(0.3 * SR_44);
+      const make = (amp: number): Float32Array => {
+        const out = new Float32Array(n);
+        for (let i = 0; i < n; i++) {
+          out[i] = amp * Math.sin((2 * Math.PI * (SR_44 / 4 - 50) * i) / SR_44 + Math.PI / 4);
+        }
+        return out;
+      };
+      const tpFull = truePeakDbForChannel(make(1.0), SR_44);
+      const tpHalf = truePeakDbForChannel(make(0.5), SR_44);
+      expect(Number.isFinite(tpFull)).toBe(true);
+      expect(tpFull - tpHalf).toBeCloseTo(20 * Math.log10(2), 1);
+    });
   });
 
   it("a streaming detector joins blocks seamlessly (block split == whole signal)", () => {

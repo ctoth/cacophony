@@ -62,6 +62,72 @@ export const TRUE_PEAK_OVERSAMPLE = TRUE_PEAK_POLYPHASE_FIR_48K.length;
 const FIR_TAPS = TRUE_PEAK_POLYPHASE_FIR_48K[0].length;
 
 /**
+ * BS.1770-5 Annex 2 requires the oversampled rate to be **at least 192 kHz**
+ * (p.18: "The 4× over-sampling filter increases the sampling rate of the signal
+ * from 48 kHz to 192 kHz"). The verbatim FIR's 4× only reaches that at ≥48 kHz;
+ * at 44.1 kHz, 4× = 176.4 kHz, BELOW the requirement.
+ */
+export const TRUE_PEAK_MIN_OVERSAMPLED_RATE = 192_000;
+
+/**
+ * Chooses the integer oversampling factor for a given input sample rate so the
+ * oversampled rate reaches BS.1770-5's ≥192 kHz requirement (Annex 2, p.18). The
+ * factor is never below 4 (the verbatim FIR's design ratio), and at sample rates
+ * the verbatim 4× already covers (≥48 kHz) it stays 4. Examples: 48 kHz → 4×
+ * (192 kHz); 44.1 kHz → 5× (220.5 kHz); 96 kHz → 4× (the spec notes 2× would
+ * suffice, but the verbatim FIR floor of 4× is kept as the conservative default).
+ */
+export function truePeakOversampleFactor(sampleRate: number): number {
+  if (!(sampleRate > 0)) {
+    return TRUE_PEAK_OVERSAMPLE;
+  }
+  return Math.max(TRUE_PEAK_OVERSAMPLE, Math.ceil(TRUE_PEAK_MIN_OVERSAMPLED_RATE / sampleRate));
+}
+
+/**
+ * Builds an N-phase polyphase interpolating FIR (each phase a 12-tap subfilter,
+ * matching the verbatim filter's order) from a Hann-windowed-sinc prototype. The
+ * BS.1770-5 verbatim coefficients are "one set ... that would satisfy the
+ * requirements" (Annex 2, p.18) for the 4× case; for sample rates that need a
+ * higher factor to clear 192 kHz, an equivalent windowed-sinc low-pass
+ * interpolator of the same order is generated here. Phase k samples the
+ * continuous-time reconstruction at fractional offset k/N between input samples.
+ */
+function buildPolyphaseFir(oversample: number): ReadonlyArray<ReadonlyArray<number>> {
+  if (oversample === TRUE_PEAK_OVERSAMPLE) {
+    return TRUE_PEAK_POLYPHASE_FIR_48K;
+  }
+  const taps = FIR_TAPS;
+  const center = (taps - 1) / 2; // symmetric about the middle tap
+  const phases: number[][] = [];
+  for (let phase = 0; phase < oversample; phase++) {
+    const frac = phase / oversample; // fractional sample position 0 ≤ frac < 1
+    const coeffs: number[] = new Array(taps);
+    for (let k = 0; k < taps; k++) {
+      // Ideal interpolation kernel sampled at distance (k - center - frac):
+      const t = k - center - frac;
+      const sincArg = Math.PI * t;
+      const sinc = t === 0 ? 1 : Math.sin(sincArg) / sincArg;
+      // Hann window across the tap span keeps the FIR finite & low-ripple.
+      const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * k) / (taps - 1));
+      coeffs[k] = sinc * w;
+    }
+    // Normalize each phase to unity DC gain so a constant reconstructs exactly.
+    let sum = 0;
+    for (const c of coeffs) {
+      sum += c;
+    }
+    if (sum !== 0) {
+      for (let k = 0; k < taps; k++) {
+        coeffs[k] /= sum;
+      }
+    }
+    phases.push(coeffs);
+  }
+  return phases;
+}
+
+/**
  * Streaming 4× polyphase true-peak detector for ONE channel (ITU-R BS.1770-5
  * Annex 2). Maintains a 12-sample input history so successive blocks join
  * seamlessly, runs every phase of the polyphase FIR per input sample (giving
@@ -75,13 +141,24 @@ export class TruePeakDetector {
   private readonly history: Float32Array;
   private writeIndex = 0;
   private peak = 0;
+  /** The polyphase FIR actually used (verbatim at 4×, generated for >4×). */
+  readonly fir: ReadonlyArray<ReadonlyArray<number>>;
+  /** Oversampling factor chosen for the input sample rate (≥4; ≥192 kHz). */
+  readonly oversample: number;
 
-  constructor() {
+  /**
+   * @param sampleRate Input sample rate in Hz. Selects the oversampling factor
+   *   so the oversampled rate reaches BS.1770-5's ≥192 kHz requirement (Annex 2,
+   *   p.18). Defaults to 48 kHz (the rate the verbatim FIR is quoted at → 4×).
+   */
+  constructor(sampleRate: number = 48_000) {
+    this.oversample = truePeakOversampleFactor(sampleRate);
+    this.fir = buildPolyphaseFir(this.oversample);
     this.history = new Float32Array(FIR_TAPS);
   }
 
   /**
-   * Pushes a block of input samples through the 4× polyphase interpolator and
+   * Pushes a block of input samples through the polyphase interpolator and
    * updates the running true peak (max absolute oversampled value).
    */
   process(samples: Float32Array): void {
@@ -92,8 +169,8 @@ export class TruePeakDetector {
 
       // For each polyphase branch, convolve the 12-tap history. tap 0 is the
       // oldest sample; the newest sample is at (writeIndex - 1).
-      for (let phase = 0; phase < TRUE_PEAK_POLYPHASE_FIR_48K.length; phase++) {
-        const coeffs = TRUE_PEAK_POLYPHASE_FIR_48K[phase];
+      for (let phase = 0; phase < this.fir.length; phase++) {
+        const coeffs = this.fir[phase];
         let acc = 0;
         for (let k = 0; k < FIR_TAPS; k++) {
           const idx = (this.writeIndex + k) % FIR_TAPS;
@@ -133,8 +210,8 @@ export class TruePeakDetector {
  * BS.1770-5 Annex 2. Convenience wrapper over {@link TruePeakDetector} for
  * callers that process a whole signal in one call.
  */
-export function truePeakDbForChannel(samples: Float32Array): number {
-  const detector = new TruePeakDetector();
+export function truePeakDbForChannel(samples: Float32Array, sampleRate = 48_000): number {
+  const detector = new TruePeakDetector(sampleRate);
   detector.process(samples);
   return detector.truePeakDb();
 }
@@ -144,10 +221,10 @@ export function truePeakDbForChannel(samples: Float32Array): number {
  * true peak (a programme's true-peak level is the loudest channel; Annex 2 is
  * defined per single channel).
  */
-export function truePeakDb(channels: Float32Array[]): number {
+export function truePeakDb(channels: Float32Array[], sampleRate = 48_000): number {
   let maxLinear = 0;
   for (const samples of channels) {
-    const detector = new TruePeakDetector();
+    const detector = new TruePeakDetector(sampleRate);
     detector.process(samples);
     const tp = detector.truePeak();
     if (tp > maxLinear) {

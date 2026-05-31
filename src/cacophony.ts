@@ -1216,10 +1216,15 @@ export class Cacophony {
    */
   async createLoudnessMeter(target: Bus | AudioNode = this.master): Promise<LoudnessMeter> {
     const sourceNode: AudioNode = target instanceof Bus ? target.output : target;
-    // Load the worklet on the SAME context the source node lives on (the master
-    // and user buses share this host's context, but be explicit for clarity).
-    await this.loadLoudnessMeter(undefined, this.context);
-    const node = await this.createLoudnessMeterNode({ numberOfInputs: 1, numberOfOutputs: 1 }, this.context);
+    // Load AND construct the worklet on the SOURCE node's OWN context, not always
+    // `this.context`. A caller may pass an AudioNode (or Bus) living on a
+    // different BaseContext; building the meter on this host's context would
+    // cross-connect two contexts (illegal in Web Audio). The source node carries
+    // its full context at runtime (native + standardized-audio-context both do);
+    // the structural `AudioNode.context` type is narrowed, so widen it here.
+    const targetContext = (sourceNode.context as BaseContext | undefined) ?? this.context;
+    await this.loadLoudnessMeter(undefined, targetContext);
+    const node = await this.createLoudnessMeterNode({ numberOfInputs: 1, numberOfOutputs: 1 }, targetContext);
     return new LoudnessMeter(node, sourceNode);
   }
 
