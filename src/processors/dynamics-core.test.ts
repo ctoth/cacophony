@@ -118,6 +118,39 @@ describe("computeStaticGain — gain computer (Giannoulis 2012 eqs 2-4)", () => 
       expect(computeStaticGain(-20, T, R, 0)).toBeCloseTo(-20, 6);
       expect(computeStaticGain(-40, T, R, 0)).toBeCloseTo(-40, 6);
     });
+
+    it("soft knee (knee>0) is continuous across BOTH knee edges (no discontinuity)", () => {
+      // Expander altered region is BELOW T: knee joins the slope line at the
+      // lower edge and unity at the upper edge. Previously the parabola was
+      // anchored to the wrong edge and produced a multi-dB jump at the lower
+      // edge — this test exercises the knee>0 branch the old tests skipped.
+      const T = -30;
+      const R = 0.5; // expander, slope 1/R = 2 below T
+      const W = 8;
+      const eps = 1e-5;
+      const lowerEdge = T - W / 2; // 2(xG-T) = -W
+      const upperEdge = T + W / 2; // 2(xG-T) = +W
+
+      const belowLower = computeStaticGain(lowerEdge - eps, T, R, W);
+      const atLower = computeStaticGain(lowerEdge, T, R, W);
+      expect(Math.abs(atLower - belowLower)).toBeLessThan(1e-4);
+
+      const atUpper = computeStaticGain(upperEdge, T, R, W);
+      const aboveUpper = computeStaticGain(upperEdge + eps, T, R, W);
+      expect(Math.abs(aboveUpper - atUpper)).toBeLessThan(1e-4);
+    });
+
+    it("soft knee (knee>0) never boosts: yG <= xG across the knee region", () => {
+      // The bug made yG > xG inside the knee (gain BOOST). Sweep the whole knee
+      // span (and a margin on each side) and assert downward expansion only.
+      const T = -30;
+      const R = 0.5;
+      const W = 8;
+      for (let xG = T - 2 * W; xG <= T + 2 * W; xG += 0.1) {
+        const yG = computeStaticGain(xG, T, R, W);
+        expect(yG).toBeLessThanOrEqual(xG + 1e-9);
+      }
+    });
   });
 
   describe("property: invariants over a range of inputs", () => {
@@ -158,6 +191,23 @@ describe("computeStaticGain — gain computer (Giannoulis 2012 eqs 2-4)", () => 
       const R = 0.5;
       for (let xG = -90; xG <= 0; xG += 0.5) {
         const yG = computeStaticGain(xG, T, R, 0);
+        expect(yG).toBeLessThanOrEqual(xG + 1e-9);
+      }
+    });
+
+    it("default createGate() params do not boost at the lower knee edge", () => {
+      // createGate() (src/cacophony.ts) overrides only ratio: 0.1; the worklet's
+      // threshold/knee AudioParams default to -24 dB / 6 dB (dynamics.ts:35,37).
+      // The shipped default gate therefore runs the expander soft-knee branch
+      // with W = 6. Before the fix this produced a +27 dB BOOST / 64 dB jump at
+      // the lower knee edge. Assert no boost there (and across the knee span).
+      const T = -24; // worklet threshold default
+      const R = 0.1; // createGate ratio override
+      const W = 6; // worklet knee default
+      const lowerEdge = T - W / 2; // -27 dB, the spot the bug spiked
+      expect(computeStaticGain(lowerEdge, T, R, W)).toBeLessThanOrEqual(lowerEdge + 1e-9);
+      for (let xG = lowerEdge; xG <= T + W / 2; xG += 0.05) {
+        const yG = computeStaticGain(xG, T, R, W);
         expect(yG).toBeLessThanOrEqual(xG + 1e-9);
       }
     });
