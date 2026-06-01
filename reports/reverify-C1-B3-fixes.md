@@ -4,7 +4,7 @@ Workflow actually used: I read `prompts/reverify-C1-B3-fixes.md`, `git show 5c34
 
 Targeted verification run: `npm test -- src/processors/loudness-meter.test.ts src/processors/timestretch-core.test.ts` passed: 2 files, 21 tests.
 
-Not verified: full suite, typecheck, lint, browser/live AudioWorklet runtime.
+Commit-hook verification during the report commit: `npm run typecheck` ran with no reported TypeScript errors, and full `npm test` passed: 210 files, 4659 tests. Biome emitted nested-root configuration errors for `.claude/.../biome.json` files before the typecheck/test steps, so lint cleanliness is not verified. Browser/live AudioWorklet runtime was not verified.
 
 ## Fix 1 - C1 loudness worklet LFE exclusion
 
