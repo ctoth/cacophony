@@ -207,7 +207,10 @@ describe("FdnReverbProcessor — FDN reverb core (Schlecht 2019 + Jot 1991 + Fag
         }
       }
     }
-  });
+    // 48-config sweep × 4 s @ 48 kHz with per-line velvet cost runs ~3 s
+    // locally but ~5.6 s on the 2-core CI runner, past the 5 s default. Give
+    // it headroom rather than thin the coverage — the full sweep is the point.
+  }, 30000);
 
   it("property: stronger HF damping ⇒ no MORE total tail energy than no damping (absorption only removes)", () => {
     const proc0 = new FdnReverbProcessor(FS, 8, makeRng(5));
