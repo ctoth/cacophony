@@ -163,10 +163,14 @@ describe("loudness-meter worklet — gated integrated loudness", () => {
     const b = await makeProcessor();
     feedMulti(b.processor, [tone, tone, silent, silent, silent, silent]); // silent LFE
 
-    const withLfe = lastIntegrated(a.port);
-    const withoutLfe = lastIntegrated(b.port);
-    expect(Number.isFinite(withLfe)).toBe(true);
-    expect(withLfe).toBeCloseTo(withoutLfe, 6); // LFE excluded → identical
+    const lastReport = (port: FakePort) => port.posted.filter((p) => p && p.type === "loudness").at(-1);
+    const withLfe = lastReport(a.port);
+    const withoutLfe = lastReport(b.port);
+    expect(withLfe && Number.isFinite(withLfe.integrated)).toBe(true);
+    // LFE excluded → ALL THREE loudness measures identical (they share channelLabel).
+    expect(withLfe!.integrated).toBeCloseTo(withoutLfe!.integrated, 6);
+    expect(withLfe!.momentary).toBeCloseTo(withoutLfe!.momentary, 6);
+    expect(withLfe!.shortTerm).toBeCloseTo(withoutLfe!.shortTerm, 6);
   });
 
   it("a loud non-LFE channel (C, index 2) DOES raise 5.1 loudness — exclusion is LFE-specific", async () => {

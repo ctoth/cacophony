@@ -431,12 +431,17 @@
     /** Default channel label assignment by channel index for ≤5-channel input. */
     const DEFAULT_CHANNEL_ORDER = ["L", "R", "C", "Ls", "Rs"];
     /**
-     * Channel label layout by channel COUNT (ITU-R BS.1770-5 Annex 1, Table 3 / Fig.1,
-     * p.3,7). The crucial entry is 6-channel 5.1: its index-3 channel is the LFE,
-     * which BS.1770-5 EXCLUDES from the loudness sum (CHANNEL_WEIGHTS.LFE = 0). The
-     * flat DEFAULT_CHANNEL_ORDER above cannot express this — it would mislabel a 5.1
-     * stream's LFE as `Ls` and count it as programme loudness — so a layout is chosen
-     * by channel count here. Counts not listed fall back to DEFAULT_CHANNEL_ORDER.
+     * Channel label layout by channel COUNT. Two distinct authorities apply:
+     *  - The channel INDEX order for each count is the W3C Web Audio API 1.0
+     *    "speakers" layout: 6-channel 5.1 is [FL, FR, FC, LFE, SL, SR] = index 3 is
+     *    the LFE (https://www.w3.org/TR/webaudio/#ChannelOrdering).
+     *  - The loudness TREATMENT of those channels is ITU-R BS.1770-5 Annex 1
+     *    (Table 3 / Fig.1, p.3,7): the LFE is EXCLUDED from the loudness sum
+     *    (CHANNEL_WEIGHTS.LFE = 0) and only L/R/C/Ls/Rs are measured (Ls/Rs at 1.41).
+     * The flat DEFAULT_CHANNEL_ORDER above cannot express the LFE slot — it would
+     * mislabel a 5.1 stream's index-3 LFE as `Ls` and count it as programme
+     * loudness — so a layout is chosen by channel count here. Counts not listed fall
+     * back to DEFAULT_CHANNEL_ORDER.
      */
     const CHANNEL_LAYOUTS = {
         1: ["C"], // mono: one measured channel, weight 1.0
