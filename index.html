@@ -3,451 +3,726 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Cacophony Test Page</title>
+    <title>Cacophony Playground — accessible audio demos</title>
     <style>
+      :root { color-scheme: light dark; }
       body {
-        font-family: Arial, sans-serif;
-        max-width: 800px;
+        font-family: system-ui, Arial, sans-serif;
+        max-width: 900px;
         margin: 0 auto;
         padding: 20px;
+        line-height: 1.5;
       }
-      .control-group {
-        margin-bottom: 15px;
+      h2 { margin-top: 1.5em; border-bottom: 1px solid currentColor; padding-bottom: 0.2em; }
+      section { margin-bottom: 1.5em; }
+      .row { margin: 0.5em 0; display: flex; gap: 0.5em; flex-wrap: wrap; align-items: center; }
+      button { padding: 0.5em 0.9em; font-size: 1rem; }
+      button:disabled { opacity: 0.5; }
+      label { font-weight: 600; }
+      input[type="range"] { min-width: 12em; }
+      output, .readout { font-family: ui-monospace, monospace; }
+      /* Always-visible focus indicator (sighted collaborators / keyboard users). */
+      :focus-visible { outline: 3px solid #1a73e8; outline-offset: 2px; }
+      /* Visually-hidden but available to screen readers. */
+      .visually-hidden {
+        position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+        overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
       }
-      .button {
-        padding: 10px;
-        margin-right: 10px;
-        cursor: pointer;
+      .status-bar {
+        position: sticky; top: 0; background: Canvas; padding: 0.5em 0;
+        border-bottom: 2px solid currentColor; margin-bottom: 1em; z-index: 1;
       }
-      .disabled {
-        opacity: 0.5;
-        cursor: not-allowed;
-      }
-      #progressBar {
-        width: 100%;
-        height: 20px;
-        background-color: #ddd;
-        margin-top: 10px;
-      }
-      #progressFill {
-        height: 100%;
-        width: 0;
-        background-color: #4caf50;
-        transition: width 0.1s;
-      }
-      #errorMessage {
-        color: red;
-        margin-top: 10px;
-      }
+      .gate-note { font-style: italic; }
     </style>
-    <script type="module">
-      import { Cacophony, Sound } from "/src/index.ts";
-
-      window.cacophony = new Cacophony();
-      window.sound = null;
-      window.soundState = "stopped";
-      window.isLoading = false;
-      let progressInterval;
-
-      const formatBytes = (bytes) => {
-        if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
-        const units = ["B", "KB", "MB", "GB"];
-        const unitIndex = Math.min(
-          Math.floor(Math.log(bytes) / Math.log(1024)),
-          units.length - 1
-        );
-        const value = bytes / 1024 ** unitIndex;
-        return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${
-          units[unitIndex]
-        }`;
-      };
-
-      window.onload = () => {
-        const playPauseButton = document.getElementById("playPauseSound");
-        const rewindButton = document.getElementById("rewindSound");
-        const fastForwardButton = document.getElementById("fastForwardSound");
-        const stopButton = document.getElementById("stopSound");
-        const loadButton = document.getElementById("loadSound");
-        const soundStateIndicator = document.getElementById(
-          "soundStateIndicator"
-        );
-        const progressFill = document.getElementById("progressFill");
-        const errorMessage = document.getElementById("errorMessage");
-        const loadingStatus = document.getElementById("loadingStatus");
-
-        window.updateUIState = () => {
-          playPauseButton.textContent =
-            window.soundState === "playing" ? "Pause" : "Play";
-          soundStateIndicator.textContent = `Sound State: ${
-            window.isLoading ? "loading" : window.soundState
-          }`;
-          loadButton.disabled = window.isLoading;
-          loadButton.textContent = window.isLoading
-            ? "Loading..."
-            : "Load Sound";
-          stopButton.disabled = window.soundState === "stopped";
-          playPauseButton.disabled = !window.sound || window.isLoading;
-          rewindButton.disabled = !window.sound || window.isLoading;
-          fastForwardButton.disabled = !window.sound || window.isLoading;
-          document.querySelectorAll(".control").forEach((control) => {
-            control.disabled = !window.sound || window.isLoading;
-          });
-        };
-
-        window.cacophony.on("loadingStart", ({ url }) => {
-          window.isLoading = true;
-          loadingStatus.textContent = `Loading ${url}...`;
-          progressFill.style.width = "0%";
-          window.updateUIState();
-        });
-
-        window.cacophony.on("loadingProgress", ({ loaded, total, progress }) => {
-          const progressPercent =
-            progress >= 0 ? `${Math.round(progress * 100)}%` : "Streaming";
-          loadingStatus.textContent = `Loading ${formatBytes(
-            loaded
-          )}${total ? ` of ${formatBytes(total)}` : ""} (${progressPercent})`;
-          if (progress >= 0) {
-            progressFill.style.width = `${progress * 100}%`;
-          }
-        });
-
-        window.cacophony.on("loadingComplete", () => {
-          loadingStatus.textContent = "Download complete. Decoding audio...";
-          progressFill.style.width = "100%";
-        });
-
-        window.cacophony.on("loadingError", () => {
-          window.isLoading = false;
-          loadingStatus.textContent = "";
-          progressFill.style.width = "0%";
-          window.updateUIState();
-        });
-
-        window.updateProgressBar = () => {
-          if (
-            window.sound &&
-            window.sound.playbacks.length > 0 &&
-            window.sound.duration
-          ) {
-            const playback =
-              window.sound.playbacks[window.sound.playbacks.length - 1];
-            const progress =
-              (playback.currentTime / window.sound.duration) * 100;
-            progressFill.style.width = `${progress}%`;
-          }
-        };
-
-        window.loadSound = async () => {
-          const soundUrl = document.getElementById("soundUrl").value;
-          const soundType = document.querySelector(
-            'input[name="soundType"]:checked'
-          ).value;
-          try {
-            window.isLoading = true;
-            window.sound = null;
-            errorMessage.textContent = "";
-            loadingStatus.textContent =
-              soundType === "buffer"
-                ? `Loading ${soundUrl} in buffer mode...`
-                : `Preparing ${soundUrl}...`;
-            progressFill.style.width = "0%";
-            window.updateUIState();
-
-            switch (soundType) {
-              case "oscillator":
-                if (
-                  ["sine", "sawtooth", "square", "triangle"].includes(soundUrl)
-                ) {
-                  window.sound = await window.cacophony.createOscillator({
-                    type: soundUrl,
-                    panType: window.panType,
-                  });
-                } else {
-                  throw new Error("Invalid oscillator type");
-                }
-                break;
-              case "streaming":
-                window.sound = await window.cacophony.createStream(soundUrl);
-                break;
-              default:
-                window.sound = await window.cacophony.createSound(
-                  soundUrl,
-                  "buffer",
-                  window.panType
-                );
-                break;
-            }
-            window.isLoading = false;
-            loadingStatus.textContent =
-              soundType === "buffer" ? `Loaded ${soundUrl}` : "";
-            errorMessage.textContent = "";
-            window.updateUIState();
-          } catch (error) {
-            window.isLoading = false;
-            loadingStatus.textContent = "";
-            errorMessage.textContent = `Error: ${error.message}`;
-            window.sound = undefined;
-            window.updateUIState();
-          }
-        };
-
-        window.togglePlayPause = async () => {
-          if (!window.sound) return;
-
-          if (window.soundState === "playing") {
-            const playback =
-              window.sound.playbacks[window.sound.playbacks.length - 1];
-            playback.pause();
-            window.soundState = "paused";
-            clearInterval(progressInterval);
-          } else {
-            if (typeof window.cacophony.resume === "function") {
-              await window.cacophony.resume();
-            }
-            if (sound.playbacks.length) {
-              const playback =
-                window.sound.playbacks[window.sound.playbacks.length - 1];
-              playback.play();
-            } else {
-              window.sound.play();
-            }
-            window.soundState = "playing";
-            progressInterval = setInterval(window.updateProgressBar, 100);
-          }
-          window.updateUIState();
-        };
-
-        loadButton.addEventListener("click", window.loadSound);
-        playPauseButton.addEventListener("click", window.togglePlayPause);
-
-        stopButton.addEventListener("click", () => {
-          if (window.sound) {
-            window.sound.stop();
-            window.soundState = "stopped";
-            clearInterval(progressInterval);
-            progressFill.style.width = "0%";
-            window.updateUIState();
-          }
-        });
-
-        rewindButton.addEventListener("click", () => {
-          if (window.sound && window.sound.playbacks.length > 0) {
-            const playback =
-              window.sound.playbacks[window.sound.playbacks.length - 1];
-            const newTime = Math.max(0, playback.currentTime - 5);
-            window.sound.seek(newTime);
-            window.updateProgressBar();
-          }
-        });
-
-        fastForwardButton.addEventListener("click", () => {
-          if (window.sound && window.sound.playbacks.length > 0) {
-            const playback =
-              window.sound.playbacks[window.sound.playbacks.length - 1];
-            const newTime = Math.min(
-              window.sound.duration,
-              playback.currentTime + 5
-            );
-            window.sound.seek(newTime);
-            window.updateProgressBar();
-          }
-        });
-
-        document.getElementById("volume").addEventListener("input", (event) => {
-          const volume = parseFloat(event.target.value);
-          if (window.sound) window.sound.volume = volume;
-        });
-
-        const panTypeRadios = document.getElementsByName("panType");
-        window.panType = "HRTF";
-        panTypeRadios.forEach((radio) => {
-          radio.addEventListener("change", (event) => {
-            if (event.target.checked) {
-              window.panType = event.target.value;
-              if (window.sound) window.sound.panType = window.panType;
-              updateStereoPanVisibility();
-            }
-          });
-        });
-
-        document
-          .getElementById("positionX")
-          .addEventListener("input", (event) => {
-            const x = parseFloat(event.target.value);
-            if (window.sound)
-              window.sound.position = [
-                x,
-                window.sound.position[1],
-                window.sound.position[2],
-              ];
-          });
-
-        document
-          .getElementById("stereoPan")
-          .addEventListener("input", (event) => {
-            if (window.sound && window.sound.panType === "stereo") {
-              const pan = parseFloat(event.target.value);
-              window.sound.stereoPan = pan;
-            }
-          });
-
-        document
-          .getElementById("loopCount")
-          .addEventListener("change", (event) => {
-            if (window.sound) {
-              const loopCount =
-                event.target.value === "infinite"
-                  ? "infinite"
-                  : parseInt(event.target.value, 10);
-              window.sound.loop(loopCount);
-            }
-          });
-
-        const updateStereoPanVisibility = () => {
-          const stereoPanSlider = document.getElementById("stereoPanContainer");
-          stereoPanSlider.style.display =
-            window.panType === "stereo" ? "block" : "none";
-        };
-
-        document.addEventListener("keydown", (event) => {
-          if (event.code === "Space") {
-            event.preventDefault();
-            window.togglePlayPause();
-          } else if (event.code === "KeyS") {
-            stopButton.click();
-          } else if (event.code === "KeyL") {
-            loadButton.click();
-          }
-        });
-
-        document
-          .getElementById("progressBar")
-          .addEventListener("click", (event) => {
-            if (
-              window.sound &&
-              window.sound.playbacks.length > 0 &&
-              window.sound.duration
-            ) {
-              const clickPosition = event.offsetX / event.target.offsetWidth;
-              const seekTime = clickPosition * window.sound.duration;
-              window.sound.seek(seekTime);
-              window.updateProgressBar();
-            }
-          });
-
-        updateStereoPanVisibility();
-        window.updateUIState();
-      };
-    </script>
   </head>
-
   <body>
-    <h1>Cacophony Test Page</h1>
-    <div class="control-group">
-      <input
-        type="text"
-        id="soundUrl"
-        placeholder="Enter sound URL or oscillator type"
-      />
-      <button id="loadSound" class="button">Load Sound</button>
-      <button id="playPauseSound" class="button" disabled>Play</button>
-      <button id="rewindSound" class="button" disabled>⏪</button>
-      <button id="fastForwardSound" class="button" disabled>⏩</button>
-      <button id="stopSound" class="button" disabled>Stop</button>
+    <a class="visually-hidden" href="#main">Skip to demos</a>
+    <h1>Cacophony Playground</h1>
+    <p>
+      A hands-on, screen-reader-operable demonstration of what cacophony can do.
+      Every demo is meant to be <strong>heard</strong>: press a control and
+      listen. Non-audible measurements (e.g. the loudness meter) are computed and
+      announced as text.
+    </p>
+
+    <!-- Live regions: polite status for normal announcements, assertive for errors. -->
+    <div class="status-bar">
+      <p id="status" role="status" aria-live="polite" aria-atomic="true">Audio is off. Activate “Enable audio” to begin.</p>
+      <p id="alert" role="alert" aria-atomic="true"></p>
     </div>
-    <div class="control-group">
-      <label>Sound Type:</label>
-      <input
-        type="radio"
-        id="soundTypeBuffer"
-        name="soundType"
-        value="buffer"
-        checked
-      />
-      <label for="soundTypeBuffer">Buffer</label>
-      <input
-        type="radio"
-        id="soundTypeStreaming"
-        name="soundType"
-        value="streaming"
-      />
-      <label for="soundTypeStreaming">Streaming</label>
-      <input
-        type="radio"
-        id="soundTypeOscillator"
-        name="soundType"
-        value="oscillator"
-      />
-      <label for="soundTypeOscillator">Oscillator</label>
-    </div>
-    <div id="soundStateIndicator">Sound State: stopped</div>
-    <div id="progressBar">
-      <div id="progressFill"></div>
-    </div>
-    <div id="loadingStatus"></div>
-    <div class="control-group">
-      <label for="volume">Volume:</label>
-      <input
-        type="range"
-        id="volume"
-        class="control"
-        min="0"
-        max="1"
-        step="0.01"
-        value="1"
-        disabled
-      />
-    </div>
-    <div class="control-group">
-      <label for="positionX">Position X:</label>
-      <input
-        type="range"
-        id="positionX"
-        class="control"
-        min="-10"
-        max="10"
-        step="0.1"
-        value="0"
-        disabled
-      />
-    </div>
-    <div class="control-group">
-      <label for="loopCount">Loop:</label>
-      <select id="loopCount" class="control" disabled>
-        <option value="0">No loop</option>
-        <option value="1">1 time</option>
-        <option value="2">2 times</option>
-        <option value="5">5 times</option>
-        <option value="infinite">Infinite</option>
-      </select>
-    </div>
-    <div class="control-group">
-      <label>Pan Type:</label>
-      <input
-        type="radio"
-        id="panTypeHRTF"
-        name="panType"
-        value="HRTF"
-        checked
-      />
-      <label for="panTypeHRTF">HRTF</label>
-      <input type="radio" id="panTypeStereo" name="panType" value="stereo" />
-      <label for="panTypeStereo">Stereo</label>
-    </div>
-    <div id="stereoPanContainer" class="control-group" style="display: none">
-      <label for="stereoPan">Stereo Pan:</label>
-      <input
-        type="range"
-        id="stereoPan"
-        class="control"
-        min="-1"
-        max="1"
-        step="0.01"
-        value="0"
-        disabled
-      />
-    </div>
-    <div id="errorMessage"></div>
+
+    <section aria-labelledby="enable-h">
+      <h2 id="enable-h">1. Enable audio</h2>
+      <p class="gate-note">
+        Browsers block sound until you act. Activate this once to unlock the audio
+        engine; the rest of the page stays disabled until you do.
+      </p>
+      <div class="row">
+        <button id="enableAudio" type="button">Enable audio</button>
+        <span id="enableState" class="readout" aria-live="polite">Not enabled</span>
+      </div>
+    </section>
+
+    <main id="main">
+      <fieldset id="demos" disabled>
+        <legend class="visually-hidden">Cacophony demos (enable audio first)</legend>
+
+        <section aria-labelledby="play-h">
+          <h2 id="play-h">2. Sound playback</h2>
+          <p>Load a bundled loop and control playback. Transport keys also work: Space = play/pause, S = stop.</p>
+          <div class="row">
+            <button id="loadSound" type="button">Load loop</button>
+            <button id="playPause" type="button" disabled>Play</button>
+            <button id="rewind" type="button" disabled>Rewind 5 seconds</button>
+            <button id="forward" type="button" disabled>Forward 5 seconds</button>
+            <button id="stop" type="button" disabled>Stop</button>
+          </div>
+          <div class="row">
+            <label for="volume">Volume</label>
+            <input type="range" id="volume" min="0" max="1" step="0.01" value="0.8" aria-describedby="volumeVal" />
+            <span id="volumeVal" class="readout">80%</span>
+          </div>
+          <div class="row">
+            <label for="loopCount">Loop</label>
+            <select id="loopCount">
+              <option value="0">No loop</option>
+              <option value="2">2 times</option>
+              <option value="infinite" selected>Infinite</option>
+            </select>
+          </div>
+          <p id="playStatus" class="readout" aria-live="polite">No sound loaded.</p>
+        </section>
+
+        <section aria-labelledby="synth-h">
+          <h2 id="synth-h">3. Synth / oscillator</h2>
+          <p>Generate a tone. Change the waveform and pitch and hear the timbre change.</p>
+          <div class="row">
+            <label for="waveform">Waveform</label>
+            <select id="waveform">
+              <option value="sine">Sine</option>
+              <option value="sawtooth">Sawtooth</option>
+              <option value="square">Square</option>
+              <option value="triangle">Triangle</option>
+            </select>
+            <label for="synthFreq">Frequency</label>
+            <input type="range" id="synthFreq" min="110" max="1760" step="1" value="440" aria-describedby="synthFreqVal" />
+            <span id="synthFreqVal" class="readout">440 Hz</span>
+          </div>
+          <div class="row">
+            <button id="synthPlay" type="button">Play tone</button>
+            <button id="synthStop" type="button" disabled>Stop tone</button>
+          </div>
+        </section>
+
+        <section aria-labelledby="pan-h">
+          <h2 id="pan-h">4. Spatial panning</h2>
+          <p>Move a looping tone around your head. With HRTF you should hear it travel left ↔ right.</p>
+          <div class="row">
+            <button id="panStart" type="button">Start panning source</button>
+            <button id="panStop" type="button" disabled>Stop</button>
+          </div>
+          <div class="row">
+            <button id="panLeft" type="button" disabled>Hard left</button>
+            <button id="panCenter" type="button" disabled>Center</button>
+            <button id="panRight" type="button" disabled>Hard right</button>
+          </div>
+          <div class="row">
+            <label for="panX">Position X (left −10 … +10 right)</label>
+            <input type="range" id="panX" min="-10" max="10" step="0.5" value="0" disabled aria-describedby="panXVal" />
+            <span id="panXVal" class="readout">center</span>
+          </div>
+        </section>
+
+        <section aria-labelledby="filter-h">
+          <h2 id="filter-h">5. Filter chain (biquad)</h2>
+          <p>A low-pass filter on the loop. Sweep the cutoff: low values muffle it, high values open it up.</p>
+          <div class="row">
+            <button id="filterPlay" type="button">Play filtered loop</button>
+            <button id="filterStop" type="button" disabled>Stop</button>
+          </div>
+          <div class="row">
+            <label for="cutoff">Cutoff</label>
+            <input type="range" id="cutoff" min="200" max="18000" step="100" value="1200" disabled aria-describedby="cutoffVal" />
+            <span id="cutoffVal" class="readout">1200 Hz</span>
+          </div>
+        </section>
+
+        <section aria-labelledby="reverb-h">
+          <h2 id="reverb-h">6. FDN reverb (Schlecht 2019 + Fagerström 2020)</h2>
+          <p>A/B the same loop dry vs. through the feedback-delay-network reverb bus.</p>
+          <div class="row">
+            <button id="reverbDry" type="button">Play dry</button>
+            <button id="reverbWet" type="button">Play with reverb</button>
+            <button id="reverbStop" type="button" disabled>Stop</button>
+          </div>
+          <div class="row">
+            <label for="reverbDecay">Decay seconds</label>
+            <input type="range" id="reverbDecay" min="0.3" max="6" step="0.1" value="2.5" aria-describedby="reverbDecayVal" />
+            <span id="reverbDecayVal" class="readout">2.5 s</span>
+          </div>
+        </section>
+
+        <section aria-labelledby="dist-h">
+          <h2 id="dist-h">7. ADAA distortion (Parker 2016)</h2>
+          <p>A/B clean vs. antialiased waveshaping. Raise drive for more grit.</p>
+          <div class="row">
+            <button id="distClean" type="button">Play clean</button>
+            <button id="distDirty" type="button">Play distorted</button>
+            <button id="distStop" type="button" disabled>Stop</button>
+          </div>
+          <div class="row">
+            <label for="drive">Drive</label>
+            <input type="range" id="drive" min="1" max="20" step="0.5" value="6" aria-describedby="driveVal" />
+            <span id="driveVal" class="readout">6×</span>
+          </div>
+        </section>
+
+        <section aria-labelledby="dyn-h">
+          <h2 id="dyn-h">8. Dynamics (Giannoulis 2012)</h2>
+          <p>A compressor on the loop bus. A/B to hear the level tamed.</p>
+          <div class="row">
+            <button id="dynOff" type="button">Play uncompressed</button>
+            <button id="dynOn" type="button">Play compressed</button>
+            <button id="dynStop" type="button" disabled>Stop</button>
+          </div>
+        </section>
+
+        <section aria-labelledby="pitch-h">
+          <h2 id="pitch-h">9. Pitch-shift (Laroche-Dolson 1999)</h2>
+          <p>Shift the loop’s pitch <em>without</em> changing its speed. Octave up, down, or unison — live.</p>
+          <div class="row">
+            <button id="pitchPlay" type="button">Play loop</button>
+            <button id="pitchStop" type="button" disabled>Stop</button>
+          </div>
+          <div class="row">
+            <button id="pitchDown" type="button" disabled>Down an octave (×0.5)</button>
+            <button id="pitchUnison" type="button" disabled>Unison (×1)</button>
+            <button id="pitchUp" type="button" disabled>Up an octave (×2)</button>
+          </div>
+          <p id="pitchState" class="readout" aria-live="polite"></p>
+        </section>
+
+        <section aria-labelledby="stretch-h">
+          <h2 id="stretch-h">10. Time-stretch (Průša 2022, PGHI)</h2>
+          <p>Change the loop’s <em>duration</em> while keeping its pitch. Compare original to half- and double-length.</p>
+          <div class="row">
+            <button id="stretchOrig" type="button">Original</button>
+            <button id="stretchHalf" type="button">Faster (×0.5 length)</button>
+            <button id="stretchDouble" type="button">Slower (×2 length)</button>
+            <button id="stretchStop" type="button" disabled>Stop</button>
+          </div>
+          <p id="stretchState" class="readout" aria-live="polite"></p>
+        </section>
+
+        <section aria-labelledby="foa-h">
+          <h2 id="foa-h">11. Ambisonic → binaural (Ahrens 2022)</h2>
+          <p>
+            A mono tone is encoded to first-order ambisonics at a chosen azimuth,
+            then decoded to binaural through the HRIR. Move the azimuth and hear it
+            travel around you. (This exercises the real decoder audio graph.)
+          </p>
+          <div class="row">
+            <label for="azimuth">Azimuth (−180° right … +180° left)</label>
+            <input type="range" id="azimuth" min="-180" max="180" step="15" value="90" aria-describedby="azimuthVal" />
+            <span id="azimuthVal" class="readout">+90° (left)</span>
+          </div>
+          <div class="row">
+            <button id="foaPlay" type="button">Play at azimuth</button>
+            <button id="foaStop" type="button" disabled>Stop</button>
+          </div>
+          <p id="foaState" class="readout" aria-live="polite"></p>
+        </section>
+
+        <section aria-labelledby="loud-h">
+          <h2 id="loud-h">12. Loudness &amp; true-peak meter (ITU-R BS.1770-5)</h2>
+          <p>
+            Live ITU loudness while audio plays. Readings update continuously for
+            sighted users; activate “Speak readings” for a one-shot spoken summary
+            (so a screen reader is not interrupted ten times a second).
+          </p>
+          <div class="row">
+            <button id="loudAttach" type="button">Start metering master</button>
+            <button id="loudSpeak" type="button" disabled>Speak readings</button>
+            <button id="loudReset" type="button" disabled>Reset integrated</button>
+          </div>
+          <p id="loudReadout" class="readout" aria-hidden="false">Momentary —, Short-term —, Integrated —, True-peak —</p>
+          <h3>Self-check (machine measures, result is announced)</h3>
+          <p>
+            BS.1770-5 calibration: a 0 dBFS 997 Hz sine must read −3.01 LKFS.
+            This runs the measurement and tells you PASS/FAIL with the number.
+          </p>
+          <div class="row">
+            <button id="loudAssert" type="button">Verify 997 Hz → −3.01 LKFS</button>
+          </div>
+          <p id="loudAssertResult" class="readout" aria-live="polite"></p>
+        </section>
+
+        <section aria-labelledby="group-h">
+          <h2 id="group-h">13. Groups</h2>
+          <p>Two sounds controlled as one — play and stop the whole group together.</p>
+          <div class="row">
+            <button id="groupPlay" type="button">Play group</button>
+            <button id="groupStop" type="button" disabled>Stop group</button>
+          </div>
+        </section>
+      </fieldset>
+    </main>
+
+    <script type="module">
+      import {
+        Cacophony,
+        encodeMonoToFoaSN3D,
+        integratedLoudness,
+      } from "/src/index.ts";
+
+      const SAMPLE_URL = "/loop.wav";
+      const cacophony = new Cacophony();
+      window.cacophony = cacophony; // handy for console poking
+
+      // ---- announcements ------------------------------------------------------
+      const statusEl = document.getElementById("status");
+      const alertEl = document.getElementById("alert");
+      /** Announce a normal status (polite — does not interrupt). */
+      const say = (msg) => { statusEl.textContent = msg; };
+      /** Announce an error (assertive — interrupts). */
+      const fail = (where, err) => {
+        const msg = err && err.message ? err.message : String(err);
+        alertEl.textContent = `${where}: ${msg}`;
+        // Also log for sighted debugging.
+        console.error(where, err);
+      };
+      const clearAlert = () => { alertEl.textContent = ""; };
+
+      // ---- shared sample buffer (decoded once on demand) ----------------------
+      let sampleBuffer = null;
+      async function getSampleBuffer() {
+        if (sampleBuffer) return sampleBuffer;
+        const res = await fetch(SAMPLE_URL);
+        if (!res.ok) throw new Error(`could not fetch ${SAMPLE_URL} (${res.status})`);
+        const bytes = await res.arrayBuffer();
+        sampleBuffer = await cacophony.context.decodeAudioData(bytes);
+        return sampleBuffer;
+      }
+
+      /** Stop + forget a handle that may be a Sound, Synth, Group, or raw node. */
+      function safeStop(handle) {
+        if (!handle) return;
+        try { handle.stop(); } catch (e) { /* already stopped */ }
+      }
+
+      // ---- the audio-enable gate ---------------------------------------------
+      const demos = document.getElementById("demos");
+      const enableBtn = document.getElementById("enableAudio");
+      const enableState = document.getElementById("enableState");
+      let enabled = false;
+      enableBtn.addEventListener("click", async () => {
+        clearAlert();
+        try {
+          if (typeof cacophony.resume === "function") await cacophony.resume();
+          // decodeAudioData also needs a running context; prime the sample.
+          await getSampleBuffer();
+          enabled = true;
+          demos.disabled = false;
+          enableBtn.disabled = true;
+          enableState.textContent = "Audio enabled";
+          say("Audio enabled. All demos are now available.");
+        } catch (e) {
+          fail("Enable audio", e);
+        }
+      });
+
+      // ---- 2. Sound playback --------------------------------------------------
+      (() => {
+        let sound = null;
+        let playing = false;
+        const playStatus = document.getElementById("playStatus");
+        const playPause = document.getElementById("playPause");
+        const transport = ["playPause", "rewind", "forward", "stop"].map((id) => document.getElementById(id));
+        const setTransport = (on) => transport.forEach((b) => { b.disabled = !on; });
+
+        document.getElementById("loadSound").addEventListener("click", async () => {
+          clearAlert();
+          try {
+            say("Loading loop…");
+            sound = await cacophony.createSound(SAMPLE_URL, "buffer");
+            sound.volume = parseFloat(document.getElementById("volume").value);
+            const lc = document.getElementById("loopCount").value;
+            sound.loop(lc === "infinite" ? "infinite" : parseInt(lc, 10));
+            setTransport(true);
+            playStatus.textContent = "Loop loaded and ready.";
+            say("Loop loaded.");
+          } catch (e) { fail("Load loop", e); }
+        });
+
+        playPause.addEventListener("click", () => {
+          if (!sound) return;
+          try {
+            if (playing) {
+              sound.pause(); playing = false; playPause.textContent = "Play";
+              playStatus.textContent = "Paused."; say("Paused.");
+            } else {
+              sound.play(); playing = true; playPause.textContent = "Pause";
+              playStatus.textContent = "Playing."; say("Playing.");
+            }
+          } catch (e) { fail("Play/pause", e); }
+        });
+        document.getElementById("stop").addEventListener("click", () => {
+          safeStop(sound); playing = false; playPause.textContent = "Play";
+          playStatus.textContent = "Stopped."; say("Stopped.");
+        });
+        document.getElementById("rewind").addEventListener("click", () => {
+          if (!sound) return;
+          const pb = sound.playbacks[sound.playbacks.length - 1];
+          if (pb) { sound.seek(Math.max(0, pb.currentTime - 5)); say("Rewound 5 seconds."); }
+        });
+        document.getElementById("forward").addEventListener("click", () => {
+          if (!sound) return;
+          const pb = sound.playbacks[sound.playbacks.length - 1];
+          if (pb) { sound.seek(pb.currentTime + 5); say("Forward 5 seconds."); }
+        });
+
+        const volume = document.getElementById("volume");
+        const volumeVal = document.getElementById("volumeVal");
+        volume.addEventListener("input", () => { volumeVal.textContent = `${Math.round(volume.value * 100)}%`; });
+        volume.addEventListener("change", () => {
+          if (sound) sound.volume = parseFloat(volume.value);
+          say(`Volume ${Math.round(volume.value * 100)} percent.`);
+        });
+        document.getElementById("loopCount").addEventListener("change", (e) => {
+          if (sound) sound.loop(e.target.value === "infinite" ? "infinite" : parseInt(e.target.value, 10));
+        });
+
+        document.addEventListener("keydown", (e) => {
+          if (!enabled) return;
+          const tag = document.activeElement && document.activeElement.tagName;
+          if (tag === "INPUT" || tag === "SELECT") return; // don't hijack sliders
+          if (e.code === "Space") { e.preventDefault(); playPause.click(); }
+          else if (e.code === "KeyS") { document.getElementById("stop").click(); }
+        });
+      })();
+
+      // ---- 3. Synth -----------------------------------------------------------
+      (() => {
+        let synth = null;
+        const freq = document.getElementById("synthFreq");
+        const freqVal = document.getElementById("synthFreqVal");
+        const playBtn = document.getElementById("synthPlay");
+        const stopBtn = document.getElementById("synthStop");
+        freq.addEventListener("input", () => { freqVal.textContent = `${freq.value} Hz`; });
+        playBtn.addEventListener("click", async () => {
+          clearAlert();
+          try {
+            safeStop(synth);
+            synth = await cacophony.createOscillator({
+              type: document.getElementById("waveform").value,
+              frequency: parseFloat(freq.value),
+            });
+            synth.play();
+            stopBtn.disabled = false;
+            say(`Playing a ${document.getElementById("waveform").value} tone at ${freq.value} hertz.`);
+          } catch (e) { fail("Synth", e); }
+        });
+        stopBtn.addEventListener("click", () => { safeStop(synth); stopBtn.disabled = true; say("Tone stopped."); });
+      })();
+
+      // ---- 4. Spatial panning -------------------------------------------------
+      (() => {
+        let sound = null;
+        const x = document.getElementById("panX");
+        const xVal = document.getElementById("panXVal");
+        const moveBtns = ["panLeft", "panCenter", "panRight"].map((id) => document.getElementById(id));
+        const stopBtn = document.getElementById("panStop");
+        const describe = (v) => (v <= -1 ? `left ${Math.abs(v)}` : v >= 1 ? `right ${v}` : "center");
+        const setPos = (v) => {
+          x.value = v; xVal.textContent = describe(v);
+          if (sound) sound.position = [v, 0, 0];
+          say(`Source at ${describe(v)}.`);
+        };
+        document.getElementById("panStart").addEventListener("click", async () => {
+          clearAlert();
+          try {
+            safeStop(sound);
+            sound = await cacophony.createSound(SAMPLE_URL, "buffer", "HRTF");
+            sound.loop("infinite");
+            sound.position = [parseFloat(x.value), 0, 0];
+            sound.play();
+            stopBtn.disabled = false;
+            x.disabled = false;
+            moveBtns.forEach((b) => { b.disabled = false; });
+            say("Panning source playing. Use the position slider or the left/center/right buttons.");
+          } catch (e) { fail("Panner", e); }
+        });
+        stopBtn.addEventListener("click", () => {
+          safeStop(sound); stopBtn.disabled = true; x.disabled = true;
+          moveBtns.forEach((b) => { b.disabled = true; }); say("Panning stopped.");
+        });
+        document.getElementById("panLeft").addEventListener("click", () => setPos(-10));
+        document.getElementById("panCenter").addEventListener("click", () => setPos(0));
+        document.getElementById("panRight").addEventListener("click", () => setPos(10));
+        x.addEventListener("input", () => { xVal.textContent = describe(parseFloat(x.value)); });
+        x.addEventListener("change", () => setPos(parseFloat(x.value)));
+      })();
+
+      // ---- 5. Filter chain ----------------------------------------------------
+      (() => {
+        let sound = null, filter = null;
+        const cutoff = document.getElementById("cutoff");
+        const cutoffVal = document.getElementById("cutoffVal");
+        const stopBtn = document.getElementById("filterStop");
+        document.getElementById("filterPlay").addEventListener("click", async () => {
+          clearAlert();
+          try {
+            safeStop(sound);
+            sound = await cacophony.createSound(SAMPLE_URL, "buffer");
+            sound.loop("infinite");
+            filter = cacophony.createBiquadFilter({ type: "lowpass", frequency: parseFloat(cutoff.value) });
+            await sound.addFilter(filter);
+            sound.play();
+            stopBtn.disabled = false; cutoff.disabled = false;
+            say(`Low-pass filtered loop playing, cutoff ${cutoff.value} hertz.`);
+          } catch (e) { fail("Filter", e); }
+        });
+        stopBtn.addEventListener("click", () => { safeStop(sound); stopBtn.disabled = true; cutoff.disabled = true; say("Filter demo stopped."); });
+        cutoff.addEventListener("input", () => { cutoffVal.textContent = `${cutoff.value} Hz`; if (filter) filter.frequency.value = parseFloat(cutoff.value); });
+        cutoff.addEventListener("change", () => say(`Cutoff ${cutoff.value} hertz.`));
+      })();
+
+      // ---- effect A/B helper (bus-routed) ------------------------------------
+      // Plays the loop dry or through a one-effect bus so you can compare.
+      function makeEffectAB({ makeEffect, label }) {
+        let sound = null, bus = null;
+        const play = async (wet) => {
+          clearAlert();
+          try {
+            safeStop(sound);
+            sound = await cacophony.createSound(SAMPLE_URL, "buffer");
+            sound.loop("infinite");
+            if (wet) {
+              bus = cacophony.createBus(); // auto-routes to master
+              const effect = await makeEffect();
+              await bus.addFilter(effect);
+              sound.routeTo(bus);
+            }
+            sound.play();
+            say(wet ? `Playing through ${label}.` : "Playing dry.");
+          } catch (e) { fail(label, e); }
+        };
+        const stop = () => { safeStop(sound); if (bus) { try { bus.destroy(); } catch (e) {} bus = null; } say(`${label} demo stopped.`); };
+        return { play, stop };
+      }
+
+      // ---- 6. FDN reverb ------------------------------------------------------
+      (() => {
+        const decay = document.getElementById("reverbDecay");
+        const decayVal = document.getElementById("reverbDecayVal");
+        decay.addEventListener("input", () => { decayVal.textContent = `${decay.value} s`; });
+        const ab = makeEffectAB({
+          label: "FDN reverb",
+          makeEffect: () => cacophony.createFdnReverb({ decayTime: parseFloat(decay.value), mix: 0.6 }),
+        });
+        const stopBtn = document.getElementById("reverbStop");
+        document.getElementById("reverbDry").addEventListener("click", () => { ab.play(false); stopBtn.disabled = false; });
+        document.getElementById("reverbWet").addEventListener("click", () => { ab.play(true); stopBtn.disabled = false; });
+        stopBtn.addEventListener("click", () => { ab.stop(); stopBtn.disabled = true; });
+      })();
+
+      // ---- 7. ADAA distortion -------------------------------------------------
+      (() => {
+        const drive = document.getElementById("drive");
+        const driveVal = document.getElementById("driveVal");
+        drive.addEventListener("input", () => { driveVal.textContent = `${drive.value}×`; });
+        const ab = makeEffectAB({
+          label: "ADAA distortion",
+          makeEffect: () => cacophony.createDistortion({ drive: parseFloat(drive.value), shape: 1 }),
+        });
+        const stopBtn = document.getElementById("distStop");
+        document.getElementById("distClean").addEventListener("click", () => { ab.play(false); stopBtn.disabled = false; });
+        document.getElementById("distDirty").addEventListener("click", () => { ab.play(true); stopBtn.disabled = false; });
+        stopBtn.addEventListener("click", () => { ab.stop(); stopBtn.disabled = true; });
+      })();
+
+      // ---- 8. Dynamics --------------------------------------------------------
+      (() => {
+        const ab = makeEffectAB({
+          label: "compressor",
+          makeEffect: () => cacophony.createCompressor({ threshold: -28, ratio: 6, attack: 0.005, release: 0.2, makeup: 6 }),
+        });
+        const stopBtn = document.getElementById("dynStop");
+        document.getElementById("dynOff").addEventListener("click", () => { ab.play(false); stopBtn.disabled = false; });
+        document.getElementById("dynOn").addEventListener("click", () => { ab.play(true); stopBtn.disabled = false; });
+        stopBtn.addEventListener("click", () => { ab.stop(); stopBtn.disabled = true; });
+      })();
+
+      // ---- 9. Pitch-shift -----------------------------------------------------
+      (() => {
+        let sound = null;
+        const state = document.getElementById("pitchState");
+        const shiftBtns = ["pitchDown", "pitchUnison", "pitchUp"].map((id) => document.getElementById(id));
+        const stopBtn = document.getElementById("pitchStop");
+        const setShift = async (factor, name) => {
+          if (!sound) return;
+          try { await sound.setPitchShift(factor); state.textContent = `Pitch: ${name} (×${factor}).`; say(`Pitch ${name}.`); }
+          catch (e) { fail("Pitch-shift", e); }
+        };
+        document.getElementById("pitchPlay").addEventListener("click", async () => {
+          clearAlert();
+          try {
+            safeStop(sound);
+            sound = await cacophony.createSound(SAMPLE_URL, "buffer");
+            sound.loop("infinite"); sound.play();
+            stopBtn.disabled = false; shiftBtns.forEach((b) => { b.disabled = false; });
+            state.textContent = "Playing at unison; choose a shift.";
+            say("Loop playing. Choose octave up, down, or unison.");
+          } catch (e) { fail("Pitch-shift", e); }
+        });
+        stopBtn.addEventListener("click", () => { safeStop(sound); stopBtn.disabled = true; shiftBtns.forEach((b) => { b.disabled = true; }); say("Pitch demo stopped."); });
+        document.getElementById("pitchDown").addEventListener("click", () => setShift(0.5, "down an octave"));
+        document.getElementById("pitchUnison").addEventListener("click", () => setShift(1, "unison"));
+        document.getElementById("pitchUp").addEventListener("click", () => setShift(2, "up an octave"));
+      })();
+
+      // ---- 10. Time-stretch ---------------------------------------------------
+      (() => {
+        let source = null;
+        const state = document.getElementById("stretchState");
+        const stopBtn = document.getElementById("stretchStop");
+        const playBuffer = (buf, label) => {
+          if (source) { try { source.stop(); } catch (e) {} }
+          source = cacophony.context.createBufferSource();
+          source.buffer = buf;
+          source.loop = true;
+          source.connect(cacophony.context.destination);
+          source.start();
+          stopBtn.disabled = false;
+          state.textContent = `${label}: ${buf.duration.toFixed(2)} s per loop (pitch unchanged).`;
+          say(`${label} playing.`);
+        };
+        const run = async (factor, label) => {
+          clearAlert();
+          try {
+            const buf = await getSampleBuffer();
+            const out = factor === 1 ? buf : cacophony.timeStretchBuffer(buf, factor);
+            playBuffer(out, label);
+          } catch (e) { fail("Time-stretch", e); }
+        };
+        document.getElementById("stretchOrig").addEventListener("click", () => run(1, "Original"));
+        document.getElementById("stretchHalf").addEventListener("click", () => run(0.5, "Half length (faster)"));
+        document.getElementById("stretchDouble").addEventListener("click", () => run(2, "Double length (slower)"));
+        stopBtn.addEventListener("click", () => { if (source) { try { source.stop(); } catch (e) {} } stopBtn.disabled = true; say("Time-stretch stopped."); });
+      })();
+
+      // ---- 11. Ambisonic → binaural ------------------------------------------
+      (() => {
+        let decoder = null, source = null;
+        const az = document.getElementById("azimuth");
+        const azVal = document.getElementById("azimuthVal");
+        const state = document.getElementById("foaState");
+        const stopBtn = document.getElementById("foaStop");
+        const describe = (deg) => `${deg > 0 ? "+" : ""}${deg}° (${deg === 0 ? "front" : deg > 0 ? "left" : "right"})`;
+        az.addEventListener("input", () => { azVal.textContent = describe(parseInt(az.value, 10)); });
+
+        // Build a 4-channel FOA buffer of a mono tone encoded at `azimuthDeg`.
+        const buildFoa = (azimuthDeg) => {
+          const ctx = cacophony.context;
+          const sr = ctx.sampleRate, len = Math.floor(sr * 2.5);
+          const buf = ctx.createBuffer(4, len, sr);
+          const ch = [0, 1, 2, 3].map((c) => buf.getChannelData(c));
+          const azRad = (azimuthDeg * Math.PI) / 180;
+          for (let i = 0; i < len; i++) {
+            const s = Math.sin((2 * Math.PI * 440 * i) / sr) * 0.3;
+            const [w, y, z, x] = encodeMonoToFoaSN3D(s, azRad, 0);
+            ch[0][i] = w; ch[1][i] = y; ch[2][i] = z; ch[3][i] = x;
+          }
+          return buf;
+        };
+
+        document.getElementById("foaPlay").addEventListener("click", async () => {
+          clearAlert();
+          try {
+            if (source) { try { source.stop(); } catch (e) {} }
+            if (!decoder) {
+              state.textContent = "Loading HRIR…";
+              decoder = await cacophony.createFoaDecoder();
+              decoder.output.connect(cacophony.context.destination);
+            }
+            const deg = parseInt(az.value, 10);
+            source = cacophony.context.createBufferSource();
+            source.buffer = buildFoa(deg);
+            source.loop = true;
+            source.connect(decoder.input);
+            source.start();
+            stopBtn.disabled = false;
+            state.textContent = `Tone encoded at ${describe(deg)} and decoded to binaural.`;
+            say(`Binaural tone at ${describe(deg)}.`);
+          } catch (e) { fail("Ambisonic decode", e); }
+        });
+        stopBtn.addEventListener("click", () => { if (source) { try { source.stop(); } catch (e) {} } stopBtn.disabled = true; say("Ambisonic demo stopped."); });
+      })();
+
+      // ---- 12. Loudness meter + assertion ------------------------------------
+      (() => {
+        let meter = null;
+        const readout = document.getElementById("loudReadout");
+        const speakBtn = document.getElementById("loudSpeak");
+        const resetBtn = document.getElementById("loudReset");
+        const fmt = (v, unit) => (Number.isFinite(v) ? `${v.toFixed(1)} ${unit}` : "—");
+        document.getElementById("loudAttach").addEventListener("click", async () => {
+          clearAlert();
+          try {
+            if (meter) { meter.disconnect(); meter = null; }
+            meter = await cacophony.createLoudnessMeter(); // defaults to master
+            meter.onUpdate = (r) => {
+              readout.textContent =
+                `Momentary ${fmt(r.momentary, "LUFS")}, Short-term ${fmt(r.shortTerm, "LUFS")}, ` +
+                `Integrated ${fmt(r.integrated, "LUFS")}, True-peak ${fmt(r.truePeak, "dBTP")}`;
+            };
+            speakBtn.disabled = false; resetBtn.disabled = false;
+            say("Metering the master output. Play something, then activate Speak readings.");
+          } catch (e) { fail("Loudness meter", e); }
+        });
+        speakBtn.addEventListener("click", () => {
+          if (!meter) return;
+          const r = meter.reading;
+          say(`Momentary ${fmt(r.momentary, "LUFS")}. Short-term ${fmt(r.shortTerm, "LUFS")}. ` +
+              `Integrated ${fmt(r.integrated, "LUFS")}. True-peak ${fmt(r.truePeak, "dBTP")}.`);
+        });
+        resetBtn.addEventListener("click", () => { if (meter) { meter.reset(); say("Integrated loudness reset."); } });
+
+        // In-page assertion: 997 Hz 0 dBFS sine must read -3.01 LKFS (machine measures).
+        document.getElementById("loudAssert").addEventListener("click", () => {
+          clearAlert();
+          const result = document.getElementById("loudAssertResult");
+          try {
+            const sr = 48000, n = sr * 2;
+            const tone = new Float32Array(n);
+            for (let i = 0; i < n; i++) tone[i] = Math.sin((2 * Math.PI * 997 * i) / sr);
+            const lkfs = integratedLoudness([{ channel: "L", samples: tone }], sr);
+            const pass = Math.abs(lkfs - -3.01) < 0.1;
+            const msg = `${pass ? "PASS" : "FAIL"}: 997 Hz 0 dBFS measured ${lkfs.toFixed(2)} LKFS (expected −3.01).`;
+            result.textContent = msg; say(msg);
+          } catch (e) { fail("Loudness self-check", e); }
+        });
+      })();
+
+      // ---- 13. Groups ---------------------------------------------------------
+      (() => {
+        let group = null;
+        const stopBtn = document.getElementById("groupStop");
+        document.getElementById("groupPlay").addEventListener("click", async () => {
+          clearAlert();
+          try {
+            safeStop(group);
+            const a = await cacophony.createSound(SAMPLE_URL, "buffer");
+            const b = await cacophony.createSound(SAMPLE_URL, "buffer");
+            b.volume = 0.5;
+            group = await cacophony.createGroup([a, b]);
+            group.play();
+            stopBtn.disabled = false;
+            say("Group of two sounds playing together.");
+          } catch (e) { fail("Group", e); }
+        });
+        stopBtn.addEventListener("click", () => { safeStop(group); stopBtn.disabled = true; say("Group stopped."); });
+      })();
+    </script>
   </body>
 </html>
