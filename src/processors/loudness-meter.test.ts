@@ -83,6 +83,18 @@ function feedMono(processor: ProcessorLike, signal: Float32Array): void {
   }
 }
 
+/** Feed a multichannel signal (one Float32Array per channel) in 128-sample quanta. */
+function feedMulti(processor: ProcessorLike, channels: Float32Array[]): void {
+  const QUANTUM = 128;
+  const len = channels[0]?.length ?? 0;
+  for (let i = 0; i < len; i += QUANTUM) {
+    const end = Math.min(i + QUANTUM, len);
+    const input = channels.map((ch) => Float32Array.from(ch.subarray(i, end)));
+    const output = channels.map(() => new Float32Array(end - i));
+    processor.process([input], [output]);
+  }
+}
+
 function lastIntegrated(port: FakePort): number {
   const reports = port.posted.filter((p) => p && p.type === "loudness");
   return reports[reports.length - 1]?.integrated ?? Number.NaN;
@@ -135,5 +147,41 @@ describe("loudness-meter worklet — gated integrated loudness", () => {
     feedMono(processor, signal);
 
     expect(lastIntegrated(port)).toBeCloseTo(expected, 4);
+  });
+
+  it("excludes the LFE channel from 5.1 loudness (BS.1770-5 Annex 1 Table 3, LFE weight 0)", async () => {
+    // 5.1 channel order is [L, R, C, LFE, Ls, Rs]. A LOUD LFE (index 3) must not
+    // change loudness; the flat default order mislabelled index 3 as Ls and
+    // counted it. Compare a 6-channel feed with a loud LFE against the identical
+    // feed with a silent LFE — they must read the same integrated loudness.
+    const tone = sine(0.5, 2.0);
+    const loud = sine(1.0, 2.0);
+    const silent = new Float32Array(tone.length);
+
+    const a = await makeProcessor();
+    feedMulti(a.processor, [tone, tone, silent, loud, silent, silent]); // loud LFE
+    const b = await makeProcessor();
+    feedMulti(b.processor, [tone, tone, silent, silent, silent, silent]); // silent LFE
+
+    const withLfe = lastIntegrated(a.port);
+    const withoutLfe = lastIntegrated(b.port);
+    expect(Number.isFinite(withLfe)).toBe(true);
+    expect(withLfe).toBeCloseTo(withoutLfe, 6); // LFE excluded → identical
+  });
+
+  it("a loud non-LFE channel (C, index 2) DOES raise 5.1 loudness — exclusion is LFE-specific", async () => {
+    // Guard against a vacuous pass: prove the meter is not simply ignoring index
+    // 3, but excluding by LABEL. Putting the same loud tone on C (index 2, weight
+    // 1.0) must raise integrated loudness over the silent-extra baseline.
+    const tone = sine(0.5, 2.0);
+    const loud = sine(1.0, 2.0);
+    const silent = new Float32Array(tone.length);
+
+    const c = await makeProcessor();
+    feedMulti(c.processor, [tone, tone, loud, silent, silent, silent]); // loud C
+    const base = await makeProcessor();
+    feedMulti(base.processor, [tone, tone, silent, silent, silent, silent]);
+
+    expect(lastIntegrated(c.port)).toBeGreaterThan(lastIntegrated(base.port) + 0.5);
   });
 });

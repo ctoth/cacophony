@@ -41,6 +41,22 @@ import { TruePeakDetector } from "../meters/truepeak-core";
 /** Default channel label assignment by channel index for ≤5-channel input. */
 const DEFAULT_CHANNEL_ORDER: LoudnessChannel[] = ["L", "R", "C", "Ls", "Rs"];
 
+/**
+ * Channel label layout by channel COUNT (ITU-R BS.1770-5 Annex 1, Table 3 / Fig.1,
+ * p.3,7). The crucial entry is 6-channel 5.1: its index-3 channel is the LFE,
+ * which BS.1770-5 EXCLUDES from the loudness sum (CHANNEL_WEIGHTS.LFE = 0). The
+ * flat DEFAULT_CHANNEL_ORDER above cannot express this — it would mislabel a 5.1
+ * stream's LFE as `Ls` and count it as programme loudness — so a layout is chosen
+ * by channel count here. Counts not listed fall back to DEFAULT_CHANNEL_ORDER.
+ */
+const CHANNEL_LAYOUTS: Readonly<Record<number, readonly LoudnessChannel[]>> = {
+  1: ["C"], // mono: one measured channel, weight 1.0
+  2: ["L", "R"], // stereo
+  3: ["L", "R", "C"],
+  5: ["L", "R", "C", "Ls", "Rs"], // 5.0
+  6: ["L", "R", "C", "LFE", "Ls", "Rs"], // 5.1 — LFE (index 3) excluded
+};
+
 interface LoudnessReport {
   type: "loudness";
   momentary: number;
@@ -163,7 +179,11 @@ class LoudnessMeterProcessor extends AudioWorkletProcessor {
   }
 
   private channelLabel(index: number): LoudnessChannel {
-    return DEFAULT_CHANNEL_ORDER[index] ?? "C";
+    // Pick the layout for the live channel count so a 5.1 stream's index-3 LFE
+    // is labelled LFE (weight 0, excluded) rather than mislabelled Ls. Counts
+    // without a defined layout fall back to the flat default order.
+    const layout = CHANNEL_LAYOUTS[this.channelCount] ?? DEFAULT_CHANNEL_ORDER;
+    return layout[index] ?? "C";
   }
 
   /** Loudness of a per-channel mean-square vector (Annex 1, eqs.1-2). */
