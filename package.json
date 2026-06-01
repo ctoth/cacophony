@@ -34,6 +34,9 @@
     "format": "biome format --write .",
     "prepare": "husky"
   },
+  "lint-staged": {
+    "*": "biome check --write --no-errors-on-unmatched --files-ignore-unknown=true"
+  },
   "keywords": [
     "audio",
     "audio worklets",
@@ -55,6 +58,7 @@
     "@types/audioworklet": "^0.0.87",
     "@types/node": "^22.18.1",
     "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "rimraf": "^5.0.10",
     "rollup": "^4.50.1",
     "standardized-audio-context-mock": "^9.7.24",
