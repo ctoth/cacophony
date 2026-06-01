@@ -353,3 +353,82 @@ describe("Resurrection: StereoToFoaUpmixer -> FoaDecoder (perceptual stereo->bin
     expect(decoder.output).toBe(output as unknown);
   });
 });
+
+/*
+ * Ahrens 2022 eq.31 per-ear MAC — DECODE-MATH oracle.
+ *
+ * jsdom has no Web Audio rendering, so the real ConvolverNode decode graph
+ * cannot be exercised on a SIGNAL here (its EDGES are asserted above). This
+ * block proves the eq.31 decode MATH the graph realizes: each ear is a weighted
+ * sum over the four SH channels, the SAME stored SH-HRIR serving both ears via
+ * the W/Z/X-symmetric, Y-antisymmetric structure the Omnitone graph wires
+ * (W,Z,X -> both ears; Y -> +L and -R through the -1 inverter). Modelling each
+ * channel's HRTF as a real per-channel gain (a frequency-flat HRTF, the DC
+ * special case of eq.31) is exactly that lateralization structure — so this
+ * directly answers "does the resurrected encode->decode path produce
+ * ear-differentiated binaural audio, and is the convention correct".
+ *
+ * RESIDUAL GAP (environmental, not a coverage gap): the frequency-dependent
+ * ConvolverNode rendering and the bundled Omnitone HRIR's SN3D normalization
+ * need an OfflineAudioContext / browser e2e test; this unit suite cannot render.
+ */
+const HRIR_GAINS = { gW: 0.7, gY: 0.5, gZ: 0.3, gX: 0.4 } as const;
+
+/** The eq.31 per-ear MAC the Omnitone graph realizes (W,Z,X symmetric; Y antisymmetric). */
+function decodeFoaToBinaural(
+  [w, y, z, x]: [number, number, number, number],
+  g: { gW: number; gY: number; gZ: number; gX: number } = HRIR_GAINS,
+): { left: number; right: number } {
+  const symmetric = g.gW * w + g.gZ * z + g.gX * x; // W,Z,X -> both ears equally
+  const lateral = g.gY * y; // Y -> +L, -R (the -1 right-ear inverter)
+  return { left: symmetric + lateral, right: symmetric - lateral };
+}
+
+describe("FoaDecoder eq.31 per-ear MAC (the decode math the Omnitone graph realizes)", () => {
+  it("a CENTER (front) source is binaurally symmetric: L == R, and carries signal (Y=0)", () => {
+    const foa = encodeMonoToFoaSN3D(1, 0, 0);
+    const { left, right } = decodeFoaToBinaural(foa);
+    expect(left).toBeCloseTo(right, 12);
+    expect(Math.abs(left)).toBeGreaterThan(0); // non-vacuous: not silence
+  });
+
+  it("a LEFT source (az=+90) is louder in the LEFT ear, by exactly 2*gY*Y", () => {
+    const foa = encodeMonoToFoaSN3D(1, Math.PI / 2, 0); // Y = 1 (SN3D)
+    const { left, right } = decodeFoaToBinaural(foa);
+    expect(left).toBeGreaterThan(right);
+    expect(left - right).toBeCloseTo(2 * HRIR_GAINS.gY, 12);
+  });
+
+  it("a RIGHT source (az=-90) is louder in the RIGHT ear (mirror of left)", () => {
+    const foa = encodeMonoToFoaSN3D(1, -Math.PI / 2, 0);
+    const { left, right } = decodeFoaToBinaural(foa);
+    expect(right).toBeGreaterThan(left);
+  });
+
+  it("both ears receive ALL of W, Z, X (no channel dropped); Y is the only antisymmetric channel", () => {
+    const W = decodeFoaToBinaural([1, 0, 0, 0]);
+    expect(W.left).toBeCloseTo(HRIR_GAINS.gW, 12);
+    expect(W.right).toBeCloseTo(HRIR_GAINS.gW, 12);
+    const Z = decodeFoaToBinaural([0, 0, 1, 0]);
+    expect(Z.left).toBeCloseTo(HRIR_GAINS.gZ, 12);
+    expect(Z.right).toBeCloseTo(HRIR_GAINS.gZ, 12);
+    const X = decodeFoaToBinaural([0, 0, 0, 1]);
+    expect(X.left).toBeCloseTo(HRIR_GAINS.gX, 12);
+    expect(X.right).toBeCloseTo(HRIR_GAINS.gX, 12);
+    const Y = decodeFoaToBinaural([0, 1, 0, 0]);
+    expect(Y.left).toBeCloseTo(HRIR_GAINS.gY, 12);
+    expect(Y.right).toBeCloseTo(-HRIR_GAINS.gY, 12); // inverted on the right ear
+  });
+
+  it("the decode is sensitive to an SN3D<->N3D Y mismatch (would catch a wrong-normalization HRIR)", () => {
+    // Encoder emits SN3D (Y=1 at az=90). An N3D-normalized encode/HRIR would put
+    // Y at sqrt(3). The decode lateralization scales with Y, so a normalization
+    // disagreement is detectable — this test is not blind to the convention.
+    const sn3d = encodeMonoToFoaSN3D(1, Math.PI / 2, 0);
+    const n3d: [number, number, number, number] = [sn3d[0], sn3d[1] * Math.sqrt(3), sn3d[2], sn3d[3]];
+    const matched = decodeFoaToBinaural(sn3d);
+    const mismatched = decodeFoaToBinaural(n3d);
+    expect(Math.abs(mismatched.left - mismatched.right)).toBeGreaterThan(Math.abs(matched.left - matched.right));
+    expect(matched.left - matched.right).toBeCloseTo(2 * HRIR_GAINS.gY, 12); // SN3D: Y=1
+  });
+});
