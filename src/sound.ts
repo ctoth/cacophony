@@ -485,15 +485,7 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
       throw new Error("Sound.timeStretch requires the owning Cacophony instance.");
     }
     const stretched = this._cacophony.timeStretchBuffer(this.buffer, factor, options);
-    return new Sound(
-      this.url,
-      stretched,
-      this.context,
-      this.globalGainNode,
-      "buffer",
-      this.panType,
-      this._cacophony,
-    );
+    return new Sound(this.url, stretched, this.context, this.globalGainNode, "buffer", this.panType, this._cacophony);
   }
 
   /**

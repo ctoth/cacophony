@@ -12,7 +12,7 @@ const FS = 48000;
 
 /** Linear amplitude for a given dBFS level. */
 function dbToLinear(db: number): number {
-  return Math.pow(10, db / 20);
+  return 10 ** (db / 20);
 }
 
 /** dBFS for a given linear amplitude. */
@@ -276,7 +276,14 @@ describe("DynamicsProcessor — full feed-forward DRC (log-domain detector, eqs 
 
   it("unit: limiter (R->inf) clamps the steady-state output near threshold", () => {
     const proc = new DynamicsProcessor(FS);
-    const params = { threshold: -10, ratio: Number.POSITIVE_INFINITY, knee: 0, attack: 0.005, release: 0.05, makeup: 0 };
+    const params = {
+      threshold: -10,
+      ratio: Number.POSITIVE_INFINITY,
+      knee: 0,
+      attack: 0.005,
+      release: 0.05,
+      makeup: 0,
+    };
     const inputDb = 0;
     const g = steadyStateGain(proc, dbToLinear(inputDb), params, FS);
     const outDb = inputDb + linearToDb(g);

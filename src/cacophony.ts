@@ -21,7 +21,6 @@ import type {
   GainNode,
   PannerNode,
 } from "./context";
-import { GATE_DEFAULT_RATIO } from "./processors/dynamics-core";
 import {
   type CacophonyEffect,
   DynamicsEffect,
@@ -44,6 +43,7 @@ import { MediaStreamSound, type MediaStreamSoundOptions } from "./mediaStream";
 import { LoudnessMeter } from "./meters/loudness-meter";
 import { MicrophoneStream } from "./microphone";
 import type { ThreeDOptions } from "./pannerMixin";
+import { GATE_DEFAULT_RATIO } from "./processors/dynamics-core";
 import { type TimeStretchOptions, timeStretch } from "./processors/timestretch-core";
 import { Sound } from "./sound";
 import { Synth } from "./synth";

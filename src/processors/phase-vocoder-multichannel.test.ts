@@ -142,13 +142,7 @@ describe("phase-vocoder shell: per-channel cumulative phase (Laroche-Dolson 1999
       return out;
     };
 
-    const stereoCh0 = runChannel(
-      stereoProc,
-      2,
-      (f, c) => (c === 0 ? ch0Frame(f) : ch1Frame(f)),
-      0,
-      FRAMES,
-    );
+    const stereoCh0 = runChannel(stereoProc, 2, (f, c) => (c === 0 ? ch0Frame(f) : ch1Frame(f)), 0, FRAMES);
     const monoCh0 = runChannel(monoProc, 1, (f) => ch0Frame(f), 0, FRAMES);
 
     for (let f = 0; f < FRAMES; f++) {

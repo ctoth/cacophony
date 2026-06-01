@@ -1,8 +1,8 @@
 import { AudioContext } from "standardized-audio-context-mock";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { FoaDecoder } from "./effects";
-import { encodeMonoToFoaSN3D } from "./spatial/foa-encode";
 import { audioContextMock, cacophony } from "./setupTests";
+import { encodeMonoToFoaSN3D } from "./spatial/foa-encode";
 
 /**
  * The standardized-audio-context mock returns bare `{}` stubs for

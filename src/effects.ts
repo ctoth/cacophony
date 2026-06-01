@@ -448,7 +448,11 @@ export class FoaDecoder {
    * (caller-supplied or bundled Omnitone) and wiring the Omnitone WY/ZX graph.
    * Async because the bundled HRIR is fetched + `decodeAudioData`-d.
    */
-  static async create(host: FoaDecoderHost, options: FoaDecoderOptions = {}, context?: BaseContext): Promise<FoaDecoder> {
+  static async create(
+    host: FoaDecoderHost,
+    options: FoaDecoderOptions = {},
+    context?: BaseContext,
+  ): Promise<FoaDecoder> {
     const ctx = context ?? host.defaultContext();
     if (!ctx.createChannelSplitter || !ctx.createChannelMerger || !ctx.createConvolver) {
       throw new Error("FoaDecoder requires createChannelSplitter, createChannelMerger and createConvolver");

@@ -64,10 +64,7 @@ describe("Cacophony dynamics factories (createCompressor / createLimiter / creat
     // A caller-supplied ratio must be overridden by the limiter preset.
     const effect = cacophony.createLimiter({ threshold: -6 });
     await effect.build(cacophony.context);
-    expect(createNodeSpy).toHaveBeenCalledWith(
-      { parameterData: { threshold: -6, ratio: 1000 } },
-      cacophony.context,
-    );
+    expect(createNodeSpy).toHaveBeenCalledWith({ parameterData: { threshold: -6, ratio: 1000 } }, cacophony.context);
     createNodeSpy.mockRestore();
   });
 

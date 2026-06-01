@@ -50,8 +50,7 @@ const mockCache = {
             await global.fetch(url, { signal });
           } catch (fetchError) {
             if (callbacks?.onLoadingError) {
-              const errorType =
-                fetchError instanceof Error && fetchError.name === "AbortError" ? "abort" : "network";
+              const errorType = fetchError instanceof Error && fetchError.name === "AbortError" ? "abort" : "network";
               callbacks.onLoadingError({
                 url,
                 error: fetchError,

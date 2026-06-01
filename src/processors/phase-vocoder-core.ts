@@ -54,12 +54,7 @@ export function findPeaks(magnitudes: Float32Array, peakIndexes: Int32Array): nu
   let nbPeaks = 0;
   for (let i = 2, end = magnitudes.length - 2; i < end; i++) {
     const mag = magnitudes[i];
-    if (
-      magnitudes[i - 1] >= mag ||
-      magnitudes[i - 2] >= mag ||
-      magnitudes[i + 1] >= mag ||
-      magnitudes[i + 2] >= mag
-    ) {
+    if (magnitudes[i - 1] >= mag || magnitudes[i - 2] >= mag || magnitudes[i + 1] >= mag || magnitudes[i + 2] >= mag) {
       continue;
     }
     peakIndexes[nbPeaks++] = i;

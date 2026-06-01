@@ -1,4 +1,4 @@
-import { WaveshaperProcessor, type WaveshaperParams, type WaveshaperShape } from "./waveshaper-core";
+import { type WaveshaperParams, WaveshaperProcessor, type WaveshaperShape } from "./waveshaper-core";
 
 /*
  * Waveshaper AudioWorklet shell — thin AudioWorkletProcessor that delegates ALL

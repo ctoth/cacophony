@@ -378,7 +378,7 @@ describe("phase-vocoder-core: cumulative cross-frame phase (Laroche-Dolson 1999 
       expected += dw1 * hop;
     }
     const afterFirst = state.get(peakIndex);
-    let a1 = Math.atan2(afterFirst.im, afterFirst.re);
+    const a1 = Math.atan2(afterFirst.im, afterFirst.re);
     let d1 = a1 - expected;
     while (d1 > Math.PI) d1 -= 2 * Math.PI;
     while (d1 <= -Math.PI) d1 += 2 * Math.PI;

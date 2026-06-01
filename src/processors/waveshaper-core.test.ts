@@ -1,12 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  ADAA_EPS,
-  adaaSample,
-  shapeFunctions,
-  WaveshaperProcessor,
-  type WaveshaperParams,
-} from "./waveshaper-core";
+import { ADAA_EPS, adaaSample, shapeFunctions, type WaveshaperParams, WaveshaperProcessor } from "./waveshaper-core";
 
 /** Closed-form eq.9 reference: (F0(xn) - F0(xPrev)) / (xn - xPrev). */
 function closedFormADAA(xn: number, xPrev: number, shape: "hardclip" | "tanh"): number {

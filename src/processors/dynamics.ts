@@ -1,4 +1,4 @@
-import { DYNAMICS_DEFAULTS, DynamicsProcessor, type DynamicsParams } from "./dynamics-core";
+import { DYNAMICS_DEFAULTS, type DynamicsParams, DynamicsProcessor } from "./dynamics-core";
 
 /*
  * Dynamics AudioWorklet shell — thin AudioWorkletProcessor that delegates ALL
