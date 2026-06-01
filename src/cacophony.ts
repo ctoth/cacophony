@@ -1204,7 +1204,8 @@ export class Cacophony {
    *
    * The tap is a BRANCH: the target's output is connected to the metering
    * worklet in ADDITION to its existing forward edge, and the worklet's output
-   * is left unconnected (a silent dead-end sink). By default the target is the
+   * is routed through an owned zero-gain sink to keep the branch silent and live.
+   * By default the target is the
    * master bus output (`master.output`), measuring everything that reaches the
    * destination — the integrated-loudness target. Pass a {@link Bus} to meter
    * one bus's output, or any {@link AudioNode} to meter that node.
@@ -1226,7 +1227,8 @@ export class Cacophony {
     const targetContext = (sourceNode.context as BaseContext | undefined) ?? this.context;
     await this.loadLoudnessMeter(undefined, targetContext);
     const node = await this.createLoudnessMeterNode({ numberOfInputs: 1, numberOfOutputs: 1 }, targetContext);
-    return new LoudnessMeter(node, sourceNode);
+    const silentSink = targetContext.createGain();
+    return new LoudnessMeter(node, sourceNode, silentSink, targetContext.destination);
   }
 
   /**

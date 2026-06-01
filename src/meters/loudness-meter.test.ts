@@ -58,6 +58,24 @@ describe("createLoudnessMeter — graph wiring (ITU-R BS.1770-5 tap)", () => {
     expect(connectSpy).toHaveBeenCalledWith(meter.workletNode);
   });
 
+  it("keeps the metering worklet on a live graph through an owned zero-gain sink", async () => {
+    const realCreateGain = cacophony.context.createGain.bind(cacophony.context);
+    const allocated: Array<ReturnType<typeof cacophony.context.createGain>> = [];
+    vi.spyOn(cacophony.context, "createGain").mockImplementation(() => {
+      const gain = realCreateGain();
+      vi.spyOn(gain, "connect");
+      allocated.push(gain);
+      return gain;
+    });
+
+    const meter = await cacophony.createLoudnessMeter();
+    const sink = allocated[0];
+
+    expect(sink.gain.value).toBe(0);
+    expect(meter.workletNode.connect).toHaveBeenCalledWith(sink);
+    expect(sink.connect).toHaveBeenCalledWith(cacophony.context.destination);
+  });
+
   it("taps a Bus's output node when a Bus is supplied", async () => {
     const bus = cacophony.createBus("meter-bus");
     const connectSpy = vi.spyOn(bus.output, "connect");
@@ -86,12 +104,23 @@ describe("createLoudnessMeter — graph wiring (ITU-R BS.1770-5 tap)", () => {
   it("removes only its own branch on disconnect (audible path preserved)", async () => {
     const node = cacophony.context.createGain();
     const disconnectSpy = vi.spyOn(node, "disconnect");
+    const realCreateGain = cacophony.context.createGain.bind(cacophony.context);
+    const allocated: Array<ReturnType<typeof cacophony.context.createGain>> = [];
+    vi.spyOn(cacophony.context, "createGain").mockImplementation(() => {
+      const gain = realCreateGain();
+      vi.spyOn(gain, "disconnect");
+      allocated.push(gain);
+      return gain;
+    });
 
     const meter = await cacophony.createLoudnessMeter(node);
+    const sink = allocated[0];
     meter.disconnect();
 
     // Disconnect targets ONLY the worklet node, not a blanket node.disconnect().
     expect(disconnectSpy).toHaveBeenCalledWith(meter.workletNode);
+    expect(meter.workletNode.disconnect).toHaveBeenCalledWith(sink);
+    expect(sink.disconnect).toHaveBeenCalledWith(cacophony.context.destination);
   });
 
   it("builds the meter on the TARGET node's OWN context, not always this.context (no cross-context connect)", async () => {

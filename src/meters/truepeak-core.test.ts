@@ -72,6 +72,13 @@ describe("truepeak-core — ITU-R BS.1770-5 Annex 2", () => {
     expect(tp).toBeLessThan(0.5);
   });
 
+  it("flushes the FIR tail for a finite buffer whose peak is the last sample", () => {
+    const samples = new Float32Array([1]);
+    const tp = truePeakDbForChannel(samples);
+    expect(tp).toBeGreaterThan(-0.5);
+    expect(tp).toBeLessThan(0.5);
+  });
+
   it("scaling the input by -6 dB drops the dBTP by ~6 dB", () => {
     const full = sine(SR / 4 - 50, 1.0, 0.3, Math.PI / 4);
     const half = sine(SR / 4 - 50, 0.5, 0.3, Math.PI / 4);
@@ -91,6 +98,14 @@ describe("truepeak-core — ITU-R BS.1770-5 Annex 2", () => {
     const loud = sine(1000, 1.0, 0.2);
     const tp = truePeakDb([quiet, loud]);
     expect(tp).toBeCloseTo(truePeakDbForChannel(loud), 6);
+  });
+
+  it("multi-channel truePeakDb also flushes finite-buffer tail peaks", () => {
+    const quiet = new Float32Array([0.25]);
+    const loud = new Float32Array([1]);
+    const tp = truePeakDb([quiet, loud]);
+    expect(tp).toBeGreaterThan(-0.5);
+    expect(tp).toBeLessThan(0.5);
   });
 
   describe("sample-rate-aware oversampling (BS.1770-5 Annex 2 — oversampled rate ≥192 kHz)", () => {

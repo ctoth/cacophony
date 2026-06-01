@@ -60,6 +60,8 @@ export const TRUE_PEAK_POLYPHASE_FIR_48K: ReadonlyArray<ReadonlyArray<number>> =
 export const TRUE_PEAK_OVERSAMPLE = TRUE_PEAK_POLYPHASE_FIR_48K.length;
 
 const FIR_TAPS = TRUE_PEAK_POLYPHASE_FIR_48K[0].length;
+const FINITE_SIGNAL_FLUSH_SAMPLES = FIR_TAPS - 1;
+const FINITE_SIGNAL_FLUSH = new Float32Array(FINITE_SIGNAL_FLUSH_SAMPLES);
 
 /**
  * BS.1770-5 Annex 2 requires the oversampled rate to be **at least 192 kHz**
@@ -213,6 +215,9 @@ export class TruePeakDetector {
 export function truePeakDbForChannel(samples: Float32Array, sampleRate = 48_000): number {
   const detector = new TruePeakDetector(sampleRate);
   detector.process(samples);
+  // One-shot finite buffers must drain the FIR history. Without the zero tail,
+  // a final-sample peak only reaches the small tail coefficients before return.
+  detector.process(FINITE_SIGNAL_FLUSH);
   return detector.truePeakDb();
 }
 
@@ -226,6 +231,7 @@ export function truePeakDb(channels: Float32Array[], sampleRate = 48_000): numbe
   for (const samples of channels) {
     const detector = new TruePeakDetector(sampleRate);
     detector.process(samples);
+    detector.process(FINITE_SIGNAL_FLUSH);
     const tp = detector.truePeak();
     if (tp > maxLinear) {
       maxLinear = tp;

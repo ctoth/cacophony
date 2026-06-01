@@ -6,8 +6,8 @@
  * The meter taps a target node's OUTPUT as a BRANCH: it connects the target to
  * the metering worklet's input without disturbing the target's existing forward
  * edge, so inserting a meter never alters the audible path. The worklet itself
- * is pass-through, but its output is left unconnected (a dead-end sink), so the
- * branch is silent.
+ * is pass-through; its output is routed through an owned zero-gain sink so the
+ * branch stays silent while remaining on a live render graph.
  *
  * Readings arrive ~10×/s over the MessagePort and are cached on this handle
  * ({@link momentary} / {@link shortTerm} / {@link integrated} / {@link truePeak});
@@ -15,7 +15,7 @@
  *
  * @see https://www.itu.int/rec/R-REC-BS.1770-5-202311-I/en
  */
-import type { AudioNode, AudioWorkletNode } from "../context";
+import type { AudioNode, AudioWorkletNode, GainNode } from "../context";
 
 /** A single set of loudness readings posted by the worklet. */
 export interface LoudnessReading {
@@ -36,6 +36,8 @@ interface LoudnessMessage extends LoudnessReading {
 export class LoudnessMeter {
   private readonly node: AudioWorkletNode;
   private readonly source: AudioNode;
+  private readonly silentSink?: GainNode;
+  private readonly sinkDestination?: AudioNode;
   private latest: LoudnessReading = {
     momentary: -Infinity,
     shortTerm: -Infinity,
@@ -55,16 +57,27 @@ export class LoudnessMeter {
    * @param source The node whose output is being metered. Its output is
    *   branched into `node` here; the source's existing connections are
    *   untouched (the audible path is preserved).
+   * @param silentSink Optional zero-gain node owned by the meter. When supplied,
+   *   the worklet output is connected through it to `sinkDestination`, keeping
+   *   the metering worklet on a pulled graph without adding audible output.
+   * @param sinkDestination Destination for the owned zero-gain sink.
    */
-  constructor(node: AudioWorkletNode, source: AudioNode) {
+  constructor(node: AudioWorkletNode, source: AudioNode, silentSink?: GainNode, sinkDestination?: AudioNode) {
     this.node = node;
     this.source = source;
+    this.silentSink = silentSink;
+    this.sinkDestination = sinkDestination;
     this.node.port.addEventListener("message", this.handleMessage);
     // Some MessagePort implementations require an explicit start when using
     // addEventListener rather than onmessage.
     this.node.port.start?.();
     // Branch tap: source.output → meter (in ADDITION to source's existing edges).
     this.source.connect(this.node);
+    if (this.silentSink && this.sinkDestination) {
+      this.silentSink.gain.value = 0;
+      this.node.connect(this.silentSink);
+      this.silentSink.connect(this.sinkDestination);
+    }
   }
 
   private readonly handleMessage = (event: MessageEvent): void => {
@@ -130,6 +143,20 @@ export class LoudnessMeter {
       this.source.disconnect(this.node);
     } catch {
       // Already disconnected — ignore.
+    }
+    if (this.silentSink) {
+      try {
+        this.node.disconnect(this.silentSink);
+      } catch {
+        // Already disconnected — ignore.
+      }
+    }
+    if (this.silentSink && this.sinkDestination) {
+      try {
+        this.silentSink.disconnect(this.sinkDestination);
+      } catch {
+        // Already disconnected — ignore.
+      }
     }
   }
 }
