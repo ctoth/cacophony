@@ -300,6 +300,49 @@ describe("timeStretch — offline PGHI time-stretch (Průša 2022)", () => {
     expect(maxAbs(out)).toBeGreaterThan(0.3);
   });
 
+  it("FIRST-FRAME multi-island: every disconnected significant ridge is seeded (PGHI coverage)", () => {
+    // The first analysis frame has NO prior frame to time-propagate from, so PGHI
+    // integrates it purely in frequency, and Algorithm 1 requires EVERY
+    // significant bin be assigned. A comb of well-separated tones makes the
+    // first-frame significant set several DISCONNECTED islands. The old code
+    // seeded only the single global-max bin and frequency-spread within ITS
+    // island, leaving the other islands' bins at the array default (phase 0).
+    // The fix loops the seed-and-spread over every connected component.
+    //
+    // SCOPE OF THIS TEST: it pins the load-bearing properties of that loop — it
+    // terminates with many components (no hang), produces finite output, keeps
+    // every tone present, and is deterministic. It does NOT assert a phase
+    // regression: for separated stationary tones the old behaviour only imposed
+    // a constant GLOBAL phase offset per disconnected component (PGHI fixes phase
+    // up to a global shift), which is inaudible and invisible to a magnitude
+    // metric. The fix is correctness-of-guarantee, and matters for a broadband
+    // event whose first-frame ridge has spectral gaps.
+    const freqs = [2756.25, 5512.5, 11025, 16537.5]; // bins ~128/256/512/768 — 4 islands
+    const N = 8192;
+    const input = new Float32Array(N);
+    for (const f of freqs) {
+      const tone = sinusoid(f, N);
+      for (let i = 0; i < N; i++) input[i] += tone[i] / freqs.length;
+    }
+
+    const nFft = 2048;
+    const out = timeStretch(input, 2.0);
+    const out2 = timeStretch(input, 2.0);
+
+    // Terminates, no NaN/Inf even with many disconnected first-frame components.
+    expect(allFinite(out)).toBe(true);
+    expect(out.length).toBe(Math.round(N * 2.0));
+    // Every tone survives the stretch (no island dropped).
+    for (const f of freqs) {
+      const k = Math.round((f * nFft) / SR);
+      const p = binPower(out, Math.floor(out.length / 2), k, nFft);
+      const floor = binPower(out, Math.floor(out.length / 2), k + 40, nFft); // a non-tone bin
+      expect(p).toBeGreaterThan(10 * (floor + 1e-9));
+    }
+    // Deterministic (same seed → identical output), incl. the multi-seed loop.
+    for (let i = 0; i < out.length; i++) expect(out2[i]).toBe(out[i]);
+  });
+
   it("FRAMING VALIDATION: invalid fftSize/analysisHop is rejected (no NaN reaches the FFT)", () => {
     const input = sinusoid(440, 4096);
     // fftSize below the integer-hop floor (M/4 must be a positive integer ≥ 1).

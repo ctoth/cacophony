@@ -384,42 +384,51 @@ export function timeStretch(input: Float32Array, factor: number, opts: TimeStret
 
     if (n === 0 || !phiSPrev || !sPrev) {
       // First frame (or no previous synthesis phase): there is no prior frame to
-      // time-propagate from. Seed the frequency integration from the
-      // highest-magnitude significant bin, whose synthesis phase we anchor to
-      // its analysis phase (the PGHI initialization for the very first column).
-      // Find the max-magnitude significant bin.
-      let seed = -1;
-      let seedMag = -1;
-      for (let m = 0; m < nBins; m++) {
-        if (inSet[m] && s[m] > seedMag) {
-          seedMag = s[m];
-          seed = m;
+      // time-propagate from, so the column is integrated purely in frequency.
+      // PGHI (Průša 2022, Algorithm 1) requires EVERY significant bin be assigned
+      // through the integration. The significant set may be several DISCONNECTED
+      // ridges (islands separated by insignificant bins): seeding only the single
+      // global-max bin and frequency-spreading reaches just ITS island, leaving
+      // every other island's bins at the Float32Array default (phase 0) — a
+      // violation of the PGHI guarantee. So seed each connected component in
+      // turn: anchor the highest-magnitude UNASSIGNED significant bin to its
+      // analysis phase, frequency-spread the heap through its component, then
+      // re-seed the next component until no significant bin is unassigned.
+      while (remaining > 0) {
+        let seed = -1;
+        let seedMag = -1;
+        for (let m = 0; m < nBins; m++) {
+          if (inSet[m] && !assigned[m] && s[m] > seedMag) {
+            seedMag = s[m];
+            seed = m;
+          }
         }
-      }
-      if (seed >= 0) {
+        if (seed < 0) break; // safety: no significant bin left
         phiS[seed] = phase[n][seed];
         assigned[seed] = 1;
         remaining--;
         heap.push(s[seed], (seed << 1) | 1);
-      }
-      // Frequency-only spreading for the first frame. Directional integration
-      // (b_s = α·b_a folded into `ratio`):
-      //   up:   φ_s(m+1)=φ_s(m)+b_s·Δf,fwd(m)
-      //   down: φ_s(m-1)=φ_s(m)−b_s·Δf,fwd(m-1)   [= Δf,back(m)]
-      while (heap.length > 0 && remaining > 0) {
-        const top = heap.pop();
-        const mh = top >> 1;
-        if (mh + 1 < nBins && inSet[mh + 1] && !assigned[mh + 1]) {
-          phiS[mh + 1] = phiS[mh] + ratio * dfFwd[n][mh];
-          assigned[mh + 1] = 1;
-          remaining--;
-          heap.push(s[mh + 1], ((mh + 1) << 1) | 1);
-        }
-        if (mh - 1 >= 0 && inSet[mh - 1] && !assigned[mh - 1]) {
-          phiS[mh - 1] = phiS[mh] - ratio * dfFwd[n][mh - 1];
-          assigned[mh - 1] = 1;
-          remaining--;
-          heap.push(s[mh - 1], ((mh - 1) << 1) | 1);
+
+        // Frequency-only spreading within this component (b_s = α·b_a folded into
+        // `ratio`). Drains the heap to the component boundary; the outer loop then
+        // re-seeds the next disconnected component.
+        //   up:   φ_s(m+1)=φ_s(m)+b_s·Δf,fwd(m)
+        //   down: φ_s(m-1)=φ_s(m)−b_s·Δf,fwd(m-1)   [= Δf,back(m)]
+        while (heap.length > 0) {
+          const top = heap.pop();
+          const mh = top >> 1;
+          if (mh + 1 < nBins && inSet[mh + 1] && !assigned[mh + 1]) {
+            phiS[mh + 1] = phiS[mh] + ratio * dfFwd[n][mh];
+            assigned[mh + 1] = 1;
+            remaining--;
+            heap.push(s[mh + 1], ((mh + 1) << 1) | 1);
+          }
+          if (mh - 1 >= 0 && inSet[mh - 1] && !assigned[mh - 1]) {
+            phiS[mh - 1] = phiS[mh] - ratio * dfFwd[n][mh - 1];
+            assigned[mh - 1] = 1;
+            remaining--;
+            heap.push(s[mh - 1], ((mh - 1) << 1) | 1);
+          }
         }
       }
       continue;
