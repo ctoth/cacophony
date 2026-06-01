@@ -1,7 +1,12 @@
+import foaHrirUrl from "./assets/sh_hrir_order_1.wav?url";
 import { installAutoplayUnlock } from "./autoplayUnlock";
 import dattorroReverbProcessorWorkletUrl from "./bundles/dattorro-reverb-bundle.js?url";
+import dynamicsProcessorWorkletUrl from "./bundles/dynamics-bundle.js?url";
+import fdnReverbProcessorWorkletUrl from "./bundles/fdn-reverb-bundle.js?url";
+import loudnessMeterProcessorWorkletUrl from "./bundles/loudness-meter-bundle.js?url";
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
 import stereoToBFormatProcessorWorkletUrl from "./bundles/stereo-to-bformat-bundle.js?url";
+import waveshaperProcessorWorkletUrl from "./bundles/waveshaper-bundle.js?url";
 import { Bus } from "./bus";
 import { AudioCache, type ICache } from "./cache";
 import type {
@@ -16,13 +21,30 @@ import type {
   GainNode,
   PannerNode,
 } from "./context";
-import { type CacophonyEffect, markAsCacophonyBiquad, ReverbEffect, type ReverbOptions, ShareEffect } from "./effects";
+import { GATE_DEFAULT_RATIO } from "./processors/dynamics-core";
+import {
+  type CacophonyEffect,
+  DynamicsEffect,
+  type DynamicsOptions,
+  FdnReverbEffect,
+  type FdnReverbOptions,
+  FoaDecoder,
+  type FoaDecoderOptions,
+  markAsCacophonyBiquad,
+  ReverbEffect,
+  type ReverbOptions,
+  ShareEffect,
+  WaveshaperEffect,
+  type WaveshaperOptions,
+} from "./effects";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { CacophonyEvents } from "./events";
 import { Group } from "./group";
 import { MediaStreamSound, type MediaStreamSoundOptions } from "./mediaStream";
+import { LoudnessMeter } from "./meters/loudness-meter";
 import { MicrophoneStream } from "./microphone";
 import type { ThreeDOptions } from "./pannerMixin";
+import { type TimeStretchOptions, timeStretch } from "./processors/timestretch-core";
 import { Sound } from "./sound";
 import { Synth } from "./synth";
 
@@ -193,6 +215,15 @@ export class Cacophony {
    * the second construct would throw with no module registered.
    */
   private loadedAudioWorklets: WeakMap<BaseContext, Set<string>> = new WeakMap();
+  /**
+   * Per-context cache of the decoded order-1 SH-HRIR `AudioBuffer` used by
+   * {@link FoaDecoder}. Keyed on the context (like
+   * {@link loadedAudioWorklets}) because `decodeAudioData` produces a buffer
+   * bound to ONE context's sample rate; a buffer decoded on context A must not
+   * be reused on context B. Stores the in-flight Promise so concurrent
+   * `loadFoaHrir` calls share a single fetch/decode.
+   */
+  private foaHrirCache: WeakMap<BaseContext, Promise<AudioBuffer>> = new WeakMap();
   private finalizationRegistry: FinalizationRegistry<SoundCleanupHoldings>;
   private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
@@ -345,6 +376,57 @@ export class Cacophony {
   }
 
   /**
+   * OFFLINE independent time-stretch: change an AudioBuffer's tempo WITHOUT
+   * changing its pitch, returning a NEW AudioBuffer of length ≈
+   * `round(buffer.length · factor)` at the same sample rate.
+   *
+   * Algorithm: Phase Gradient Heap Integration (PGHI) per Zdeněk Průša & Nicki
+   * Holighaus, "Phase Vocoder Done Right" (EUSIPCO 2017 / arXiv:2202.07382).
+   * The signal is STFT'd, the synthesis phase is reconstructed by integrating
+   * the analysis-phase time/frequency gradients along the magnitude ridges
+   * (max-heap), then overlap-added at the stretched synthesis hop. No peak
+   * picking and no transient detection. Each channel is processed independently.
+   *
+   * This is an OFFLINE buffer transform, NOT a real-time worklet: the project's
+   * OLA worklet base is unity-rate (analysis hop == synthesis hop, fixed to the
+   * 128-sample render quantum) and cannot change the time base in real time. A
+   * genuine independent stretch needs analysis hop ≠ synthesis hop, which only
+   * the whole-buffer offline path provides.
+   *
+   * @param buffer The source AudioBuffer to time-stretch.
+   * @param factor Stretch factor (`> 0`). `> 1` lengthens (slower tempo), `< 1`
+   *               shortens (faster tempo); pitch is preserved either way.
+   * @param options Optional PGHI parameters (fftSize, analysisHop, tol, seed).
+   * @returns A new, time-stretched AudioBuffer.
+   * @throws If the context cannot create buffers, or `factor <= 0`.
+   */
+  timeStretchBuffer(buffer: AudioBuffer, factor: number, options?: TimeStretchOptions): AudioBuffer {
+    if (typeof this.context.createBuffer !== "function") {
+      throw new Error("timeStretchBuffer requires an audio context that supports createBuffer().");
+    }
+    if (!(factor > 0)) {
+      throw new Error(`timeStretchBuffer: factor must be > 0, got ${factor}`);
+    }
+
+    const numberOfChannels = buffer.numberOfChannels;
+    const outLength = Math.max(1, Math.round(buffer.length * factor));
+    const output = this.context.createBuffer(numberOfChannels, outLength, buffer.sampleRate);
+
+    for (let ch = 0; ch < numberOfChannels; ch++) {
+      // Copy out of the (possibly mocked) AudioBuffer into a plain Float32Array
+      // the pure core can consume, then write the stretched result back.
+      const inData = buffer.getChannelData(ch);
+      const input = inData instanceof Float32Array ? inData : Float32Array.from(inData);
+      const stretched = timeStretch(input, factor, options);
+      // The core returns exactly round(input.length·factor) samples; copy what
+      // fits the output buffer (lengths match by construction).
+      output.copyToChannel(stretched.subarray(0, outLength), ch);
+    }
+
+    return output;
+  }
+
+  /**
    * Register event listener.
    * @returns Cleanup function
    */
@@ -369,9 +451,13 @@ export class Cacophony {
 
   async loadWorklets(signal?: AbortSignal) {
     if (this.context.audioWorklet) {
-      await this.createWorkletNode("phase-vocoder", phaseVocoderProcessorWorkletUrl, signal);
+      await this.loadPhaseVocoder(signal);
       await this.loadStereoToBFormatWorklet(signal);
       await this.loadDattorroReverb(signal);
+      await this.loadDynamics(signal);
+      await this.loadFdnReverb(signal);
+      await this.loadWaveshaper(signal);
+      await this.loadLoudnessMeter(signal);
     } else {
       console.warn("AudioWorklet not supported");
     }
@@ -379,6 +465,27 @@ export class Cacophony {
 
   async loadStereoToBFormatWorklet(signal?: AbortSignal): Promise<void> {
     await this.loadAudioWorkletModule("stereo-to-bformat", stereoToBFormatProcessorWorkletUrl, signal);
+  }
+
+  /**
+   * Idempotently registers the `phase-vocoder` AudioWorkletProcessor (peak-based
+   * pitch-shifter with Identity Phase-Locking, Laroche & Dolson 1999 WASPAA) on
+   * this context. Safe to call repeatedly — subsequent calls short-circuit via
+   * the per-context {@link loadedAudioWorklets} set. Cross-context: pass
+   * `context` so a node built against a bus on a different context loads there.
+   */
+  async loadPhaseVocoder(signal?: AbortSignal, context?: BaseContext): Promise<void> {
+    await this.loadAudioWorkletModule("phase-vocoder", phaseVocoderProcessorWorkletUrl, signal, context);
+  }
+
+  /**
+   * Constructs a `phase-vocoder` AudioWorkletNode. Caller is expected to have
+   * loaded the module already (via {@link loadPhaseVocoder} or {@link loadWorklets}).
+   * Uses the same construct/fallback path as {@link createWorkletNode}. The
+   * returned node carries a single `pitchFactor` AudioParam (1 = no shift).
+   */
+  async createPhaseVocoderNode(options?: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("phase-vocoder", phaseVocoderProcessorWorkletUrl, undefined, options, context);
   }
 
   /**
@@ -410,6 +517,130 @@ export class Cacophony {
    */
   async createDattorroReverbNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
     return this.createWorkletNode("dattorro-reverb", dattorroReverbProcessorWorkletUrl, undefined, options, context);
+  }
+
+  /**
+   * Idempotently registers the `dynamics` AudioWorkletProcessor (feed-forward
+   * compressor/limiter/expander/gate, Giannoulis 2012) on this context. Safe to
+   * call repeatedly — subsequent calls short-circuit via the per-context
+   * {@link loadedAudioWorklets} set. Cross-context: pass `context` so a
+   * {@link DynamicsEffect} added to a bus on a different context loads there.
+   */
+  async loadDynamics(signal?: AbortSignal, context?: BaseContext): Promise<void> {
+    await this.loadAudioWorkletModule("dynamics", dynamicsProcessorWorkletUrl, signal, context);
+  }
+
+  /**
+   * Constructs a `dynamics` AudioWorkletNode. Caller is expected to have loaded
+   * the module already (via {@link loadDynamics} or by reaching here through
+   * {@link DynamicsEffect.build}). Uses the same construct/fallback path as
+   * {@link createWorkletNode}.
+   */
+  async createDynamicsNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("dynamics", dynamicsProcessorWorkletUrl, undefined, options, context);
+  }
+
+  /**
+   * Idempotently registers the `fdn-reverb` AudioWorkletProcessor (Feedback
+   * Delay Network reverb — lossless paraunitary Hadamard feedback per Schlecht
+   * & Habets 2019, per-line absorption T60 per Jot 1991, velvet-noise diffusion
+   * per Fagerström 2020) on this context. Safe to call repeatedly — subsequent
+   * calls short-circuit via the per-context {@link loadedAudioWorklets} set.
+   * Cross-context: pass `context` so an {@link FdnReverbEffect} added to a bus
+   * on a different context loads there.
+   */
+  async loadFdnReverb(signal?: AbortSignal, context?: BaseContext): Promise<void> {
+    await this.loadAudioWorkletModule("fdn-reverb", fdnReverbProcessorWorkletUrl, signal, context);
+  }
+
+  /**
+   * Constructs an `fdn-reverb` AudioWorkletNode. Caller is expected to have
+   * loaded the module already (via {@link loadFdnReverb} or by reaching here
+   * through {@link FdnReverbEffect.build}). Uses the same construct/fallback
+   * path as {@link createWorkletNode}.
+   */
+  async createFdnReverbNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("fdn-reverb", fdnReverbProcessorWorkletUrl, undefined, options, context);
+  }
+
+  /**
+   * Idempotently registers the `waveshaper` AudioWorkletProcessor (antialiased
+   * distortion/waveshaper via first-order Antiderivative Antialiasing, Parker,
+   * Zavalishin & Le Bivic 2016, DAFx-16) on this context. Safe to call
+   * repeatedly — subsequent calls short-circuit via the per-context
+   * {@link loadedAudioWorklets} set. Cross-context: pass `context` so a
+   * {@link WaveshaperEffect} added to a bus on a different context loads there.
+   */
+  async loadWaveshaper(signal?: AbortSignal, context?: BaseContext): Promise<void> {
+    await this.loadAudioWorkletModule("waveshaper", waveshaperProcessorWorkletUrl, signal, context);
+  }
+
+  /**
+   * Constructs a `waveshaper` AudioWorkletNode. Caller is expected to have
+   * loaded the module already (via {@link loadWaveshaper} or by reaching here
+   * through {@link WaveshaperEffect.build}). Uses the same construct/fallback
+   * path as {@link createWorkletNode}.
+   */
+  async createWaveshaperNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("waveshaper", waveshaperProcessorWorkletUrl, undefined, options, context);
+  }
+
+  /**
+   * Idempotently registers the `loudness-meter` AudioWorkletProcessor (ITU-R
+   * BS.1770-5 momentary / short-term / integrated loudness + true-peak) on this
+   * context. Safe to call repeatedly — subsequent calls short-circuit via the
+   * per-context {@link loadedAudioWorklets} set. Cross-context: pass `context`
+   * so a meter tapping a bus on a different context loads there.
+   */
+  async loadLoudnessMeter(signal?: AbortSignal, context?: BaseContext): Promise<void> {
+    await this.loadAudioWorkletModule("loudness-meter", loudnessMeterProcessorWorkletUrl, signal, context);
+  }
+
+  /**
+   * Constructs a `loudness-meter` AudioWorkletNode. Caller is expected to have
+   * loaded the module already (via {@link loadLoudnessMeter} or {@link createLoudnessMeter}).
+   * The node is a PASS-THROUGH metering tap (1 input, 1 output) that posts
+   * momentary/short-term/integrated loudness and true-peak back over its port.
+   */
+  async createLoudnessMeterNode(options?: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("loudness-meter", loudnessMeterProcessorWorkletUrl, undefined, options, context);
+  }
+
+  /**
+   * Fetches and decodes the bundled order-1 SH-HRIR
+   * (`sh_hrir_order_1.wav`, from Omnitone, Apache-2.0 — see
+   * `src/assets/NOTICE`) into an `AudioBuffer`, memoized per context. The
+   * buffer is the 4-channel (ACN rows W,Y,Z,X) SH-domain HRIR consumed by
+   * {@link FoaDecoder} to drive its WY/ZX stereo ConvolverNodes
+   * (Ahrens 2022 eq.31 decode).
+   *
+   * The WAV is 48 kHz; `decodeAudioData` resamples it to the context's sample
+   * rate automatically when they differ (standard Web Audio behavior, which
+   * Omnitone relies on).
+   *
+   * @param context Optional BaseContext to decode on. Defaults to this host's
+   *   own `context`. Supplied so a {@link FoaDecoder} added to a bus on
+   *   a different context decodes the HRIR on the right context.
+   */
+  async loadFoaHrir(context?: BaseContext): Promise<AudioBuffer> {
+    const ctx = context ?? this.context;
+    const cached = this.foaHrirCache.get(ctx);
+    if (cached) {
+      return cached;
+    }
+    const pending = (async () => {
+      const response = await fetch(foaHrirUrl);
+      const encoded = await response.arrayBuffer();
+      return ctx.decodeAudioData(encoded);
+    })();
+    this.foaHrirCache.set(ctx, pending);
+    try {
+      return await pending;
+    } catch (err) {
+      // Drop the rejected promise so a later call can retry the fetch/decode.
+      this.foaHrirCache.delete(ctx);
+      throw err;
+    }
   }
 
   async createWorkletNode(
@@ -860,6 +1091,144 @@ export class Cacophony {
    */
   createReverb(options: ReverbOptions = {}): ReverbEffect {
     return new ReverbEffect(this, options);
+  }
+
+  /**
+   * Creates a Feedback Delay Network (FDN) {@link CacophonyEffect} — an
+   * algorithmic reverb with a lossless degree-0 paraunitary Hadamard feedback
+   * matrix (Schlecht & Habets 2019), per-delay-line absorption filters setting
+   * the reverberation time T60 (Jot & Chaigne 1991), and multiplication-free
+   * velvet-noise input diffusion (Fagerström et al. 2020). The effect's
+   * `build` lazily registers the worklet module (no-op if already loaded) and
+   * constructs the AudioWorkletNode with the supplied {@link FdnReverbOptions}
+   * as `parameterData`. Add the returned effect to a {@link Bus} via
+   * `bus.addFilter(effect)`.
+   */
+  createFdnReverb(options: FdnReverbOptions = {}): FdnReverbEffect {
+    return new FdnReverbEffect(this, options);
+  }
+
+  /**
+   * Creates a dynamics {@link CacophonyEffect} configured as a COMPRESSOR
+   * (ratio > 1 reduces the level of signals above threshold). Implements the
+   * feed-forward design of Giannoulis, Massberg & Reiss 2012. Add the returned
+   * effect to a {@link Bus} via `bus.addFilter(effect)`. The same machinery
+   * (gain computer + log-domain smooth-branching detector) backs the limiter
+   * and gate presets below.
+   */
+  createCompressor(options: DynamicsOptions = {}): DynamicsEffect {
+    return new DynamicsEffect(this, options);
+  }
+
+  /**
+   * Creates a dynamics {@link CacophonyEffect} preset as a LIMITER — a
+   * compressor with an effectively infinite ratio so output is clamped at the
+   * threshold (Giannoulis 2012 eqs 18-19). The ratio is fixed to the worklet's
+   * limiter sentinel; caller-supplied `ratio` is ignored. Other params
+   * (threshold, knee, attack, release, makeup) remain configurable.
+   */
+  createLimiter(options: Omit<DynamicsOptions, "ratio"> = {}): DynamicsEffect {
+    return new DynamicsEffect(this, { ...options, ratio: 1000 });
+  }
+
+  /**
+   * Creates a dynamics {@link CacophonyEffect} preset as a downward EXPANDER /
+   * GATE — ratio < 1 so signals BELOW the threshold are pushed further down
+   * (Giannoulis 2012 p.403). The default `ratio` of 0.1 gives gate-like
+   * downward expansion; pass a `ratio` closer to 1 for gentler expansion.
+   */
+  createGate(options: DynamicsOptions = {}): DynamicsEffect {
+    return new DynamicsEffect(this, { ratio: GATE_DEFAULT_RATIO, ...options });
+  }
+
+  /**
+   * Creates a {@link WaveshaperEffect} — an antialiased distortion/waveshaper
+   * implementing first-order Antiderivative Antialiasing (Parker, Zavalishin &
+   * Le Bivic 2016, DAFx-16): y[n] = (F0(x_n) - F0(x_{n-1}))/(x_n - x_{n-1})
+   * (eq.9), with an f(midpoint) fallback at the 0/0 singularity (eq.10). Ships
+   * two nonlinearities — `shape: 0` hard clip (polynomial F0, eq.25), `shape: 1`
+   * tanh soft clip (F0 = log cosh, eq.20). Carries an inherent 0.5-sample group
+   * delay (eq.17). Add the returned effect to a {@link Bus} via
+   * `bus.addFilter(effect)`.
+   */
+  createWaveshaper(options: WaveshaperOptions = {}): WaveshaperEffect {
+    return new WaveshaperEffect(this, options);
+  }
+
+  /**
+   * Creates a {@link WaveshaperEffect} preset as a DISTORTION — the tanh soft
+   * clipper (`shape: 1`, F0 = log cosh, Parker 2016 eq.20) with a default drive
+   * of 4 for an audible saturated tone. A convenience wrapper over
+   * {@link createWaveshaper}; caller-supplied options override the defaults.
+   */
+  createDistortion(options: WaveshaperOptions = {}): WaveshaperEffect {
+    return new WaveshaperEffect(this, { drive: 4, shape: 1, ...options });
+  }
+
+  /** The default audio context for this Cacophony instance (used by
+   * {@link FoaDecoder} when no explicit context is supplied). */
+  defaultContext(): BaseContext {
+    return this.context;
+  }
+
+  /**
+   * Creates a {@link FoaDecoder} — a standalone first-order ambisonic (FOA) ->
+   * binaural FORMAT CONVERTER built from native Web Audio nodes (no worklet).
+   * It decodes a 4-channel ACN/SN3D `[W, Y, Z, X]` signal to headphone stereo
+   * via the per-SH-channel HRIR decode of Ahrens 2022 (eq.31), using
+   * Omnitone's WY/ZX 2-stereo-ConvolverNode packing and the bundled order-1
+   * SH-HRIR.
+   *
+   * It is 4-channel-in / 2-channel-out, so it is NOT a `CacophonyEffect` and is
+   * NOT added via `bus.addFilter`. Wire it EXPLICITLY using its two endpoints:
+   * feed FOA into `decoder.input` (4-ch) and route `decoder.output` (2-ch
+   * stereo) downstream:
+   * ```ts
+   *   const decoder = await cacophony.createFoaDecoder();
+   *   foaSource.connect(decoder.input);
+   *   decoder.output.connect(bus.input); // or context.destination
+   * ```
+   * Build is async (the bundled HRIR is fetched + decoded). Pair it with
+   * {@link encodeMonoToFoaSN3D} (clean, physically correct) or with
+   * `createStereoToBFormatNode` (the perceptual, approximate stereo-upmix path).
+   */
+  async createFoaDecoder(options: FoaDecoderOptions = {}, context?: BaseContext): Promise<FoaDecoder> {
+    return FoaDecoder.create(this, options, context);
+  }
+
+  /**
+   * Creates an ITU-R BS.1770-5 {@link LoudnessMeter} that TAPS the output of a
+   * target node without altering the audible path. The meter reports momentary
+   * (400 ms), short-term (3 s), and gated integrated loudness in LKFS/LUFS, plus
+   * true-peak level in dBTP (Annex 2 4× oversampling).
+   *
+   * The tap is a BRANCH: the target's output is connected to the metering
+   * worklet in ADDITION to its existing forward edge, and the worklet's output
+   * is routed through an owned zero-gain sink to keep the branch silent and live.
+   * By default the target is the
+   * master bus output (`master.output`), measuring everything that reaches the
+   * destination — the integrated-loudness target. Pass a {@link Bus} to meter
+   * one bus's output, or any {@link AudioNode} to meter that node.
+   *
+   * Lazily registers the `loudness-meter` worklet module (no-op if already
+   * loaded) on the target's context, then constructs the node and branch-taps.
+   *
+   * @param target Node or bus whose output to meter. Defaults to the master bus.
+   * @returns A {@link LoudnessMeter} handle exposing the live readings.
+   */
+  async createLoudnessMeter(target: Bus | AudioNode = this.master): Promise<LoudnessMeter> {
+    const sourceNode: AudioNode = target instanceof Bus ? target.output : target;
+    // Load AND construct the worklet on the SOURCE node's OWN context, not always
+    // `this.context`. A caller may pass an AudioNode (or Bus) living on a
+    // different BaseContext; building the meter on this host's context would
+    // cross-connect two contexts (illegal in Web Audio). The source node carries
+    // its full context at runtime (native + standardized-audio-context both do);
+    // the structural `AudioNode.context` type is narrowed, so widen it here.
+    const targetContext = (sourceNode.context as BaseContext | undefined) ?? this.context;
+    await this.loadLoudnessMeter(undefined, targetContext);
+    const node = await this.createLoudnessMeterNode({ numberOfInputs: 1, numberOfOutputs: 1 }, targetContext);
+    const silentSink = targetContext.createGain();
+    return new LoudnessMeter(node, sourceNode, silentSink, targetContext.destination);
   }
 
   /**
