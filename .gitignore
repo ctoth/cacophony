@@ -43,3 +43,24 @@ yarn.lock
 docs
 env
 *.timestamp*
+
+# Agent / process scaffolding (local only — never part of the library)
+.claude/
+prompts/
+reports/
+papers/
+investigations/
+notes/
+plans/
+pyghidra_mcp_projects/
+CLAUDE.md
+EVENTS_CHECKLIST.md
+issues.md
+seeking.md
+
+# Local scratch audio + decode dumps
+paris.ogg
+loop.m4a
+loop.wav
+$dec
+out

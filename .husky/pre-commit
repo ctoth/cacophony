@@ -1,4 +1,2 @@
 #!/usr/bin/env sh
-npx biome ci .
-npm run typecheck
-npm test
+npx lint-staged

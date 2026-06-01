@@ -1,9 +1,14 @@
 import { resolve } from "path";
-import { defineConfig } from "vite";
 import dts from "vite-plugin-dts";
+import { configDefaults, defineConfig } from "vitest/config";
 import pkg from "./package.json" with { type: "json" };
 
 export default defineConfig({
+  test: {
+    // Stale agent worktrees under .claude/ (gitignored) hold old copies of the
+    // test suite; without this, vitest discovers and runs them too.
+    exclude: [...configDefaults.exclude, "**/.claude/**"],
+  },
   build: {
     sourcemap: true,
     lib: {

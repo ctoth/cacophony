@@ -42,7 +42,7 @@ const mockCache = {
     }
 
     // Simulate async loading behavior — never hit the real network
-    return new Promise(async (resolve, reject) => {
+    return new Promise<AudioBuffer>(async (resolve, reject) => {
       try {
         // If a test has mocked global.fetch to throw, honour that for error-path tests
         if (vi.isMockFunction(global.fetch)) {
@@ -50,7 +50,7 @@ const mockCache = {
             await global.fetch(url, { signal });
           } catch (fetchError) {
             if (callbacks?.onLoadingError) {
-              const errorType = fetchError.name === "AbortError" ? "abort" : "network";
+              const errorType = fetchError instanceof Error && fetchError.name === "AbortError" ? "abort" : "network";
               callbacks.onLoadingError({
                 url,
                 error: fetchError,

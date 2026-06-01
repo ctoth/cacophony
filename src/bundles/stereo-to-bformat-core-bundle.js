@@ -200,8 +200,17 @@ var stereoToBformatCore = (function (exports) {
             }
         }
     }
-    function encodeStereoToBFormat(left, right, w, y, z, x, sampleRate) {
-        new StereoToFoaUpmixer(sampleRate).process(left, right, w, y, z, x);
+    /**
+     * Stateless façade over {@link StereoToFoaUpmixer.process}. The caller owns
+     * the upmixer so block-by-block invocations preserve biquad and coherence
+     * state across calls — constructing a fresh upmixer per block would reset
+     * IIR memory and the ~20 ms coherence smoothing window every boundary,
+     * producing audible transients and unstable W/X/Y cues. One-shot callers
+     * who genuinely process a whole signal in a single call can construct an
+     * upmixer at the call site; streaming callers must hoist construction.
+     */
+    function encodeStereoToBFormat(upmixer, left, right, w, y, z, x) {
+        upmixer.process(left, right, w, y, z, x);
     }
 
     exports.StereoToFoaUpmixer = StereoToFoaUpmixer;
