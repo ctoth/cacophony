@@ -1,4 +1,5 @@
 #!/usr/bin/env sh
+set -e
 npx biome ci .
 npm run typecheck
 npm test
