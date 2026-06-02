@@ -187,8 +187,131 @@
           </div>
         </section>
 
+        <section aria-labelledby="moddelay-h">
+          <h2 id="moddelay-h">9. Modulated delay — chorus / flanger / vibrato / doubling (Dattorro 1997)</h2>
+          <p>
+            One delay-line circuit (Dattorro Fig. 36) drives every voice. Pick a
+            preset and A/B it against the dry loop. Rate, depth, and feedback apply
+            on the next “Play with effect”; the preset sets its own character
+            (dry/wet balance and feedback sign).
+          </p>
+          <div class="row">
+            <label for="modPreset">Preset</label>
+            <select id="modPreset">
+              <option value="chorus" selected>Chorus</option>
+              <option value="flanger">Flanger</option>
+              <option value="vibrato">Vibrato</option>
+              <option value="doubling">Doubling</option>
+              <option value="delay">Delay / echo</option>
+            </select>
+          </div>
+          <div class="row">
+            <label for="modRate">Rate</label>
+            <input type="range" id="modRate" min="0" max="10" step="0.05" value="0.5" aria-describedby="modRateVal" />
+            <span id="modRateVal" class="readout">0.50 Hz</span>
+          </div>
+          <div class="row">
+            <label for="modDepth">Depth</label>
+            <input type="range" id="modDepth" min="0" max="50" step="0.5" value="4" aria-describedby="modDepthVal" />
+            <span id="modDepthVal" class="readout">4.0 ms</span>
+          </div>
+          <div class="row">
+            <label for="modFeedback">Feedback</label>
+            <input type="range" id="modFeedback" min="-0.95" max="0.95" step="0.05" value="0.7" aria-describedby="modFeedbackVal" />
+            <span id="modFeedbackVal" class="readout">0.70</span>
+          </div>
+          <div class="row">
+            <button id="modDry" type="button">Play dry</button>
+            <button id="modWet" type="button">Play with effect</button>
+            <button id="modStop" type="button" disabled>Stop</button>
+          </div>
+        </section>
+
+        <section aria-labelledby="phaser-h">
+          <h2 id="phaser-h">10. Phaser (Smith STAN-M-21)</h2>
+          <p>
+            A cascade of allpass sections sweeps notches through the spectrum (two
+            sections per notch). A/B against dry; the sweep controls apply on the
+            next “Play with phaser”.
+          </p>
+          <div class="row">
+            <label for="phaserFreq">Center frequency</label>
+            <input type="range" id="phaserFreq" min="20" max="10000" step="10" value="500" aria-describedby="phaserFreqVal" />
+            <span id="phaserFreqVal" class="readout">500 Hz</span>
+          </div>
+          <div class="row">
+            <label for="phaserRate">Rate</label>
+            <input type="range" id="phaserRate" min="0" max="10" step="0.05" value="0.5" aria-describedby="phaserRateVal" />
+            <span id="phaserRateVal" class="readout">0.50 Hz</span>
+          </div>
+          <div class="row">
+            <label for="phaserDepth">Sweep depth</label>
+            <input type="range" id="phaserDepth" min="0" max="4" step="0.1" value="1.5" aria-describedby="phaserDepthVal" />
+            <span id="phaserDepthVal" class="readout">1.5 oct</span>
+          </div>
+          <div class="row">
+            <label for="phaserStages">Stages</label>
+            <input type="range" id="phaserStages" min="2" max="12" step="2" value="4" aria-describedby="phaserStagesVal" />
+            <span id="phaserStagesVal" class="readout">4 sections (2 notches)</span>
+          </div>
+          <div class="row">
+            <label for="phaserFeedback">Feedback</label>
+            <input type="range" id="phaserFeedback" min="-0.95" max="0.95" step="0.05" value="0" aria-describedby="phaserFeedbackVal" />
+            <span id="phaserFeedbackVal" class="readout">0.00</span>
+          </div>
+          <div class="row">
+            <label for="phaserMix">Mix</label>
+            <input type="range" id="phaserMix" min="0" max="1" step="0.05" value="0.5" aria-describedby="phaserMixVal" />
+            <span id="phaserMixVal" class="readout">50%</span>
+          </div>
+          <div class="row">
+            <button id="phaserDry" type="button">Play dry</button>
+            <button id="phaserWet" type="button">Play with phaser</button>
+            <button id="phaserStop" type="button" disabled>Stop</button>
+          </div>
+        </section>
+
+        <section aria-labelledby="trem-h">
+          <h2 id="trem-h">11. Tremolo / auto-pan (Dattorro 1997, p.776 quadrature LFO)</h2>
+          <p>
+            LFO-driven amplitude modulation. Choose the LFO shape and the stereo
+            mode, then A/B against the dry loop. Mono pulses both channels together;
+            quadrature and auto-pan offset the channels (most audible on a stereo
+            source). Controls apply on the next “Play with tremolo”.
+          </p>
+          <div class="row">
+            <label for="tremShape">LFO shape</label>
+            <select id="tremShape">
+              <option value="0" selected>Sine</option>
+              <option value="1">Triangle</option>
+              <option value="2">Square</option>
+            </select>
+            <label for="tremMode">Stereo</label>
+            <select id="tremMode">
+              <option value="0" selected>Mono (0°)</option>
+              <option value="90">Quadrature (90°)</option>
+              <option value="180">Auto-pan (180°)</option>
+            </select>
+          </div>
+          <div class="row">
+            <label for="tremRate">Rate</label>
+            <input type="range" id="tremRate" min="0" max="20" step="0.1" value="5" aria-describedby="tremRateVal" />
+            <span id="tremRateVal" class="readout">5.0 Hz</span>
+          </div>
+          <div class="row">
+            <label for="tremDepth">Depth</label>
+            <input type="range" id="tremDepth" min="0" max="1" step="0.01" value="0.5" aria-describedby="tremDepthVal" />
+            <span id="tremDepthVal" class="readout">50%</span>
+          </div>
+          <div class="row">
+            <button id="tremDry" type="button">Play dry</button>
+            <button id="tremWet" type="button">Play with tremolo</button>
+            <button id="tremStop" type="button" disabled>Stop</button>
+          </div>
+        </section>
+
         <section aria-labelledby="pitch-h">
-          <h2 id="pitch-h">9. Pitch-shift (Laroche-Dolson 1999)</h2>
+          <h2 id="pitch-h">12. Pitch-shift (Laroche-Dolson 1999)</h2>
           <p>Shift the loop’s pitch <em>without</em> changing its speed. Octave up, down, or unison — live.</p>
           <div class="row">
             <button id="pitchPlay" type="button">Play loop</button>
@@ -203,7 +326,7 @@
         </section>
 
         <section aria-labelledby="stretch-h">
-          <h2 id="stretch-h">10. Time-stretch (Průša 2022, PGHI)</h2>
+          <h2 id="stretch-h">13. Time-stretch (Průša 2022, PGHI)</h2>
           <p>Change the loop’s <em>duration</em> while keeping its pitch. Compare original to half- and double-length.</p>
           <div class="row">
             <button id="stretchOrig" type="button">Original</button>
@@ -215,7 +338,7 @@
         </section>
 
         <section aria-labelledby="foa-h">
-          <h2 id="foa-h">11. Ambisonic → binaural (Ahrens 2022)</h2>
+          <h2 id="foa-h">14. Ambisonic → binaural (Ahrens 2022)</h2>
           <p>
             A mono tone is encoded to first-order ambisonics at a chosen azimuth,
             then decoded to binaural through the HRIR. Move the azimuth and hear it
@@ -234,7 +357,7 @@
         </section>
 
         <section aria-labelledby="loud-h">
-          <h2 id="loud-h">12. Loudness &amp; true-peak meter (ITU-R BS.1770-5)</h2>
+          <h2 id="loud-h">15. Loudness &amp; true-peak meter (ITU-R BS.1770-5)</h2>
           <p>
             Live ITU loudness while audio plays. Readings update continuously for
             sighted users; activate “Speak readings” for a one-shot spoken summary
@@ -258,7 +381,7 @@
         </section>
 
         <section aria-labelledby="group-h">
-          <h2 id="group-h">13. Groups</h2>
+          <h2 id="group-h">16. Groups</h2>
           <p>Two sounds controlled as one — play and stop the whole group together.</p>
           <div class="row">
             <button id="groupPlay" type="button">Play group</button>
@@ -553,7 +676,123 @@
         stopBtn.addEventListener("click", () => { ab.stop(); stopBtn.disabled = true; });
       })();
 
-      // ---- 9. Pitch-shift -----------------------------------------------------
+      // ---- 9. Modulated delay (chorus/flanger/vibrato/doubling/delay) ---------
+      (() => {
+        const preset = document.getElementById("modPreset");
+        const rate = document.getElementById("modRate");
+        const rateVal = document.getElementById("modRateVal");
+        const depth = document.getElementById("modDepth");
+        const depthVal = document.getElementById("modDepthVal");
+        const feedback = document.getElementById("modFeedback");
+        const feedbackVal = document.getElementById("modFeedbackVal");
+        const stopBtn = document.getElementById("modStop");
+        // Per-preset natural LFO/feedback values; the factory preset still sets the
+        // dry/wet structure (blend + feedforward), so each voice keeps its character.
+        const presetDefaults = {
+          chorus: { rate: 0.5, depth: 4, feedback: 0.7 },
+          flanger: { rate: 0.25, depth: 4, feedback: -0.7 },
+          vibrato: { rate: 5, depth: 3, feedback: 0 },
+          doubling: { rate: 0.4, depth: 1, feedback: 0 },
+          delay: { rate: 0, depth: 0, feedback: 0.3 },
+        };
+        const factories = {
+          chorus: (o) => cacophony.createChorus(o),
+          flanger: (o) => cacophony.createFlanger(o),
+          vibrato: (o) => cacophony.createVibrato(o),
+          doubling: (o) => cacophony.createDoubling(o),
+          delay: (o) => cacophony.createDelay(o),
+        };
+        const renderRate = () => { rateVal.textContent = `${parseFloat(rate.value).toFixed(2)} Hz`; };
+        const renderDepth = () => { depthVal.textContent = `${parseFloat(depth.value).toFixed(1)} ms`; };
+        const renderFeedback = () => { feedbackVal.textContent = parseFloat(feedback.value).toFixed(2); };
+        rate.addEventListener("input", renderRate);
+        depth.addEventListener("input", renderDepth);
+        feedback.addEventListener("input", renderFeedback);
+        preset.addEventListener("change", () => {
+          const d = presetDefaults[preset.value];
+          rate.value = d.rate; depth.value = d.depth; feedback.value = d.feedback;
+          renderRate(); renderDepth(); renderFeedback();
+          say(`${preset.options[preset.selectedIndex].text} selected.`);
+        });
+        const ab = makeEffectAB({
+          label: "modulated delay",
+          makeEffect: () => factories[preset.value]({
+            rate: parseFloat(rate.value),
+            depth: parseFloat(depth.value),
+            feedback: parseFloat(feedback.value),
+          }),
+        });
+        document.getElementById("modDry").addEventListener("click", () => { ab.play(false); stopBtn.disabled = false; });
+        document.getElementById("modWet").addEventListener("click", () => { ab.play(true); stopBtn.disabled = false; });
+        stopBtn.addEventListener("click", () => { ab.stop(); stopBtn.disabled = true; });
+      })();
+
+      // ---- 10. Phaser ---------------------------------------------------------
+      (() => {
+        const freq = document.getElementById("phaserFreq");
+        const freqVal = document.getElementById("phaserFreqVal");
+        const rate = document.getElementById("phaserRate");
+        const rateVal = document.getElementById("phaserRateVal");
+        const depth = document.getElementById("phaserDepth");
+        const depthVal = document.getElementById("phaserDepthVal");
+        const stages = document.getElementById("phaserStages");
+        const stagesVal = document.getElementById("phaserStagesVal");
+        const feedback = document.getElementById("phaserFeedback");
+        const feedbackVal = document.getElementById("phaserFeedbackVal");
+        const mix = document.getElementById("phaserMix");
+        const mixVal = document.getElementById("phaserMixVal");
+        const stopBtn = document.getElementById("phaserStop");
+        freq.addEventListener("input", () => { freqVal.textContent = `${freq.value} Hz`; });
+        rate.addEventListener("input", () => { rateVal.textContent = `${parseFloat(rate.value).toFixed(2)} Hz`; });
+        depth.addEventListener("input", () => { depthVal.textContent = `${parseFloat(depth.value).toFixed(1)} oct`; });
+        stages.addEventListener("input", () => {
+          const n = parseInt(stages.value, 10);
+          stagesVal.textContent = `${n} sections (${n / 2} notches)`;
+        });
+        feedback.addEventListener("input", () => { feedbackVal.textContent = parseFloat(feedback.value).toFixed(2); });
+        mix.addEventListener("input", () => { mixVal.textContent = `${Math.round(mix.value * 100)}%`; });
+        const ab = makeEffectAB({
+          label: "phaser",
+          makeEffect: () => cacophony.createPhaser({
+            frequency: parseFloat(freq.value),
+            rate: parseFloat(rate.value),
+            depth: parseFloat(depth.value),
+            stages: parseInt(stages.value, 10),
+            feedback: parseFloat(feedback.value),
+            mix: parseFloat(mix.value),
+          }),
+        });
+        document.getElementById("phaserDry").addEventListener("click", () => { ab.play(false); stopBtn.disabled = false; });
+        document.getElementById("phaserWet").addEventListener("click", () => { ab.play(true); stopBtn.disabled = false; });
+        stopBtn.addEventListener("click", () => { ab.stop(); stopBtn.disabled = true; });
+      })();
+
+      // ---- 11. Tremolo / auto-pan ---------------------------------------------
+      (() => {
+        const shape = document.getElementById("tremShape");
+        const mode = document.getElementById("tremMode");
+        const rate = document.getElementById("tremRate");
+        const rateVal = document.getElementById("tremRateVal");
+        const depth = document.getElementById("tremDepth");
+        const depthVal = document.getElementById("tremDepthVal");
+        const stopBtn = document.getElementById("tremStop");
+        rate.addEventListener("input", () => { rateVal.textContent = `${parseFloat(rate.value).toFixed(1)} Hz`; });
+        depth.addEventListener("input", () => { depthVal.textContent = `${Math.round(depth.value * 100)}%`; });
+        const ab = makeEffectAB({
+          label: "tremolo",
+          makeEffect: () => cacophony.createTremolo({
+            rate: parseFloat(rate.value),
+            depth: parseFloat(depth.value),
+            shape: parseInt(shape.value, 10),
+            stereoPhase: parseInt(mode.value, 10),
+          }),
+        });
+        document.getElementById("tremDry").addEventListener("click", () => { ab.play(false); stopBtn.disabled = false; });
+        document.getElementById("tremWet").addEventListener("click", () => { ab.play(true); stopBtn.disabled = false; });
+        stopBtn.addEventListener("click", () => { ab.stop(); stopBtn.disabled = true; });
+      })();
+
+      // ---- 12. Pitch-shift -----------------------------------------------------
       (() => {
         let sound = null;
         const state = document.getElementById("pitchState");
@@ -581,7 +820,7 @@
         document.getElementById("pitchUp").addEventListener("click", () => setShift(2, "up an octave"));
       })();
 
-      // ---- 10. Time-stretch ---------------------------------------------------
+      // ---- 13. Time-stretch ---------------------------------------------------
       (() => {
         let source = null;
         const state = document.getElementById("stretchState");
@@ -611,7 +850,7 @@
         stopBtn.addEventListener("click", () => { if (source) { try { source.stop(); } catch (e) {} } stopBtn.disabled = true; say("Time-stretch stopped."); });
       })();
 
-      // ---- 11. Ambisonic → binaural ------------------------------------------
+      // ---- 14. Ambisonic → binaural ------------------------------------------
       (() => {
         let decoder = null, source = null;
         const az = document.getElementById("azimuth");
@@ -659,7 +898,7 @@
         stopBtn.addEventListener("click", () => { if (source) { try { source.stop(); } catch (e) {} } stopBtn.disabled = true; say("Ambisonic demo stopped."); });
       })();
 
-      // ---- 12. Loudness meter + assertion ------------------------------------
+      // ---- 15. Loudness meter + assertion ------------------------------------
       (() => {
         let meter = null;
         const readout = document.getElementById("loudReadout");
@@ -704,7 +943,7 @@
         });
       })();
 
-      // ---- 13. Groups ---------------------------------------------------------
+      // ---- 16. Groups ---------------------------------------------------------
       (() => {
         let group = null;
         const stopBtn = document.getElementById("groupStop");

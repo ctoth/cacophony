@@ -44,7 +44,10 @@ export type {
   DynamicsOptions,
   FdnReverbOptions,
   FoaDecoderOptions,
+  ModulatedDelayOptions,
+  PhaserOptions,
   ReverbOptions,
+  TremoloOptions,
   WaveshaperOptions,
 } from "./effects";
 export {
@@ -52,8 +55,11 @@ export {
   DynamicsEffect,
   FdnReverbEffect,
   FoaDecoder,
+  ModulatedDelayEffect,
+  PhaserEffect,
   ReverbEffect,
   ShareEffect,
+  TremoloEffect,
   WaveshaperEffect,
 } from "./effects";
 export type {

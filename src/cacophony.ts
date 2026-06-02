@@ -4,8 +4,11 @@ import dattorroReverbProcessorWorkletUrl from "./bundles/dattorro-reverb-bundle.
 import dynamicsProcessorWorkletUrl from "./bundles/dynamics-bundle.js?url";
 import fdnReverbProcessorWorkletUrl from "./bundles/fdn-reverb-bundle.js?url";
 import loudnessMeterProcessorWorkletUrl from "./bundles/loudness-meter-bundle.js?url";
+import modulatedDelayProcessorWorkletUrl from "./bundles/modulated-delay-bundle.js?url";
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
+import phaserProcessorWorkletUrl from "./bundles/phaser-bundle.js?url";
 import stereoToBFormatProcessorWorkletUrl from "./bundles/stereo-to-bformat-bundle.js?url";
+import tremoloProcessorWorkletUrl from "./bundles/tremolo-bundle.js?url";
 import waveshaperProcessorWorkletUrl from "./bundles/waveshaper-bundle.js?url";
 import { Bus } from "./bus";
 import { AudioCache, type ICache } from "./cache";
@@ -29,10 +32,16 @@ import {
   type FdnReverbOptions,
   FoaDecoder,
   type FoaDecoderOptions,
+  ModulatedDelayEffect,
+  type ModulatedDelayOptions,
   markAsCacophonyBiquad,
+  PhaserEffect,
+  type PhaserOptions,
   ReverbEffect,
   type ReverbOptions,
   ShareEffect,
+  TremoloEffect,
+  type TremoloOptions,
   WaveshaperEffect,
   type WaveshaperOptions,
 } from "./effects";
@@ -44,6 +53,7 @@ import { LoudnessMeter } from "./meters/loudness-meter";
 import { MicrophoneStream } from "./microphone";
 import type { ThreeDOptions } from "./pannerMixin";
 import { GATE_DEFAULT_RATIO } from "./processors/dynamics-core";
+import { DATTORRO_INV_SQRT2 } from "./processors/modulated-delay-core";
 import { type TimeStretchOptions, timeStretch } from "./processors/timestretch-core";
 import { Sound } from "./sound";
 import { Synth } from "./synth";
@@ -457,6 +467,9 @@ export class Cacophony {
       await this.loadDynamics(signal);
       await this.loadFdnReverb(signal);
       await this.loadWaveshaper(signal);
+      await this.loadModulatedDelay(signal);
+      await this.loadPhaser(signal);
+      await this.loadTremolo(signal);
       await this.loadLoudnessMeter(signal);
     } else {
       console.warn("AudioWorklet not supported");
@@ -583,6 +596,75 @@ export class Cacophony {
    */
   async createWaveshaperNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
     return this.createWorkletNode("waveshaper", waveshaperProcessorWorkletUrl, undefined, options, context);
+  }
+
+  /**
+   * Idempotently registers the `modulated-delay` AudioWorkletProcessor —
+   * Dattorro's unified modulated-delay circuit (JAES 1997, Fig. 36) backing
+   * delay/chorus/flanger/vibrato/doubling, with Lagrange FIR fractional-delay
+   * interpolation (Laakso 1996) — on this context. Safe to call repeatedly —
+   * subsequent calls short-circuit via the per-context {@link loadedAudioWorklets}
+   * set. Cross-context: pass `context` so a {@link ModulatedDelayEffect} added to
+   * a bus on a different context loads there.
+   */
+  async loadModulatedDelay(signal?: AbortSignal, context?: BaseContext): Promise<void> {
+    await this.loadAudioWorkletModule("modulated-delay", modulatedDelayProcessorWorkletUrl, signal, context);
+  }
+
+  /**
+   * Constructs a `modulated-delay` AudioWorkletNode. Caller is expected to have
+   * loaded the module already (via {@link loadModulatedDelay} or by reaching here
+   * through {@link ModulatedDelayEffect.build}). Uses the same construct/fallback
+   * path as {@link createWorkletNode}.
+   */
+  async createModulatedDelayNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("modulated-delay", modulatedDelayProcessorWorkletUrl, undefined, options, context);
+  }
+
+  /**
+   * Idempotently registers the `phaser` AudioWorkletProcessor — a classic
+   * MXR/Univibe-style allpass-cascade phase shifter (Smith STAN-M-21; PASP §8.9:
+   * a cascade of first-order allpass sections at a common LFO-swept break
+   * frequency, summed additively with the dry signal to sweep notches) on this
+   * context. Safe to call repeatedly — subsequent calls short-circuit via the
+   * per-context {@link loadedAudioWorklets} set. Cross-context: pass `context` so
+   * a {@link PhaserEffect} added to a bus on a different context loads there.
+   */
+  async loadPhaser(signal?: AbortSignal, context?: BaseContext): Promise<void> {
+    await this.loadAudioWorkletModule("phaser", phaserProcessorWorkletUrl, signal, context);
+  }
+
+  /**
+   * Constructs a `phaser` AudioWorkletNode. Caller is expected to have loaded the
+   * module already (via {@link loadPhaser} or by reaching here through
+   * {@link PhaserEffect.build}). Uses the same construct/fallback path as
+   * {@link createWorkletNode}.
+   */
+  async createPhaserNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("phaser", phaserProcessorWorkletUrl, undefined, options, context);
+  }
+
+  /**
+   * Idempotently registers the `tremolo` AudioWorkletProcessor — LFO-driven
+   * amplitude modulation (a VCA swung by a low-frequency oscillator; standard AM
+   * theory + Dattorro 1997 p.776 quadrature stereo LFO + Mitcheltree et al.
+   * DAFx23 LFO framing) on this context. Safe to call repeatedly — subsequent
+   * calls short-circuit via the per-context {@link loadedAudioWorklets} set.
+   * Cross-context: pass `context` so a {@link TremoloEffect} added to a bus on a
+   * different context loads there.
+   */
+  async loadTremolo(signal?: AbortSignal, context?: BaseContext): Promise<void> {
+    await this.loadAudioWorkletModule("tremolo", tremoloProcessorWorkletUrl, signal, context);
+  }
+
+  /**
+   * Constructs a `tremolo` AudioWorkletNode. Caller is expected to have loaded the
+   * module already (via {@link loadTremolo} or by reaching here through
+   * {@link TremoloEffect.build}). Uses the same construct/fallback path as
+   * {@link createWorkletNode}.
+   */
+  async createTremoloNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("tremolo", tremoloProcessorWorkletUrl, undefined, options, context);
   }
 
   /**
@@ -1163,6 +1245,144 @@ export class Cacophony {
    */
   createDistortion(options: WaveshaperOptions = {}): WaveshaperEffect {
     return new WaveshaperEffect(this, { drive: 4, shape: 1, ...options });
+  }
+
+  /**
+   * Creates a {@link ModulatedDelayEffect} preset as a DELAY / ECHO — Dattorro's
+   * unified modulated-delay circuit (JAES 1997, Fig. 36) with the modulation OFF
+   * (`depth: 0`, `rate: 0`). Echo knobs (Table 6): full dry `blend: 1` plus a
+   * unity wet tap `feedforward: 1`; feedback defaults to 0 (a single tap) but is
+   * caller-configurable for a regenerating echo (|feedback| < 1, Table 6). The
+   * 250 ms tap sits in the echo range (Table 7). All knobs are exposed.
+   */
+  createDelay(options: ModulatedDelayOptions = {}): ModulatedDelayEffect {
+    return new ModulatedDelayEffect(this, {
+      blend: 1,
+      feedforward: 1,
+      feedback: 0,
+      delayTime: 250,
+      depth: 0,
+      rate: 0,
+      ...options,
+    });
+  }
+
+  /**
+   * Creates a {@link ModulatedDelayEffect} preset as a (white) CHORUS — Dattorro
+   * Table 6 white-chorus knobs `blend: 0.7071`, `feedforward: 1`,
+   * `feedback: 0.7071` (blend = feedback, feedforward = 1, the negative-feedback
+   * path that minimizes the spectral aberration of a plain dry+wet chorus). A
+   * 9 ms tap modulated 4 ms at 0.5 Hz sits in the chorus range (Table 7).
+   *
+   * NOTE: Dattorro's white chorus (p.776) combines this negative-feedback path
+   * with ALLPASS fractional-delay interpolation. This implementation uses the
+   * white-chorus knob settings but substitutes cubic-Lagrange interpolation
+   * (Laakso 1996) — transient-safe under modulation (Laakso p.52), trading some
+   * high-frequency trough depth versus a true allpass-interpolated white chorus.
+   */
+  createChorus(options: ModulatedDelayOptions = {}): ModulatedDelayEffect {
+    return new ModulatedDelayEffect(this, {
+      blend: DATTORRO_INV_SQRT2,
+      feedforward: 1,
+      feedback: DATTORRO_INV_SQRT2,
+      delayTime: 9,
+      depth: 4,
+      rate: 0.5,
+      ...options,
+    });
+  }
+
+  /**
+   * Creates a {@link ModulatedDelayEffect} preset as a FLANGER — Dattorro Table 6
+   * flanger knobs `blend: 0.7071`, `feedforward: 0.7071` (blend = feedforward for
+   * the deepest comb trough), `feedback: -0.7071` (negative feedback deepens the
+   * troughs). A short 5 ms tap swept 4 ms at 0.25 Hz gives the classic flange
+   * (Table 7).
+   */
+  createFlanger(options: ModulatedDelayOptions = {}): ModulatedDelayEffect {
+    return new ModulatedDelayEffect(this, {
+      blend: DATTORRO_INV_SQRT2,
+      feedforward: DATTORRO_INV_SQRT2,
+      feedback: -DATTORRO_INV_SQRT2,
+      delayTime: 5,
+      depth: 4,
+      rate: 0.25,
+      ...options,
+    });
+  }
+
+  /**
+   * Creates a {@link ModulatedDelayEffect} preset as a VIBRATO — Dattorro Table 6
+   * vibrato knobs `blend: 0`, `feedforward: 1`, `feedback: 0` (100% wet, no dry
+   * path, no feedback), so only the pitch-modulated delayed signal is heard. A
+   * 5 ms tap swept 3 ms at 5 Hz (Table 7).
+   */
+  createVibrato(options: ModulatedDelayOptions = {}): ModulatedDelayEffect {
+    return new ModulatedDelayEffect(this, {
+      blend: 0,
+      feedforward: 1,
+      feedback: 0,
+      delayTime: 5,
+      depth: 3,
+      rate: 5,
+      ...options,
+    });
+  }
+
+  /**
+   * Creates a {@link ModulatedDelayEffect} preset as DOUBLING ("double tracking")
+   * — Dattorro Table 6 doubling knobs `blend: 0.7071`, `feedforward: 0.7071`,
+   * `feedback: 0` (no feedback). A ~20 ms tap (Table 7 doubling nominal) with a
+   * gentle 1 ms / 0.4 Hz wobble fattens a single take into two.
+   */
+  createDoubling(options: ModulatedDelayOptions = {}): ModulatedDelayEffect {
+    return new ModulatedDelayEffect(this, {
+      blend: DATTORRO_INV_SQRT2,
+      feedforward: DATTORRO_INV_SQRT2,
+      feedback: 0,
+      delayTime: 20,
+      depth: 1,
+      rate: 0.4,
+      ...options,
+    });
+  }
+
+  /**
+   * Creates a {@link PhaserEffect} — a classic MXR/Univibe-style phase shifter: a
+   * cascade of first-order allpass sections at a common LFO-swept break frequency
+   * summed additively with the dry signal to sweep notches through the spectrum
+   * (Smith STAN-M-21; PASP §8.9). Two allpass sections per notch (default 4
+   * sections = 2 notches). Add the returned effect to a {@link Bus} via
+   * `bus.addFilter(effect)`.
+   */
+  createPhaser(options: PhaserOptions = {}): PhaserEffect {
+    return new PhaserEffect(this, options);
+  }
+
+  /**
+   * Creates a {@link TremoloEffect} — LFO-driven amplitude modulation (a VCA
+   * swung by a low-frequency oscillator). The gain swings between (1 - depth)
+   * and 1, never inverting (a true tremolo, not ring modulation). Anchored to
+   * standard AM theory, Dattorro 1997 (p.776) for the quadrature stereo LFO, and
+   * Mitcheltree et al. (DAFx23) for the LFO-driven-effect framing. `shape` selects
+   * the LFO waveform (0 = sine, 1 = triangle, 2 = square); `stereoPhase` offsets
+   * the per-channel LFO. Add the returned effect to a {@link Bus} via
+   * `bus.addFilter(effect)`.
+   */
+  createTremolo(options: TremoloOptions = {}): TremoloEffect {
+    return new TremoloEffect(this, options);
+  }
+
+  /**
+   * Creates a {@link TremoloEffect} preset as an AUTO-PAN — a tremolo with
+   * `stereoPhase: 180`, so the left and right channel gains modulate in
+   * anti-phase (the sound swings hard between the speakers). The 180-deg
+   * per-channel LFO offset is Dattorro's stereo-modulation convention (p.776). A
+   * convenience wrapper over {@link createTremolo}; caller options override the
+   * preset.
+   */
+  createAutoPan(options: TremoloOptions = {}): TremoloEffect {
+    return new TremoloEffect(this, { stereoPhase: 180, ...options });
   }
 
   /** The default audio context for this Cacophony instance (used by

@@ -64,6 +64,39 @@ interface WaveshaperHost {
 }
 
 /**
+ * Minimal structural interface for the Cacophony surface {@link ModulatedDelayEffect}
+ * needs. Declared locally (like {@link ReverbHost}) so this module avoids a
+ * circular import on cacophony.ts. Both methods accept an optional `BaseContext`
+ * for the cross-context contract `CacophonyEffect.build(context)` promises.
+ */
+interface ModulatedDelayHost {
+  loadModulatedDelay(signal?: AbortSignal, context?: BaseContext): Promise<void>;
+  createModulatedDelayNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode>;
+}
+
+/**
+ * Minimal structural interface for the Cacophony surface {@link PhaserEffect}
+ * needs. Declared locally (like {@link ReverbHost}) so this module avoids a
+ * circular import on cacophony.ts. Both methods accept an optional `BaseContext`
+ * for the cross-context contract `CacophonyEffect.build(context)` promises.
+ */
+interface PhaserHost {
+  loadPhaser(signal?: AbortSignal, context?: BaseContext): Promise<void>;
+  createPhaserNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode>;
+}
+
+/**
+ * Minimal structural interface for the Cacophony surface {@link TremoloEffect}
+ * needs. Declared locally (like {@link ReverbHost}) so this module avoids a
+ * circular import on cacophony.ts. Both methods accept an optional `BaseContext`
+ * for the cross-context contract `CacophonyEffect.build(context)` promises.
+ */
+interface TremoloHost {
+  loadTremolo(signal?: AbortSignal, context?: BaseContext): Promise<void>;
+  createTremoloNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode>;
+}
+
+/**
  * Minimal structural interface for the Cacophony surface {@link FoaDecoder} needs.
  * Declared locally (like {@link ReverbHost}) so this module avoids a circular
  * import on cacophony.ts. `loadFoaHrir` resolves (and per-context memoizes) the
@@ -334,6 +367,153 @@ export class WaveshaperEffect implements CacophonyEffect {
   async build(context: BaseContext): Promise<AudioWorkletNode> {
     await this.host.loadWaveshaper(undefined, context);
     return this.host.createWaveshaperNode({ parameterData: this.options as Record<string, number> }, context);
+  }
+}
+
+/**
+ * Construction-time configuration for a {@link ModulatedDelayEffect}, mirroring
+ * the `modulated-delay` AudioWorkletProcessor's AudioParam set (see
+ * {@link import('./processors/modulated-delay').ModulatedDelayWorkletProcessor}).
+ * All fields are optional; the worklet clamps to its documented ranges
+ * downstream. Field NAMES match the AudioParam names exactly (they flow straight
+ * through as `parameterData`).
+ *
+ * The effect is Dattorro's unified modulated-delay circuit (JAES 1997, Fig. 36)
+ * with Lagrange FIR fractional-delay interpolation (Laakso 1996). One topology —
+ * dry (`blend`) + a modulated wet tap (`feedforward`) + feedback on a FIXED
+ * center tap — yields delay/echo, chorus, flanger, vibrato and doubling from
+ * knob presets (Table 6). The `createDelay`/`createChorus`/`createFlanger`/
+ * `createVibrato`/`createDoubling` factories are presets over these params.
+ */
+export interface ModulatedDelayOptions {
+  /** Nominal (center) delay in ms — the fixed feedback tap center. Default 5. Range 0..1000. */
+  delayTime?: number;
+  /** Peak LFO delay excursion in ms (CHORUS_WIDTH); 0 = pure delay. Default 0. Range 0..50. */
+  depth?: number;
+  /** LFO rate f_e in Hz. Default 0.5. Range 0..20. */
+  rate?: number;
+  /** Feedback gain on the fixed center tap. Default 0. Range -0.9999999..0.9999999. */
+  feedback?: number;
+  /** Dry path gain (blend). Default 1. Range 0..1. */
+  blend?: number;
+  /** Wet (modulated tap) gain (feedforward). Default 0.7071. Range 0..1. */
+  feedforward?: number;
+  /** Interpolation index: 0 = cubic (4-tap Lagrange N=3), 1 = linear (2-tap N=1). Default 0. */
+  interpolation?: number;
+}
+
+/**
+ * CacophonyEffect that builds a `modulated-delay` AudioWorkletNode — Dattorro's
+ * unified modulated-delay circuit (JAES 1997, Fig. 36) backing
+ * delay/chorus/flanger/vibrato/doubling, with Lagrange FIR fractional-delay
+ * interpolation (Laakso 1996). Mirrors {@link ReverbEffect}: `build` idempotently
+ * loads the worklet module on the supplied context, then constructs the node with
+ * the supplied {@link ModulatedDelayOptions} as `parameterData`. Honors the
+ * cross-context contract (builds against the bus's context, not the host's own).
+ */
+export class ModulatedDelayEffect implements CacophonyEffect {
+  constructor(
+    private readonly host: ModulatedDelayHost,
+    private readonly options: ModulatedDelayOptions = {},
+  ) {}
+
+  async build(context: BaseContext): Promise<AudioWorkletNode> {
+    await this.host.loadModulatedDelay(undefined, context);
+    return this.host.createModulatedDelayNode({ parameterData: this.options as Record<string, number> }, context);
+  }
+}
+
+/**
+ * Construction-time configuration for a {@link PhaserEffect}, mirroring the
+ * `phaser` AudioWorkletProcessor's AudioParam set (see
+ * {@link import('./processors/phaser').PhaserWorkletProcessor}). All fields are
+ * optional; the worklet clamps to its documented ranges downstream. Field NAMES
+ * match the AudioParam names exactly (they flow straight through as
+ * `parameterData`).
+ *
+ * The effect is a classic MXR/Univibe-style phaser: a cascade of first-order
+ * allpass sections at a common LFO-swept break frequency, summed additively with
+ * the dry signal to sweep notches through the spectrum (Smith STAN-M-21; PASP
+ * §8.9). Two allpass sections make one notch.
+ */
+export interface PhaserOptions {
+  /** Center break frequency of the allpass sections, in Hz. Default 500. Range 20..10000. */
+  frequency?: number;
+  /** LFO rate in Hz. Default 0.5. Range 0..20. */
+  rate?: number;
+  /** Log sweep depth in octaves (break freq *= 2^(depth*lfo)). Default 1.5. Range 0..4. */
+  depth?: number;
+  /** Number of first-order allpass sections (2 per notch). Default 4. Range 2..12. */
+  stages?: number;
+  /** Feedback (regeneration/resonance). Default 0. Range -0.95..0.95. */
+  feedback?: number;
+  /** Additive wet gain (notch depth); y = x + mix*cascade. Default 0.5. Range 0..1. */
+  mix?: number;
+}
+
+/**
+ * CacophonyEffect that builds a `phaser` AudioWorkletNode — a classic
+ * MXR/Univibe-style allpass-cascade phase shifter (Smith STAN-M-21; PASP §8.9).
+ * Mirrors {@link ReverbEffect}: `build` idempotently loads the worklet module on
+ * the supplied context, then constructs the node with the supplied
+ * {@link PhaserOptions} as `parameterData`. Honors the cross-context contract
+ * (builds against the bus's context, not the host's own).
+ */
+export class PhaserEffect implements CacophonyEffect {
+  constructor(
+    private readonly host: PhaserHost,
+    private readonly options: PhaserOptions = {},
+  ) {}
+
+  async build(context: BaseContext): Promise<AudioWorkletNode> {
+    await this.host.loadPhaser(undefined, context);
+    return this.host.createPhaserNode({ parameterData: this.options as Record<string, number> }, context);
+  }
+}
+
+/**
+ * Construction-time configuration for a {@link TremoloEffect}, mirroring the
+ * `tremolo` AudioWorkletProcessor's AudioParam set (see
+ * {@link import('./processors/tremolo').TremoloWorkletProcessor}). All fields are
+ * optional; the worklet clamps to its documented ranges downstream. Field NAMES
+ * match the AudioParam names exactly (they flow straight through as
+ * `parameterData`).
+ *
+ * The effect is LFO-driven amplitude modulation (a VCA swung by an LFO) — the
+ * gain swings between (1 - depth) and 1, never inverting (a true tremolo, not
+ * ring modulation). Anchored to standard AM theory, the quadrature stereo LFO of
+ * Dattorro 1997 (p.776), and the LFO-driven-effect framing of Mitcheltree et al.
+ * (DAFx23). `stereoPhase` offsets the per-channel LFO (0 = mono, 90 = quadrature,
+ * 180 = hard auto-pan).
+ */
+export interface TremoloOptions {
+  /** LFO rate in Hz. Default 5. Range 0..20. */
+  rate?: number;
+  /** Modulation depth (0 = bypass, 1 = full 0..1 swing). Default 0.5. Range 0..1. */
+  depth?: number;
+  /** LFO shape index: 0 = sine, 1 = triangle, 2 = square. Default 0. */
+  shape?: number;
+  /** Per-channel LFO phase offset in degrees (0 = mono, 90 = quadrature, 180 = auto-pan). Default 0. Range 0..180. */
+  stereoPhase?: number;
+}
+
+/**
+ * CacophonyEffect that builds a `tremolo` AudioWorkletNode — LFO-driven amplitude
+ * modulation (AM theory; Dattorro 1997 p.776 quadrature stereo LFO; Mitcheltree
+ * et al. DAFx23 LFO framing). Mirrors {@link ReverbEffect}: `build` idempotently
+ * loads the worklet module on the supplied context, then constructs the node with
+ * the supplied {@link TremoloOptions} as `parameterData`. Honors the cross-context
+ * contract (builds against the bus's context, not the host's own).
+ */
+export class TremoloEffect implements CacophonyEffect {
+  constructor(
+    private readonly host: TremoloHost,
+    private readonly options: TremoloOptions = {},
+  ) {}
+
+  async build(context: BaseContext): Promise<AudioWorkletNode> {
+    await this.host.loadTremolo(undefined, context);
+    return this.host.createTremoloNode({ parameterData: this.options as Record<string, number> }, context);
   }
 }
 
