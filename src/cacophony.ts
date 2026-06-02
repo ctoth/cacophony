@@ -6,7 +6,9 @@ import fdnReverbProcessorWorkletUrl from "./bundles/fdn-reverb-bundle.js?url";
 import loudnessMeterProcessorWorkletUrl from "./bundles/loudness-meter-bundle.js?url";
 import modulatedDelayProcessorWorkletUrl from "./bundles/modulated-delay-bundle.js?url";
 import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
+import phaserProcessorWorkletUrl from "./bundles/phaser-bundle.js?url";
 import stereoToBFormatProcessorWorkletUrl from "./bundles/stereo-to-bformat-bundle.js?url";
+import tremoloProcessorWorkletUrl from "./bundles/tremolo-bundle.js?url";
 import waveshaperProcessorWorkletUrl from "./bundles/waveshaper-bundle.js?url";
 import { Bus } from "./bus";
 import { AudioCache, type ICache } from "./cache";
@@ -33,9 +35,13 @@ import {
   ModulatedDelayEffect,
   type ModulatedDelayOptions,
   markAsCacophonyBiquad,
+  PhaserEffect,
+  type PhaserOptions,
   ReverbEffect,
   type ReverbOptions,
   ShareEffect,
+  TremoloEffect,
+  type TremoloOptions,
   WaveshaperEffect,
   type WaveshaperOptions,
 } from "./effects";
@@ -462,6 +468,8 @@ export class Cacophony {
       await this.loadFdnReverb(signal);
       await this.loadWaveshaper(signal);
       await this.loadModulatedDelay(signal);
+      await this.loadPhaser(signal);
+      await this.loadTremolo(signal);
       await this.loadLoudnessMeter(signal);
     } else {
       console.warn("AudioWorklet not supported");
@@ -611,6 +619,52 @@ export class Cacophony {
    */
   async createModulatedDelayNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
     return this.createWorkletNode("modulated-delay", modulatedDelayProcessorWorkletUrl, undefined, options, context);
+  }
+
+  /**
+   * Idempotently registers the `phaser` AudioWorkletProcessor — a classic
+   * MXR/Univibe-style allpass-cascade phase shifter (Smith STAN-M-21; PASP §8.9:
+   * a cascade of first-order allpass sections at a common LFO-swept break
+   * frequency, summed additively with the dry signal to sweep notches) on this
+   * context. Safe to call repeatedly — subsequent calls short-circuit via the
+   * per-context {@link loadedAudioWorklets} set. Cross-context: pass `context` so
+   * a {@link PhaserEffect} added to a bus on a different context loads there.
+   */
+  async loadPhaser(signal?: AbortSignal, context?: BaseContext): Promise<void> {
+    await this.loadAudioWorkletModule("phaser", phaserProcessorWorkletUrl, signal, context);
+  }
+
+  /**
+   * Constructs a `phaser` AudioWorkletNode. Caller is expected to have loaded the
+   * module already (via {@link loadPhaser} or by reaching here through
+   * {@link PhaserEffect.build}). Uses the same construct/fallback path as
+   * {@link createWorkletNode}.
+   */
+  async createPhaserNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("phaser", phaserProcessorWorkletUrl, undefined, options, context);
+  }
+
+  /**
+   * Idempotently registers the `tremolo` AudioWorkletProcessor — LFO-driven
+   * amplitude modulation (a VCA swung by a low-frequency oscillator; standard AM
+   * theory + Dattorro 1997 p.776 quadrature stereo LFO + Mitcheltree et al.
+   * DAFx23 LFO framing) on this context. Safe to call repeatedly — subsequent
+   * calls short-circuit via the per-context {@link loadedAudioWorklets} set.
+   * Cross-context: pass `context` so a {@link TremoloEffect} added to a bus on a
+   * different context loads there.
+   */
+  async loadTremolo(signal?: AbortSignal, context?: BaseContext): Promise<void> {
+    await this.loadAudioWorkletModule("tremolo", tremoloProcessorWorkletUrl, signal, context);
+  }
+
+  /**
+   * Constructs a `tremolo` AudioWorkletNode. Caller is expected to have loaded the
+   * module already (via {@link loadTremolo} or by reaching here through
+   * {@link TremoloEffect.build}). Uses the same construct/fallback path as
+   * {@link createWorkletNode}.
+   */
+  async createTremoloNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
+    return this.createWorkletNode("tremolo", tremoloProcessorWorkletUrl, undefined, options, context);
   }
 
   /**
@@ -1291,6 +1345,44 @@ export class Cacophony {
       rate: 0.4,
       ...options,
     });
+  }
+
+  /**
+   * Creates a {@link PhaserEffect} — a classic MXR/Univibe-style phase shifter: a
+   * cascade of first-order allpass sections at a common LFO-swept break frequency
+   * summed additively with the dry signal to sweep notches through the spectrum
+   * (Smith STAN-M-21; PASP §8.9). Two allpass sections per notch (default 4
+   * sections = 2 notches). Add the returned effect to a {@link Bus} via
+   * `bus.addFilter(effect)`.
+   */
+  createPhaser(options: PhaserOptions = {}): PhaserEffect {
+    return new PhaserEffect(this, options);
+  }
+
+  /**
+   * Creates a {@link TremoloEffect} — LFO-driven amplitude modulation (a VCA
+   * swung by a low-frequency oscillator). The gain swings between (1 - depth)
+   * and 1, never inverting (a true tremolo, not ring modulation). Anchored to
+   * standard AM theory, Dattorro 1997 (p.776) for the quadrature stereo LFO, and
+   * Mitcheltree et al. (DAFx23) for the LFO-driven-effect framing. `shape` selects
+   * the LFO waveform (0 = sine, 1 = triangle, 2 = square); `stereoPhase` offsets
+   * the per-channel LFO. Add the returned effect to a {@link Bus} via
+   * `bus.addFilter(effect)`.
+   */
+  createTremolo(options: TremoloOptions = {}): TremoloEffect {
+    return new TremoloEffect(this, options);
+  }
+
+  /**
+   * Creates a {@link TremoloEffect} preset as an AUTO-PAN — a tremolo with
+   * `stereoPhase: 180`, so the left and right channel gains modulate in
+   * anti-phase (the sound swings hard between the speakers). The 180-deg
+   * per-channel LFO offset is Dattorro's stereo-modulation convention (p.776). A
+   * convenience wrapper over {@link createTremolo}; caller options override the
+   * preset.
+   */
+  createAutoPan(options: TremoloOptions = {}): TremoloEffect {
+    return new TremoloEffect(this, { stereoPhase: 180, ...options });
   }
 
   /** The default audio context for this Cacophony instance (used by
