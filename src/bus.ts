@@ -31,6 +31,21 @@ import { isCacophonyBuiltBiquad, isCacophonyEffect } from "./effects";
 export type BusConnectionTarget = Bus | AudioNode;
 
 /**
+ * Structural contract a routed source (e.g. a {@link Sound}) implements so a
+ * Bus can move it off itself before teardown. Declared here — rather than
+ * importing `Sound` — to avoid an import cycle (`sound.ts` already imports
+ * `Bus`). A Bus only ever needs this one method on its inbound sources.
+ */
+export interface BusRoutedSource {
+  /**
+   * Called by {@link Bus.drainTo} to move this source off the draining bus
+   * onto `target`. The source reroutes its primary route and/or any send that
+   * targeted `bus`.
+   */
+  _onBusDrained(bus: Bus, target: Bus): void;
+}
+
+/**
  * A named summing node with a filter chain and per-edge send gain. See
  * module-level docstring for topology.
  */
@@ -55,6 +70,14 @@ export class Bus {
   private readonly _filterChainEdges: Array<readonly [AudioNode, AudioNode]> = [];
   private readonly _sendGains: Map<BusConnectionTarget, GainNode> = new Map();
   private readonly _directConnections: Set<BusConnectionTarget> = new Set();
+  /**
+   * Inbound sources currently routed to this bus (primary route and/or sends).
+   * A Web Audio node cannot enumerate its own inputs, so sources register
+   * themselves here (via {@link _registerRoutedSource}) when they route to
+   * this bus and unregister on reroute/cleanup. {@link drainTo} walks this set
+   * to move live sounds off the bus before it is torn down.
+   */
+  private readonly _routedSources = new Set<BusRoutedSource>();
   /**
    * Hook invoked by the owning Cacophony instance to remove this bus from
    * the named-bus registry on destroy. Anonymous buses leave this undefined.
@@ -233,16 +256,67 @@ export class Bus {
   }
 
   /**
+   * Register an inbound source that routes to this bus (primary and/or send).
+   * Called by the source when it begins routing here. Idempotent (Set). Safe
+   * to call without a destroyed guard — registration during normal routing
+   * must never throw — but a destroyed bus has nothing to drain, so this
+   * early-returns once destroyed.
+   *
+   * @internal
+   */
+  _registerRoutedSource(source: BusRoutedSource): void {
+    if (this._destroyed) {
+      return;
+    }
+    this._routedSources.add(source);
+  }
+
+  /**
+   * Unregister an inbound source (it rerouted away or was cleaned up). No-op
+   * if the source was never registered.
+   *
+   * @internal
+   */
+  _unregisterRoutedSource(source: BusRoutedSource): void {
+    this._routedSources.delete(source);
+  }
+
+  /**
+   * Move every source currently routed to this bus onto `target`, so live
+   * sounds keep feeding a live bus instead of the dead `input` after this bus
+   * is torn down. Each registered source's {@link BusRoutedSource._onBusDrained}
+   * reroutes its primary route and/or the send that targeted this bus.
+   *
+   * @throws if this bus has been destroyed, or if `target` is this bus.
+   */
+  drainTo(target: Bus): void {
+    this._throwIfDestroyed();
+    if (target === this) {
+      throw new Error("Cannot drain a bus to itself");
+    }
+    for (const source of [...this._routedSources]) {
+      source._onBusDrained(this, target);
+    }
+    this._routedSources.clear();
+  }
+
+  /**
    * Tear down the bus — disconnects input, output, every send-gain, every
    * filter, then deregisters from the owner Cacophony's named-bus map.
    * Subsequent `addFilter`/`removeFilter`/`connect`/`disconnect` calls throw.
    *
-   * Sounds routed to a destroyed bus fall back to master on their next
+   * If `options.drainTo` is provided, every source routed to this bus is first
+   * rerouted onto that bus (via {@link drainTo}) so live sounds keep playing
+   * through a live bus. With no options the default teardown is unchanged:
+   * sounds routed to the destroyed bus fall back to master on their next
    * playback (the routeTo machinery checks `destroyed` at preplay).
    */
-  destroy(): void {
+  destroy(options?: { drainTo?: Bus }): void {
     if (this._destroyed) {
       return;
+    }
+    if (options?.drainTo) {
+      this.drainTo(options.drainTo);
     }
     this._destroyed = true;
     // Tear down all outgoing send-gain allocations.
