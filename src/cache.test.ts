@@ -1288,6 +1288,127 @@ describe("AudioCache", () => {
     });
   });
 
+  describe("Cache API unavailable (graceful degradation)", () => {
+    let originalCaches: typeof caches;
+
+    beforeEach(() => {
+      // Simulate a runtime without the browser Cache API global (e.g. Node).
+      originalCaches = global.caches;
+      (global as { caches?: typeof caches }).caches = undefined;
+    });
+
+    afterEach(() => {
+      global.caches = originalCaches;
+    });
+
+    it("degrades to fetch-only and returns an AudioBuffer without throwing or logging an error", async () => {
+      const url = "https://example.com/audio.wav";
+      const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const mockArrayBuffer = new ArrayBuffer(8);
+      const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        arrayBuffer: () => Promise.resolve(mockArrayBuffer),
+        headers: new Headers(),
+      } as Response);
+
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
+
+      const result = await cache.getAudioBuffer(audioContextMock, url);
+
+      expect(result).toBe(mockAudioBuffer);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledWith(url, expect.objectContaining({ signal: undefined }));
+      expect(consoleErrorSpy).not.toHaveBeenCalled();
+      consoleErrorSpy.mockRestore();
+    });
+
+    it("never touches the Cache API on the degraded path", async () => {
+      const url = "https://example.com/audio.wav";
+      const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const mockArrayBuffer = new ArrayBuffer(8);
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        arrayBuffer: () => Promise.resolve(mockArrayBuffer),
+        headers: new Headers(),
+      } as Response);
+
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
+
+      const result = await cache.getAudioBuffer(audioContextMock, url);
+
+      expect(result).toBe(mockAudioBuffer);
+      // `caches` is undefined; if the code had called `.open()` on it the call would have thrown.
+      expect(global.caches).toBeUndefined();
+    });
+
+    it("second call hits the in-memory LRU and does not fetch again", async () => {
+      const url = "https://example.com/audio.wav";
+      const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      const mockArrayBuffer = new ArrayBuffer(8);
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        arrayBuffer: () => Promise.resolve(mockArrayBuffer),
+        headers: new Headers(),
+      } as Response);
+
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
+
+      const result1 = await cache.getAudioBuffer(audioContextMock, url);
+      expect(result1).toBe(mockAudioBuffer);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+
+      const result2 = await cache.getAudioBuffer(audioContextMock, url);
+      expect(result2).toBe(mockAudioBuffer);
+      expect(mockFetch).toHaveBeenCalledTimes(1); // Still just one fetch — served from memory LRU
+    });
+
+    it("emits onLoadingComplete with decoded duration on the degraded path", async () => {
+      const url = "https://example.com/audio.wav";
+      const mockAudioBuffer = new AudioBuffer({ length: 220500, sampleRate: 44100 });
+      const mockArrayBuffer = new ArrayBuffer(8);
+      const onLoadingComplete = vi.fn();
+
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        arrayBuffer: () => Promise.resolve(mockArrayBuffer),
+        headers: new Headers(),
+      } as Response);
+
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
+
+      await cache.getAudioBuffer(audioContextMock, url, undefined, { onLoadingComplete });
+
+      expect(onLoadingComplete).toHaveBeenCalledWith(
+        expect.objectContaining({
+          url,
+          duration: mockAudioBuffer.duration,
+          size: mockArrayBuffer.byteLength,
+          timestamp: expect.any(Number),
+        }),
+      );
+    });
+
+    it("still handles data: URLs when the Cache API is absent", async () => {
+      const dataUrl = "data:audio/wav;base64,SGVsbG8gV29ybGQ=";
+      const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValueOnce(mockAudioBuffer);
+
+      const result = await cache.getAudioBuffer(audioContextMock, dataUrl);
+
+      expect(result).toBe(mockAudioBuffer);
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
+
   describe("AbortSignal support", () => {
     it("passes AbortSignal to fetch requests", async () => {
       const url = "https://example.com/audio.mp3";

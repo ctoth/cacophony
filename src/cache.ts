@@ -224,6 +224,17 @@ export class AudioCache implements ICache {
     AudioCache.cacheExpirationTime = time;
   }
 
+  /**
+   * Whether the browser Cache API (`caches`) global is available in the
+   * current runtime. Uses `typeof` so it never throws when the global is
+   * entirely absent (e.g. Node). When this returns `false`, the URL path
+   * degrades to fetch + decode (still using the in-memory LRU) instead of
+   * touching the persistent Cache API.
+   */
+  private static isCacheApiAvailable(): boolean {
+    return typeof caches !== "undefined" && caches != null;
+  }
+
   private static async openCache(): Promise<Cache> {
     try {
       return await caches.open("audio-cache");
@@ -617,6 +628,40 @@ export class AudioCache implements ICache {
     }
   }
 
+  /**
+   * Fetch + decode an audio URL WITHOUT touching the persistent Cache API.
+   * Used when the Cache API global (`caches`) is unavailable (e.g. Node).
+   *
+   * Mirrors the network branch of {@link fetchAndCacheBuffer}/{@link getAudioBuffer}
+   * but never reads from or writes to `caches`. Still:
+   * - uses the in-memory decoded-buffer LRU (write happens in {@link getAudioBuffer}),
+   * - emits progress callbacks via {@link createProgressTrackingStream},
+   * - is deduped through {@link getOrCreatePendingRequest} by the caller.
+   */
+  private static async fetchAndDecodeWithoutCache(
+    context: BaseContext,
+    url: string,
+    signal?: AbortSignal,
+  ): Promise<ArrayBuffer> {
+    const fetchResponse = await fetch(url, { signal });
+
+    if (fetchResponse.status !== 200 && !fetchResponse.ok) {
+      throw new Error(`Failed to fetch resource: ${fetchResponse.status} ${fetchResponse.statusText}`);
+    }
+
+    if (signal?.aborted) {
+      throw new DOMException("Operation was aborted", "AbortError");
+    }
+
+    // Use progress tracking for the response if body exists
+    if (fetchResponse.body) {
+      const { stream, total } = AudioCache.createProgressTrackingStream(fetchResponse, url, signal);
+      return await AudioCache.collectStreamToArrayBuffer(stream, total || undefined);
+    }
+    // Fallback for mock responses without body (testing scenario)
+    return await fetchResponse.arrayBuffer();
+  }
+
   private static async decodeAudioData(context: BaseContext, arrayBuffer: ArrayBuffer): Promise<AudioBuffer> {
     try {
       return await context.decodeAudioData(arrayBuffer);
@@ -703,6 +748,66 @@ export class AudioCache implements ICache {
       const audioBuffer = await AudioCache.decodeAudioData(context, parsed.bytes.buffer as ArrayBuffer);
       AudioCache.decodedBuffers.set(url, audioBuffer);
       return audioBuffer;
+    }
+
+    // When the browser Cache API is unavailable (e.g. Node), transparently
+    // degrade to a fetch-only path: no persistent cache read/write, no error
+    // log — still using the in-memory LRU, pending-request dedup, and progress
+    // callbacks. The available-cache path below is byte-for-byte unchanged.
+    if (!AudioCache.isCacheApiAvailable()) {
+      return AudioCache.getOrCreatePendingRequest(
+        url,
+        async () => {
+          // No persistent cache, so this is always a miss.
+          if (callbacks?.onCacheMiss) {
+            callbacks.onCacheMiss({
+              url,
+              reason: "not-found",
+              timestamp: Date.now(),
+            });
+          }
+
+          try {
+            const arrayBuffer = await AudioCache.fetchAndDecodeWithoutCache(context, url, signal);
+            let audioBuffer: AudioBuffer;
+            try {
+              audioBuffer = await AudioCache.decodeAudioData(context, arrayBuffer);
+            } catch (error) {
+              if (callbacks?.onLoadingError) {
+                callbacks.onLoadingError({
+                  url,
+                  error: toError(error),
+                  errorType: "decode",
+                  timestamp: Date.now(),
+                });
+              }
+              throw error;
+            }
+            if (callbacks?.onLoadingComplete) {
+              callbacks.onLoadingComplete({
+                url,
+                duration: audioBuffer.duration,
+                size: arrayBuffer.byteLength,
+                timestamp: Date.now(),
+              });
+            }
+            AudioCache.decodedBuffers.set(url, audioBuffer);
+            return audioBuffer;
+          } catch (error) {
+            if (callbacks?.onLoadingError) {
+              callbacks.onLoadingError({
+                url,
+                error: toError(error),
+                errorType: getNetworkErrorType(error),
+                timestamp: Date.now(),
+              });
+            }
+            throw error;
+          }
+        },
+        signal,
+        { onLoadingProgress: callbacks?.onLoadingProgress },
+      );
     }
 
     const cache = await AudioCache.openCache();
