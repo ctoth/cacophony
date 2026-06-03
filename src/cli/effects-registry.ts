@@ -1,7 +1,9 @@
 /**
  * Effect name -> factory/schema registry, the single source of truth for the
- * `--fx` surface. Stage 2 fills FOUR effects: distortion, reverb (FDN),
- * compressor, biquad. The remaining effects land in Stage 3.
+ * `--fx` surface. Stage 2 filled FOUR effects: distortion, reverb (FDN),
+ * compressor, biquad. Stage 3 completes the suite: dattorro, waveshaper,
+ * limiter, gate, the modulated-delay family (chorus/flanger/vibrato/doubling/
+ * delay), phaser, tremolo, autopan.
  */
 import type { Cacophony } from "../cacophony";
 
@@ -17,11 +19,37 @@ export interface EffectDef {
 }
 
 /**
- * The registry. Stage 2: distortion, reverb (FDN), compressor, biquad.
+ * The five modulated-delay presets (chorus/flanger/vibrato/doubling/delay) all
+ * share one worklet and one option schema; only the Cacophony factory differs.
+ * Build their registry entries from a single shared schema to avoid drift.
+ */
+function modulatedDelayEntries(): Record<string, EffectDef> {
+  const schema: EffectDef["schema"] = {
+    delayTime: "num",
+    depth: "num",
+    rate: "num",
+    feedback: "num",
+    blend: "num",
+    feedforward: "num",
+    interpolation: "str",
+  };
+  return {
+    chorus: { factory: (c, o) => c.createChorus(o), schema },
+    flanger: { factory: (c, o) => c.createFlanger(o), schema },
+    vibrato: { factory: (c, o) => c.createVibrato(o), schema },
+    doubling: { factory: (c, o) => c.createDoubling(o), schema },
+    delay: { factory: (c, o) => c.createDelay(o), schema },
+  };
+}
+
+/**
+ * The registry. Stage 2: distortion, reverb (FDN), compressor, biquad. Stage 3
+ * adds the rest of the suite (see below).
  *
  * Each factory receives the coerced params object directly; the underlying
- * library coerces string aliases (e.g. distortion `shape: "tanh"`) itself, so
- * the CLI passes those strings straight through (schema kind `"str"`).
+ * library coerces string aliases (e.g. distortion `shape: "tanh"`, modulated-
+ * delay `interpolation: "cubic"`) itself, so the CLI passes those strings
+ * straight through (schema kind `"str"`).
  */
 export const EFFECT_REGISTRY: Record<string, EffectDef> = {
   distortion: {
@@ -57,6 +85,86 @@ export const EFFECT_REGISTRY: Record<string, EffectDef> = {
     // createBiquadFilter({ type, frequency, gain, Q }).
     factory: (c, o) => c.createBiquadFilter(o as Parameters<typeof c.createBiquadFilter>[0]),
     schema: { type: "str", frequency: "num", gain: "num", Q: "num" },
+  },
+
+  // --- Stage 3 ---
+
+  dattorro: {
+    // Dattorro plate reverb (createReverb / ReverbOptions). NOTE: dattorro's
+    // own `decay` key is passed straight through — it is NOT aliased the way the
+    // FDN `reverb` aliases `decay`->`decayTime` (these are distinct effects).
+    factory: (c, o) => c.createReverb(o),
+    schema: {
+      preDelay: "num",
+      bandwidth: "num",
+      inputDiffusion1: "num",
+      inputDiffusion2: "num",
+      decay: "num",
+      decayDiffusion1: "num",
+      decayDiffusion2: "num",
+      damping: "num",
+      excursionRate: "num",
+      excursionDepth: "num",
+      wet: "num",
+      dry: "num",
+    },
+  },
+  waveshaper: {
+    // Antialiased waveshaper (createWaveshaper / WaveshaperOptions). `shape`
+    // accepts the "hardclip"|"tanh" string alias (coerced in build()).
+    factory: (c, o) => c.createWaveshaper(o),
+    schema: { drive: "num", shape: "str", mix: "num", output: "num" },
+  },
+  limiter: {
+    // createLimiter = Dynamics preset with NO ratio (Omit<DynamicsOptions,
+    // "ratio">, cacophony.d.ts:583) — ratio is intentionally absent here.
+    factory: (c, o) => c.createLimiter(o),
+    schema: {
+      threshold: "num",
+      knee: "num",
+      attack: "num",
+      release: "num",
+      makeup: "num",
+    },
+  },
+  gate: {
+    // createGate = Dynamics preset (full DynamicsOptions, including ratio).
+    factory: (c, o) => c.createGate(o),
+    schema: {
+      threshold: "num",
+      ratio: "num",
+      knee: "num",
+      attack: "num",
+      release: "num",
+      makeup: "num",
+    },
+  },
+
+  // Modulated-delay family: chorus/flanger/vibrato/doubling/delay all share the
+  // ModulatedDelayOptions schema (one worklet, factory presets). `interpolation`
+  // accepts the "cubic"|"linear" string alias (coerced in build()).
+  ...modulatedDelayEntries(),
+
+  phaser: {
+    factory: (c, o) => c.createPhaser(o),
+    schema: {
+      frequency: "num",
+      rate: "num",
+      depth: "num",
+      stages: "num",
+      feedback: "num",
+      mix: "num",
+    },
+  },
+  tremolo: {
+    // `shape` accepts the "sine"|"triangle"|"square" string alias.
+    factory: (c, o) => c.createTremolo(o),
+    schema: { rate: "num", depth: "num", shape: "str", stereoPhase: "num" },
+  },
+  autopan: {
+    // createAutoPan shares TremoloOptions (a stereoPhase=180 tremolo preset).
+    factory: (c, o) => c.createAutoPan(o),
+    schema: { rate: "num", depth: "num", shape: "str", stereoPhase: "num" },
   },
 };
 

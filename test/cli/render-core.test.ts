@@ -213,3 +213,119 @@ describe("render-core fx (Stage 2 A/B by render delta, against built dist)", () 
     expect(lp).toBeLessThan(clean);
   });
 });
+
+/**
+ * RMS of |x| over a single channel of a rendered buffer (per-channel level).
+ * Used for the tremolo/autopan assertions where amplitude modulation changes
+ * the channel RMS (and, for autopan/stereoPhase, makes L and R diverge).
+ */
+function channelRms(buffer: AudioBuffer, channel: number): number {
+  const d = new Float32Array(buffer.length);
+  buffer.copyFromChannel(d, channel);
+  let sumSq = 0;
+  for (let i = 0; i < d.length; i++) sumSq += d[i] * d[i];
+  return Math.sqrt(sumSq / d.length);
+}
+
+/**
+ * Stage 3 parity gate: every newly-registered effect must provably alter the
+ * render. Parametrized table — for each effect, render a deterministic source
+ * clean vs wet (injecting the BUILT `dist/node.mjs`, per the standing
+ * constraint that worklet `data:` URLs only exist after `vite build`) and
+ * assert a non-trivial change with a comment naming the metric.
+ *
+ * Build dist before running: `npx vite build` then `npm run test`.
+ */
+describe("render-core fx parity (Stage 3 per-effect render delta, against built dist)", () => {
+  const EPSILON = 1e-4;
+  const synthParams = {
+    source: "synth:220:sawtooth",
+    durationSec: 0.3,
+    sampleRate: 48000,
+    numberOfChannels: 2,
+    volume: 0.4,
+  } as const;
+
+  async function renderWet(fxToken: string): Promise<AudioBuffer> {
+    return renderToBuffer({ ...synthParams, fx: [parseFxToken(fxToken)] }, distMakeOffline);
+  }
+
+  /**
+   * peak/mean-delta effects: dattorro, waveshaper, limiter, gate, phaser, and
+   * the modulated-delay family. The metric is max(|Δpeak|, |Δmean|) on channel
+   * 0; a genuinely-applied effect moves at least one past EPSILON, a no-op
+   * moves neither.
+   */
+  const peakMeanCases: ReadonlyArray<{ name: string; fx: string }> = [
+    // dattorro plate reverb — wet/dry mix changes the channel-0 level.
+    { name: "dattorro", fx: "dattorro:decay=0.7,wet=0.5,dry=0.3" },
+    // waveshaper tanh drive — hard saturation reshapes peak and mean.
+    { name: "waveshaper", fx: "waveshaper:drive=40,shape=tanh" },
+    // limiter — low threshold + makeup gain shifts the level.
+    { name: "limiter", fx: "limiter:threshold=-30,makeup=12" },
+    // gate — high ratio downward expansion below threshold cuts the level.
+    { name: "gate", fx: "gate:threshold=-20,ratio=10" },
+    // phaser — swept allpass notches change the summed waveform.
+    { name: "phaser", fx: "phaser:rate=2,depth=2,mix=1" },
+    // modulated-delay family: each preset over the same worklet.
+    { name: "chorus", fx: "chorus:rate=1,depth=6,feedback=0.5" },
+    { name: "flanger", fx: "flanger:rate=1,depth=4,feedback=0.7,feedforward=0.7" },
+    { name: "vibrato", fx: "vibrato:rate=5,depth=4,blend=0,feedforward=1" },
+    { name: "doubling", fx: "doubling:delayTime=20,depth=2,blend=0.7,feedforward=0.7" },
+    { name: "delay", fx: "delay:delayTime=50,feedback=0.6,blend=0.5,feedforward=0.7" },
+  ];
+
+  it.each(peakMeanCases)("$name alters the render (metric: max |Δpeak|,|Δmean| > epsilon)", async ({ name, fx }) => {
+    const clean = peakMean(await renderToBuffer(synthParams, distMakeOffline));
+    const wet = peakMean(await renderWet(fx));
+    const dPeak = Math.abs(wet.peak - clean.peak);
+    const dMean = Math.abs(wet.mean - clean.mean);
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[fx ${name}] clean={peak:${clean.peak.toFixed(4)},mean:${clean.mean.toFixed(5)}} ` +
+        `wet={peak:${wet.peak.toFixed(4)},mean:${wet.mean.toFixed(5)}} ` +
+        `Δpeak=${dPeak.toFixed(5)} Δmean=${dMean.toFixed(5)}`,
+    );
+
+    expect(Math.max(dPeak, dMean)).toBeGreaterThan(EPSILON);
+  });
+
+  /**
+   * tremolo — LFO amplitude modulation changes per-channel RMS vs clean.
+   * Metric: |ΔRMS| on channel 0 > epsilon.
+   */
+  it("tremolo modulates amplitude (metric: |ΔchannelRMS| > epsilon)", async () => {
+    const clean = channelRms(await renderToBuffer(synthParams, distMakeOffline), 0);
+    const wet = channelRms(await renderWet("tremolo:rate=8,depth=1"), 0);
+
+    // eslint-disable-next-line no-console
+    console.log(`[fx tremolo] clean RMS=${clean.toFixed(5)} wet RMS=${wet.toFixed(5)} Δ=${Math.abs(wet - clean).toFixed(5)}`);
+
+    expect(Math.abs(wet - clean)).toBeGreaterThan(EPSILON);
+  });
+
+  /**
+   * autopan — a 180° stereoPhase auto-pan swings L and R in anti-phase, so the
+   * two channels' RMS diverge. Metric: |RMS(L) − RMS(R)| > epsilon (a no-op
+   * keeps the channels identical → near-zero divergence).
+   */
+  it("autopan diverges L/R channels (metric: |RMS(L) − RMS(R)| > epsilon)", async () => {
+    const wet = await renderWet("autopan:rate=6,depth=1,stereoPhase=180");
+    const rmsL = channelRms(wet, 0);
+    const rmsR = channelRms(wet, 1);
+    const divergence = Math.abs(rmsL - rmsR);
+
+    // For contrast, the clean stereo render has near-identical channels.
+    const clean = await renderToBuffer(synthParams, distMakeOffline);
+    const cleanDivergence = Math.abs(channelRms(clean, 0) - channelRms(clean, 1));
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[fx autopan] wet RMS L=${rmsL.toFixed(5)} R=${rmsR.toFixed(5)} divergence=${divergence.toFixed(5)} ` +
+        `(clean divergence=${cleanDivergence.toFixed(5)})`,
+    );
+
+    expect(divergence).toBeGreaterThan(EPSILON);
+  });
+});
