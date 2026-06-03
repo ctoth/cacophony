@@ -327,6 +327,42 @@ export class FdnReverbEffect implements CacophonyEffect {
 }
 
 /**
+ * String aliases for the integer mode indices that {@link WaveshaperOptions},
+ * {@link TremoloOptions} and {@link ModulatedDelayOptions} flow straight through
+ * as `parameterData`. An AudioParam can only carry a number, so these maps are
+ * applied inside each effect's `build()` to translate a string mode into its
+ * integer index BEFORE the options become `parameterData`. The index assignments
+ * mirror the worklet shells' `*_BY_INDEX` arrays exactly
+ * (`processors/waveshaper.ts`, `processors/tremolo.ts`,
+ * `processors/modulated-delay.ts`). Declared locally so this module does not
+ * import from the worklet/processor modules (keeping that boundary intact).
+ */
+const WAVESHAPER_SHAPE_TO_INDEX = { hardclip: 0, tanh: 1 } as const;
+type WaveshaperShapeAlias = keyof typeof WAVESHAPER_SHAPE_TO_INDEX;
+
+const TREMOLO_SHAPE_TO_INDEX = { sine: 0, triangle: 1, square: 2 } as const;
+type TremoloShapeAlias = keyof typeof TREMOLO_SHAPE_TO_INDEX;
+
+const MODULATED_DELAY_INTERPOLATION_TO_INDEX = { cubic: 0, linear: 1 } as const;
+type ModulatedDelayInterpolationAlias = keyof typeof MODULATED_DELAY_INTERPOLATION_TO_INDEX;
+
+/**
+ * Resolve a mode field that may be a number (pass through unchanged, exactly as
+ * today) or a string alias (translate to its integer index). An unknown/invalid
+ * string maps to index 0, mirroring the worklet's `?? first` fallback. Returns
+ * `undefined` when the field is absent so the worklet keeps its own default.
+ */
+function resolveModeIndex(value: number | string | undefined, table: Record<string, number>): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (typeof value === "number") {
+    return value;
+  }
+  return table[value] ?? 0;
+}
+
+/**
  * Construction-time configuration for a {@link WaveshaperEffect}, mirroring the
  * `waveshaper` AudioWorkletProcessor's AudioParam set (see
  * {@link import('./processors/waveshaper').WaveshaperWorkletProcessor}). All
@@ -341,8 +377,13 @@ export class FdnReverbEffect implements CacophonyEffect {
 export interface WaveshaperOptions {
   /** Pre-gain (drive) into the nonlinearity. Default 1. Range 0..100; >1 = harder saturation. */
   drive?: number;
-  /** Nonlinearity index: 0 = hard clip (polynomial F0, eq.25), 1 = tanh soft clip (F0 = log cosh, eq.20). Default 0. */
-  shape?: number;
+  /**
+   * Nonlinearity: 0 = hard clip (polynomial F0, eq.25), 1 = tanh soft clip
+   * (F0 = log cosh, eq.20). Default 0. Accepts either the integer index or the
+   * matching string alias (`"hardclip"` = 0, `"tanh"` = 1), translated to the
+   * index in `build()`.
+   */
+  shape?: number | WaveshaperShapeAlias;
   /** Wet/dry mix (0..1); 0 = dry bypass, 1 = fully shaped. Default 1. */
   mix?: number;
   /** Post-nonlinearity output gain (linear). Default 1. Range 0..4. */
@@ -366,7 +407,12 @@ export class WaveshaperEffect implements CacophonyEffect {
 
   async build(context: BaseContext): Promise<AudioWorkletNode> {
     await this.host.loadWaveshaper(undefined, context);
-    return this.host.createWaveshaperNode({ parameterData: this.options as Record<string, number> }, context);
+    const parameterData: Record<string, number> = { ...this.options } as Record<string, number>;
+    const shapeIndex = resolveModeIndex(this.options.shape, WAVESHAPER_SHAPE_TO_INDEX);
+    if (shapeIndex !== undefined) {
+      parameterData.shape = shapeIndex;
+    }
+    return this.host.createWaveshaperNode({ parameterData }, context);
   }
 }
 
@@ -398,8 +444,12 @@ export interface ModulatedDelayOptions {
   blend?: number;
   /** Wet (modulated tap) gain (feedforward). Default 0.7071. Range 0..1. */
   feedforward?: number;
-  /** Interpolation index: 0 = cubic (4-tap Lagrange N=3), 1 = linear (2-tap N=1). Default 0. */
-  interpolation?: number;
+  /**
+   * Interpolation: 0 = cubic (4-tap Lagrange N=3), 1 = linear (2-tap N=1).
+   * Default 0. Accepts either the integer index or the matching string alias
+   * (`"cubic"` = 0, `"linear"` = 1), translated to the index in `build()`.
+   */
+  interpolation?: number | ModulatedDelayInterpolationAlias;
 }
 
 /**
@@ -419,7 +469,12 @@ export class ModulatedDelayEffect implements CacophonyEffect {
 
   async build(context: BaseContext): Promise<AudioWorkletNode> {
     await this.host.loadModulatedDelay(undefined, context);
-    return this.host.createModulatedDelayNode({ parameterData: this.options as Record<string, number> }, context);
+    const parameterData: Record<string, number> = { ...this.options } as Record<string, number>;
+    const interpolationIndex = resolveModeIndex(this.options.interpolation, MODULATED_DELAY_INTERPOLATION_TO_INDEX);
+    if (interpolationIndex !== undefined) {
+      parameterData.interpolation = interpolationIndex;
+    }
+    return this.host.createModulatedDelayNode({ parameterData }, context);
   }
 }
 
@@ -491,8 +546,12 @@ export interface TremoloOptions {
   rate?: number;
   /** Modulation depth (0 = bypass, 1 = full 0..1 swing). Default 0.5. Range 0..1. */
   depth?: number;
-  /** LFO shape index: 0 = sine, 1 = triangle, 2 = square. Default 0. */
-  shape?: number;
+  /**
+   * LFO shape: 0 = sine, 1 = triangle, 2 = square. Default 0. Accepts either
+   * the integer index or the matching string alias (`"sine"` = 0,
+   * `"triangle"` = 1, `"square"` = 2), translated to the index in `build()`.
+   */
+  shape?: number | TremoloShapeAlias;
   /** Per-channel LFO phase offset in degrees (0 = mono, 90 = quadrature, 180 = auto-pan). Default 0. Range 0..180. */
   stereoPhase?: number;
 }
@@ -513,7 +572,12 @@ export class TremoloEffect implements CacophonyEffect {
 
   async build(context: BaseContext): Promise<AudioWorkletNode> {
     await this.host.loadTremolo(undefined, context);
-    return this.host.createTremoloNode({ parameterData: this.options as Record<string, number> }, context);
+    const parameterData: Record<string, number> = { ...this.options } as Record<string, number>;
+    const shapeIndex = resolveModeIndex(this.options.shape, TREMOLO_SHAPE_TO_INDEX);
+    if (shapeIndex !== undefined) {
+      parameterData.shape = shapeIndex;
+    }
+    return this.host.createTremoloNode({ parameterData }, context);
   }
 }
 
