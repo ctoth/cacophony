@@ -638,7 +638,7 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
     // unregister of the old bus is skipped and the sound leaks in the old bus's
     // `_routedSources`. (master/null is excluded because it is `null`.)
     if (oldTarget !== newTarget) {
-      if (oldTarget) {
+      if (oldTarget && !this._sends.has(oldTarget)) {
         oldTarget._unregisterRoutedSource(this);
       }
       if (newTarget) {

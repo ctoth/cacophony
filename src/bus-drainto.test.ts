@@ -161,6 +161,38 @@ describe("Bus.drainTo: guards", () => {
 });
 
 describe("Bus.drainTo: registration cleanup", () => {
+  it("keeps a sound registered with a bus when primary reroute leaves a send behind", async () => {
+    const sound = await buildSound();
+    const busA = cacophony.createBus("drain-send-only-a");
+    const busB = cacophony.createBus("drain-send-only-b");
+    const busC = cacophony.createBus("drain-send-only-c");
+    sound.routeTo(busA);
+    sound.routeTo(busA, 0.45);
+    const [playback] = sound.play();
+
+    sound.routeTo(busB);
+
+    const routedSources = (busA as unknown as { _routedSources: Set<unknown> })._routedSources;
+    expect(routedSources.has(sound)).toBe(true);
+
+    const oldSendGain = playback._sendGains.get(busA);
+    expect(oldSendGain).toBeDefined();
+    const oldSendGainDisconnect = vi.spyOn(oldSendGain!, "disconnect");
+
+    busA.drainTo(busC);
+
+    const sends = (sound as unknown as { _sends: Map<unknown, number> })._sends;
+    expect((sound as unknown as { _routeTarget: unknown })._routeTarget).toBe(busB);
+    expect(sends.has(busA)).toBe(false);
+    expect(sends.get(busC)).toBe(0.45);
+    expect(playback._sendGains.has(busA)).toBe(false);
+    expect(oldSendGainDisconnect).toHaveBeenCalled();
+
+    busA.destroy();
+    busB.destroy();
+    busC.destroy();
+  });
+
   it("does not touch a sound that was cleaned up before the bus drains", async () => {
     const sound = await buildSound();
     const busA = cacophony.createBus("drain-cleanup-a");
