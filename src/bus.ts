@@ -19,7 +19,8 @@
  * parameters affects both.
  */
 
-import type { AudioNode, BaseContext, BiquadFilterNode, GainNode } from "./context";
+import type { FadeType } from "./cacophony";
+import type { AudioNode, AudioParam, AudioWorkletNode, BaseContext, BiquadFilterNode, GainNode } from "./context";
 import type { CacophonyEffect } from "./effects";
 import { isCacophonyBuiltBiquad, isCacophonyEffect } from "./effects";
 
@@ -132,10 +133,15 @@ export class Bus {
    *   `cacophony.shareEffect(node)` (or a proper CacophonyEffect class) to
    *   make the shared-state intent explicit.
    *
+   * @returns the built AudioNode that was added to the chain. For a biquad this
+   *   is the argument itself; for a {@link CacophonyEffect} it is the node
+   *   produced by `build`. The returned handle can be passed to
+   *   {@link rampFilterParam} to automate the node's parameters. Existing
+   *   callers that ignore the result keep working unchanged.
    * @throws if the bus has been destroyed, or if the argument is a raw
    *   AudioNode that is not a Cacophony-built biquad.
    */
-  async addFilter(arg: BiquadFilterNode | CacophonyEffect | AudioNode): Promise<void> {
+  async addFilter(arg: BiquadFilterNode | CacophonyEffect | AudioNode): Promise<AudioNode> {
     this._throwIfDestroyed();
     let node: AudioNode;
     if (isCacophonyBuiltBiquad(arg)) {
@@ -152,6 +158,7 @@ export class Bus {
     }
     this._filterNodes.push(node);
     this._refreshFilters();
+    return node;
   }
 
   /**
@@ -192,6 +199,114 @@ export class Bus {
     this._filterNodes.length = 0;
     this._filterNodes.push(...nodes);
     this._refreshFilters();
+  }
+
+  /**
+   * Ramp an effect node's parameter to a target value over time. This is the
+   * uniform automation handle for filter-chain effects: pass a node obtained
+   * from {@link addFilter} (or the {@link filters} getter) and the name of the
+   * parameter to drive.
+   *
+   * Parameter resolution:
+   * - If `node` exposes a worklet-style `parameters` AudioParamMap, the param
+   *   is resolved via `parameters.get(paramName)` (e.g. a worklet effect's
+   *   named params).
+   * - Otherwise, if `node[paramName]` is itself an AudioParam (native nodes
+   *   such as a biquad expose `.frequency` / `.Q` / `.gain` directly), that is
+   *   used.
+   *
+   * Ramp shape (mirrors the codebase fade convention): the target time base is
+   * `node.context.currentTime`. With no `duration` (or `duration <= 0`) the
+   * value is set immediately via `setValueAtTime(value, now)`. Otherwise the
+   * start is pinned with `setValueAtTime(param.value, now)` and the value ramps
+   * to `now + duration / 1000` (milliseconds) using `linearRampToValueAtTime`
+   * (default) or `exponentialRampToValueAtTime` when `type` is `"exponential"`
+   * (an exponential target of 0 is floored to 0.0001, matching `fadeTo`).
+   *
+   * Automation degrades gracefully: if `node` is not on this bus, or the
+   * parameter cannot be resolved to an AudioParam, a warning is logged and the
+   * call is a no-op. The only condition that throws is a destroyed bus.
+   *
+   * @param node A filter node currently on this bus (from {@link addFilter}).
+   * @param paramName The name of the parameter to automate.
+   * @param value The target value.
+   * @param options.duration Ramp duration in milliseconds. Absent/`<= 0` sets
+   *   the value immediately.
+   * @param options.type Ramp curve, `"linear"` (default) or `"exponential"`.
+   * @throws if the bus has been destroyed.
+   */
+  rampFilterParam(
+    node: AudioNode,
+    paramName: string,
+    value: number,
+    options?: { duration?: number; type?: FadeType },
+  ): void {
+    this._throwIfDestroyed();
+    if (!this._filterNodes.includes(node)) {
+      console.warn(`Bus.rampFilterParam: node is not a filter on this bus; ignoring automation of '${paramName}'.`);
+      return;
+    }
+
+    const param = this._resolveAudioParam(node, paramName);
+    if (!param) {
+      console.warn(`Bus.rampFilterParam: could not resolve AudioParam '${paramName}' on the given node; ignoring.`);
+      return;
+    }
+
+    const now = node.context.currentTime;
+    const duration = options?.duration;
+    if (duration === undefined || duration <= 0) {
+      param.setValueAtTime(value, now);
+      return;
+    }
+
+    const endTime = now + duration / 1000;
+    param.setValueAtTime(param.value, now);
+    if (options?.type === "exponential") {
+      param.exponentialRampToValueAtTime(value === 0 ? 0.0001 : value, endTime);
+    } else {
+      param.linearRampToValueAtTime(value, endTime);
+    }
+  }
+
+  /**
+   * Resolve the named {@link AudioParam} on a node. Tries the worklet
+   * `parameters` map first, then a directly-exposed native param
+   * (`node[paramName]`). Returns `undefined` if neither yields an AudioParam.
+   *
+   * Detection is structural (duck-typed), never `instanceof` — the mocked test
+   * context may not provide the `AudioParam` global.
+   */
+  private _resolveAudioParam(node: AudioNode, paramName: string): AudioParam | undefined {
+    const parameters = (node as AudioWorkletNode).parameters;
+    if (parameters && typeof parameters.get === "function") {
+      const workletParam = parameters.get(paramName);
+      if (this._isAudioParam(workletParam)) {
+        return workletParam;
+      }
+    }
+
+    const nativeParam = (node as unknown as Record<string, unknown>)[paramName];
+    if (this._isAudioParam(nativeParam)) {
+      return nativeParam;
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Structural AudioParam check: a value is treated as an AudioParam if it
+   * exposes the ramp scheduling methods. Avoids `instanceof AudioParam` so it
+   * works under the standardized-audio-context mock (which may lack the global).
+   */
+  private _isAudioParam(value: unknown): value is AudioParam {
+    return (
+      typeof value === "object" &&
+      value !== null &&
+      typeof (value as AudioParam).setValueAtTime === "function" &&
+      typeof (value as AudioParam).linearRampToValueAtTime === "function" &&
+      typeof (value as AudioParam).exponentialRampToValueAtTime === "function"
+    );
   }
 
   /**

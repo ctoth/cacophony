@@ -435,3 +435,155 @@ describe("Bus: filter chain refresh", () => {
     expect(() => bus.setFilterOrder([f1, f2, f2])).toThrow(/permutation/);
   });
 });
+
+describe("Bus: addFilter returns the built node", () => {
+  it("returns the same node it added (a biquad)", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const biquad = cacophony.createBiquadFilter({ frequency: 100 });
+    const n = await bus.addFilter(biquad);
+    expect(n).toBe(biquad);
+    expect(bus.filters.includes(n)).toBe(true);
+  });
+});
+
+describe("Bus: rampFilterParam", () => {
+  it("ramps a native biquad param linearly, pinning the start", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const biquad = cacophony.createBiquadFilter({ frequency: 100 });
+    const node = await bus.addFilter(biquad);
+    // The mocked context exposes a real `.frequency` AudioParam with the ramp
+    // scheduling methods.
+    const freq = (
+      biquad as unknown as {
+        frequency: {
+          value: number;
+          setValueAtTime: (v: number, t: number) => unknown;
+          linearRampToValueAtTime: (v: number, t: number) => unknown;
+        };
+      }
+    ).frequency;
+    const now = (node as unknown as { context: { currentTime: number } }).context.currentTime;
+    const startValue = freq.value;
+
+    const setSpy = vi.spyOn(freq, "setValueAtTime");
+    const linSpy = vi.spyOn(freq, "linearRampToValueAtTime");
+
+    bus.rampFilterParam(node, "frequency", 800, { duration: 500 });
+
+    // Start pinned at the current value, then a linear ramp to the target.
+    expect(setSpy).toHaveBeenCalledWith(startValue, now);
+    expect(linSpy).toHaveBeenCalledTimes(1);
+    const [rampValue, endTime] = linSpy.mock.calls[0] as [number, number];
+    expect(rampValue).toBe(800);
+    expect(endTime).toBeCloseTo(now + 0.5, 10);
+
+    setSpy.mockRestore();
+    linSpy.mockRestore();
+  });
+
+  it("sets the value instantly when duration is omitted", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const biquad = cacophony.createBiquadFilter({ frequency: 100 });
+    const node = await bus.addFilter(biquad);
+    const freq = (
+      biquad as unknown as {
+        frequency: {
+          setValueAtTime: (v: number, t: number) => unknown;
+          linearRampToValueAtTime: (v: number, t: number) => unknown;
+          exponentialRampToValueAtTime: (v: number, t: number) => unknown;
+        };
+      }
+    ).frequency;
+    const now = (node as unknown as { context: { currentTime: number } }).context.currentTime;
+
+    const setSpy = vi.spyOn(freq, "setValueAtTime");
+    const linSpy = vi.spyOn(freq, "linearRampToValueAtTime");
+    const expSpy = vi.spyOn(freq, "exponentialRampToValueAtTime");
+
+    bus.rampFilterParam(node, "frequency", 800);
+
+    expect(setSpy).toHaveBeenCalledTimes(1);
+    expect(setSpy).toHaveBeenCalledWith(800, now);
+    expect(linSpy).not.toHaveBeenCalled();
+    expect(expSpy).not.toHaveBeenCalled();
+
+    setSpy.mockRestore();
+    linSpy.mockRestore();
+    expSpy.mockRestore();
+  });
+
+  it("uses an exponential ramp when type is 'exponential'", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const biquad = cacophony.createBiquadFilter({ frequency: 100 });
+    const node = await bus.addFilter(biquad);
+    const freq = (
+      biquad as unknown as {
+        frequency: {
+          value: number;
+          setValueAtTime: (v: number, t: number) => unknown;
+          linearRampToValueAtTime: (v: number, t: number) => unknown;
+          exponentialRampToValueAtTime: (v: number, t: number) => unknown;
+        };
+      }
+    ).frequency;
+    const now = (node as unknown as { context: { currentTime: number } }).context.currentTime;
+
+    const setSpy = vi.spyOn(freq, "setValueAtTime");
+    const linSpy = vi.spyOn(freq, "linearRampToValueAtTime");
+    const expSpy = vi.spyOn(freq, "exponentialRampToValueAtTime");
+
+    bus.rampFilterParam(node, "frequency", 800, { type: "exponential", duration: 200 });
+
+    expect(setSpy).toHaveBeenCalledWith(freq.value, now);
+    expect(linSpy).not.toHaveBeenCalled();
+    expect(expSpy).toHaveBeenCalledTimes(1);
+    const [rampValue, endTime] = expSpy.mock.calls[0] as [number, number];
+    expect(rampValue).toBe(800);
+    expect(endTime).toBeCloseTo(now + 0.2, 10);
+
+    setSpy.mockRestore();
+    linSpy.mockRestore();
+    expSpy.mockRestore();
+  });
+
+  it("warns and no-ops (no throw) when the node is not on the bus", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const onBus = cacophony.createBiquadFilter({ frequency: 100 });
+    await bus.addFilter(onBus);
+    const notOnBus = cacophony.createBiquadFilter({ frequency: 200 });
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const freq = (notOnBus as unknown as { frequency: { setValueAtTime: (v: number, t: number) => unknown } })
+      .frequency;
+    const setSpy = vi.spyOn(freq, "setValueAtTime");
+
+    expect(() => bus.rampFilterParam(notOnBus, "frequency", 1)).not.toThrow();
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    // No scheduling happened on a node that is not on the bus.
+    expect(setSpy).not.toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+    setSpy.mockRestore();
+  });
+
+  it("warns and no-ops (no throw) for a bogus param name on a valid node", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const biquad = cacophony.createBiquadFilter({ frequency: 100 });
+    const node = await bus.addFilter(biquad);
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    expect(() => bus.rampFilterParam(node, "totallyBogusParam", 1)).not.toThrow();
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+
+    warnSpy.mockRestore();
+  });
+
+  it("throws only when the bus has been destroyed", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const biquad = cacophony.createBiquadFilter({ frequency: 100 });
+    const node = await bus.addFilter(biquad);
+    bus.destroy();
+    expect(() => bus.rampFilterParam(node, "frequency", 1)).toThrow();
+  });
+});
