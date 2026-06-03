@@ -32,6 +32,7 @@ import type {
   SourceNode,
 } from "./context";
 import type { Sound } from "./sound";
+import { WORKLETS } from "./worklets";
 
 type PlaybackCloneOverrides = {
   loopCount: LoopCount;
@@ -722,7 +723,7 @@ export class Playback extends BasePlayback implements BaseSound {
       if (!cacophony) {
         throw new Error("Cannot pitch-shift a playback whose Sound has no Cacophony instance");
       }
-      this._pitchShiftNode = await cacophony.createPhaseVocoderNode(undefined, this.context);
+      this._pitchShiftNode = await cacophony.buildWorkletEffect(WORKLETS.phaseVocoder, {}, this.context);
       // Insert the freshly built node into the live chain.
       this.refreshFilters();
     }

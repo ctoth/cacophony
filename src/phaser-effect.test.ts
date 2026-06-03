@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { isCacophonyEffect, PhaserEffect } from "./effects";
 import { audioContextMock, cacophony } from "./setupTests";
+import { WORKLETS } from "./worklets";
 
 /**
  * The standardized-audio-context mock used in setupTests doesn't expose
@@ -29,41 +30,39 @@ describe("Cacophony phaser factory (createPhaser)", () => {
     expect(effect).toBeInstanceOf(PhaserEffect);
   });
 
-  it("build awaits loadPhaser and constructs the 'phaser' worklet node", async () => {
-    const loadSpy = vi.spyOn(cacophony, "loadPhaser");
+  it("build constructs the 'phaser' worklet node", async () => {
     const workletSpy = vi.spyOn(cacophony, "createWorkletNode");
     const effect = cacophony.createPhaser({ frequency: 800 });
     const node = await effect.build(cacophony.context);
-    expect(loadSpy).toHaveBeenCalled();
     expect(node).toBeDefined();
     // Pin routing through createWorkletNode("phaser", ...).
     expect(workletSpy).toHaveBeenCalled();
     expect(workletSpy.mock.calls[0]?.[0]).toBe("phaser");
-    loadSpy.mockRestore();
     workletSpy.mockRestore();
   });
 
   it("createPhaser passes options as parameterData and forwards the build context", async () => {
-    const createNodeSpy = vi.spyOn(cacophony, "createPhaserNode").mockResolvedValue({} as never);
+    const createNodeSpy = vi.spyOn(cacophony, "buildWorkletEffect").mockResolvedValue({} as never);
     const effect = cacophony.createPhaser({ frequency: 1200, rate: 1, depth: 2, stages: 6, feedback: 0.4, mix: 0.8 });
     await effect.build(cacophony.context);
     expect(createNodeSpy).toHaveBeenCalledWith(
-      { parameterData: { frequency: 1200, rate: 1, depth: 2, stages: 6, feedback: 0.4, mix: 0.8 } },
+      WORKLETS.phaser,
+      { frequency: 1200, rate: 1, depth: 2, stages: 6, feedback: 0.4, mix: 0.8 },
       cacophony.context,
     );
     createNodeSpy.mockRestore();
   });
 
-  it("loadPhaser is idempotent — second call does not re-add the module", async () => {
+  it("phaser load is idempotent — second build does not re-add the module", async () => {
     const addModule = mockAudioWorklet();
     // Force the first AudioWorkletNode construction to fail so addModule is
     // reached via the createWorkletNode fallback path.
     vi.mocked(AudioWorkletNode).mockImplementationOnce(() => {
       throw new Error("Worklet not loaded");
     });
-    await cacophony.loadPhaser();
+    await cacophony.buildWorkletEffect(WORKLETS.phaser, {});
     const callsAfterFirst = addModule.mock.calls.length;
-    await cacophony.loadPhaser();
+    await cacophony.buildWorkletEffect(WORKLETS.phaser, {});
     expect(addModule.mock.calls.length).toBe(callsAfterFirst);
   });
 });

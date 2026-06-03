@@ -1,15 +1,5 @@
 import foaHrirUrl from "./assets/sh_hrir_order_1.wav?url";
 import { installAutoplayUnlock } from "./autoplayUnlock";
-import dattorroReverbProcessorWorkletUrl from "./bundles/dattorro-reverb-bundle.js?url";
-import dynamicsProcessorWorkletUrl from "./bundles/dynamics-bundle.js?url";
-import fdnReverbProcessorWorkletUrl from "./bundles/fdn-reverb-bundle.js?url";
-import loudnessMeterProcessorWorkletUrl from "./bundles/loudness-meter-bundle.js?url";
-import modulatedDelayProcessorWorkletUrl from "./bundles/modulated-delay-bundle.js?url";
-import phaseVocoderProcessorWorkletUrl from "./bundles/phase-vocoder-bundle.js?url";
-import phaserProcessorWorkletUrl from "./bundles/phaser-bundle.js?url";
-import stereoToBFormatProcessorWorkletUrl from "./bundles/stereo-to-bformat-bundle.js?url";
-import tremoloProcessorWorkletUrl from "./bundles/tremolo-bundle.js?url";
-import waveshaperProcessorWorkletUrl from "./bundles/waveshaper-bundle.js?url";
 import { Bus } from "./bus";
 import { AudioCache, type ICache } from "./cache";
 import type {
@@ -57,6 +47,7 @@ import { DATTORRO_INV_SQRT2 } from "./processors/modulated-delay-core";
 import { type TimeStretchOptions, timeStretch } from "./processors/timestretch-core";
 import { Sound } from "./sound";
 import { Synth } from "./synth";
+import { ALL_WORKLETS, WORKLETS, type WorkletModule } from "./worklets";
 
 export type SoundType = "html" | "streaming" | "buffer" | "oscillator";
 
@@ -459,233 +450,42 @@ export class Cacophony {
     return this.eventEmitter.emitAsync(event, data);
   }
 
-  async loadWorklets(signal?: AbortSignal) {
-    if (this.context.audioWorklet) {
-      await this.loadPhaseVocoder(signal);
-      await this.loadStereoToBFormatWorklet(signal);
-      await this.loadDattorroReverb(signal);
-      await this.loadDynamics(signal);
-      await this.loadFdnReverb(signal);
-      await this.loadWaveshaper(signal);
-      await this.loadModulatedDelay(signal);
-      await this.loadPhaser(signal);
-      await this.loadTremolo(signal);
-      await this.loadLoudnessMeter(signal);
-    } else {
+  /**
+   * Eagerly registers every bundled AudioWorklet module on this context. This is
+   * OPTIONAL — effects load their own worklet lazily in `build`, and the
+   * pitch-shift path loads the phase-vocoder on first use. Call this up front to
+   * pay the registration cost ahead of time. Idempotent per context (each module
+   * short-circuits via the per-context {@link loadedAudioWorklets} set).
+   */
+  async loadWorklets(signal?: AbortSignal): Promise<void> {
+    if (!this.context.audioWorklet) {
       console.warn("AudioWorklet not supported");
+      return;
+    }
+    for (const worklet of ALL_WORKLETS) {
+      await this.loadAudioWorkletModule(worklet.name, worklet.url, signal);
     }
   }
 
   async loadStereoToBFormatWorklet(signal?: AbortSignal): Promise<void> {
-    await this.loadAudioWorkletModule("stereo-to-bformat", stereoToBFormatProcessorWorkletUrl, signal);
+    await this.loadAudioWorkletModule(WORKLETS.stereoToBFormat.name, WORKLETS.stereoToBFormat.url, signal);
   }
 
   /**
-   * Idempotently registers the `phase-vocoder` AudioWorkletProcessor (peak-based
-   * pitch-shifter with Identity Phase-Locking, Laroche & Dolson 1999 WASPAA) on
-   * this context. Safe to call repeatedly — subsequent calls short-circuit via
-   * the per-context {@link loadedAudioWorklets} set. Cross-context: pass
-   * `context` so a node built against a bus on a different context loads there.
+   * The single worklet-effect construction seam ({@link WorkletEffectHost}).
+   * Idempotently registers `worklet`'s module on `context` — or this host's own
+   * context when omitted, honoring the cross-context contract that effects'
+   * `build(context)` promises — then constructs the AudioWorkletNode with
+   * `parameterData`. Every worklet-backed {@link CacophonyEffect} routes through
+   * here, as does the phase-vocoder pitch-shift path ({@link Playback.setPitchShift}).
    */
-  async loadPhaseVocoder(signal?: AbortSignal, context?: BaseContext): Promise<void> {
-    await this.loadAudioWorkletModule("phase-vocoder", phaseVocoderProcessorWorkletUrl, signal, context);
-  }
-
-  /**
-   * Constructs a `phase-vocoder` AudioWorkletNode. Caller is expected to have
-   * loaded the module already (via {@link loadPhaseVocoder} or {@link loadWorklets}).
-   * Uses the same construct/fallback path as {@link createWorkletNode}. The
-   * returned node carries a single `pitchFactor` AudioParam (1 = no shift).
-   */
-  async createPhaseVocoderNode(options?: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
-    return this.createWorkletNode("phase-vocoder", phaseVocoderProcessorWorkletUrl, undefined, options, context);
-  }
-
-  /**
-   * Idempotently registers the DattorroReverb AudioWorkletProcessor on this
-   * context. Safe to call repeatedly — subsequent calls short-circuit via
-   * the {@link loadedAudioWorklets} set used by
-   * {@link loadAudioWorkletModule}.
-   *
-   * @param signal Optional abort signal forwarded to the module load.
-   * @param context Optional BaseContext to load the worklet on. Defaults to
-   *   the host Cacophony instance's `context`. Supplied so a
-   *   {@link ReverbEffect} added to a bus whose context is NOT this host's
-   *   own (cross-context use) can load the worklet on the right context.
-   */
-  async loadDattorroReverb(signal?: AbortSignal, context?: BaseContext): Promise<void> {
-    await this.loadAudioWorkletModule("dattorro-reverb", dattorroReverbProcessorWorkletUrl, signal, context);
-  }
-
-  /**
-   * Constructs a DattorroReverb AudioWorkletNode. Caller is expected to have
-   * loaded the module already (via {@link loadDattorroReverb} or by reaching
-   * here through {@link ReverbEffect.build}). Uses the same construct/fallback
-   * path as {@link createWorkletNode}.
-   *
-   * @param options AudioWorkletNode construction options.
-   * @param context Optional BaseContext to construct on. Defaults to the
-   *   host Cacophony instance's `context`. See {@link loadDattorroReverb}
-   *   for the cross-context rationale.
-   */
-  async createDattorroReverbNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
-    return this.createWorkletNode("dattorro-reverb", dattorroReverbProcessorWorkletUrl, undefined, options, context);
-  }
-
-  /**
-   * Idempotently registers the `dynamics` AudioWorkletProcessor (feed-forward
-   * compressor/limiter/expander/gate, Giannoulis 2012) on this context. Safe to
-   * call repeatedly — subsequent calls short-circuit via the per-context
-   * {@link loadedAudioWorklets} set. Cross-context: pass `context` so a
-   * {@link DynamicsEffect} added to a bus on a different context loads there.
-   */
-  async loadDynamics(signal?: AbortSignal, context?: BaseContext): Promise<void> {
-    await this.loadAudioWorkletModule("dynamics", dynamicsProcessorWorkletUrl, signal, context);
-  }
-
-  /**
-   * Constructs a `dynamics` AudioWorkletNode. Caller is expected to have loaded
-   * the module already (via {@link loadDynamics} or by reaching here through
-   * {@link DynamicsEffect.build}). Uses the same construct/fallback path as
-   * {@link createWorkletNode}.
-   */
-  async createDynamicsNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
-    return this.createWorkletNode("dynamics", dynamicsProcessorWorkletUrl, undefined, options, context);
-  }
-
-  /**
-   * Idempotently registers the `fdn-reverb` AudioWorkletProcessor (Feedback
-   * Delay Network reverb — lossless paraunitary Hadamard feedback per Schlecht
-   * & Habets 2019, per-line absorption T60 per Jot 1991, velvet-noise diffusion
-   * per Fagerström 2020) on this context. Safe to call repeatedly — subsequent
-   * calls short-circuit via the per-context {@link loadedAudioWorklets} set.
-   * Cross-context: pass `context` so an {@link FdnReverbEffect} added to a bus
-   * on a different context loads there.
-   */
-  async loadFdnReverb(signal?: AbortSignal, context?: BaseContext): Promise<void> {
-    await this.loadAudioWorkletModule("fdn-reverb", fdnReverbProcessorWorkletUrl, signal, context);
-  }
-
-  /**
-   * Constructs an `fdn-reverb` AudioWorkletNode. Caller is expected to have
-   * loaded the module already (via {@link loadFdnReverb} or by reaching here
-   * through {@link FdnReverbEffect.build}). Uses the same construct/fallback
-   * path as {@link createWorkletNode}.
-   */
-  async createFdnReverbNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
-    return this.createWorkletNode("fdn-reverb", fdnReverbProcessorWorkletUrl, undefined, options, context);
-  }
-
-  /**
-   * Idempotently registers the `waveshaper` AudioWorkletProcessor (antialiased
-   * distortion/waveshaper via first-order Antiderivative Antialiasing, Parker,
-   * Zavalishin & Le Bivic 2016, DAFx-16) on this context. Safe to call
-   * repeatedly — subsequent calls short-circuit via the per-context
-   * {@link loadedAudioWorklets} set. Cross-context: pass `context` so a
-   * {@link WaveshaperEffect} added to a bus on a different context loads there.
-   */
-  async loadWaveshaper(signal?: AbortSignal, context?: BaseContext): Promise<void> {
-    await this.loadAudioWorkletModule("waveshaper", waveshaperProcessorWorkletUrl, signal, context);
-  }
-
-  /**
-   * Constructs a `waveshaper` AudioWorkletNode. Caller is expected to have
-   * loaded the module already (via {@link loadWaveshaper} or by reaching here
-   * through {@link WaveshaperEffect.build}). Uses the same construct/fallback
-   * path as {@link createWorkletNode}.
-   */
-  async createWaveshaperNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
-    return this.createWorkletNode("waveshaper", waveshaperProcessorWorkletUrl, undefined, options, context);
-  }
-
-  /**
-   * Idempotently registers the `modulated-delay` AudioWorkletProcessor —
-   * Dattorro's unified modulated-delay circuit (JAES 1997, Fig. 36) backing
-   * delay/chorus/flanger/vibrato/doubling, with Lagrange FIR fractional-delay
-   * interpolation (Laakso 1996) — on this context. Safe to call repeatedly —
-   * subsequent calls short-circuit via the per-context {@link loadedAudioWorklets}
-   * set. Cross-context: pass `context` so a {@link ModulatedDelayEffect} added to
-   * a bus on a different context loads there.
-   */
-  async loadModulatedDelay(signal?: AbortSignal, context?: BaseContext): Promise<void> {
-    await this.loadAudioWorkletModule("modulated-delay", modulatedDelayProcessorWorkletUrl, signal, context);
-  }
-
-  /**
-   * Constructs a `modulated-delay` AudioWorkletNode. Caller is expected to have
-   * loaded the module already (via {@link loadModulatedDelay} or by reaching here
-   * through {@link ModulatedDelayEffect.build}). Uses the same construct/fallback
-   * path as {@link createWorkletNode}.
-   */
-  async createModulatedDelayNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
-    return this.createWorkletNode("modulated-delay", modulatedDelayProcessorWorkletUrl, undefined, options, context);
-  }
-
-  /**
-   * Idempotently registers the `phaser` AudioWorkletProcessor — a classic
-   * MXR/Univibe-style allpass-cascade phase shifter (Smith STAN-M-21; PASP §8.9:
-   * a cascade of first-order allpass sections at a common LFO-swept break
-   * frequency, summed additively with the dry signal to sweep notches) on this
-   * context. Safe to call repeatedly — subsequent calls short-circuit via the
-   * per-context {@link loadedAudioWorklets} set. Cross-context: pass `context` so
-   * a {@link PhaserEffect} added to a bus on a different context loads there.
-   */
-  async loadPhaser(signal?: AbortSignal, context?: BaseContext): Promise<void> {
-    await this.loadAudioWorkletModule("phaser", phaserProcessorWorkletUrl, signal, context);
-  }
-
-  /**
-   * Constructs a `phaser` AudioWorkletNode. Caller is expected to have loaded the
-   * module already (via {@link loadPhaser} or by reaching here through
-   * {@link PhaserEffect.build}). Uses the same construct/fallback path as
-   * {@link createWorkletNode}.
-   */
-  async createPhaserNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
-    return this.createWorkletNode("phaser", phaserProcessorWorkletUrl, undefined, options, context);
-  }
-
-  /**
-   * Idempotently registers the `tremolo` AudioWorkletProcessor — LFO-driven
-   * amplitude modulation (a VCA swung by a low-frequency oscillator; standard AM
-   * theory + Dattorro 1997 p.776 quadrature stereo LFO + Mitcheltree et al.
-   * DAFx23 LFO framing) on this context. Safe to call repeatedly — subsequent
-   * calls short-circuit via the per-context {@link loadedAudioWorklets} set.
-   * Cross-context: pass `context` so a {@link TremoloEffect} added to a bus on a
-   * different context loads there.
-   */
-  async loadTremolo(signal?: AbortSignal, context?: BaseContext): Promise<void> {
-    await this.loadAudioWorkletModule("tremolo", tremoloProcessorWorkletUrl, signal, context);
-  }
-
-  /**
-   * Constructs a `tremolo` AudioWorkletNode. Caller is expected to have loaded the
-   * module already (via {@link loadTremolo} or by reaching here through
-   * {@link TremoloEffect.build}). Uses the same construct/fallback path as
-   * {@link createWorkletNode}.
-   */
-  async createTremoloNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
-    return this.createWorkletNode("tremolo", tremoloProcessorWorkletUrl, undefined, options, context);
-  }
-
-  /**
-   * Idempotently registers the `loudness-meter` AudioWorkletProcessor (ITU-R
-   * BS.1770-5 momentary / short-term / integrated loudness + true-peak) on this
-   * context. Safe to call repeatedly — subsequent calls short-circuit via the
-   * per-context {@link loadedAudioWorklets} set. Cross-context: pass `context`
-   * so a meter tapping a bus on a different context loads there.
-   */
-  async loadLoudnessMeter(signal?: AbortSignal, context?: BaseContext): Promise<void> {
-    await this.loadAudioWorkletModule("loudness-meter", loudnessMeterProcessorWorkletUrl, signal, context);
-  }
-
-  /**
-   * Constructs a `loudness-meter` AudioWorkletNode. Caller is expected to have
-   * loaded the module already (via {@link loadLoudnessMeter} or {@link createLoudnessMeter}).
-   * The node is a PASS-THROUGH metering tap (1 input, 1 output) that posts
-   * momentary/short-term/integrated loudness and true-peak back over its port.
-   */
-  async createLoudnessMeterNode(options?: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode> {
-    return this.createWorkletNode("loudness-meter", loudnessMeterProcessorWorkletUrl, undefined, options, context);
+  async buildWorkletEffect(
+    worklet: WorkletModule,
+    parameterData: Record<string, number>,
+    context?: BaseContext,
+  ): Promise<AudioWorkletNode> {
+    await this.loadAudioWorkletModule(worklet.name, worklet.url, undefined, context);
+    return this.createWorkletNode(worklet.name, worklet.url, undefined, { parameterData }, context);
   }
 
   /**
@@ -779,7 +579,7 @@ export class Cacophony {
   }
 
   async createStereoToBFormatNode(signal?: AbortSignal): Promise<AudioWorkletNode> {
-    return this.createWorkletNode("stereo-to-bformat", stereoToBFormatProcessorWorkletUrl, signal, {
+    return this.createWorkletNode(WORKLETS.stereoToBFormat.name, WORKLETS.stereoToBFormat.url, signal, {
       numberOfInputs: 1,
       numberOfOutputs: 1,
       outputChannelCount: [4],
@@ -1445,8 +1245,19 @@ export class Cacophony {
     // its full context at runtime (native + standardized-audio-context both do);
     // the structural `AudioNode.context` type is narrowed, so widen it here.
     const targetContext = (sourceNode.context as BaseContext | undefined) ?? this.context;
-    await this.loadLoudnessMeter(undefined, targetContext);
-    const node = await this.createLoudnessMeterNode({ numberOfInputs: 1, numberOfOutputs: 1 }, targetContext);
+    await this.loadAudioWorkletModule(
+      WORKLETS.loudnessMeter.name,
+      WORKLETS.loudnessMeter.url,
+      undefined,
+      targetContext,
+    );
+    const node = await this.createWorkletNode(
+      WORKLETS.loudnessMeter.name,
+      WORKLETS.loudnessMeter.url,
+      undefined,
+      { numberOfInputs: 1, numberOfOutputs: 1 },
+      targetContext,
+    );
     const silentSink = targetContext.createGain();
     return new LoudnessMeter(node, sourceNode, silentSink, targetContext.destination);
   }

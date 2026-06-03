@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { audioContextMock, cacophony } from "./setupTests";
 import type { Sound } from "./sound";
+import { WORKLETS } from "./worklets";
 
 /**
  * Resurrection integration tests for the phase-vocoder pitch-shifter.
@@ -58,27 +59,30 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
     vi.restoreAllMocks();
   });
 
-  it("Playback.setPitchShift builds the phase-vocoder node via createPhaseVocoderNode", async () => {
+  it("Playback.setPitchShift builds the phase-vocoder node via buildWorkletEffect", async () => {
     sound = await cacophony.createSound(buffer);
     const fakeNode = makeFakePvNode();
     const factorySpy = vi
-      .spyOn(cacophony, "createPhaseVocoderNode")
-      .mockResolvedValue(fakeNode as unknown as Awaited<ReturnType<typeof cacophony.createPhaseVocoderNode>>);
+      .spyOn(cacophony, "buildWorkletEffect")
+      .mockResolvedValue(fakeNode as unknown as Awaited<ReturnType<typeof cacophony.buildWorkletEffect>>);
 
     const playback = sound.preplay()[0];
     await playback.setPitchShift(2);
 
     expect(factorySpy).toHaveBeenCalledTimes(1);
-    // node constructed on the playback's own context (cross-context contract)
-    expect(factorySpy.mock.calls[0]?.[1]).toBe(playback["context"]);
+    // routed through the phase-vocoder worklet seam with no parameterData...
+    expect(factorySpy.mock.calls[0]?.[0]).toBe(WORKLETS.phaseVocoder);
+    expect(factorySpy.mock.calls[0]?.[1]).toEqual({});
+    // ...and the node constructed on the playback's own context (cross-context contract)
+    expect(factorySpy.mock.calls[0]?.[2]).toBe(playback["context"]);
     expect(playback.pitchShift).toBe(2);
   });
 
   it("splices the phase-vocoder node into the graph: filterTail/panner → pvNode → gainNode", async () => {
     sound = await cacophony.createSound(buffer);
     const fakeNode = makeFakePvNode();
-    vi.spyOn(cacophony, "createPhaseVocoderNode").mockResolvedValue(
-      fakeNode as unknown as Awaited<ReturnType<typeof cacophony.createPhaseVocoderNode>>,
+    vi.spyOn(cacophony, "buildWorkletEffect").mockResolvedValue(
+      fakeNode as unknown as Awaited<ReturnType<typeof cacophony.buildWorkletEffect>>,
     );
 
     const playback = sound.preplay()[0];
@@ -97,8 +101,8 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
   it("forwards the pitch factor to the node's pitchFactor AudioParam", async () => {
     sound = await cacophony.createSound(buffer);
     const fakeNode = makeFakePvNode();
-    vi.spyOn(cacophony, "createPhaseVocoderNode").mockResolvedValue(
-      fakeNode as unknown as Awaited<ReturnType<typeof cacophony.createPhaseVocoderNode>>,
+    vi.spyOn(cacophony, "buildWorkletEffect").mockResolvedValue(
+      fakeNode as unknown as Awaited<ReturnType<typeof cacophony.buildWorkletEffect>>,
     );
 
     const playback = sound.preplay()[0];
@@ -115,8 +119,8 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
   it("the pitch node survives a later refreshFilters rebuild (never bypassed)", async () => {
     sound = await cacophony.createSound(buffer);
     const fakeNode = makeFakePvNode();
-    vi.spyOn(cacophony, "createPhaseVocoderNode").mockResolvedValue(
-      fakeNode as unknown as Awaited<ReturnType<typeof cacophony.createPhaseVocoderNode>>,
+    vi.spyOn(cacophony, "buildWorkletEffect").mockResolvedValue(
+      fakeNode as unknown as Awaited<ReturnType<typeof cacophony.buildWorkletEffect>>,
     );
 
     const playback = sound.preplay()[0];
@@ -139,8 +143,8 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
     // so the panner feeds the gainNode directly (no pv node in between).
     sound = await cacophony.createSound(buffer);
     const fakeNode = makeFakePvNode();
-    vi.spyOn(cacophony, "createPhaseVocoderNode").mockResolvedValue(
-      fakeNode as unknown as Awaited<ReturnType<typeof cacophony.createPhaseVocoderNode>>,
+    vi.spyOn(cacophony, "buildWorkletEffect").mockResolvedValue(
+      fakeNode as unknown as Awaited<ReturnType<typeof cacophony.buildWorkletEffect>>,
     );
 
     const playback = sound.preplay()[0];
@@ -183,8 +187,8 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
 
     // a valid factor still works and IS stored.
     const fakeNode = makeFakePvNode();
-    vi.spyOn(cacophony, "createPhaseVocoderNode").mockResolvedValue(
-      fakeNode as unknown as Awaited<ReturnType<typeof cacophony.createPhaseVocoderNode>>,
+    vi.spyOn(cacophony, "buildWorkletEffect").mockResolvedValue(
+      fakeNode as unknown as Awaited<ReturnType<typeof cacophony.buildWorkletEffect>>,
     );
     await sound.setPitchShift(2);
     expect(sound.pitchShift).toBe(2);
@@ -193,10 +197,10 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
   it("Sound.setPitchShift fans out to live playbacks and is picked up by future playbacks", async () => {
     sound = await cacophony.createSound(buffer);
     const built: ReturnType<typeof makeFakePvNode>[] = [];
-    vi.spyOn(cacophony, "createPhaseVocoderNode").mockImplementation(async () => {
+    vi.spyOn(cacophony, "buildWorkletEffect").mockImplementation(async () => {
       const node = makeFakePvNode();
       built.push(node);
-      return node as unknown as Awaited<ReturnType<typeof cacophony.createPhaseVocoderNode>>;
+      return node as unknown as Awaited<ReturnType<typeof cacophony.buildWorkletEffect>>;
     });
 
     // one live playback BEFORE setting the shift

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DynamicsEffect, isCacophonyEffect } from "./effects";
 import { audioContextMock, cacophony } from "./setupTests";
+import { WORKLETS } from "./worklets";
 
 /**
  * The standardized-audio-context mock used in setupTests doesn't expose
@@ -34,60 +35,59 @@ describe("Cacophony dynamics factories (createCompressor / createLimiter / creat
     expect(cacophony.createGate()).toBeInstanceOf(DynamicsEffect);
   });
 
-  it("DynamicsEffect.build awaits loadDynamics and constructs the 'dynamics' worklet node", async () => {
-    const loadSpy = vi.spyOn(cacophony, "loadDynamics");
+  it("DynamicsEffect.build constructs the 'dynamics' worklet node", async () => {
     const workletSpy = vi.spyOn(cacophony, "createWorkletNode");
     const effect = cacophony.createCompressor({ threshold: -18, ratio: 3 });
     const node = await effect.build(cacophony.context);
-    expect(loadSpy).toHaveBeenCalled();
     expect(node).toBeDefined();
     // Pin routing through createWorkletNode("dynamics", ...).
     expect(workletSpy).toHaveBeenCalled();
     expect(workletSpy.mock.calls[0]?.[0]).toBe("dynamics");
-    loadSpy.mockRestore();
     workletSpy.mockRestore();
   });
 
   it("createCompressor passes options as parameterData and forwards the build context", async () => {
-    const createNodeSpy = vi.spyOn(cacophony, "createDynamicsNode").mockResolvedValue({} as never);
+    const createNodeSpy = vi.spyOn(cacophony, "buildWorkletEffect").mockResolvedValue({} as never);
     const effect = cacophony.createCompressor({ threshold: -20, ratio: 4, knee: 6, makeup: 3 });
     await effect.build(cacophony.context);
     expect(createNodeSpy).toHaveBeenCalledWith(
-      { parameterData: { threshold: -20, ratio: 4, knee: 6, makeup: 3 } },
+      WORKLETS.dynamics,
+      { threshold: -20, ratio: 4, knee: 6, makeup: 3 },
       cacophony.context,
     );
     createNodeSpy.mockRestore();
   });
 
   it("createLimiter forces ratio to the limiter sentinel (1000) in parameterData", async () => {
-    const createNodeSpy = vi.spyOn(cacophony, "createDynamicsNode").mockResolvedValue({} as never);
+    const createNodeSpy = vi.spyOn(cacophony, "buildWorkletEffect").mockResolvedValue({} as never);
     // A caller-supplied ratio must be overridden by the limiter preset.
     const effect = cacophony.createLimiter({ threshold: -6 });
     await effect.build(cacophony.context);
-    expect(createNodeSpy).toHaveBeenCalledWith({ parameterData: { threshold: -6, ratio: 1000 } }, cacophony.context);
+    expect(createNodeSpy).toHaveBeenCalledWith(WORKLETS.dynamics, { threshold: -6, ratio: 1000 }, cacophony.context);
     createNodeSpy.mockRestore();
   });
 
   it("createGate defaults ratio < 1 (downward expansion) but lets the caller override", async () => {
-    const createNodeSpy = vi.spyOn(cacophony, "createDynamicsNode").mockResolvedValue({} as never);
+    const createNodeSpy = vi.spyOn(cacophony, "buildWorkletEffect").mockResolvedValue({} as never);
     await cacophony.createGate().build(cacophony.context);
-    expect(createNodeSpy.mock.calls[0]?.[0]).toEqual({ parameterData: { ratio: 0.1 } });
+    expect(createNodeSpy.mock.calls[0]?.[0]).toBe(WORKLETS.dynamics);
+    expect(createNodeSpy.mock.calls[0]?.[1]).toEqual({ ratio: 0.1 });
     createNodeSpy.mockClear();
     await cacophony.createGate({ ratio: 0.5, threshold: -40 }).build(cacophony.context);
-    expect(createNodeSpy.mock.calls[0]?.[0]).toEqual({ parameterData: { ratio: 0.5, threshold: -40 } });
+    expect(createNodeSpy.mock.calls[0]?.[1]).toEqual({ ratio: 0.5, threshold: -40 });
     createNodeSpy.mockRestore();
   });
 
-  it("loadDynamics is idempotent — second call does not re-add the module", async () => {
+  it("dynamics load is idempotent — second build does not re-add the module", async () => {
     const addModule = mockAudioWorklet();
     // Force the first AudioWorkletNode construction to fail so addModule is
     // reached via the createWorkletNode fallback path.
     vi.mocked(AudioWorkletNode).mockImplementationOnce(() => {
       throw new Error("Worklet not loaded");
     });
-    await cacophony.loadDynamics();
+    await cacophony.buildWorkletEffect(WORKLETS.dynamics, {});
     const callsAfterFirst = addModule.mock.calls.length;
-    await cacophony.loadDynamics();
+    await cacophony.buildWorkletEffect(WORKLETS.dynamics, {});
     expect(addModule.mock.calls.length).toBe(callsAfterFirst);
   });
 });
