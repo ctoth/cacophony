@@ -15,6 +15,7 @@ export default defineConfig({
       entry: {
         index: resolve(__dirname, "src/index.ts"),
         node: resolve(__dirname, "src/node.ts"),
+        "cli/index": resolve(__dirname, "src/cli/index.ts"),
       },
       name: "cacophony",
       formats: ["es", "cjs"],

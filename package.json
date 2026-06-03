@@ -18,8 +18,12 @@
       "require": "./dist/node.cjs"
     }
   },
+  "bin": {
+    "cacophony": "bin/cacophony.mjs"
+  },
   "files": [
     "dist",
+    "bin",
     "docs",
     "README.md"
   ],
