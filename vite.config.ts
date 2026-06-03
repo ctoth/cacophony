@@ -12,22 +12,27 @@ export default defineConfig({
   build: {
     sourcemap: true,
     lib: {
-      entry: resolve(__dirname, "src/index.ts"),
+      entry: {
+        index: resolve(__dirname, "src/index.ts"),
+        node: resolve(__dirname, "src/node.ts"),
+      },
       name: "cacophony",
       formats: ["es", "cjs"],
-      fileName: (format) => {
+      fileName: (format, entryName) => {
         switch (format) {
           case "es":
-            return "index.mjs";
+            return `${entryName}.mjs`;
           case "cjs":
-            return "index.cjs";
+            return `${entryName}.cjs`;
           default:
-            return `index.${format}.js`;
+            return `${entryName}.${format}.js`;
         }
       },
     },
     rollupOptions: {
-      external: [...Object.keys(pkg.dependencies), /^node:.*/],
+      // node-web-audio-api is a native, optional peer dep — it must never be
+      // bundled (and it isn't in pkg.dependencies, so add it explicitly).
+      external: [...Object.keys(pkg.dependencies), "node-web-audio-api", /^node:.*/],
     },
     target: "esnext",
   },
