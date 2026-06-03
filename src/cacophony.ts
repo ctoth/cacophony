@@ -38,6 +38,7 @@ import {
 import { TypedEventEmitter } from "./eventEmitter";
 import type { CacophonyEvents } from "./events";
 import { Group } from "./group";
+import { type CacophonyLogger, consoleLogger, noopLogger } from "./logger";
 import { MediaStreamSound, type MediaStreamSoundOptions } from "./mediaStream";
 import { LoudnessMeter } from "./meters/loudness-meter";
 import { MicrophoneStream } from "./microphone";
@@ -147,6 +148,27 @@ export interface RuntimeOptions {
    * @default true
    */
   autoUnlock?: boolean;
+  /**
+   * Optional logger for Cacophony's host-side diagnostic output (the
+   * `[cacophony/worklet]` messages emitted while loading AudioWorklet
+   * modules, plus the "AudioWorklet not supported" warning).
+   *
+   * When provided, all such output is routed through this object instead of
+   * the global `console`. Useful for capturing or redirecting logs in Node /
+   * headless / CLI hosts. Takes precedence over {@link RuntimeOptions.quiet}.
+   *
+   * @default consoleLogger (forwards to `console`)
+   */
+  logger?: CacophonyLogger;
+  /**
+   * If `true`, suppresses all of Cacophony's host-side diagnostic output by
+   * installing a no-op logger. Equivalent to passing `logger: noopLogger`.
+   *
+   * Ignored when an explicit {@link RuntimeOptions.logger} is also provided.
+   *
+   * @default false
+   */
+  quiet?: boolean;
 }
 
 /**
@@ -229,6 +251,7 @@ export class Cacophony {
   private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
   private createAudioWorkletNode: (context: BaseContext, name: string, options?: AudioWorkletNodeOptions) => any;
+  private logger: CacophonyLogger;
   /**
    * Named-bus registry. Populated by {@link createBus} when a name is
    * supplied; entries are removed by the bus's onDestroy hook.
@@ -281,6 +304,7 @@ export class Cacophony {
     this.createAudioWorkletNode =
       runtimeOptions.createAudioWorkletNode ??
       ((workletContext, name, options) => new AudioWorkletNode(workletContext as any, name, options));
+    this.logger = runtimeOptions.logger ?? (runtimeOptions.quiet ? noopLogger : consoleLogger);
 
     this.finalizationRegistry = new FinalizationRegistry((holdings) => {
       for (const source of holdings.sources) {
@@ -459,7 +483,7 @@ export class Cacophony {
    */
   async loadWorklets(signal?: AbortSignal): Promise<void> {
     if (!this.context.audioWorklet) {
-      console.warn("AudioWorklet not supported");
+      this.logger.warn("AudioWorklet not supported");
       return;
     }
     for (const worklet of ALL_WORKLETS) {
@@ -543,13 +567,13 @@ export class Cacophony {
     }
     try {
       const node = this.createAudioWorkletNode(ctx, name, options);
-      console.info(`${WORKLET_LOG_PREFIX} construct succeeded`, {
+      this.logger.info(`${WORKLET_LOG_PREFIX} construct succeeded`, {
         name,
         loaded: this.isWorkletLoadedOn(ctx, name),
       });
       return node;
     } catch (err) {
-      console.warn(`${WORKLET_LOG_PREFIX} construct failed`, {
+      this.logger.warn(`${WORKLET_LOG_PREFIX} construct failed`, {
         name,
         loaded: this.isWorkletLoadedOn(ctx, name),
         error: err,
@@ -557,7 +581,7 @@ export class Cacophony {
       try {
         await this.loadAudioWorkletModule(name, url, signal, ctx);
       } catch (err) {
-        console.error(`${WORKLET_LOG_PREFIX} load failed`, {
+        this.logger.error(`${WORKLET_LOG_PREFIX} load failed`, {
           name,
           error: err,
         });
@@ -566,10 +590,10 @@ export class Cacophony {
 
       try {
         const node = this.createAudioWorkletNode(ctx, name, options);
-        console.info(`${WORKLET_LOG_PREFIX} construct after load succeeded`, { name });
+        this.logger.info(`${WORKLET_LOG_PREFIX} construct after load succeeded`, { name });
         return node;
       } catch (err) {
-        console.error(`${WORKLET_LOG_PREFIX} construct after load failed`, {
+        this.logger.error(`${WORKLET_LOG_PREFIX} construct after load failed`, {
           name,
           error: err,
         });
@@ -624,10 +648,10 @@ export class Cacophony {
     // addModule on B after A had loaded the same name, leaving B without
     // the worklet registered.
     if (this.isWorkletLoadedOn(ctx, name)) {
-      console.info(`${WORKLET_LOG_PREFIX} load skipped`, { name });
+      this.logger.info(`${WORKLET_LOG_PREFIX} load skipped`, { name });
       return;
     }
-    console.info(`${WORKLET_LOG_PREFIX} addModule start`, {
+    this.logger.info(`${WORKLET_LOG_PREFIX} addModule start`, {
       name,
       url,
       aborted: signal?.aborted ?? false,
@@ -638,9 +662,9 @@ export class Cacophony {
         ...(signal && { signal }),
       });
       this.markWorkletLoadedOn(ctx, name);
-      console.info(`${WORKLET_LOG_PREFIX} addModule resolved`, { name });
+      this.logger.info(`${WORKLET_LOG_PREFIX} addModule resolved`, { name });
     } catch (err) {
-      console.error(`${WORKLET_LOG_PREFIX} addModule rejected`, {
+      this.logger.error(`${WORKLET_LOG_PREFIX} addModule rejected`, {
         name,
         error: err,
       });

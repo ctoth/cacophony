@@ -85,6 +85,8 @@ export type {
   SynthEvents,
 } from "./events";
 export { Group } from "./group";
+export type { CacophonyLogger } from "./logger";
+export { consoleLogger, noopLogger } from "./logger";
 export type { MediaStreamSoundOptions } from "./mediaStream";
 export { MediaStreamPlayback, MediaStreamSound } from "./mediaStream";
 export type {
