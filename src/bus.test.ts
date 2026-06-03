@@ -318,4 +318,120 @@ describe("Bus: filter chain refresh", () => {
     const filter = cacophony.createBiquadFilter({ frequency: 100 });
     expect(() => bus.removeFilter(filter)).toThrow(/never added/);
   });
+
+  it("adding a filter only touches the changed tail edge, not the unchanged head", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const f1 = cacophony.createBiquadFilter({ frequency: 100 });
+    const f2 = cacophony.createBiquadFilter({ frequency: 200 });
+    const f3 = cacophony.createBiquadFilter({ frequency: 300 });
+    const f4 = cacophony.createBiquadFilter({ frequency: 400 });
+    await bus.addFilter(f1);
+    await bus.addFilter(f2);
+    await bus.addFilter(f3);
+    // Chain is now input → f1 → f2 → f3 → output.
+
+    const inputConnect = vi.spyOn(bus.input, "connect");
+    const inputDisconnect = vi.spyOn(bus.input, "disconnect");
+    const f1Connect = vi.spyOn(f1, "connect");
+    const f1Disconnect = vi.spyOn(f1, "disconnect");
+    const f2Connect = vi.spyOn(f2, "connect");
+    const f2Disconnect = vi.spyOn(f2, "disconnect");
+    const f3Connect = vi.spyOn(f3, "connect");
+    const f3Disconnect = vi.spyOn(f3, "disconnect");
+    const f4Connect = vi.spyOn(f4, "connect");
+
+    await bus.addFilter(f4);
+    // Chain is now input → f1 → f2 → f3 → f4 → output.
+
+    // The only edge removed is the old f3 → output tail.
+    expect(f3Disconnect).toHaveBeenCalledTimes(1);
+    expect(f3Disconnect).toHaveBeenCalledWith(bus.output);
+    // The only new edges are f3 → f4 and f4 → output.
+    expect(f3Connect).toHaveBeenCalledTimes(1);
+    expect(f3Connect).toHaveBeenCalledWith(f4);
+    expect(f4Connect).toHaveBeenCalledTimes(1);
+    expect(f4Connect).toHaveBeenCalledWith(bus.output);
+
+    // The unchanged head input → f1 → f2 → f3 is untouched.
+    expect(inputConnect).not.toHaveBeenCalled();
+    expect(inputDisconnect).not.toHaveBeenCalled();
+    expect(f1Connect).not.toHaveBeenCalled();
+    expect(f1Disconnect).not.toHaveBeenCalled();
+    expect(f2Connect).not.toHaveBeenCalled();
+    expect(f2Disconnect).not.toHaveBeenCalled();
+
+    expect(bus.filters).toEqual([f1, f2, f3, f4]);
+  });
+
+  it("removing a middle filter only touches the edges around it", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const f1 = cacophony.createBiquadFilter({ frequency: 100 });
+    const f2 = cacophony.createBiquadFilter({ frequency: 200 });
+    const f3 = cacophony.createBiquadFilter({ frequency: 300 });
+    await bus.addFilter(f1);
+    await bus.addFilter(f2);
+    await bus.addFilter(f3);
+    // Chain is now input → f1 → f2 → f3 → output.
+
+    const inputConnect = vi.spyOn(bus.input, "connect");
+    const inputDisconnect = vi.spyOn(bus.input, "disconnect");
+    const f1Connect = vi.spyOn(f1, "connect");
+    const f1Disconnect = vi.spyOn(f1, "disconnect");
+    const f2Connect = vi.spyOn(f2, "connect");
+    const f2Disconnect = vi.spyOn(f2, "disconnect");
+    const f3Connect = vi.spyOn(f3, "connect");
+    const f3Disconnect = vi.spyOn(f3, "disconnect");
+
+    bus.removeFilter(f2);
+    // Chain is now input → f1 → f3 → output.
+
+    // f2's two edges (f1 → f2 and f2 → f3) are disconnected.
+    expect(f1Disconnect).toHaveBeenCalledTimes(1);
+    expect(f1Disconnect).toHaveBeenCalledWith(f2);
+    expect(f2Disconnect).toHaveBeenCalledTimes(1);
+    expect(f2Disconnect).toHaveBeenCalledWith(f3);
+    // The single new bridging edge f1 → f3 is connected.
+    expect(f1Connect).toHaveBeenCalledTimes(1);
+    expect(f1Connect).toHaveBeenCalledWith(f3);
+
+    // input → f1 and f3 → output are untouched.
+    expect(inputConnect).not.toHaveBeenCalled();
+    expect(inputDisconnect).not.toHaveBeenCalled();
+    expect(f2Connect).not.toHaveBeenCalled();
+    expect(f3Connect).not.toHaveBeenCalled();
+    expect(f3Disconnect).not.toHaveBeenCalled();
+
+    expect(bus.filters).toEqual([f1, f3]);
+  });
+
+  it("setFilterOrder reorders the chain to the supplied permutation", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const f1 = cacophony.createBiquadFilter({ frequency: 100 });
+    const f2 = cacophony.createBiquadFilter({ frequency: 200 });
+    const f3 = cacophony.createBiquadFilter({ frequency: 300 });
+    await bus.addFilter(f1);
+    await bus.addFilter(f2);
+    await bus.addFilter(f3);
+
+    bus.setFilterOrder([f3, f1, f2]);
+    expect(bus.filters).toEqual([f3, f1, f2]);
+  });
+
+  it("setFilterOrder throws when given a non-permutation", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const f1 = cacophony.createBiquadFilter({ frequency: 100 });
+    const f2 = cacophony.createBiquadFilter({ frequency: 200 });
+    const f3 = cacophony.createBiquadFilter({ frequency: 300 });
+    const foreign = cacophony.createBiquadFilter({ frequency: 999 });
+    await bus.addFilter(f1);
+    await bus.addFilter(f2);
+    await bus.addFilter(f3);
+
+    // Wrong length (subset).
+    expect(() => bus.setFilterOrder([f1, f2])).toThrow(/permutation/);
+    // Right length but contains a foreign node.
+    expect(() => bus.setFilterOrder([f1, f2, foreign])).toThrow(/permutation/);
+    // Right length but contains a duplicate.
+    expect(() => bus.setFilterOrder([f1, f2, f2])).toThrow(/permutation/);
+  });
 });

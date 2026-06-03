@@ -171,6 +171,30 @@ export class Bus {
   }
 
   /**
+   * Reorder the existing filter chain. `nodes` must be a PERMUTATION of the
+   * current filters — the same set of node objects (matched by identity), the
+   * same length, with no duplicates — just in a new order. Because
+   * {@link _refreshFilters} is incremental, only the edges that actually move
+   * are reconnected; unchanged edges are left untouched.
+   *
+   * @throws if the bus has been destroyed, or if `nodes` is not a permutation
+   *   of the current filters.
+   */
+  setFilterOrder(nodes: readonly AudioNode[]): void {
+    this._throwIfDestroyed();
+    const isPermutation =
+      nodes.length === this._filterNodes.length &&
+      new Set(nodes).size === nodes.length &&
+      nodes.every((node) => this._filterNodes.includes(node));
+    if (!isPermutation) {
+      throw new Error("setFilterOrder requires a permutation of the current filters");
+    }
+    this._filterNodes.length = 0;
+    this._filterNodes.push(...nodes);
+    this._refreshFilters();
+  }
+
+  /**
    * Connect this bus's output to another bus or to a raw AudioNode.
    *
    * If `gain` is omitted or equal to 1, connect directly (output →
@@ -342,23 +366,57 @@ export class Bus {
   }
 
   /**
-   * Rebuild the chain `input → [filter1 → ... → filterN] → output`. Called
-   * after any add/remove of a filter. Disconnects only the internal chain
-   * edges this bus created, then reapplies the chain. The output node's edges
-   * to downstream targets are not touched.
+   * Reconcile the live chain to `input → [filter1 → ... → filterN] → output`.
+   * Called after any add/remove/reorder of a filter. This is an INCREMENTAL
+   * diff, not a full rebuild: it disconnects only edges that are no longer part
+   * of the desired chain and connects only edges that are newly required,
+   * leaving edges present in both the old and new chain connected and
+   * untouched (no audible click on the unchanged portion of the chain).
+   *
+   * Edges are matched by OBJECT IDENTITY on both endpoints. Only this bus's own
+   * internal `input → ... → output` edges are touched — never a broad
+   * `node.disconnect()`, never the outbound send/direct edges.
    */
   private _refreshFilters(): void {
-    this._disconnectFilterChainEdges();
-    if (this._filterNodes.length === 0) {
-      this._connectFilterChainEdge(this.input, this.output);
-      return;
+    const desired = this._desiredFilterChainEdges();
+    // Disconnect every currently-recorded edge that is not in the desired set.
+    for (const [source, destination] of this._filterChainEdges) {
+      const stillPresent = desired.some(([s, d]) => s === source && d === destination);
+      if (!stillPresent) {
+        try {
+          source.disconnect(destination);
+        } catch {}
+      }
     }
+    // Connect every desired edge that is not already recorded.
+    for (const [source, destination] of desired) {
+      const alreadyConnected = this._filterChainEdges.some(([s, d]) => s === source && d === destination);
+      if (!alreadyConnected) {
+        source.connect(destination);
+      }
+    }
+    // Record the new chain as exactly the desired edge list.
+    this._filterChainEdges.length = 0;
+    this._filterChainEdges.push(...desired);
+  }
+
+  /**
+   * Compute the desired ordered chain edge list from the current
+   * `_filterNodes`: `[[input, output]]` when there are no filters, otherwise
+   * `[[input, f1], [f1, f2], ..., [fN, output]]`.
+   */
+  private _desiredFilterChainEdges(): Array<readonly [AudioNode, AudioNode]> {
+    if (this._filterNodes.length === 0) {
+      return [[this.input, this.output]];
+    }
+    const edges: Array<readonly [AudioNode, AudioNode]> = [];
     let prev: AudioNode = this.input;
     for (const f of this._filterNodes) {
-      this._connectFilterChainEdge(prev, f);
+      edges.push([prev, f]);
       prev = f;
     }
-    this._connectFilterChainEdge(prev, this.output);
+    edges.push([prev, this.output]);
+    return edges;
   }
 
   private _connectFilterChainEdge(source: AudioNode, destination: AudioNode): void {
