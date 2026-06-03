@@ -68,6 +68,14 @@ export class Bus {
 
   private readonly _context: BaseContext;
   private readonly _filterNodes: AudioNode[] = [];
+  /**
+   * Filter nodes currently bypassed (skipped in the audible chain). A bypassed
+   * node stays in {@link _filterNodes} — so {@link filters} order, identity, and
+   * its live AudioParams are preserved — but {@link _desiredFilterChainEdges}
+   * builds the series chain over the NON-bypassed filters only, wiring the
+   * signal around it. Membership is by node identity.
+   */
+  private readonly _bypassedFilters = new Set<AudioNode>();
   private readonly _filterChainEdges: Array<readonly [AudioNode, AudioNode]> = [];
   private readonly _sendGains: Map<BusConnectionTarget, GainNode> = new Map();
   private readonly _directConnections: Set<BusConnectionTarget> = new Set();
@@ -174,6 +182,7 @@ export class Bus {
       throw new Error("Cannot remove filter that was never added to this bus");
     }
     this._filterNodes.splice(idx, 1);
+    this._bypassedFilters.delete(node);
     this._refreshFilters();
   }
 
@@ -199,6 +208,48 @@ export class Bus {
     this._filterNodes.length = 0;
     this._filterNodes.push(...nodes);
     this._refreshFilters();
+  }
+
+  /**
+   * Bypass (or un-bypass) a filter without removing it from the chain. A
+   * bypassed filter stays in {@link filters} — its order, identity, and live
+   * AudioParams are preserved (so an automation target survives a bypass) — but
+   * it is skipped in the audible series chain: the signal is wired around it.
+   * Un-bypassing wires it back in at its original position.
+   *
+   * The reconnect goes through the incremental {@link _refreshFilters}, so only
+   * the seam around `node` is touched — the rest of the chain is left connected.
+   *
+   * @param node A filter node currently on this bus (from {@link addFilter} or
+   *   {@link filters}).
+   * @param bypassed `true` to skip the node, `false` to wire it back in. A no-op
+   *   if the node is already in the requested state.
+   * @throws if the bus has been destroyed, or if `node` was never added to this
+   *   bus.
+   */
+  setFilterBypassed(node: AudioNode, bypassed: boolean): void {
+    this._throwIfDestroyed();
+    if (!this._filterNodes.includes(node)) {
+      throw new Error("Cannot bypass a filter that was never added to this bus");
+    }
+    const alreadyBypassed = this._bypassedFilters.has(node);
+    if (bypassed === alreadyBypassed) {
+      return;
+    }
+    if (bypassed) {
+      this._bypassedFilters.add(node);
+    } else {
+      this._bypassedFilters.delete(node);
+    }
+    this._refreshFilters();
+  }
+
+  /**
+   * Whether `node` is currently bypassed (skipped in the audible chain). Returns
+   * `false` for nodes that were never added to this bus.
+   */
+  isFilterBypassed(node: AudioNode): boolean {
+    return this._bypassedFilters.has(node);
   }
 
   /**
@@ -517,16 +568,22 @@ export class Bus {
 
   /**
    * Compute the desired ordered chain edge list from the current
-   * `_filterNodes`: `[[input, output]]` when there are no filters, otherwise
-   * `[[input, f1], [f1, f2], ..., [fN, output]]`.
+   * `_filterNodes`, skipping any node in {@link _bypassedFilters}: the series
+   * chain is built over the NON-bypassed filters only. With no active (non-
+   * bypassed) filters — whether the bus has no filters at all or every filter is
+   * bypassed — the desired list is `[[input, output]]` (the direct edge);
+   * otherwise `[[input, a1], [a1, a2], ..., [aN, output]]` over the active
+   * filters `a1..aN`. Bypassed nodes stay in {@link _filterNodes} (and thus in
+   * {@link filters}) but receive no inbound/outbound chain edge.
    */
   private _desiredFilterChainEdges(): Array<readonly [AudioNode, AudioNode]> {
-    if (this._filterNodes.length === 0) {
+    const active = this._filterNodes.filter((n) => !this._bypassedFilters.has(n));
+    if (active.length === 0) {
       return [[this.input, this.output]];
     }
     const edges: Array<readonly [AudioNode, AudioNode]> = [];
     let prev: AudioNode = this.input;
-    for (const f of this._filterNodes) {
+    for (const f of active) {
       edges.push([prev, f]);
       prev = f;
     }
