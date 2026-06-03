@@ -82,6 +82,50 @@ describe("Cacophony waveshaper factories (createWaveshaper / createDistortion)",
   });
 });
 
+describe("Cacophony waveshaper string-mode shape aliases", () => {
+  beforeEach(() => {
+    mockAudioWorklet();
+  });
+
+  it("translates shape: 'tanh' to index 1 in parameterData", async () => {
+    const createNodeSpy = vi.spyOn(cacophony, "createWaveshaperNode").mockResolvedValue({} as never);
+    const effect = cacophony.createWaveshaper({ drive: 2, shape: "tanh", mix: 0.8 });
+    await effect.build(cacophony.context);
+    expect(createNodeSpy).toHaveBeenCalledWith({ parameterData: { drive: 2, shape: 1, mix: 0.8 } }, cacophony.context);
+    createNodeSpy.mockRestore();
+  });
+
+  it("translates shape: 'hardclip' to index 0 in parameterData", async () => {
+    const createNodeSpy = vi.spyOn(cacophony, "createWaveshaperNode").mockResolvedValue({} as never);
+    await cacophony.createWaveshaper({ shape: "hardclip" }).build(cacophony.context);
+    expect(createNodeSpy).toHaveBeenCalledWith({ parameterData: { shape: 0 } }, cacophony.context);
+    createNodeSpy.mockRestore();
+  });
+
+  it("leaves a numeric shape unchanged (backward compatible)", async () => {
+    const createNodeSpy = vi.spyOn(cacophony, "createWaveshaperNode").mockResolvedValue({} as never);
+    await cacophony.createWaveshaper({ shape: 1 }).build(cacophony.context);
+    expect(createNodeSpy).toHaveBeenCalledWith({ parameterData: { shape: 1 } }, cacophony.context);
+    createNodeSpy.mockRestore();
+  });
+
+  it("falls back to index 0 for an unknown shape string", async () => {
+    const createNodeSpy = vi.spyOn(cacophony, "createWaveshaperNode").mockResolvedValue({} as never);
+    // Unknown string is not part of the public union, but the runtime fallback
+    // must still map it to 0 (mirroring the worklet's `?? first` behavior).
+    await cacophony.createWaveshaper({ shape: "bogus" as never }).build(cacophony.context);
+    expect(createNodeSpy).toHaveBeenCalledWith({ parameterData: { shape: 0 } }, cacophony.context);
+    createNodeSpy.mockRestore();
+  });
+
+  it("does not add a shape key when shape is omitted", async () => {
+    const createNodeSpy = vi.spyOn(cacophony, "createWaveshaperNode").mockResolvedValue({} as never);
+    await cacophony.createWaveshaper({ drive: 3 }).build(cacophony.context);
+    expect(createNodeSpy).toHaveBeenCalledWith({ parameterData: { drive: 3 } }, cacophony.context);
+    createNodeSpy.mockRestore();
+  });
+});
+
 describe("waveshaper effect Bus integration", () => {
   beforeEach(() => {
     mockAudioWorklet();

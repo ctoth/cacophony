@@ -1,4 +1,4 @@
-import type { Bus } from "./bus";
+import type { Bus, BusRoutedSource } from "./bus";
 import type { BaseSound, Cacophony, PanType, SoundType } from "./cacophony";
 import { PlaybackContainer } from "./container";
 import type { BaseContext, GainNode, OscillatorNode } from "./context";
@@ -13,7 +13,7 @@ import type { VolumeCloneOverrides } from "./volumeMixin";
 
 type SynthCloneOverrides = FilterCloneOverrides & OscillatorCloneOverrides & PanCloneOverrides & VolumeCloneOverrides;
 
-export class Synth extends PlaybackContainer(FilterManager) implements BaseSound {
+export class Synth extends PlaybackContainer(FilterManager) implements BaseSound, BusRoutedSource {
   _oscillatorOptions: Partial<OscillatorOptions>;
   playbacks: SynthPlayback[] = [];
   private eventEmitter: TypedEventEmitter<SynthEvents> = new TypedEventEmitter<SynthEvents>();
@@ -266,9 +266,19 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
       throw new Error(`Cannot route to destroyed bus '${bus.name ?? "<anonymous>"}'`);
     }
     const collapseToMaster = bus.input === this.globalGainNode;
+    const oldTarget = this._routeTarget;
     const oldTargetNode = this._resolveRouteTargetNode();
     this._routeTarget = collapseToMaster ? null : bus;
+    const newTarget = this._routeTarget;
     const newTargetNode = this._resolveRouteTargetNode();
+    if (oldTarget !== newTarget) {
+      if (oldTarget && !this._sends.has(oldTarget)) {
+        oldTarget._unregisterRoutedSource(this);
+      }
+      if (newTarget) {
+        newTarget._registerRoutedSource(this);
+      }
+    }
     if (oldTargetNode === newTargetNode) {
       return;
     }
@@ -287,6 +297,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
       throw new Error(`Cannot add a send to destroyed bus '${bus.name ?? "<anonymous>"}'`);
     }
     this._sends.set(bus, gainValue);
+    bus._registerRoutedSource(this);
     for (const playback of this.playbacks) {
       const existing = playback._sendGains.get(bus);
       if (existing) {
@@ -302,6 +313,27 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
       }
       sendGain.connect(bus.input);
       playback._sendGains.set(bus, sendGain);
+    }
+  }
+
+  _onBusDrained(bus: Bus, target: Bus): void {
+    if (this._routeTarget === bus) {
+      this._setPrimary(target);
+    }
+    if (this._sends.has(bus)) {
+      const gainValue = this._sends.get(bus) as number;
+      this._sends.delete(bus);
+      for (const playback of this.playbacks) {
+        const sendGain = playback._sendGains.get(bus);
+        if (!sendGain) {
+          continue;
+        }
+        try {
+          sendGain.disconnect();
+        } catch {}
+        playback._sendGains.delete(bus);
+      }
+      this._addSend(target, gainValue);
     }
   }
 

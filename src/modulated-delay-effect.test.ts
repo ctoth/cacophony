@@ -138,6 +138,43 @@ describe("Cacophony modulated-delay factories (createDelay / createChorus / crea
   });
 });
 
+describe("Cacophony modulated-delay string-mode interpolation aliases", () => {
+  beforeEach(() => {
+    mockAudioWorklet();
+  });
+
+  const interpolationOf = (spy: ReturnType<typeof vi.spyOn>): unknown =>
+    (spy.mock.calls[0]?.[0] as { parameterData: Record<string, unknown> }).parameterData.interpolation;
+
+  it("translates interpolation: 'linear' to index 1 in parameterData", async () => {
+    const createNodeSpy = vi.spyOn(cacophony, "createModulatedDelayNode").mockResolvedValue({} as never);
+    await cacophony.createDelay({ interpolation: "linear" }).build(cacophony.context);
+    expect(interpolationOf(createNodeSpy)).toBe(1);
+    createNodeSpy.mockRestore();
+  });
+
+  it("translates interpolation: 'cubic' to index 0 in parameterData", async () => {
+    const createNodeSpy = vi.spyOn(cacophony, "createModulatedDelayNode").mockResolvedValue({} as never);
+    await cacophony.createDelay({ interpolation: "cubic" }).build(cacophony.context);
+    expect(interpolationOf(createNodeSpy)).toBe(0);
+    createNodeSpy.mockRestore();
+  });
+
+  it("leaves a numeric interpolation unchanged (backward compatible)", async () => {
+    const createNodeSpy = vi.spyOn(cacophony, "createModulatedDelayNode").mockResolvedValue({} as never);
+    await cacophony.createDelay({ interpolation: 1 }).build(cacophony.context);
+    expect(interpolationOf(createNodeSpy)).toBe(1);
+    createNodeSpy.mockRestore();
+  });
+
+  it("falls back to index 0 for an unknown interpolation string", async () => {
+    const createNodeSpy = vi.spyOn(cacophony, "createModulatedDelayNode").mockResolvedValue({} as never);
+    await cacophony.createDelay({ interpolation: "bogus" as never }).build(cacophony.context);
+    expect(interpolationOf(createNodeSpy)).toBe(0);
+    createNodeSpy.mockRestore();
+  });
+});
+
 describe("modulated-delay effect Bus integration", () => {
   beforeEach(() => {
     mockAudioWorklet();

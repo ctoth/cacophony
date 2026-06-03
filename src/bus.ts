@@ -19,7 +19,8 @@
  * parameters affects both.
  */
 
-import type { AudioNode, BaseContext, BiquadFilterNode, GainNode } from "./context";
+import type { FadeType } from "./cacophony";
+import type { AudioNode, AudioParam, AudioWorkletNode, BaseContext, BiquadFilterNode, GainNode } from "./context";
 import type { CacophonyEffect } from "./effects";
 import { isCacophonyBuiltBiquad, isCacophonyEffect } from "./effects";
 
@@ -29,6 +30,21 @@ import { isCacophonyBuiltBiquad, isCacophonyEffect } from "./effects";
  * directly to it — escape hatch for advanced wiring).
  */
 export type BusConnectionTarget = Bus | AudioNode;
+
+/**
+ * Structural contract a routed source (e.g. a {@link Sound}) implements so a
+ * Bus can move it off itself before teardown. Declared here — rather than
+ * importing `Sound` — to avoid an import cycle (`sound.ts` already imports
+ * `Bus`). A Bus only ever needs this one method on its inbound sources.
+ */
+export interface BusRoutedSource {
+  /**
+   * Called by {@link Bus.drainTo} to move this source off the draining bus
+   * onto `target`. The source reroutes its primary route and/or any send that
+   * targeted `bus`.
+   */
+  _onBusDrained(bus: Bus, target: Bus): void;
+}
 
 /**
  * A named summing node with a filter chain and per-edge send gain. See
@@ -52,9 +68,25 @@ export class Bus {
 
   private readonly _context: BaseContext;
   private readonly _filterNodes: AudioNode[] = [];
+  /**
+   * Filter nodes currently bypassed (skipped in the audible chain). A bypassed
+   * node stays in {@link _filterNodes} — so {@link filters} order, identity, and
+   * its live AudioParams are preserved — but {@link _desiredFilterChainEdges}
+   * builds the series chain over the NON-bypassed filters only, wiring the
+   * signal around it. Membership is by node identity.
+   */
+  private readonly _bypassedFilters = new Set<AudioNode>();
   private readonly _filterChainEdges: Array<readonly [AudioNode, AudioNode]> = [];
   private readonly _sendGains: Map<BusConnectionTarget, GainNode> = new Map();
   private readonly _directConnections: Set<BusConnectionTarget> = new Set();
+  /**
+   * Inbound sources currently routed to this bus (primary route and/or sends).
+   * A Web Audio node cannot enumerate its own inputs, so sources register
+   * themselves here (via {@link _registerRoutedSource}) when they route to
+   * this bus and unregister on reroute/cleanup. {@link drainTo} walks this set
+   * to move live sounds off the bus before it is torn down.
+   */
+  private readonly _routedSources = new Set<BusRoutedSource>();
   /**
    * Hook invoked by the owning Cacophony instance to remove this bus from
    * the named-bus registry on destroy. Anonymous buses leave this undefined.
@@ -109,10 +141,15 @@ export class Bus {
    *   `cacophony.shareEffect(node)` (or a proper CacophonyEffect class) to
    *   make the shared-state intent explicit.
    *
+   * @returns the built AudioNode that was added to the chain. For a biquad this
+   *   is the argument itself; for a {@link CacophonyEffect} it is the node
+   *   produced by `build`. The returned handle can be passed to
+   *   {@link rampFilterParam} to automate the node's parameters. Existing
+   *   callers that ignore the result keep working unchanged.
    * @throws if the bus has been destroyed, or if the argument is a raw
    *   AudioNode that is not a Cacophony-built biquad.
    */
-  async addFilter(arg: BiquadFilterNode | CacophonyEffect | AudioNode): Promise<void> {
+  async addFilter(arg: BiquadFilterNode | CacophonyEffect | AudioNode): Promise<AudioNode> {
     this._throwIfDestroyed();
     let node: AudioNode;
     if (isCacophonyBuiltBiquad(arg)) {
@@ -129,6 +166,7 @@ export class Bus {
     }
     this._filterNodes.push(node);
     this._refreshFilters();
+    return node;
   }
 
   /**
@@ -144,7 +182,182 @@ export class Bus {
       throw new Error("Cannot remove filter that was never added to this bus");
     }
     this._filterNodes.splice(idx, 1);
+    this._bypassedFilters.delete(node);
     this._refreshFilters();
+  }
+
+  /**
+   * Reorder the existing filter chain. `nodes` must be a PERMUTATION of the
+   * current filters — the same set of node objects (matched by identity), the
+   * same length, with no duplicates — just in a new order. Because
+   * {@link _refreshFilters} is incremental, only the edges that actually move
+   * are reconnected; unchanged edges are left untouched.
+   *
+   * @throws if the bus has been destroyed, or if `nodes` is not a permutation
+   *   of the current filters.
+   */
+  setFilterOrder(nodes: readonly AudioNode[]): void {
+    this._throwIfDestroyed();
+    const isPermutation =
+      nodes.length === this._filterNodes.length &&
+      new Set(nodes).size === nodes.length &&
+      nodes.every((node) => this._filterNodes.includes(node));
+    if (!isPermutation) {
+      throw new Error("setFilterOrder requires a permutation of the current filters");
+    }
+    this._filterNodes.length = 0;
+    this._filterNodes.push(...nodes);
+    this._refreshFilters();
+  }
+
+  /**
+   * Bypass (or un-bypass) a filter without removing it from the chain. A
+   * bypassed filter stays in {@link filters} — its order, identity, and live
+   * AudioParams are preserved (so an automation target survives a bypass) — but
+   * it is skipped in the audible series chain: the signal is wired around it.
+   * Un-bypassing wires it back in at its original position.
+   *
+   * The reconnect goes through the incremental {@link _refreshFilters}, so only
+   * the seam around `node` is touched — the rest of the chain is left connected.
+   *
+   * @param node A filter node currently on this bus (from {@link addFilter} or
+   *   {@link filters}).
+   * @param bypassed `true` to skip the node, `false` to wire it back in. A no-op
+   *   if the node is already in the requested state.
+   * @throws if the bus has been destroyed, or if `node` was never added to this
+   *   bus.
+   */
+  setFilterBypassed(node: AudioNode, bypassed: boolean): void {
+    this._throwIfDestroyed();
+    if (!this._filterNodes.includes(node)) {
+      throw new Error("Cannot bypass a filter that was never added to this bus");
+    }
+    const alreadyBypassed = this._bypassedFilters.has(node);
+    if (bypassed === alreadyBypassed) {
+      return;
+    }
+    if (bypassed) {
+      this._bypassedFilters.add(node);
+    } else {
+      this._bypassedFilters.delete(node);
+    }
+    this._refreshFilters();
+  }
+
+  /**
+   * Whether `node` is currently bypassed (skipped in the audible chain). Returns
+   * `false` for nodes that were never added to this bus.
+   */
+  isFilterBypassed(node: AudioNode): boolean {
+    return this._bypassedFilters.has(node);
+  }
+
+  /**
+   * Ramp an effect node's parameter to a target value over time. This is the
+   * uniform automation handle for filter-chain effects: pass a node obtained
+   * from {@link addFilter} (or the {@link filters} getter) and the name of the
+   * parameter to drive.
+   *
+   * Parameter resolution:
+   * - If `node` exposes a worklet-style `parameters` AudioParamMap, the param
+   *   is resolved via `parameters.get(paramName)` (e.g. a worklet effect's
+   *   named params).
+   * - Otherwise, if `node[paramName]` is itself an AudioParam (native nodes
+   *   such as a biquad expose `.frequency` / `.Q` / `.gain` directly), that is
+   *   used.
+   *
+   * Ramp shape (mirrors the codebase fade convention): the target time base is
+   * `node.context.currentTime`. With no `duration` (or `duration <= 0`) the
+   * value is set immediately via `setValueAtTime(value, now)`. Otherwise the
+   * start is pinned with `setValueAtTime(param.value, now)` and the value ramps
+   * to `now + duration / 1000` (milliseconds) using `linearRampToValueAtTime`
+   * (default) or `exponentialRampToValueAtTime` when `type` is `"exponential"`
+   * (an exponential target of 0 is floored to 0.0001, matching `fadeTo`).
+   *
+   * Automation degrades gracefully: if `node` is not on this bus, or the
+   * parameter cannot be resolved to an AudioParam, a warning is logged and the
+   * call is a no-op. The only condition that throws is a destroyed bus.
+   *
+   * @param node A filter node currently on this bus (from {@link addFilter}).
+   * @param paramName The name of the parameter to automate.
+   * @param value The target value.
+   * @param options.duration Ramp duration in milliseconds. Absent/`<= 0` sets
+   *   the value immediately.
+   * @param options.type Ramp curve, `"linear"` (default) or `"exponential"`.
+   * @throws if the bus has been destroyed.
+   */
+  rampFilterParam(
+    node: AudioNode,
+    paramName: string,
+    value: number,
+    options?: { duration?: number; type?: FadeType },
+  ): void {
+    this._throwIfDestroyed();
+    if (!this._filterNodes.includes(node)) {
+      console.warn(`Bus.rampFilterParam: node is not a filter on this bus; ignoring automation of '${paramName}'.`);
+      return;
+    }
+
+    const param = this._resolveAudioParam(node, paramName);
+    if (!param) {
+      console.warn(`Bus.rampFilterParam: could not resolve AudioParam '${paramName}' on the given node; ignoring.`);
+      return;
+    }
+
+    const now = node.context.currentTime;
+    const duration = options?.duration;
+    if (duration === undefined || duration <= 0) {
+      param.setValueAtTime(value, now);
+      return;
+    }
+
+    const endTime = now + duration / 1000;
+    param.setValueAtTime(param.value, now);
+    if (options?.type === "exponential") {
+      param.exponentialRampToValueAtTime(value === 0 ? 0.0001 : value, endTime);
+    } else {
+      param.linearRampToValueAtTime(value, endTime);
+    }
+  }
+
+  /**
+   * Resolve the named {@link AudioParam} on a node. Tries the worklet
+   * `parameters` map first, then a directly-exposed native param
+   * (`node[paramName]`). Returns `undefined` if neither yields an AudioParam.
+   *
+   * Detection is structural (duck-typed), never `instanceof` — the mocked test
+   * context may not provide the `AudioParam` global.
+   */
+  private _resolveAudioParam(node: AudioNode, paramName: string): AudioParam | undefined {
+    const parameters = (node as AudioWorkletNode).parameters;
+    if (parameters && typeof parameters.get === "function") {
+      const workletParam = parameters.get(paramName);
+      if (this._isAudioParam(workletParam)) {
+        return workletParam;
+      }
+    }
+
+    const nativeParam = (node as unknown as Record<string, unknown>)[paramName];
+    if (this._isAudioParam(nativeParam)) {
+      return nativeParam;
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Structural AudioParam check: a value is treated as an AudioParam if it
+   * exposes the ramp scheduling methods. Avoids `instanceof AudioParam` so it
+   * works under the standardized-audio-context mock (which may lack the global).
+   */
+  private _isAudioParam(value: unknown): value is AudioParam {
+    return (
+      typeof value === "object" &&
+      value !== null &&
+      typeof (value as AudioParam).setValueAtTime === "function" &&
+      typeof (value as AudioParam).linearRampToValueAtTime === "function" &&
+      typeof (value as AudioParam).exponentialRampToValueAtTime === "function"
+    );
   }
 
   /**
@@ -233,16 +446,67 @@ export class Bus {
   }
 
   /**
+   * Register an inbound source that routes to this bus (primary and/or send).
+   * Called by the source when it begins routing here. Idempotent (Set). Safe
+   * to call without a destroyed guard — registration during normal routing
+   * must never throw — but a destroyed bus has nothing to drain, so this
+   * early-returns once destroyed.
+   *
+   * @internal
+   */
+  _registerRoutedSource(source: BusRoutedSource): void {
+    if (this._destroyed) {
+      return;
+    }
+    this._routedSources.add(source);
+  }
+
+  /**
+   * Unregister an inbound source (it rerouted away or was cleaned up). No-op
+   * if the source was never registered.
+   *
+   * @internal
+   */
+  _unregisterRoutedSource(source: BusRoutedSource): void {
+    this._routedSources.delete(source);
+  }
+
+  /**
+   * Move every source currently routed to this bus onto `target`, so live
+   * sounds keep feeding a live bus instead of the dead `input` after this bus
+   * is torn down. Each registered source's {@link BusRoutedSource._onBusDrained}
+   * reroutes its primary route and/or the send that targeted this bus.
+   *
+   * @throws if this bus has been destroyed, or if `target` is this bus.
+   */
+  drainTo(target: Bus): void {
+    this._throwIfDestroyed();
+    if (target === this) {
+      throw new Error("Cannot drain a bus to itself");
+    }
+    for (const source of [...this._routedSources]) {
+      source._onBusDrained(this, target);
+    }
+    this._routedSources.clear();
+  }
+
+  /**
    * Tear down the bus — disconnects input, output, every send-gain, every
    * filter, then deregisters from the owner Cacophony's named-bus map.
    * Subsequent `addFilter`/`removeFilter`/`connect`/`disconnect` calls throw.
    *
-   * Sounds routed to a destroyed bus fall back to master on their next
+   * If `options.drainTo` is provided, every source routed to this bus is first
+   * rerouted onto that bus (via {@link drainTo}) so live sounds keep playing
+   * through a live bus. With no options the default teardown is unchanged:
+   * sounds routed to the destroyed bus fall back to master on their next
    * playback (the routeTo machinery checks `destroyed` at preplay).
    */
-  destroy(): void {
+  destroy(options?: { drainTo?: Bus }): void {
     if (this._destroyed) {
       return;
+    }
+    if (options?.drainTo) {
+      this.drainTo(options.drainTo);
     }
     this._destroyed = true;
     // Tear down all outgoing send-gain allocations.
@@ -268,23 +532,63 @@ export class Bus {
   }
 
   /**
-   * Rebuild the chain `input → [filter1 → ... → filterN] → output`. Called
-   * after any add/remove of a filter. Disconnects only the internal chain
-   * edges this bus created, then reapplies the chain. The output node's edges
-   * to downstream targets are not touched.
+   * Reconcile the live chain to `input → [filter1 → ... → filterN] → output`.
+   * Called after any add/remove/reorder of a filter. This is an INCREMENTAL
+   * diff, not a full rebuild: it disconnects only edges that are no longer part
+   * of the desired chain and connects only edges that are newly required,
+   * leaving edges present in both the old and new chain connected and
+   * untouched (no audible click on the unchanged portion of the chain).
+   *
+   * Edges are matched by OBJECT IDENTITY on both endpoints. Only this bus's own
+   * internal `input → ... → output` edges are touched — never a broad
+   * `node.disconnect()`, never the outbound send/direct edges.
    */
   private _refreshFilters(): void {
-    this._disconnectFilterChainEdges();
-    if (this._filterNodes.length === 0) {
-      this._connectFilterChainEdge(this.input, this.output);
-      return;
+    const desired = this._desiredFilterChainEdges();
+    // Disconnect every currently-recorded edge that is not in the desired set.
+    for (const [source, destination] of this._filterChainEdges) {
+      const stillPresent = desired.some(([s, d]) => s === source && d === destination);
+      if (!stillPresent) {
+        try {
+          source.disconnect(destination);
+        } catch {}
+      }
     }
+    // Connect every desired edge that is not already recorded.
+    for (const [source, destination] of desired) {
+      const alreadyConnected = this._filterChainEdges.some(([s, d]) => s === source && d === destination);
+      if (!alreadyConnected) {
+        source.connect(destination);
+      }
+    }
+    // Record the new chain as exactly the desired edge list.
+    this._filterChainEdges.length = 0;
+    this._filterChainEdges.push(...desired);
+  }
+
+  /**
+   * Compute the desired ordered chain edge list from the current
+   * `_filterNodes`, skipping any node in {@link _bypassedFilters}: the series
+   * chain is built over the NON-bypassed filters only. With no active (non-
+   * bypassed) filters — whether the bus has no filters at all or every filter is
+   * bypassed — the desired list is `[[input, output]]` (the direct edge);
+   * otherwise `[[input, a1], [a1, a2], ..., [aN, output]]` over the active
+   * filters `a1..aN`. Bypassed nodes stay in {@link _filterNodes} (and thus in
+   * {@link filters}) but receive no inbound/outbound chain edge.
+   */
+  private _desiredFilterChainEdges(): Array<readonly [AudioNode, AudioNode]> {
+    const active = this._filterNodes.filter((n) => !this._bypassedFilters.has(n));
+    if (active.length === 0) {
+      return [[this.input, this.output]];
+    }
+    const edges: Array<readonly [AudioNode, AudioNode]> = [];
     let prev: AudioNode = this.input;
-    for (const f of this._filterNodes) {
-      this._connectFilterChainEdge(prev, f);
+    for (const f of active) {
+      edges.push([prev, f]);
       prev = f;
     }
-    this._connectFilterChainEdge(prev, this.output);
+    edges.push([prev, this.output]);
+    return edges;
   }
 
   private _connectFilterChainEdge(source: AudioNode, destination: AudioNode): void {

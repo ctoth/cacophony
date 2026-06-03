@@ -83,6 +83,47 @@ describe("Cacophony tremolo factories (createTremolo / createAutoPan)", () => {
   });
 });
 
+describe("Cacophony tremolo string-mode shape aliases", () => {
+  beforeEach(() => {
+    mockAudioWorklet();
+  });
+
+  it("translates shape: 'triangle' to index 1 in parameterData", async () => {
+    const createNodeSpy = vi.spyOn(cacophony, "createTremoloNode").mockResolvedValue({} as never);
+    await cacophony.createTremolo({ rate: 8, shape: "triangle" }).build(cacophony.context);
+    expect(createNodeSpy).toHaveBeenCalledWith({ parameterData: { rate: 8, shape: 1 } }, cacophony.context);
+    createNodeSpy.mockRestore();
+  });
+
+  it("translates shape: 'square' to index 2 in parameterData", async () => {
+    const createNodeSpy = vi.spyOn(cacophony, "createTremoloNode").mockResolvedValue({} as never);
+    await cacophony.createTremolo({ shape: "square" }).build(cacophony.context);
+    expect(createNodeSpy).toHaveBeenCalledWith({ parameterData: { shape: 2 } }, cacophony.context);
+    createNodeSpy.mockRestore();
+  });
+
+  it("translates shape: 'sine' to index 0 in parameterData", async () => {
+    const createNodeSpy = vi.spyOn(cacophony, "createTremoloNode").mockResolvedValue({} as never);
+    await cacophony.createTremolo({ shape: "sine" }).build(cacophony.context);
+    expect(createNodeSpy).toHaveBeenCalledWith({ parameterData: { shape: 0 } }, cacophony.context);
+    createNodeSpy.mockRestore();
+  });
+
+  it("leaves a numeric shape unchanged (backward compatible)", async () => {
+    const createNodeSpy = vi.spyOn(cacophony, "createTremoloNode").mockResolvedValue({} as never);
+    await cacophony.createTremolo({ shape: 2 }).build(cacophony.context);
+    expect(createNodeSpy).toHaveBeenCalledWith({ parameterData: { shape: 2 } }, cacophony.context);
+    createNodeSpy.mockRestore();
+  });
+
+  it("falls back to index 0 for an unknown shape string", async () => {
+    const createNodeSpy = vi.spyOn(cacophony, "createTremoloNode").mockResolvedValue({} as never);
+    await cacophony.createTremolo({ shape: "bogus" as never }).build(cacophony.context);
+    expect(createNodeSpy).toHaveBeenCalledWith({ parameterData: { shape: 0 } }, cacophony.context);
+    createNodeSpy.mockRestore();
+  });
+});
+
 describe("tremolo effect Bus integration", () => {
   beforeEach(() => {
     mockAudioWorklet();
