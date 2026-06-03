@@ -79,6 +79,50 @@ describe("Bus.drainTo: send", () => {
   });
 });
 
+describe("Bus.drainTo: synth sources", () => {
+  it("reroutes a playing primary-routed synth onto the target bus", () => {
+    const synth = cacophony.createOscillator({});
+    const busA = cacophony.createBus("drain-synth-primary-a");
+    const busB = cacophony.createBus("drain-synth-primary-b");
+    synth.routeTo(busA);
+    const [playback] = synth.play();
+    const disconnectSpy = vi.spyOn(playback.outputNode, "disconnect");
+    const connectSpy = vi.spyOn(playback.outputNode, "connect");
+
+    busA.drainTo(busB);
+
+    expect((synth as unknown as { _routeTarget: unknown })._routeTarget).toBe(busB);
+    expect(disconnectSpy).toHaveBeenCalledWith(busA.input);
+    expect(connectSpy).toHaveBeenCalledWith(busB.input);
+
+    busA.destroy();
+    busB.destroy();
+  });
+
+  it("moves a synth send when the sending bus drains", () => {
+    const synth = cacophony.createOscillator({});
+    const busA = cacophony.createBus("drain-synth-send-a");
+    const busB = cacophony.createBus("drain-synth-send-b");
+    synth.routeTo(busA, 0.25);
+    const [playback] = synth.play();
+
+    const oldSendGain = playback._sendGains.get(busA);
+    expect(oldSendGain).toBeDefined();
+    const oldSendGainDisconnect = vi.spyOn(oldSendGain!, "disconnect");
+
+    busA.drainTo(busB);
+
+    const sends = (synth as unknown as { _sends: Map<unknown, number> })._sends;
+    expect(sends.has(busA)).toBe(false);
+    expect(sends.get(busB)).toBe(0.25);
+    expect(playback._sendGains.has(busA)).toBe(false);
+    expect(oldSendGainDisconnect).toHaveBeenCalled();
+
+    busA.destroy();
+    busB.destroy();
+  });
+});
+
 describe("Bus.destroy({ drainTo })", () => {
   it("reroutes then destroys", async () => {
     const sound = await buildSound();
