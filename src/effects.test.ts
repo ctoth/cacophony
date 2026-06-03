@@ -2,6 +2,7 @@ import { AudioContext } from "standardized-audio-context-mock";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { BiquadEffect, isCacophonyBuiltBiquad, isCacophonyEffect, markAsCacophonyBiquad, ShareEffect } from "./effects";
 import { audioContextMock, cacophony } from "./setupTests";
+import { WORKLETS } from "./worklets";
 
 /**
  * The standardized-audio-context mock used in setupTests doesn't expose
@@ -91,7 +92,7 @@ describe("Cacophony.shareEffect", () => {
   });
 });
 
-describe("Cacophony.createReverb / loadDattorroReverb", () => {
+describe("Cacophony.createReverb / dattorro-reverb worklet", () => {
   beforeEach(() => {
     mockAudioWorklet();
   });
@@ -101,45 +102,43 @@ describe("Cacophony.createReverb / loadDattorroReverb", () => {
     expect(isCacophonyEffect(effect)).toBe(true);
   });
 
-  it("ReverbEffect.build awaits loadDattorroReverb and constructs the 'dattorro-reverb' worklet node", async () => {
-    const loadSpy = vi.spyOn(cacophony, "loadDattorroReverb");
+  it("ReverbEffect.build constructs the 'dattorro-reverb' worklet node", async () => {
     const workletSpy = vi.spyOn(cacophony, "createWorkletNode");
     const effect = cacophony.createReverb({ wet: 0.5, dry: 0.5 });
     const node = await effect.build(cacophony.context);
-    expect(loadSpy).toHaveBeenCalled();
     expect(node).toBeDefined();
     // The constructed AudioWorkletNode must be the dattorro-reverb processor
     // (not some other worklet). Asserting the name pins the routing through
     // createWorkletNode("dattorro-reverb", ...).
     expect(workletSpy).toHaveBeenCalled();
     expect(workletSpy.mock.calls[0]?.[0]).toBe("dattorro-reverb");
-    loadSpy.mockRestore();
     workletSpy.mockRestore();
   });
 
-  it("loadDattorroReverb is idempotent — second call does not re-add the module", async () => {
+  it("dattorro-reverb load is idempotent — second build does not re-add the module", async () => {
     const addModule = mockAudioWorklet();
     // Force AudioWorkletNode construction to fail first time so addModule
     // is reached; cacophony's createWorkletNode falls back to loadAudioWorkletModule.
     vi.mocked(AudioWorkletNode).mockImplementationOnce(() => {
       throw new Error("Worklet not loaded");
     });
-    await cacophony.loadDattorroReverb();
+    await cacophony.buildWorkletEffect(WORKLETS.dattorroReverb, {});
     const addModuleCallsAfterFirst = addModule.mock.calls.length;
-    await cacophony.loadDattorroReverb();
+    await cacophony.buildWorkletEffect(WORKLETS.dattorroReverb, {});
     // Second call should short-circuit (loadedAudioWorklets has the name).
     expect(addModule.mock.calls.length).toBe(addModuleCallsAfterFirst);
   });
 
   it("createReverb passes options as parameterData to the worklet (and forwards the build context)", async () => {
-    const createNodeSpy = vi.spyOn(cacophony, "createDattorroReverbNode").mockResolvedValue({} as any);
+    const createNodeSpy = vi.spyOn(cacophony, "buildWorkletEffect").mockResolvedValue({} as never);
     const effect = cacophony.createReverb({ wet: 0.7, dry: 0.3, decay: 0.8 });
     await effect.build(cacophony.context);
-    // ReverbEffect.build forwards the supplied context as the second arg so
+    // ReverbEffect.build forwards the supplied context as the third arg so
     // cross-context use (effect on a bus whose context differs from the
     // host's own) constructs the worklet on the right context.
     expect(createNodeSpy).toHaveBeenCalledWith(
-      { parameterData: { wet: 0.7, dry: 0.3, decay: 0.8 } },
+      WORKLETS.dattorroReverb,
+      { wet: 0.7, dry: 0.3, decay: 0.8 },
       cacophony.context,
     );
     createNodeSpy.mockRestore();
@@ -163,10 +162,10 @@ describe("Cacophony.createReverb / loadDattorroReverb", () => {
     // this — module loaded for context X is not "loaded" for context Y.
 
     // Step 1: load "dattorro-reverb" on contextA (the host context).
-    // `loadDattorroReverb()` calls `audioWorklet.addModule()` directly — it
-    // does NOT construct an AudioWorkletNode, so no construct-mock is needed.
+    // `buildWorkletEffect` pre-loads the module via `audioWorklet.addModule()`
+    // before constructing the node, so addModule runs on contextA.
     const addModuleA = mockAudioWorklet();
-    await cacophony.loadDattorroReverb();
+    await cacophony.buildWorkletEffect(WORKLETS.dattorroReverb, {});
     expect(addModuleA).toHaveBeenCalledTimes(1);
 
     // Step 2: build a second, distinct mock context with its own addModule

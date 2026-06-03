@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FdnReverbEffect, isCacophonyEffect } from "./effects";
 import { audioContextMock, cacophony } from "./setupTests";
+import { WORKLETS } from "./worklets";
 
 /**
  * The standardized-audio-context mock used in setupTests doesn't expose
@@ -29,41 +30,39 @@ describe("Cacophony FDN reverb factory (createFdnReverb)", () => {
     expect(effect).toBeInstanceOf(FdnReverbEffect);
   });
 
-  it("FdnReverbEffect.build awaits loadFdnReverb and constructs the 'fdn-reverb' worklet node", async () => {
-    const loadSpy = vi.spyOn(cacophony, "loadFdnReverb");
+  it("FdnReverbEffect.build constructs the 'fdn-reverb' worklet node", async () => {
     const workletSpy = vi.spyOn(cacophony, "createWorkletNode");
     const effect = cacophony.createFdnReverb({ decayTime: 2, mix: 0.4 });
     const node = await effect.build(cacophony.context);
-    expect(loadSpy).toHaveBeenCalled();
     expect(node).toBeDefined();
     // Pin routing through createWorkletNode("fdn-reverb", ...).
     expect(workletSpy).toHaveBeenCalled();
     expect(workletSpy.mock.calls[0]?.[0]).toBe("fdn-reverb");
-    loadSpy.mockRestore();
     workletSpy.mockRestore();
   });
 
   it("createFdnReverb passes options as parameterData and forwards the build context", async () => {
-    const createNodeSpy = vi.spyOn(cacophony, "createFdnReverbNode").mockResolvedValue({} as never);
+    const createNodeSpy = vi.spyOn(cacophony, "buildWorkletEffect").mockResolvedValue({} as never);
     const effect = cacophony.createFdnReverb({ decayTime: 3, preDelay: 0.02, damping: 0.5, diffusion: 0.7, mix: 0.5 });
     await effect.build(cacophony.context);
     expect(createNodeSpy).toHaveBeenCalledWith(
-      { parameterData: { decayTime: 3, preDelay: 0.02, damping: 0.5, diffusion: 0.7, mix: 0.5 } },
+      WORKLETS.fdnReverb,
+      { decayTime: 3, preDelay: 0.02, damping: 0.5, diffusion: 0.7, mix: 0.5 },
       cacophony.context,
     );
     createNodeSpy.mockRestore();
   });
 
-  it("loadFdnReverb is idempotent — second call does not re-add the module", async () => {
+  it("fdn-reverb load is idempotent — second build does not re-add the module", async () => {
     const addModule = mockAudioWorklet();
     // Force the first AudioWorkletNode construction to fail so addModule is
     // reached via the createWorkletNode fallback path.
     vi.mocked(AudioWorkletNode).mockImplementationOnce(() => {
       throw new Error("Worklet not loaded");
     });
-    await cacophony.loadFdnReverb();
+    await cacophony.buildWorkletEffect(WORKLETS.fdnReverb, {});
     const callsAfterFirst = addModule.mock.calls.length;
-    await cacophony.loadFdnReverb();
+    await cacophony.buildWorkletEffect(WORKLETS.fdnReverb, {});
     expect(addModule.mock.calls.length).toBe(callsAfterFirst);
   });
 });

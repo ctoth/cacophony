@@ -16,84 +16,23 @@
  */
 
 import type { AudioBuffer, AudioNode, AudioWorkletNode, BaseContext, BiquadFilterNode } from "./context";
+import type { WorkletModule } from "./worklets";
+import { WORKLETS } from "./worklets";
 
 /**
- * Minimal structural interface for the Cacophony surface ReverbEffect needs.
- * Declared locally so this module avoids a circular import on cacophony.ts.
- *
- * Both methods accept an optional `BaseContext` so the effect can build on a
- * context different from the host Cacophony instance's own — required for the
- * cross-context contract `CacophonyEffect.build(context)` promises.
+ * The single structural surface every worklet-backed {@link CacophonyEffect}
+ * needs from its host (a {@link Cacophony} instance). Declared locally so this
+ * module avoids a circular import on cacophony.ts. `buildWorkletEffect`
+ * idempotently registers the worklet module on `context` (or the host's own
+ * context when omitted — the cross-context contract `build(context)` promises)
+ * and constructs the node with the supplied `parameterData`.
  */
-interface ReverbHost {
-  loadDattorroReverb(signal?: AbortSignal, context?: BaseContext): Promise<void>;
-  createDattorroReverbNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode>;
-}
-
-/**
- * Minimal structural interface for the Cacophony surface DynamicsEffect needs.
- * Declared locally (like {@link ReverbHost}) so this module avoids a circular
- * import on cacophony.ts. Both methods accept an optional `BaseContext` for the
- * cross-context contract `CacophonyEffect.build(context)` promises.
- */
-interface DynamicsHost {
-  loadDynamics(signal?: AbortSignal, context?: BaseContext): Promise<void>;
-  createDynamicsNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode>;
-}
-
-/**
- * Minimal structural interface for the Cacophony surface FdnReverbEffect needs.
- * Declared locally (like {@link ReverbHost}) so this module avoids a circular
- * import on cacophony.ts. Both methods accept an optional `BaseContext` for the
- * cross-context contract `CacophonyEffect.build(context)` promises.
- */
-interface FdnReverbHost {
-  loadFdnReverb(signal?: AbortSignal, context?: BaseContext): Promise<void>;
-  createFdnReverbNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode>;
-}
-
-/**
- * Minimal structural interface for the Cacophony surface WaveshaperEffect needs.
- * Declared locally (like {@link ReverbHost}) so this module avoids a circular
- * import on cacophony.ts. Both methods accept an optional `BaseContext` for the
- * cross-context contract `CacophonyEffect.build(context)` promises.
- */
-interface WaveshaperHost {
-  loadWaveshaper(signal?: AbortSignal, context?: BaseContext): Promise<void>;
-  createWaveshaperNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode>;
-}
-
-/**
- * Minimal structural interface for the Cacophony surface {@link ModulatedDelayEffect}
- * needs. Declared locally (like {@link ReverbHost}) so this module avoids a
- * circular import on cacophony.ts. Both methods accept an optional `BaseContext`
- * for the cross-context contract `CacophonyEffect.build(context)` promises.
- */
-interface ModulatedDelayHost {
-  loadModulatedDelay(signal?: AbortSignal, context?: BaseContext): Promise<void>;
-  createModulatedDelayNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode>;
-}
-
-/**
- * Minimal structural interface for the Cacophony surface {@link PhaserEffect}
- * needs. Declared locally (like {@link ReverbHost}) so this module avoids a
- * circular import on cacophony.ts. Both methods accept an optional `BaseContext`
- * for the cross-context contract `CacophonyEffect.build(context)` promises.
- */
-interface PhaserHost {
-  loadPhaser(signal?: AbortSignal, context?: BaseContext): Promise<void>;
-  createPhaserNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode>;
-}
-
-/**
- * Minimal structural interface for the Cacophony surface {@link TremoloEffect}
- * needs. Declared locally (like {@link ReverbHost}) so this module avoids a
- * circular import on cacophony.ts. Both methods accept an optional `BaseContext`
- * for the cross-context contract `CacophonyEffect.build(context)` promises.
- */
-interface TremoloHost {
-  loadTremolo(signal?: AbortSignal, context?: BaseContext): Promise<void>;
-  createTremoloNode(options: AudioWorkletNodeOptions, context?: BaseContext): Promise<AudioWorkletNode>;
+export interface WorkletEffectHost {
+  buildWorkletEffect(
+    worklet: WorkletModule,
+    parameterData: Record<string, number>,
+    context?: BaseContext,
+  ): Promise<AudioWorkletNode>;
 }
 
 /**
@@ -118,6 +57,38 @@ interface FoaDecoderHost {
  */
 export interface CacophonyEffect {
   build(context: BaseContext): Promise<AudioNode> | AudioNode;
+}
+
+/**
+ * Base class for every worklet-backed effect. Holds the {@link WorkletModule}
+ * to build and the construction-time options, and resolves the options into the
+ * `parameterData` the worklet node is constructed with. `build` honors the
+ * cross-context contract — it builds against the bus's `context`, not the
+ * host's own — by forwarding `context` to {@link WorkletEffectHost.buildWorkletEffect}.
+ *
+ * Subclasses supply a {@link WorkletModule} and, when a field needs translation
+ * before it can ride as an AudioParam (e.g. a string mode alias → integer index),
+ * override {@link toParameterData}. The default passes the options through as a
+ * numeric record, exactly as the per-effect classes did before.
+ */
+export abstract class WorkletEffect<O extends object> implements CacophonyEffect {
+  protected constructor(
+    protected readonly host: WorkletEffectHost,
+    private readonly worklet: WorkletModule,
+    protected readonly options: O,
+  ) {}
+
+  /**
+   * Translate the construction options into worklet `parameterData`. Default:
+   * pass through as a numeric record (the worklet validates/clamps downstream).
+   */
+  protected toParameterData(options: O): Record<string, number> {
+    return { ...options } as Record<string, number>;
+  }
+
+  build(context: BaseContext): Promise<AudioWorkletNode> {
+    return this.host.buildWorkletEffect(this.worklet, this.toParameterData(this.options), context);
+  }
 }
 
 /**
@@ -223,15 +194,9 @@ export interface ReverbOptions {
  * the creating Cacophony's own context, the worklet is loaded and the
  * AudioWorkletNode is constructed against the bus's context, not the host's.
  */
-export class ReverbEffect implements CacophonyEffect {
-  constructor(
-    private readonly host: ReverbHost,
-    private readonly options: ReverbOptions = {},
-  ) {}
-
-  async build(context: BaseContext): Promise<AudioWorkletNode> {
-    await this.host.loadDattorroReverb(undefined, context);
-    return this.host.createDattorroReverbNode({ parameterData: this.options as Record<string, number> }, context);
+export class ReverbEffect extends WorkletEffect<ReverbOptions> {
+  constructor(host: WorkletEffectHost, options: ReverbOptions = {}) {
+    super(host, WORKLETS.dattorroReverb, options);
   }
 }
 
@@ -269,15 +234,9 @@ export interface DynamicsOptions {
  * with the supplied {@link DynamicsOptions} as `parameterData`. Honors the
  * cross-context contract (builds against the bus's context, not the host's own).
  */
-export class DynamicsEffect implements CacophonyEffect {
-  constructor(
-    private readonly host: DynamicsHost,
-    private readonly options: DynamicsOptions = {},
-  ) {}
-
-  async build(context: BaseContext): Promise<AudioWorkletNode> {
-    await this.host.loadDynamics(undefined, context);
-    return this.host.createDynamicsNode({ parameterData: this.options as Record<string, number> }, context);
+export class DynamicsEffect extends WorkletEffect<DynamicsOptions> {
+  constructor(host: WorkletEffectHost, options: DynamicsOptions = {}) {
+    super(host, WORKLETS.dynamics, options);
   }
 }
 
@@ -314,15 +273,9 @@ export interface FdnReverbOptions {
  * supplied {@link FdnReverbOptions} as `parameterData`. Honors the
  * cross-context contract (builds against the bus's context, not the host's own).
  */
-export class FdnReverbEffect implements CacophonyEffect {
-  constructor(
-    private readonly host: FdnReverbHost,
-    private readonly options: FdnReverbOptions = {},
-  ) {}
-
-  async build(context: BaseContext): Promise<AudioWorkletNode> {
-    await this.host.loadFdnReverb(undefined, context);
-    return this.host.createFdnReverbNode({ parameterData: this.options as Record<string, number> }, context);
+export class FdnReverbEffect extends WorkletEffect<FdnReverbOptions> {
+  constructor(host: WorkletEffectHost, options: FdnReverbOptions = {}) {
+    super(host, WORKLETS.fdnReverb, options);
   }
 }
 
@@ -399,20 +352,18 @@ export interface WaveshaperOptions {
  * `parameterData`. Honors the cross-context contract (builds against the bus's
  * context, not the host's own).
  */
-export class WaveshaperEffect implements CacophonyEffect {
-  constructor(
-    private readonly host: WaveshaperHost,
-    private readonly options: WaveshaperOptions = {},
-  ) {}
+export class WaveshaperEffect extends WorkletEffect<WaveshaperOptions> {
+  constructor(host: WorkletEffectHost, options: WaveshaperOptions = {}) {
+    super(host, WORKLETS.waveshaper, options);
+  }
 
-  async build(context: BaseContext): Promise<AudioWorkletNode> {
-    await this.host.loadWaveshaper(undefined, context);
-    const parameterData: Record<string, number> = { ...this.options } as Record<string, number>;
-    const shapeIndex = resolveModeIndex(this.options.shape, WAVESHAPER_SHAPE_TO_INDEX);
+  protected override toParameterData(options: WaveshaperOptions): Record<string, number> {
+    const parameterData = { ...options } as Record<string, number>;
+    const shapeIndex = resolveModeIndex(options.shape, WAVESHAPER_SHAPE_TO_INDEX);
     if (shapeIndex !== undefined) {
       parameterData.shape = shapeIndex;
     }
-    return this.host.createWaveshaperNode({ parameterData }, context);
+    return parameterData;
   }
 }
 
@@ -461,20 +412,18 @@ export interface ModulatedDelayOptions {
  * the supplied {@link ModulatedDelayOptions} as `parameterData`. Honors the
  * cross-context contract (builds against the bus's context, not the host's own).
  */
-export class ModulatedDelayEffect implements CacophonyEffect {
-  constructor(
-    private readonly host: ModulatedDelayHost,
-    private readonly options: ModulatedDelayOptions = {},
-  ) {}
+export class ModulatedDelayEffect extends WorkletEffect<ModulatedDelayOptions> {
+  constructor(host: WorkletEffectHost, options: ModulatedDelayOptions = {}) {
+    super(host, WORKLETS.modulatedDelay, options);
+  }
 
-  async build(context: BaseContext): Promise<AudioWorkletNode> {
-    await this.host.loadModulatedDelay(undefined, context);
-    const parameterData: Record<string, number> = { ...this.options } as Record<string, number>;
-    const interpolationIndex = resolveModeIndex(this.options.interpolation, MODULATED_DELAY_INTERPOLATION_TO_INDEX);
+  protected override toParameterData(options: ModulatedDelayOptions): Record<string, number> {
+    const parameterData = { ...options } as Record<string, number>;
+    const interpolationIndex = resolveModeIndex(options.interpolation, MODULATED_DELAY_INTERPOLATION_TO_INDEX);
     if (interpolationIndex !== undefined) {
       parameterData.interpolation = interpolationIndex;
     }
-    return this.host.createModulatedDelayNode({ parameterData }, context);
+    return parameterData;
   }
 }
 
@@ -514,15 +463,9 @@ export interface PhaserOptions {
  * {@link PhaserOptions} as `parameterData`. Honors the cross-context contract
  * (builds against the bus's context, not the host's own).
  */
-export class PhaserEffect implements CacophonyEffect {
-  constructor(
-    private readonly host: PhaserHost,
-    private readonly options: PhaserOptions = {},
-  ) {}
-
-  async build(context: BaseContext): Promise<AudioWorkletNode> {
-    await this.host.loadPhaser(undefined, context);
-    return this.host.createPhaserNode({ parameterData: this.options as Record<string, number> }, context);
+export class PhaserEffect extends WorkletEffect<PhaserOptions> {
+  constructor(host: WorkletEffectHost, options: PhaserOptions = {}) {
+    super(host, WORKLETS.phaser, options);
   }
 }
 
@@ -564,20 +507,18 @@ export interface TremoloOptions {
  * the supplied {@link TremoloOptions} as `parameterData`. Honors the cross-context
  * contract (builds against the bus's context, not the host's own).
  */
-export class TremoloEffect implements CacophonyEffect {
-  constructor(
-    private readonly host: TremoloHost,
-    private readonly options: TremoloOptions = {},
-  ) {}
+export class TremoloEffect extends WorkletEffect<TremoloOptions> {
+  constructor(host: WorkletEffectHost, options: TremoloOptions = {}) {
+    super(host, WORKLETS.tremolo, options);
+  }
 
-  async build(context: BaseContext): Promise<AudioWorkletNode> {
-    await this.host.loadTremolo(undefined, context);
-    const parameterData: Record<string, number> = { ...this.options } as Record<string, number>;
-    const shapeIndex = resolveModeIndex(this.options.shape, TREMOLO_SHAPE_TO_INDEX);
+  protected override toParameterData(options: TremoloOptions): Record<string, number> {
+    const parameterData = { ...options } as Record<string, number>;
+    const shapeIndex = resolveModeIndex(options.shape, TREMOLO_SHAPE_TO_INDEX);
     if (shapeIndex !== undefined) {
       parameterData.shape = shapeIndex;
     }
-    return this.host.createTremoloNode({ parameterData }, context);
+    return parameterData;
   }
 }
 
