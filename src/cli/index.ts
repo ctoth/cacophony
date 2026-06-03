@@ -3,6 +3,8 @@
  * `--version`); other subcommands land in later stages.
  */
 import { parseArgs } from "node:util";
+import type { LoopCount } from "../cacophony";
+import { parseFxToken } from "./commands";
 import { renderToFile } from "./render";
 import type { WavBitDepth } from "./wav";
 
@@ -15,13 +17,17 @@ Usage:
 
 Source:
   synth:<freq>[:<wave>]   oscillator synth (wave: sine|sawtooth|square|triangle, default sine)
+  <path>                  an audio file (wav/ogg/mp3/flac/...) decoded from disk
 
 Render options:
   --out <path>            output WAV path (required)
+  --fx <name>[:k=v,...]   add an effect (repeatable; chained on a bus in order)
+                          effects: distortion, reverb, compressor, biquad
   --duration <sec>        render duration in seconds (default 1)
   --sample-rate <hz>      sample rate (default 48000)
   --channels <1|2>        channel count (default 2)
   --bits <16|32>          16 = PCM s16 (default), 32 = IEEE float
+  --loop <n|infinite>     loop the source
   --volume <0..1>         source gain
 
   --help                  show this help
@@ -50,10 +56,12 @@ async function runRender(argv: readonly string[]): Promise<number> {
     allowPositionals: true,
     options: {
       out: { type: "string" },
+      fx: { type: "string", multiple: true },
       duration: { type: "string" },
       "sample-rate": { type: "string" },
       channels: { type: "string" },
       bits: { type: "string" },
+      loop: { type: "string" },
       volume: { type: "string" },
     },
   });
@@ -94,8 +102,25 @@ async function runRender(argv: readonly string[]): Promise<number> {
     volume = v;
   }
 
+  let loop: LoopCount | undefined;
+  if (values.loop !== undefined) {
+    if (values.loop === "infinite") {
+      loop = "infinite";
+    } else {
+      const n = Number(values.loop);
+      if (!Number.isInteger(n) || n < 0) {
+        throw new Error(`Invalid --loop: "${values.loop}" (expected a non-negative integer or "infinite")`);
+      }
+      loop = n;
+    }
+  }
+
+  // Each --fx value is one `name[:k=v,...]` token; split AFTER parseArgs so the
+  // `=` / `,` in the params survive (Risk R6).
+  const fx = (values.fx ?? []).map(parseFxToken);
+
   const result = await renderToFile(
-    { source, durationSec, sampleRate, numberOfChannels, volume },
+    { source, durationSec, sampleRate, numberOfChannels, volume, loop, fx },
     values.out,
     bitDepth,
   );

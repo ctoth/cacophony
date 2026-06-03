@@ -7,13 +7,14 @@
  * file-writing {@link renderToFile}.
  */
 import { writeFileSync } from "node:fs";
+import type { LoopCount } from "../cacophony";
 import { createOfflineNodeCacophony } from "../node";
-import { buildSource } from "./commands";
+import { buildFxBus, buildSource, type FxSpec } from "./commands";
 import { encodeWav, type WavBitDepth } from "./wav";
 
 /** Parameters for a render. */
 export interface RenderParams {
-  /** Source spec (Stage 1: `synth:<freq>[:<wave>]`). */
+  /** Source spec: `synth:<freq>[:<wave>]` or a file path. */
   source: string;
   /** Render duration in seconds. */
   durationSec: number;
@@ -23,6 +24,10 @@ export interface RenderParams {
   numberOfChannels: number;
   /** Linear gain applied to the source. */
   volume?: number;
+  /** Loop the source (count or `"infinite"`). */
+  loop?: LoopCount;
+  /** Effect chain, applied in order on an anonymous bus the source routes to. */
+  fx?: readonly FxSpec[];
 }
 
 /** Stats describing a rendered buffer. */
@@ -63,19 +68,44 @@ export function bufferStats(buffer: AudioBuffer): RenderStats {
 }
 
 /**
+ * The offline-Cacophony factory {@link renderToBuffer} drives. Defaults to the
+ * source `createOfflineNodeCacophony`; tests that need worklet-backed effects to
+ * actually run inject the BUILT `dist/node.mjs` factory instead, because the
+ * worklet bundles are only inlined as `data:` URLs in the built bundle (under
+ * source the `?url` imports resolve to bare paths the Node worklet loader cannot
+ * fetch). See the Stage 2 report for the full rationale.
+ */
+export type OfflineCacophonyFactory = typeof createOfflineNodeCacophony;
+
+/**
  * Render a source to an in-memory `AudioBuffer`. Quiet (worklet logs
  * suppressed) and deterministic — the unit of test.
+ *
+ * @param params - the render parameters.
+ * @param makeOffline - the offline-Cacophony factory (injectable for tests).
  */
-export async function renderToBuffer(params: RenderParams): Promise<AudioBuffer> {
+export async function renderToBuffer(
+  params: RenderParams,
+  makeOffline: OfflineCacophonyFactory = createOfflineNodeCacophony,
+): Promise<AudioBuffer> {
   const length = Math.ceil(params.sampleRate * params.durationSec);
-  const { cacophony, context } = createOfflineNodeCacophony({
+  const { cacophony, context } = makeOffline({
     length,
     sampleRate: params.sampleRate,
     numberOfChannels: params.numberOfChannels,
     quiet: true,
   });
 
-  const source = await buildSource(cacophony, context, params.source, { volume: params.volume });
+  const source = await buildSource(cacophony, context, params.source, {
+    volume: params.volume,
+    loop: params.loop,
+  });
+
+  if (params.fx && params.fx.length > 0) {
+    const { bus } = await buildFxBus(cacophony, params.fx);
+    source.source.routeTo(bus);
+  }
+
   source.play();
 
   return context.startRendering();
