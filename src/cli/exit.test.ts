@@ -9,14 +9,13 @@
  * These spawn real AudioContexts that briefly emit sound — expected on this
  * machine. Each test has a generous timeout and force-kills any orphan.
  */
-import { spawn, type ChildProcess } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { fileURLToPath } from "node:url";
-import { dirname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const repoRoot = process.cwd();
 const bin = resolve(repoRoot, "bin", "cacophony.mjs");
 
 interface SpawnResult {

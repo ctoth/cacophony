@@ -3,10 +3,29 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import FFT from "fft.js";
 import { afterAll, describe, expect, it } from "vitest";
-import { createOfflineNodeCacophony as distMakeOffline, decodeAudioFile as distDecode } from "../../dist/node.mjs";
-import { parseFxToken } from "../../src/cli/commands";
-import { bufferStats, renderToBuffer, renderToFile } from "../../src/cli/render";
-import { replayToBuffer } from "../../src/cli/replay";
+import type { createOfflineNodeCacophony, decodeAudioFile } from "../node";
+import { parseFxToken } from "./commands";
+import { bufferStats, type OfflineCacophonyFactory, renderToBuffer, renderToFile } from "./render";
+import { replayToBuffer } from "./replay";
+
+/**
+ * The worklet-backed fx/spatial/pitch tests run against the BUILT `dist/node.mjs`
+ * factory (the worklet bundles are only inlined as `data:` URLs after `vite build`).
+ * That module's emitted `.d.ts` types are structurally distinct from — though
+ * runtime-equivalent to — the source `../node` exports, so we import the runtime
+ * dynamically and re-type the two bindings through their source signatures. This
+ * keeps the build artifact out of tsc's `rootDir` program while staying fully
+ * typed (no `any`, no suppressions). Build dist before running: `npx vite build`.
+ */
+// Specifier held in a variable so tsc does not pull the built artifact into its
+// `rootDir: ./src` program (which would trip TS6059); the runtime resolves it fine.
+const distNodeSpecifier = "../../dist/node.mjs";
+const distNode = (await import(distNodeSpecifier)) as {
+  createOfflineNodeCacophony: typeof createOfflineNodeCacophony;
+  decodeAudioFile: typeof decodeAudioFile;
+};
+const distMakeOffline: OfflineCacophonyFactory = distNode.createOfflineNodeCacophony;
+const distDecode = distNode.decodeAudioFile;
 
 /** Peak + mean(|x|) over channel 0 (mirrors scripts/node-smoke.mjs peakMean). */
 function peakMean(buffer: AudioBuffer): { peak: number; mean: number } {
@@ -50,7 +69,7 @@ function hfEnergy(buffer: AudioBuffer): number {
   return energy;
 }
 
-const TEST_OGG = join(__dirname, "..", "..", "test.ogg");
+const TEST_OGG = join(process.cwd(), "test.ogg");
 
 /** Re-parse a WAV file's data chunk into channel-0 floats + peak. */
 function parseWavPeak(buf: Buffer): { audioFormat: number; numChannels: number; peak: number } {
@@ -58,10 +77,8 @@ function parseWavPeak(buf: Buffer): { audioFormat: number; numChannels: number; 
   expect(buf.toString("ascii", 8, 12)).toBe("WAVE");
   const audioFormat = buf.readUInt16LE(20);
   const numChannels = buf.readUInt16LE(22);
-  const bitsPerSample = buf.readUInt16LE(34);
   const blockAlign = buf.readUInt16LE(32);
   const dataLen = buf.readUInt32LE(40);
-  const bytesPerSample = bitsPerSample / 8;
   const frames = dataLen / blockAlign;
 
   let peak = 0;
@@ -152,10 +169,7 @@ describe("render-core fx (Stage 2 A/B by render delta, against built dist)", () 
   it("distortion alters the signal (smoke invariant: peak or mean differs)", async () => {
     const clean = peakMean(await renderToBuffer(synthParams, distMakeOffline));
     const dirty = peakMean(
-      await renderToBuffer(
-        { ...synthParams, fx: [parseFxToken("distortion:drive=50,shape=tanh")] },
-        distMakeOffline,
-      ),
+      await renderToBuffer({ ...synthParams, fx: [parseFxToken("distortion:drive=50,shape=tanh")] }, distMakeOffline),
     );
 
     // The smoke-script invariant (scripts/node-smoke.mjs:47): proves the
@@ -302,7 +316,9 @@ describe("render-core fx parity (Stage 3 per-effect render delta, against built 
     const wet = channelRms(await renderWet("tremolo:rate=8,depth=1"), 0);
 
     // eslint-disable-next-line no-console
-    console.log(`[fx tremolo] clean RMS=${clean.toFixed(5)} wet RMS=${wet.toFixed(5)} Δ=${Math.abs(wet - clean).toFixed(5)}`);
+    console.log(
+      `[fx tremolo] clean RMS=${clean.toFixed(5)} wet RMS=${wet.toFixed(5)} Δ=${Math.abs(wet - clean).toFixed(5)}`,
+    );
 
     expect(Math.abs(wet - clean)).toBeGreaterThan(EPSILON);
   });
@@ -363,9 +379,7 @@ describe("render-core Stage 5 (spatial/pitch/stretch/groups/replay, against buil
     const negR = channelEnergy(neg, 1);
 
     // eslint-disable-next-line no-console
-    console.log(
-      `[foa] +90 L=${posL.toFixed(3)} R=${posR.toFixed(3)} | -90 L=${negL.toFixed(3)} R=${negR.toFixed(3)}`,
-    );
+    console.log(`[foa] +90 L=${posL.toFixed(3)} R=${posR.toFixed(3)} | -90 L=${negL.toFixed(3)} R=${negR.toFixed(3)}`);
 
     // Both renders are non-silent and binaurally asymmetric.
     expect(posL + posR).toBeGreaterThan(0);
@@ -428,9 +442,7 @@ describe("render-core Stage 5 (spatial/pitch/stretch/groups/replay, against buil
   it("group of two sounds sums to a peak ≥ a single source's peak", async () => {
     const base = { source: TEST_OGG, durationSec: 1, sampleRate: sr, numberOfChannels: 2 };
     const single = bufferStats(await renderToBuffer(base, distMakeOffline));
-    const group = bufferStats(
-      await renderToBuffer({ ...base, groupSources: [TEST_OGG] }, distMakeOffline),
-    );
+    const group = bufferStats(await renderToBuffer({ ...base, groupSources: [TEST_OGG] }, distMakeOffline));
 
     // eslint-disable-next-line no-console
     console.log(`[group] single peak=${single.peak.toFixed(4)} group(2x) peak=${group.peak.toFixed(4)}`);
@@ -485,7 +497,7 @@ function spectralCentroid(buffer: AudioBuffer, sampleRate: number): number {
 
   const fft = new FFT(N);
   const out = fft.createComplexArray();
-  const input = fft.toComplexArray(frame);
+  const input = fft.toComplexArray(frame, fft.createComplexArray());
   fft.transform(out, input);
 
   let weighted = 0;

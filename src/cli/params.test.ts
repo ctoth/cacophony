@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseFxToken } from "../../src/cli/commands";
-import { aliasesFor, EFFECT_REGISTRY, parseKvParams } from "../../src/cli/effects-registry";
+import { parseFxToken } from "./commands";
+import { aliasesFor, EFFECT_REGISTRY, parseKvParams } from "./effects-registry";
 
 describe("parseKvParams", () => {
   it("coerces numeric params: 'decay=2.5,mix=0.6' -> {decay:2.5, mix:0.6}", () => {

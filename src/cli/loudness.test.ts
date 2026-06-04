@@ -6,15 +6,15 @@
  * strongest non-visual proof in the suite — pure, deterministic, no audio
  * context. Mirrors `index.html:931-941`.
  *
- * `integratedLoudness` is PURE JS exported from the package index (`../../src/index`),
+ * `integratedLoudness` is PURE JS exported from the package index (`../index`),
  * NOT the `/node` subpath — so this test needs no build and no context.
  */
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { integratedLoudness } from "../../src/index";
-import { meterFile } from "../../src/cli/meter";
+import { integratedLoudness } from "../index";
+import { meterFile } from "./meter";
 
-const TEST_OGG = join(__dirname, "..", "..", "test.ogg");
+const TEST_OGG = join(process.cwd(), "test.ogg");
 
 describe("loudness self-check (BS.1770-5, pure)", () => {
   it("997 Hz 0 dBFS sine measures −3.01 LKFS within 0.1", () => {

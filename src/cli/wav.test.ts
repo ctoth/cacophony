@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { type EncodableBuffer, encodeWav } from "../../src/cli/wav";
+import { type EncodableBuffer, encodeWav } from "./wav";
 
 /**
  * Build an in-memory {@link EncodableBuffer} from per-channel Float32Arrays —
@@ -54,10 +54,7 @@ function parseWav(buf: Buffer): {
 
   const bytesPerSample = bitsPerSample / 8;
   const frames = dataLen / blockAlign;
-  const channels: Float32Array[] = Array.from(
-    { length: numChannels },
-    () => new Float32Array(frames),
-  );
+  const channels: Float32Array[] = Array.from({ length: numChannels }, () => new Float32Array(frames));
 
   let offset = 44;
   for (let frame = 0; frame < frames; frame++) {
