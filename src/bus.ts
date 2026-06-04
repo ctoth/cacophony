@@ -21,8 +21,8 @@
 
 import type { FadeType } from "./cacophony";
 import type { AudioNode, AudioParam, AudioWorkletNode, BaseContext, BiquadFilterNode, GainNode } from "./context";
-import type { CacophonyEffect } from "./effects";
-import { isCacophonyBuiltBiquad, isCacophonyEffect } from "./effects";
+import type { BuiltEffect, CacophonyEffect } from "./effects";
+import { isBuiltEffectGraph, isCacophonyBuiltBiquad, isCacophonyEffect } from "./effects";
 
 /**
  * Connection target for {@link Bus.connect} / {@link Bus.disconnect}. Either
@@ -30,6 +30,14 @@ import { isCacophonyBuiltBiquad, isCacophonyEffect } from "./effects";
  * directly to it — escape hatch for advanced wiring).
  */
 export type BusConnectionTarget = Bus | AudioNode;
+
+interface BusFilterEntry {
+  handle: AudioNode;
+  input: AudioNode;
+  output: AudioNode;
+  params?: Readonly<Record<string, AudioParam>>;
+  dispose?: () => void;
+}
 
 /**
  * Structural contract a routed source (e.g. a {@link Sound}) implements so a
@@ -67,10 +75,10 @@ export class Bus {
   readonly output: GainNode;
 
   private readonly _context: BaseContext;
-  private readonly _filterNodes: AudioNode[] = [];
+  private readonly _filterEntries: BusFilterEntry[] = [];
   /**
    * Filter nodes currently bypassed (skipped in the audible chain). A bypassed
-   * node stays in {@link _filterNodes} — so {@link filters} order, identity, and
+   * node stays in {@link _filterEntries} — so {@link filters} order, identity, and
    * its live AudioParams are preserved — but {@link _desiredFilterChainEdges}
    * builds the series chain over the NON-bypassed filters only, wiring the
    * signal around it. Membership is by node identity.
@@ -127,7 +135,7 @@ export class Bus {
 
   /** Live filter chain (read-only view). */
   get filters(): readonly AudioNode[] {
-    return this._filterNodes;
+    return this._filterEntries.map((entry) => entry.handle);
   }
 
   /**
@@ -151,22 +159,23 @@ export class Bus {
    */
   async addFilter(arg: BiquadFilterNode | CacophonyEffect | AudioNode): Promise<AudioNode> {
     this._throwIfDestroyed();
-    let node: AudioNode;
+    let built: BuiltEffect;
     if (isCacophonyBuiltBiquad(arg)) {
-      node = arg;
+      built = arg;
     } else if (isCacophonyEffect(arg)) {
-      node = await arg.build(this._context);
+      built = await arg.build(this._context);
     } else {
       throw new Error(
         "Bus.addFilter rejects raw AudioNodes. Wrap with cacophony.shareEffect(node) or a CacophonyEffect to make the shared-state intent explicit.",
       );
     }
-    if (this._filterNodes.includes(node)) {
+    const entry = this._normalizeBuiltEffect(built);
+    if (this._filterEntries.some((existing) => existing.handle === entry.handle)) {
       throw new Error("Cannot add the same filter node to a bus twice");
     }
-    this._filterNodes.push(node);
+    this._filterEntries.push(entry);
     this._refreshFilters();
-    return node;
+    return entry.handle;
   }
 
   /**
@@ -177,13 +186,14 @@ export class Bus {
    */
   removeFilter(node: AudioNode): void {
     this._throwIfDestroyed();
-    const idx = this._filterNodes.indexOf(node);
+    const idx = this._filterEntries.findIndex((entry) => entry.handle === node);
     if (idx === -1) {
       throw new Error("Cannot remove filter that was never added to this bus");
     }
-    this._filterNodes.splice(idx, 1);
+    const [entry] = this._filterEntries.splice(idx, 1);
     this._bypassedFilters.delete(node);
     this._refreshFilters();
+    entry?.dispose?.();
   }
 
   /**
@@ -199,14 +209,15 @@ export class Bus {
   setFilterOrder(nodes: readonly AudioNode[]): void {
     this._throwIfDestroyed();
     const isPermutation =
-      nodes.length === this._filterNodes.length &&
+      nodes.length === this._filterEntries.length &&
       new Set(nodes).size === nodes.length &&
-      nodes.every((node) => this._filterNodes.includes(node));
+      nodes.every((node) => this._filterEntries.some((entry) => entry.handle === node));
     if (!isPermutation) {
       throw new Error("setFilterOrder requires a permutation of the current filters");
     }
-    this._filterNodes.length = 0;
-    this._filterNodes.push(...nodes);
+    const ordered = nodes.map((node) => this._filterEntries.find((entry) => entry.handle === node)!);
+    this._filterEntries.length = 0;
+    this._filterEntries.push(...ordered);
     this._refreshFilters();
   }
 
@@ -229,7 +240,7 @@ export class Bus {
    */
   setFilterBypassed(node: AudioNode, bypassed: boolean): void {
     this._throwIfDestroyed();
-    if (!this._filterNodes.includes(node)) {
+    if (!this._filterEntries.some((entry) => entry.handle === node)) {
       throw new Error("Cannot bypass a filter that was never added to this bus");
     }
     const alreadyBypassed = this._bypassedFilters.has(node);
@@ -293,12 +304,13 @@ export class Bus {
     options?: { duration?: number; type?: FadeType },
   ): void {
     this._throwIfDestroyed();
-    if (!this._filterNodes.includes(node)) {
+    const entry = this._filterEntries.find((filterEntry) => filterEntry.handle === node);
+    if (!entry) {
       console.warn(`Bus.rampFilterParam: node is not a filter on this bus; ignoring automation of '${paramName}'.`);
       return;
     }
 
-    const param = this._resolveAudioParam(node, paramName);
+    const param = entry.params?.[paramName] ?? this._resolveAudioParam(node, paramName);
     if (!param) {
       console.warn(`Bus.rampFilterParam: could not resolve AudioParam '${paramName}' on the given node; ignoring.`);
       return;
@@ -521,7 +533,11 @@ export class Bus {
     // shared with other buses, so broad node.disconnect() would steal their
     // routes.
     this._disconnectFilterChainEdges();
-    this._filterNodes.length = 0;
+    for (const entry of this._filterEntries) {
+      entry.dispose?.();
+    }
+    this._filterEntries.length = 0;
+    this._bypassedFilters.clear();
     try {
       this.input.disconnect();
     } catch {}
@@ -568,27 +584,44 @@ export class Bus {
 
   /**
    * Compute the desired ordered chain edge list from the current
-   * `_filterNodes`, skipping any node in {@link _bypassedFilters}: the series
+   * `_filterEntries`, skipping any node in {@link _bypassedFilters}: the series
    * chain is built over the NON-bypassed filters only. With no active (non-
    * bypassed) filters — whether the bus has no filters at all or every filter is
    * bypassed — the desired list is `[[input, output]]` (the direct edge);
    * otherwise `[[input, a1], [a1, a2], ..., [aN, output]]` over the active
-   * filters `a1..aN`. Bypassed nodes stay in {@link _filterNodes} (and thus in
+   * filters `a1..aN`. Bypassed nodes stay in {@link _filterEntries} (and thus in
    * {@link filters}) but receive no inbound/outbound chain edge.
    */
   private _desiredFilterChainEdges(): Array<readonly [AudioNode, AudioNode]> {
-    const active = this._filterNodes.filter((n) => !this._bypassedFilters.has(n));
+    const active = this._filterEntries.filter((entry) => !this._bypassedFilters.has(entry.handle));
     if (active.length === 0) {
       return [[this.input, this.output]];
     }
     const edges: Array<readonly [AudioNode, AudioNode]> = [];
     let prev: AudioNode = this.input;
-    for (const f of active) {
-      edges.push([prev, f]);
-      prev = f;
+    for (const entry of active) {
+      edges.push([prev, entry.input]);
+      prev = entry.output;
     }
     edges.push([prev, this.output]);
     return edges;
+  }
+
+  private _normalizeBuiltEffect(built: BuiltEffect): BusFilterEntry {
+    if (isBuiltEffectGraph(built)) {
+      return {
+        handle: built.handle ?? built.input,
+        input: built.input,
+        output: built.output,
+        params: built.params,
+        dispose: built.dispose,
+      };
+    }
+    return {
+      handle: built,
+      input: built,
+      output: built,
+    };
   }
 
   private _connectFilterChainEdge(source: AudioNode, destination: AudioNode): void {

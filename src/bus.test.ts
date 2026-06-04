@@ -60,6 +60,34 @@ describe("Bus: addFilter discrimination", () => {
     expect(bus.filters).toContain(node);
   });
 
+  it("accepts a CacophonyEffect endpoint graph and chains by input/output endpoints", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const graphInput = cacophony.context.createGain();
+    const graphOutput = cacophony.context.createGain();
+    const handle = graphInput;
+    const effect = { build: vi.fn().mockReturnValue({ input: graphInput, output: graphOutput, handle }) };
+
+    const busInputConnect = vi.spyOn(bus.input, "connect");
+    const graphOutputConnect = vi.spyOn(graphOutput, "connect");
+
+    const returned = await bus.addFilter(effect);
+
+    expect(returned).toBe(handle);
+    expect(bus.filters).toEqual([handle]);
+    expect(busInputConnect).toHaveBeenCalledWith(graphInput);
+    expect(graphOutputConnect).toHaveBeenCalledWith(bus.output);
+  });
+
+  it("rejects adding the same graph handle twice", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const graphInput = cacophony.context.createGain();
+    const graphOutput = cacophony.context.createGain();
+    const effect = { build: () => ({ input: graphInput, output: graphOutput, handle: graphInput }) };
+
+    await bus.addFilter(effect);
+    await expect(bus.addFilter(effect)).rejects.toThrow(/same filter/);
+  });
+
   it("rejects a raw AudioNode (e.g. context.createGain())", async () => {
     const bus = new Bus(cacophony.context, null);
     const raw = cacophony.context.createGain();
@@ -274,6 +302,18 @@ describe("Bus: destroy lifecycle", () => {
     expect(onDestroy).toHaveBeenCalledTimes(1);
     expect(bus.destroyed).toBe(true);
   });
+
+  it("destroy() calls dispose on owned endpoint-graph filters", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const graphInput = cacophony.context.createGain();
+    const graphOutput = cacophony.context.createGain();
+    const dispose = vi.fn();
+    await bus.addFilter({ build: () => ({ input: graphInput, output: graphOutput, dispose }) });
+
+    bus.destroy();
+
+    expect(dispose).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("Bus: filter chain refresh", () => {
@@ -294,6 +334,19 @@ describe("Bus: filter chain refresh", () => {
     await bus.addFilter(f2);
     bus.removeFilter(f1);
     expect(bus.filters).toEqual([f2]);
+  });
+
+  it("removeFilter tears down an owned endpoint graph after removing its chain edges", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const graphInput = cacophony.context.createGain();
+    const graphOutput = cacophony.context.createGain();
+    const dispose = vi.fn();
+    const handle = await bus.addFilter({ build: () => ({ input: graphInput, output: graphOutput, dispose }) });
+
+    bus.removeFilter(handle);
+
+    expect(bus.filters).toEqual([]);
+    expect(dispose).toHaveBeenCalledTimes(1);
   });
 
   it("refreshes only this bus's edges when a filter node is shared", async () => {
@@ -447,6 +500,23 @@ describe("Bus: addFilter returns the built node", () => {
 });
 
 describe("Bus: rampFilterParam", () => {
+  it("uses endpoint-graph params before probing the handle node", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const graphInput = cacophony.context.createGain();
+    const graphOutput = cacophony.context.createGain();
+    const dry = cacophony.context.createGain().gain;
+    const setSpy = vi.spyOn(dry, "setValueAtTime");
+
+    const handle = await bus.addFilter({
+      build: () => ({ input: graphInput, output: graphOutput, handle: graphInput, params: { dry } }),
+    });
+
+    bus.rampFilterParam(handle, "dry", 0.25);
+
+    expect(setSpy).toHaveBeenCalledWith(0.25, handle.context.currentTime);
+    setSpy.mockRestore();
+  });
+
   it("ramps a native biquad param linearly, pinning the start", async () => {
     const bus = new Bus(cacophony.context, null);
     const biquad = cacophony.createBiquadFilter({ frequency: 100 });
