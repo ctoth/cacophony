@@ -132,6 +132,19 @@ export interface OfflineOptions {
 export interface RuntimeOptions {
   createAudioWorkletNode?: (context: BaseContext, name: string, options?: AudioWorkletNodeOptions) => any;
   /**
+   * Optional hook to remap a worklet module URL just before it is handed to
+   * `audioWorklet.addModule`. Receives the worklet's {@link WorkletModule.name}
+   * and its default {@link WorkletModule.url}; return the URL to load (return
+   * `url` unchanged to keep the default).
+   *
+   * The library build inlines every worklet bundle as a base64 `data:` URL,
+   * which the browser loads directly but `node-web-audio-api` cannot resolve.
+   * The `cacophony/node` adapter installs a resolver here that points
+   * `addModule` at the bundle file on disk instead, so worklet-backed effects
+   * work headless. Has no effect in the browser, where the default is used.
+   */
+  resolveWorkletUrl?: (name: string, url: string) => string | Promise<string>;
+  /**
    * If `true` (the default), Cacophony installs one-time `touchend` / `click` /
    * `keydown` listeners on `document.body` whenever the audio context is
    * constructed in `suspended` state. The first user gesture resumes the
@@ -251,6 +264,7 @@ export class Cacophony {
   private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
   private createAudioWorkletNode: (context: BaseContext, name: string, options?: AudioWorkletNodeOptions) => any;
+  private resolveWorkletUrl?: (name: string, url: string) => string | Promise<string>;
   private logger: CacophonyLogger;
   /**
    * Named-bus registry. Populated by {@link createBus} when a name is
@@ -304,6 +318,7 @@ export class Cacophony {
     this.createAudioWorkletNode =
       runtimeOptions.createAudioWorkletNode ??
       ((workletContext, name, options) => new AudioWorkletNode(workletContext as any, name, options));
+    this.resolveWorkletUrl = runtimeOptions.resolveWorkletUrl;
     this.logger = runtimeOptions.logger ?? (runtimeOptions.quiet ? noopLogger : consoleLogger);
 
     this.finalizationRegistry = new FinalizationRegistry((holdings) => {
@@ -651,13 +666,16 @@ export class Cacophony {
       this.logger.info(`${WORKLET_LOG_PREFIX} load skipped`, { name });
       return;
     }
+    // Host seam: the browser loads the inlined `data:` bundle directly, but the
+    // Node backend remaps to the on-disk bundle file (see RuntimeOptions.resolveWorkletUrl).
+    const resolvedUrl = this.resolveWorkletUrl ? await this.resolveWorkletUrl(name, url) : url;
     this.logger.info(`${WORKLET_LOG_PREFIX} addModule start`, {
       name,
-      url,
+      url: resolvedUrl,
       aborted: signal?.aborted ?? false,
     });
     try {
-      await ctx.audioWorklet.addModule(url, {
+      await ctx.audioWorklet.addModule(resolvedUrl, {
         credentials: "same-origin",
         ...(signal && { signal }),
       });

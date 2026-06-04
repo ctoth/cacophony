@@ -31,6 +31,40 @@ import type { CacophonyLogger } from "./logger";
 const createAudioWorkletNode: NonNullable<RuntimeOptions["createAudioWorkletNode"]> = (context, name, options) =>
   new AudioWorkletNode(context as ConstructorParameters<typeof AudioWorkletNode>[0], name, options);
 
+/** Per-source-URL memoized `blob:` URL of a worklet bundle (built on first use). */
+const workletBlobUrlByDataUrl = new Map<string, string>();
+
+/**
+ * Worklet-URL resolver for the Node backend: rewrites the library's inlined
+ * base64 `data:` worklet bundles into `blob:` URLs, leaving any other URL
+ * (`http:`, `file:`) untouched.
+ *
+ * The browser build inlines every worklet bundle as a `data:` URL, which the
+ * browser loads directly — but `node-web-audio-api`'s `addModule` resolver has
+ * no `data:` branch, so those bundles never load under Node. Its `blob:`
+ * branch DOES work: it reads the blob to source text on the main thread and
+ * hands that text to the worker as a `data:` module. (Returning a bare file
+ * path instead is not portable — the worker `import()`s whatever it is given,
+ * and Node's ESM loader rejects absolute paths on Windows, where `C:\…` parses
+ * as protocol `c:`.) The bundle source already rides inside the `data:` URL, so
+ * we decode it straight from there — no bundle files on disk are needed, which
+ * keeps the published `cacophony/node` adapter self-contained in `dist`.
+ */
+const resolveWorkletUrl: NonNullable<RuntimeOptions["resolveWorkletUrl"]> = async (_name, url) => {
+  if (!url.startsWith("data:")) {
+    return url;
+  }
+  const cached = workletBlobUrlByDataUrl.get(url);
+  if (cached) {
+    return cached;
+  }
+  // `fetch` decodes the `data:` URL (base64 + charset) into the bundle source.
+  const code = await (await fetch(url)).text();
+  const blobUrl = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
+  workletBlobUrlByDataUrl.set(url, blobUrl);
+  return blobUrl;
+};
+
 /** Shared options for routing Cacophony's host-side diagnostics. */
 interface LoggingOptions {
   /** Optional logger for the `[cacophony/worklet]` diagnostics. */
@@ -86,6 +120,7 @@ export function createNodeCacophony(options: NodeCacophonyOptions = {}): NodeCac
   const context = options.context ?? new AudioContext({ latencyHint: "playback" });
   const cacophony = new Cacophony(context as unknown as BaseContext, options.cache, {
     createAudioWorkletNode,
+    resolveWorkletUrl,
     logger: options.logger,
     quiet: options.quiet,
   });
@@ -110,6 +145,7 @@ export function createOfflineNodeCacophony(options: OfflineNodeCacophonyOptions)
   });
   const cacophony = new Cacophony(context as unknown as BaseContext, options.cache, {
     createAudioWorkletNode,
+    resolveWorkletUrl,
     logger: options.logger,
     quiet: options.quiet,
   });
