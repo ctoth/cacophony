@@ -18,6 +18,14 @@ import { WORKLETS } from "./worklets";
  * and (c) forward the pitch factor to the node's `pitchFactor` AudioParam.
  */
 
+type PlaybackInternals = {
+  context: unknown;
+  panner: { connect: ReturnType<typeof vi.fn> };
+  _pitchShiftNode?: ReturnType<typeof makeFakePvNode>;
+};
+
+const inspectPlayback = (playback: unknown): PlaybackInternals => playback as PlaybackInternals;
+
 /** Install a stub `audioWorklet.addModule` on the mock context (it has none by default). */
 function mockAudioWorklet() {
   const addModule = vi.fn().mockResolvedValue(undefined);
@@ -74,7 +82,7 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
     expect(factorySpy.mock.calls[0]?.[0]).toBe(WORKLETS.phaseVocoder);
     expect(factorySpy.mock.calls[0]?.[1]).toEqual({});
     // ...and the node constructed on the playback's own context (cross-context contract)
-    expect(factorySpy.mock.calls[0]?.[2]).toBe(playback["context"]);
+    expect(factorySpy.mock.calls[0]?.[2]).toBe(inspectPlayback(playback).context);
     expect(playback.pitchShift).toBe(2);
   });
 
@@ -87,7 +95,7 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
 
     const playback = sound.preplay()[0];
     // With no filters, the panner is the chain tail feeding the pitch node.
-    const panner = playback["panner"] as { connect: ReturnType<typeof vi.fn> };
+    const panner = inspectPlayback(playback).panner;
     const pannerConnectSpy = vi.spyOn(panner, "connect");
 
     await playback.setPitchShift(1.5);
@@ -149,9 +157,9 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
 
     const playback = sound.preplay()[0];
     await playback.setPitchShift(1.5);
-    expect(playback["_pitchShiftNode"]).toBe(fakeNode); // node spliced in
+    expect(inspectPlayback(playback)._pitchShiftNode).toBe(fakeNode); // node spliced in
 
-    const panner = playback["panner"] as { connect: ReturnType<typeof vi.fn> };
+    const panner = inspectPlayback(playback).panner;
     const pannerConnectSpy = vi.spyOn(panner, "connect");
     fakeNode.disconnect.mockClear();
 
@@ -159,7 +167,7 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
 
     // node disconnected and dropped (genuine bypass, not param=1 with node live).
     expect(fakeNode.disconnect).toHaveBeenCalled();
-    expect(playback["_pitchShiftNode"]).toBeUndefined();
+    expect(inspectPlayback(playback)._pitchShiftNode).toBeUndefined();
     expect(playback.pitchShift).toBe(1);
     // chain rebuilt so panner now feeds the gainNode directly, NOT the pv node.
     expect(pannerConnectSpy).toHaveBeenCalledWith(playback.outputNode);

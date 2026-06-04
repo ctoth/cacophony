@@ -329,8 +329,12 @@ describe("Cacophony advanced features", () => {
       // Set up spy to track cache calls
       const getAudioBufferSpy = vi.spyOn(mockCache, "getAudioBuffer");
       vi.mocked(global.Audio)
-        .mockImplementationOnce(() => htmlAudio.audio as any)
-        .mockImplementationOnce(() => streamingAudio.audio as any);
+        .mockImplementationOnce(function MockHtmlAudio() {
+          return htmlAudio.audio as any;
+        })
+        .mockImplementationOnce(function MockStreamingAudio() {
+          return streamingAudio.audio as any;
+        });
 
       const htmlSoundPromise = cacophony.createSound(url, "html", "HRTF", controller.signal);
       const streamSoundPromise = cacophony.createSound(url, "streaming", "HRTF", controller.signal);
@@ -357,7 +361,9 @@ describe("Cacophony advanced features", () => {
       const controller = new AbortController();
       const htmlAudio = createControllableAudioElement();
 
-      vi.mocked(global.Audio).mockImplementationOnce(() => htmlAudio.audio as any);
+      vi.mocked(global.Audio).mockImplementationOnce(function MockHtmlAudio() {
+        return htmlAudio.audio as any;
+      });
 
       const soundPromise = cacophony.createSound(url, "html", "HRTF", controller.signal);
       controller.abort();
@@ -375,7 +381,9 @@ describe("Cacophony advanced features", () => {
       const controller = new AbortController();
       const streamingAudio = createControllableAudioElement();
 
-      vi.mocked(global.Audio).mockImplementationOnce(() => streamingAudio.audio as any);
+      vi.mocked(global.Audio).mockImplementationOnce(function MockStreamingAudio() {
+        return streamingAudio.audio as any;
+      });
 
       const streamPromise = cacophony.createStream(url, controller.signal);
       controller.abort();
@@ -498,20 +506,19 @@ describe("Cacophony advanced features", () => {
 
       // Mock AudioWorkletNode constructor to throw first, then succeed
       vi.mocked(AudioWorkletNode)
-        .mockImplementationOnce(() => {
+        .mockImplementationOnce(function MockUnloadedAudioWorkletNode() {
           throw new Error("Worklet not loaded");
         })
-        .mockImplementationOnce(
-          () =>
-            ({
-              connect: vi.fn(),
-              disconnect: vi.fn(),
-              port: {
-                postMessage: vi.fn(),
-                addEventListener: vi.fn(),
-              },
-            }) as any,
-        );
+        .mockImplementationOnce(function MockLoadedAudioWorkletNode() {
+          return {
+            connect: vi.fn(),
+            disconnect: vi.fn(),
+            port: {
+              postMessage: vi.fn(),
+              addEventListener: vi.fn(),
+            },
+          } as any;
+        });
 
       await cacophony.createWorkletNode("test-worklet", "https://example.com/worklet.js", controller.signal);
 
@@ -551,9 +558,11 @@ describe("Cacophony advanced features", () => {
       const cacophonyWithCustomWorkletNode = new Cacophony(audioContextMock, mockCache, {
         createAudioWorkletNode,
       });
-      const nativeConstructorSpy = vi.mocked(AudioWorkletNode).mockImplementation(() => {
-        throw new Error("Native AudioWorkletNode should not be used for non-native contexts");
-      });
+      const nativeConstructorSpy = vi
+        .mocked(AudioWorkletNode)
+        .mockImplementation(function MockNativeAudioWorkletNode() {
+          throw new Error("Native AudioWorkletNode should not be used for non-native contexts");
+        });
 
       await cacophonyWithCustomWorkletNode.createWorkletNode("test-worklet", "https://example.com/worklet.js");
 
@@ -580,7 +589,7 @@ describe("Cacophony advanced features", () => {
       const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       // Mock AudioWorkletNode constructor to always throw (simulating worklet not loaded)
-      vi.mocked(AudioWorkletNode).mockImplementation(() => {
+      vi.mocked(AudioWorkletNode).mockImplementation(function MockUnloadedAudioWorkletNode() {
         throw new Error("Worklet not loaded");
       });
 
@@ -629,20 +638,19 @@ describe("Cacophony advanced features", () => {
 
       // Mock AudioWorkletNode constructor to throw first, then succeed
       vi.mocked(AudioWorkletNode)
-        .mockImplementationOnce(() => {
+        .mockImplementationOnce(function MockUnloadedAudioWorkletNode() {
           throw new Error("Worklet not loaded");
         })
-        .mockImplementationOnce(
-          () =>
-            ({
-              connect: vi.fn(),
-              disconnect: vi.fn(),
-              port: {
-                postMessage: vi.fn(),
-                addEventListener: vi.fn(),
-              },
-            }) as any,
-        );
+        .mockImplementationOnce(function MockLoadedAudioWorkletNode() {
+          return {
+            connect: vi.fn(),
+            disconnect: vi.fn(),
+            port: {
+              postMessage: vi.fn(),
+              addEventListener: vi.fn(),
+            },
+          } as any;
+        });
 
       await cacophony.createWorkletNode("test-worklet", "https://example.com/worklet.js");
 
@@ -663,17 +671,16 @@ describe("Cacophony advanced features", () => {
       const controller = new AbortController();
 
       // Mock AudioWorkletNode constructor to succeed immediately
-      vi.mocked(AudioWorkletNode).mockImplementation(
-        () =>
-          ({
-            connect: vi.fn(),
-            disconnect: vi.fn(),
-            port: {
-              postMessage: vi.fn(),
-              addEventListener: vi.fn(),
-            },
-          }) as any,
-      );
+      vi.mocked(AudioWorkletNode).mockImplementation(function MockLoadedAudioWorkletNode() {
+        return {
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+          port: {
+            postMessage: vi.fn(),
+            addEventListener: vi.fn(),
+          },
+        } as any;
+      });
 
       const result = await cacophony.createWorkletNode(
         "loaded-worklet",
@@ -830,12 +837,11 @@ describe("Cacophony advanced features", () => {
     });
 
     const mockCanPlayType = (responses: Record<string, CanPlayTypeResult>) => {
-      vi.spyOn(global, "Audio").mockImplementation(
-        () =>
-          ({
-            canPlayType: (mime: string): CanPlayTypeResult => responses[mime] ?? "",
-          }) as unknown as HTMLAudioElement,
-      );
+      vi.spyOn(global, "Audio").mockImplementation(function MockAudioCanPlayType() {
+        return {
+          canPlayType: (mime: string): CanPlayTypeResult => responses[mime] ?? "",
+        } as unknown as HTMLAudioElement;
+      });
     };
 
     it("array with one URL behaves like single-string URL", async () => {

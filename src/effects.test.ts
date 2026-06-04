@@ -119,7 +119,7 @@ describe("Cacophony.createReverb / dattorro-reverb worklet", () => {
     const addModule = mockAudioWorklet();
     // Force AudioWorkletNode construction to fail first time so addModule
     // is reached; cacophony's createWorkletNode falls back to loadAudioWorkletModule.
-    vi.mocked(AudioWorkletNode).mockImplementationOnce(() => {
+    vi.mocked(AudioWorkletNode).mockImplementationOnce(function MockUnloadedAudioWorkletNode() {
       throw new Error("Worklet not loaded");
     });
     await cacophony.buildWorkletEffect(WORKLETS.dattorroReverb, {});
@@ -181,7 +181,7 @@ describe("Cacophony.createReverb / dattorro-reverb worklet", () => {
     // Step 3: force the first construct on B to throw so the fallback load
     // path runs. Under the pre-fix host-scoped cache, the fallback skipped
     // addModule on B by name alone, leaving B without the module.
-    vi.mocked(AudioWorkletNode).mockImplementationOnce(() => {
+    vi.mocked(AudioWorkletNode).mockImplementationOnce(function MockUnloadedAudioWorkletNode() {
       throw new Error("Worklet not loaded on B");
     });
 

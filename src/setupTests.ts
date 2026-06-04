@@ -132,7 +132,7 @@ beforeAll(() => {
   vi.useFakeTimers();
 
   // Mock Audio constructor for HTML audio tests
-  global.Audio = vi.fn().mockImplementation(() => {
+  global.Audio = vi.fn().mockImplementation(function MockAudio() {
     const listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
     const dispatchEvent = (type: string) => {
       const event = new Event(type);
@@ -181,14 +181,16 @@ beforeAll(() => {
   });
 
   // Mock AudioWorkletNode constructor for worklet tests
-  global.AudioWorkletNode = vi.fn().mockImplementation(() => ({
-    connect: vi.fn(),
-    disconnect: vi.fn(),
-    port: {
-      postMessage: vi.fn(),
-      addEventListener: vi.fn(),
-    },
-  }));
+  global.AudioWorkletNode = vi.fn().mockImplementation(function MockAudioWorkletNode() {
+    return {
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+      port: {
+        postMessage: vi.fn(),
+        addEventListener: vi.fn(),
+      },
+    };
+  });
 });
 
 afterAll(() => {

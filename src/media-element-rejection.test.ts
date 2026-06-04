@@ -50,7 +50,9 @@ describe("Media element play() rejection", () => {
       }),
     };
 
-    vi.mocked(global.Audio).mockImplementationOnce(() => mediaElement as any);
+    vi.mocked(global.Audio).mockImplementationOnce(function MockMediaElement() {
+      return mediaElement as any;
+    });
     (audioContextMock as any).createMediaElementSource = vi.fn().mockImplementation(() => ({
       mediaElement,
       connect: vi.fn(),

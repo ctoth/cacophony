@@ -57,7 +57,7 @@ describe("Cacophony phaser factory (createPhaser)", () => {
     const addModule = mockAudioWorklet();
     // Force the first AudioWorkletNode construction to fail so addModule is
     // reached via the createWorkletNode fallback path.
-    vi.mocked(AudioWorkletNode).mockImplementationOnce(() => {
+    vi.mocked(AudioWorkletNode).mockImplementationOnce(function MockUnloadedAudioWorkletNode() {
       throw new Error("Worklet not loaded");
     });
     await cacophony.buildWorkletEffect(WORKLETS.phaser, {});
