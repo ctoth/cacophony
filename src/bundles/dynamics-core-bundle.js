@@ -105,7 +105,7 @@ var dynamicsCore = (function (exports) {
                 // edges (slope 1/R below, unity above). The MINUS sign is the mirror of
                 // the compressor branch's PLUS — same eq.4 form, opposite altered side.
                 const t = delta - knee / 2; // 0 at the upper edge (delta = +W/2)
-                return xG - (slope - 1) * (t * t) / (2 * knee);
+                return xG - ((slope - 1) * (t * t)) / (2 * knee);
             }
             if (delta >= 0) {
                 // x_G >= T (above threshold) — unity for a downward expander.
@@ -119,7 +119,7 @@ var dynamicsCore = (function (exports) {
         if (knee > 0 && Math.abs(2 * delta) <= knee) {
             // eq.4: y_G = x_G + (1/R - 1)(x_G - T + W/2)^2 / (2W)
             const t = delta + knee / 2;
-            return xG + (slope - 1) * (t * t) / (2 * knee);
+            return xG + ((slope - 1) * (t * t)) / (2 * knee);
         }
         // Hard knee / outside knee region (eq.3 / eq.4 outer branches).
         if (delta <= 0) {
@@ -204,7 +204,7 @@ var dynamicsCore = (function (exports) {
             // eq.23 line 3 + eq.1 make-up: control voltage c_dB = -y_L + M.
             const controlDb = -this.envelopeDb + makeup;
             // eq.1 linear form: y[n] = c[n] * x[n], with c[n] = 10^(c_dB/20).
-            const controlLinear = Math.pow(10, controlDb / 20);
+            const controlLinear = 10 ** (controlDb / 20);
             return controlLinear * x;
         }
         /**

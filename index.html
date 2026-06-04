@@ -177,6 +177,25 @@
           </div>
         </section>
 
+        <section aria-labelledby="ir-h">
+          <h2 id="ir-h">7a. Native impulse response reverb</h2>
+          <p>
+            A synthetic measured-room impulse response runs through the native
+            ConvolverNode effect path. Adjust the wet mix, then compare against
+            the dry loop.
+          </p>
+          <div class="row">
+            <label for="irWet">Wet mix</label>
+            <input type="range" id="irWet" min="0" max="1" step="0.05" value="0.45" aria-describedby="irWetVal" />
+            <span id="irWetVal" class="readout">45%</span>
+          </div>
+          <div class="row">
+            <button id="irDry" type="button">Play dry</button>
+            <button id="irWetPlay" type="button">Play through IR</button>
+            <button id="irStop" type="button" disabled>Stop</button>
+          </div>
+        </section>
+
         <section aria-labelledby="dyn-h">
           <h2 id="dyn-h">8. Dynamics (Giannoulis 2012)</h2>
           <p>A compressor on the loop bus. A/B to hear the level tamed.</p>
@@ -427,6 +446,23 @@
         return sampleBuffer;
       }
 
+      function buildSyntheticImpulseResponse(seconds = 1.4) {
+        const ctx = cacophony.context;
+        const length = Math.max(1, Math.floor(ctx.sampleRate * seconds));
+        const buffer = ctx.createBuffer(2, length, ctx.sampleRate);
+        for (let ch = 0; ch < buffer.numberOfChannels; ch++) {
+          const data = buffer.getChannelData(ch);
+          for (let i = 0; i < length; i++) {
+            const t = i / length;
+            const decay = Math.pow(1 - t, 2.6);
+            const n = Math.sin((i + 1) * (ch + 1) * 12.9898) * 43758.5453;
+            const noise = (n - Math.floor(n)) * 2 - 1;
+            data[i] = noise * decay * 0.45;
+          }
+        }
+        return buffer;
+      }
+
       /** Stop + forget a handle that may be a Sound, Synth, Group, or raw node. */
       function safeStop(handle) {
         if (!handle) return;
@@ -661,6 +697,28 @@
         const stopBtn = document.getElementById("distStop");
         document.getElementById("distClean").addEventListener("click", () => { ab.play(false); stopBtn.disabled = false; });
         document.getElementById("distDirty").addEventListener("click", () => { ab.play(true); stopBtn.disabled = false; });
+        stopBtn.addEventListener("click", () => { ab.stop(); stopBtn.disabled = true; });
+      })();
+
+      // ---- 7a. Native impulse response ---------------------------------------
+      (() => {
+        const wet = document.getElementById("irWet");
+        const wetVal = document.getElementById("irWetVal");
+        wet.addEventListener("input", () => { wetVal.textContent = `${Math.round(parseFloat(wet.value) * 100)}%`; });
+        const ab = makeEffectAB({
+          label: "impulse response reverb",
+          makeEffect: () => {
+            const wetMix = parseFloat(wet.value);
+            return cacophony.createImpulseResponse(buildSyntheticImpulseResponse(), {
+              dry: 1 - wetMix,
+              wet: wetMix,
+              normalize: false,
+            });
+          },
+        });
+        const stopBtn = document.getElementById("irStop");
+        document.getElementById("irDry").addEventListener("click", () => { ab.play(false); stopBtn.disabled = false; });
+        document.getElementById("irWetPlay").addEventListener("click", () => { ab.play(true); stopBtn.disabled = false; });
         stopBtn.addEventListener("click", () => { ab.stop(); stopBtn.disabled = true; });
       })();
 

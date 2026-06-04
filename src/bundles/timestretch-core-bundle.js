@@ -564,7 +564,7 @@ var timestretchCore = (function (exports) {
 	/** Mulberry32 — tiny deterministic PRNG so insignificant-bin phase is reproducible. */
 	function mulberry32(seed) {
 	    let a = seed >>> 0;
-	    return function () {
+	    return () => {
 	        a |= 0;
 	        a = (a + 0x6d2b79f5) | 0;
 	        let t = Math.imul(a ^ (a >>> 15), 1 | a);

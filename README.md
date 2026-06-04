@@ -351,8 +351,8 @@ A `Bus` is a named summing node with its own filter chain and per-edge
 gain on outgoing connections. Sounds and synths route to buses via
 `routeTo`; buses can carry rich effects (not just BiquadFilter) by
 adding a `CacophonyEffect` to their filter chain. The built-in
-`cacophony.createReverb()` returns a DattorroReverb effect ready to drop
-into a bus.
+`cacophony.createReverb()` and `cacophony.createImpulseResponse()` effects
+are ready to drop into a bus.
 
 ```typescript
 // 1. Create a named bus
@@ -402,12 +402,37 @@ groupBus.connect(sendBus, 0.2);   // 20% send: groupBus.output → sendGain(0.2)
 groupBus.disconnect(sendBus);     // tears down the sendGain too
 ```
 
+### Native impulse responses
+
+`createImpulseResponse()` builds a native `ConvolverNode` effect from an
+`AudioBuffer` or URL. URL-backed IRs are fetched and decoded once per audio
+context and URL; failed loads are evicted so a later call can retry. Convolver
+normalization defaults to `false`, preserving measured IR gain.
+
+```typescript
+// Wet-only send bus: returns a single ConvolverNode internally.
+const chamber = cacophony.createBus('chamber');
+await chamber.addFilter(cacophony.createImpulseResponse('/irs/chamber.wav'));
+vocals.routeTo(chamber, 0.25);
+
+// Inline dry/wet graph: exposes dry/wet AudioParams for bus automation.
+const room = cacophony.createImpulseResponse('/irs/room.wav', {
+  dry: 0.7,
+  wet: 0.3,
+  normalize: false,
+});
+const handle = await bus.addFilter(room);
+bus.rampFilterParam(handle, 'wet', 0.6, { duration: 500 });
+```
+
 ### Adding custom effects to a bus
 
 Bus filter chains accept Cacophony-built BiquadFilters and any
 `CacophonyEffect`. Raw third-party AudioNodes are rejected unless you
 wrap them explicitly with `cacophony.shareEffect(node)` — this surfaces
 the shared-state intent (the same node will run on every bus that adds it).
+An effect can build either a single `AudioNode` or a `BuiltEffectGraph` with
+separate `input`/`output` endpoints for multi-node processors.
 
 ```typescript
 const eq = cacophony.createBiquadFilter({ type: 'highshelf', frequency: 4000, gain: 3 });
@@ -416,6 +441,12 @@ await bus.addFilter(eq);
 const sharedWorklet = new AudioWorkletNode(cacophony.context, 'my-fx');
 await bus.addFilter(cacophony.shareEffect(sharedWorklet));
 ```
+
+FOA binaural decoding is available in both forms. Use
+`createFoaDecoder()` when you want explicit custom wiring through
+`decoder.input` and `decoder.output`; use `createFoaDecoderEffect()` only on a
+dedicated 4-channel ACN/SN3D FOA bus, typically as the first and only filter
+that converts that bus to stereo binaural output.
 
 ### Cleaning up
 

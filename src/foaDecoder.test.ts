@@ -1,6 +1,6 @@
 import { AudioContext } from "standardized-audio-context-mock";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { FoaDecoder } from "./effects";
+import { FoaDecoder, FoaDecoderEffect, isBuiltEffectGraph, isCacophonyEffect } from "./effects";
 import { audioContextMock, cacophony } from "./setupTests";
 import { encodeMonoToFoaSN3D } from "./spatial/foa-encode";
 
@@ -21,6 +21,7 @@ interface CapturedNode {
   kind: string;
   arg?: number;
   connect: ReturnType<typeof vi.fn>;
+  disconnect: ReturnType<typeof vi.fn>;
   normalize?: boolean;
   buffer?: unknown;
   gain?: { value: number };
@@ -34,6 +35,7 @@ function instrumentGraphFactories(): { created: CapturedNode[] } {
       kind,
       arg,
       connect: vi.fn(),
+      disconnect: vi.fn(),
       normalize: true,
       buffer: null,
     } as CapturedNode;
@@ -52,6 +54,7 @@ function instrumentGraphFactories(): { created: CapturedNode[] } {
     const node = {
       kind: "gain",
       connect: vi.fn(),
+      disconnect: vi.fn(),
       gain: gainValue,
     } as CapturedNode;
     node.node = node;
@@ -159,14 +162,50 @@ describe("encodeMonoToFoaSN3D — SN3D/ACN positional FOA encoder (ambiX; Zotter
 });
 
 describe("FoaDecoder — standalone FOA->binaural format converter (Ahrens 2022 eq.31; Omnitone WY/ZX)", () => {
-  it("createFoaDecoder returns a FoaDecoder with .input and .output (NOT a CacophonyEffect)", async () => {
+  it("createFoaDecoder returns a standalone FoaDecoder with .input and .output", async () => {
     instrumentGraphFactories();
     const decoder = await cacophony.createFoaDecoder({ hrir: stubHrir() });
     expect(decoder).toBeInstanceOf(FoaDecoder);
     expect(decoder.input).toBeDefined();
     expect(decoder.output).toBeDefined();
-    // It is a standalone construct, not a bus filter: it has no `build` method.
+    // The explicit endpoint object remains standalone: the effect wrapper is
+    // created separately via createFoaDecoderEffect().
     expect((decoder as unknown as { build?: unknown }).build).toBeUndefined();
+  });
+
+  it("createFoaDecoderEffect returns a CacophonyEffect wrapper around the decoder graph", async () => {
+    const { created } = instrumentGraphFactories();
+    const effect = cacophony.createFoaDecoderEffect({ hrir: stubHrir() });
+
+    expect(effect).toBeInstanceOf(FoaDecoderEffect);
+    expect(isCacophonyEffect(effect)).toBe(true);
+
+    const built = await effect.build(cacophony.context);
+    expect(isBuiltEffectGraph(built)).toBe(true);
+    if (!isBuiltEffectGraph(built)) {
+      throw new Error("expected endpoint graph");
+    }
+
+    const { input, output } = namedNodes(created);
+    expect(built.input).toBe(input as unknown);
+    expect(built.output).toBe(output as unknown);
+    expect(built.handle).toBe(input as unknown);
+  });
+
+  it("createFoaDecoderEffect can be added to a dedicated bus and routes from decoder.output onward", async () => {
+    const { created } = instrumentGraphFactories();
+    const bus = cacophony.createBus("foa-decoder-test");
+    const busInputConnect = vi.spyOn(bus.input, "connect");
+
+    const handle = await bus.addFilter(cacophony.createFoaDecoderEffect({ hrir: stubHrir() }));
+    const { input, output } = namedNodes(created);
+
+    expect(handle).toBe(input as unknown);
+    expect(bus.filters).toEqual([input as unknown]);
+    expect(busInputConnect).toHaveBeenCalledWith(input as unknown);
+    expect(output.connect).toHaveBeenCalledWith(bus.output);
+
+    bus.destroy();
   });
 
   it("constructs the node graph: 4ch input splitter -> 2 mergers -> 2 convolvers", async () => {
