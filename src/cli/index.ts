@@ -6,8 +6,10 @@
 import { parseArgs } from "node:util";
 import type { LoopCount } from "../cacophony";
 import { parseFxToken } from "./commands";
+import { parseKvParams } from "./effects-registry";
 import { runLive } from "./live";
-import { renderToFile } from "./render";
+import { meterFile } from "./meter";
+import { type FoaRenderSpec, renderToFile } from "./render";
 import { runRepl } from "./repl";
 import type { WavBitDepth } from "./wav";
 
@@ -19,19 +21,21 @@ Usage:
   cacophony play  <file...>  [options]       play file(s) live to the speakers
   cacophony synth <freq> [wave] [options]    play an oscillator live
   cacophony render <source> --out <path.wav> [options]   offline render to WAV
+  cacophony meter <file> [--duration <sec>]  print integrated loudness (LUFS)
   cacophony repl                             interactive live graph
 
 Source (render):
   synth:<freq>[:<wave>]   oscillator synth (wave: sine|sawtooth|square|triangle, default sine)
   <path>                  an audio file (wav/ogg/mp3/flac/...) decoded from disk
+  <path> <path...>        multiple files render as a group (summed)
 
 play options:
   --loop <n|infinite>     loop the source
   --volume <0..1>         source gain
   --duration <sec>        stop and exit after N seconds (default: until end / Ctrl-C)
-  --pan stereo|hrtf       pan type (hrtf deferred to Stage 5)
-  --pos x,y,z             spatial position (deferred to Stage 5)
-  --pitch <factor>        pitch shift (deferred to Stage 5)
+  --pan stereo|hrtf       pan type (hrtf = 3D spatial)
+  --pos x,y,z             spatial position (with --pan hrtf)
+  --pitch <factor>        pitch shift (2 = +1 octave; file sources only)
 
 synth options:
   --volume <0..1>         source gain
@@ -40,12 +44,16 @@ synth options:
 render options:
   --out <path>            output WAV path (required)
   --fx <name>[:k=v,...]   add an effect (repeatable; chained on a bus in order)
+  --fx foa:azimuth=<deg>[,elevation=<deg>]   ambisonic FOA → binaural spatial render
   --duration <sec>        render duration in seconds (default 1)
   --sample-rate <hz>      sample rate (default 48000)
   --channels <1|2>        channel count (default 2)
   --bits <16|32>          16 = PCM s16 (default), 32 = IEEE float
   --loop <n|infinite>     loop the source
   --volume <0..1>         source gain
+  --pan stereo|hrtf       pan type; --pos x,y,z   spatial position
+  --pitch <factor>        pitch shift (file sources only)
+  --stretch <factor>      time-stretch (changes length, preserves pitch; file sources)
 
   --help                  show this help
   --version               print version
@@ -77,6 +85,38 @@ function parseVolumeFlag(value: string | undefined): number | undefined {
   return v;
 }
 
+/** Parse a `--pos x,y,z` flag into a `[x,y,z]` tuple. */
+function parsePosFlag(value: string | undefined): [number, number, number] | undefined {
+  if (value === undefined) return undefined;
+  const parts = value.split(",").map((p) => Number(p.trim()));
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) {
+    throw new Error(`Invalid --pos: "${value}" (expected x,y,z e.g. 1,0,0)`);
+  }
+  return [parts[0], parts[1], parts[2]];
+}
+
+/** Parse a positive-or-any finite factor flag (`--pitch` / `--stretch`). */
+function parseFactorFlag(value: string | undefined, flag: string): number | undefined {
+  if (value === undefined) return undefined;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n <= 0) {
+    throw new Error(`Invalid ${flag}: "${value}" (expected a positive number)`);
+  }
+  return n;
+}
+
+/** Parse `foa` fx params (`azimuth=<deg>[,elevation=<deg>]`) into a render spec. */
+function parseFoaParams(params: string): FoaRenderSpec {
+  const opts = parseKvParams({ azimuth: "num", elevation: "num" }, params);
+  if (typeof opts.azimuth !== "number") {
+    throw new Error("fx foa requires azimuth=<deg> (e.g. --fx foa:azimuth=90)");
+  }
+  return {
+    azimuthDeg: opts.azimuth,
+    elevationDeg: typeof opts.elevation === "number" ? opts.elevation : undefined,
+  };
+}
+
 /** Parse an optional `--loop <n|infinite>` flag value. */
 function parseLoopFlag(value: string | undefined): LoopCount | undefined {
   if (value === undefined) return undefined;
@@ -101,6 +141,10 @@ async function runRender(argv: readonly string[]): Promise<number> {
       bits: { type: "string" },
       loop: { type: "string" },
       volume: { type: "string" },
+      pan: { type: "string" },
+      pos: { type: "string" },
+      pitch: { type: "string" },
+      stretch: { type: "string" },
     },
   });
 
@@ -111,6 +155,8 @@ async function runRender(argv: readonly string[]): Promise<number> {
   if (!values.out) {
     throw new Error("render: missing --out <path.wav>");
   }
+  // Extra positionals after the source become group members.
+  const groupSources = positionals.slice(1);
 
   const durationSec = values.duration ? parsePositiveNumber(values.duration, "--duration") : 1;
   const sampleRate = values["sample-rate"] ? parsePositiveInt(values["sample-rate"], "--sample-rate") : 48000;
@@ -134,12 +180,44 @@ async function runRender(argv: readonly string[]): Promise<number> {
   const volume = parseVolumeFlag(values.volume);
   const loop = parseLoopFlag(values.loop);
 
+  let pan: "stereo" | "hrtf" | undefined;
+  if (values.pan !== undefined) {
+    if (values.pan !== "stereo" && values.pan !== "hrtf") {
+      throw new Error(`Invalid --pan: "${values.pan}" (expected stereo or hrtf)`);
+    }
+    pan = values.pan;
+  }
+  const position = parsePosFlag(values.pos);
+  const pitch = parseFactorFlag(values.pitch, "--pitch");
+  const stretch = parseFactorFlag(values.stretch, "--stretch");
+
   // Each --fx value is one `name[:k=v,...]` token; split AFTER parseArgs so the
-  // `=` / `,` in the params survive (Risk R6).
-  const fx = (values.fx ?? []).map(parseFxToken);
+  // `=` / `,` in the params survive (Risk R6). `foa` is NOT a bus filter (the
+  // FOA decoder is 4-ch-in/2-ch-out) — extract it as a spatial render request.
+  const fxTokens = (values.fx ?? []).map(parseFxToken);
+  let foa: FoaRenderSpec | undefined;
+  const fx = fxTokens.filter((t) => {
+    if (t.name !== "foa") return true;
+    foa = parseFoaParams(t.params);
+    return false;
+  });
 
   const result = await renderToFile(
-    { source, durationSec, sampleRate, numberOfChannels, volume, loop, fx },
+    {
+      source,
+      groupSources: groupSources.length > 0 ? groupSources : undefined,
+      durationSec,
+      sampleRate,
+      numberOfChannels,
+      volume,
+      loop,
+      fx,
+      pan,
+      position,
+      pitch,
+      stretch,
+      foa,
+    },
     values.out,
     bitDepth,
   );
@@ -175,24 +253,26 @@ async function runPlay(argv: readonly string[]): Promise<number> {
   if (!file) {
     throw new Error("play: missing <file> (e.g. play test.ogg)");
   }
-  if (positionals.length > 1) {
-    // Multi-file group playback is Stage 5; play the first file for now.
-    process.stderr.write("cacophony: multiple files given — playing the first (group playback is Stage 5)\n");
-  }
-  if (values.pan !== undefined && values.pan !== "stereo") {
-    process.stderr.write("cacophony: --pan hrtf and --pos are deferred to Stage 5; using stereo\n");
-  }
-  if (values.pitch !== undefined) {
-    process.stderr.write("cacophony: --pitch is deferred to Stage 5; ignoring\n");
+
+  let pan: "stereo" | "hrtf" | undefined;
+  if (values.pan !== undefined) {
+    if (values.pan !== "stereo" && values.pan !== "hrtf") {
+      throw new Error(`Invalid --pan: "${values.pan}" (expected stereo or hrtf)`);
+    }
+    pan = values.pan;
   }
 
   const durationSec = values.duration ? parsePositiveNumber(values.duration, "--duration") : undefined;
 
   await runLive({
     source: file,
+    groupSources: positionals.length > 1 ? positionals.slice(1) : undefined,
     volume: parseVolumeFlag(values.volume),
     loop: parseLoopFlag(values.loop),
     durationSec,
+    pan,
+    position: parsePosFlag(values.pos),
+    pitch: parseFactorFlag(values.pitch, "--pitch"),
   });
   return 0;
 }
@@ -224,6 +304,31 @@ async function runSynth(argv: readonly string[]): Promise<number> {
   return 0;
 }
 
+/** `cacophony meter <file> [--duration <sec>]` — print integrated loudness. */
+async function runMeter(argv: readonly string[]): Promise<number> {
+  const { values, positionals } = parseArgs({
+    args: [...argv],
+    allowPositionals: true,
+    options: { duration: { type: "string" } },
+  });
+
+  const file = positionals[0];
+  if (!file) {
+    throw new Error("meter: missing <file> (e.g. meter test.ogg)");
+  }
+  const durationSec = values.duration ? parsePositiveNumber(values.duration, "--duration") : undefined;
+
+  const r = await meterFile(file, durationSec);
+  const lkfs = Number.isFinite(r.integratedLkfs) ? `${r.integratedLkfs.toFixed(2)} LUFS` : "-inf (silent)";
+  const peak = Number.isFinite(r.peakDbfs) ? `${r.peakDbfs.toFixed(2)} dBFS` : "-inf";
+  process.stdout.write(
+    `${r.file}: ${r.channels} ch @ ${r.sampleRate} Hz, ${r.frames} frames\n` +
+      `  integrated loudness ${lkfs}\n` +
+      `  sample peak         ${peak}\n`,
+  );
+  return 0;
+}
+
 /**
  * Run the CLI. Returns a process exit code. `argv` is the args AFTER
  * `node <script>` (i.e. `process.argv.slice(2)`).
@@ -242,6 +347,9 @@ export async function run(argv: readonly string[]): Promise<number> {
 
   if (command === "render") {
     return runRender(rest);
+  }
+  if (command === "meter") {
+    return runMeter(rest);
   }
   if (command === "play") {
     return runPlay(rest);

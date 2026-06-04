@@ -15,10 +15,13 @@
  */
 import * as readline from "node:readline/promises";
 import type { Bus } from "../bus";
+import type { LoudnessMeter } from "../meters/loudness-meter";
 import { createNodeCacophony } from "../node";
-import { buildSource } from "./commands";
+import type { Sound } from "../sound";
+import { buildFoaSource, buildGroup, buildSource } from "./commands";
 import { aliasesFor, EFFECT_REGISTRY, parseKvParams } from "./effects-registry";
 import { filteringLogger } from "./logging";
+import { replayToFile } from "./replay";
 import { DEFAULT_FX_BUS, Session } from "./session";
 
 const HELP = `cacophony REPL — live graph. Commands:
@@ -31,6 +34,15 @@ transport / sources:
   stop [name] | stop all           stop one / all sources
   vol <0..1> [name]                set source volume
   loop <n|infinite> [name]         loop a sound
+  pitch <factor> [name]            pitch-shift a sound (2 = +1 octave)
+  stretch <factor> [name]          time-stretch a sound (replaces handle; changes length)
+  pos <x> <y> <z> [name]           spatial position (creates HRTF re-route)
+  group <name> <f1> <f2> ...       create + play a group of files
+  foa azimuth=<deg> [elevation=<deg>]   ambisonic FOA → binaural (decoded to master)
+
+spatial / metering / session:
+  meter on|off|read|reset          live loudness meter on master
+  render <out.wav>                 replay the declared session into an offline WAV
 
 buses + routing:
   bus new <name>                   create a named bus
@@ -89,6 +101,7 @@ export async function runRepl(): Promise<void> {
   const out = (s: string): void => void process.stdout.write(`${s}\n`);
 
   let closed = false;
+  let meter: LoudnessMeter | undefined;
   const onSigint = () => {
     void shutdown();
   };
@@ -96,6 +109,7 @@ export async function runRepl(): Promise<void> {
     if (closed) return;
     closed = true;
     process.off("SIGINT", onSigint);
+    if (meter) meter.disconnect();
     rl.close();
     await context.close();
   }
@@ -134,6 +148,7 @@ export async function runRepl(): Promise<void> {
         const name = args[1] === "as" ? args[2] : undefined;
         const handle = await buildSource(cacophony, context as unknown as Parameters<typeof buildSource>[1], file);
         const resolved = session.addSource(handle.source, name);
+        session.record({ kind: "load", name: resolved, file });
         out(`loaded ${file} as '${resolved}'`);
         return false;
       }
@@ -150,6 +165,7 @@ export async function runRepl(): Promise<void> {
         const spec = wave ? `synth:${freq}:${wave}` : `synth:${freq}`;
         const handle = await buildSource(cacophony, context as unknown as Parameters<typeof buildSource>[1], spec);
         const resolved = session.addSource(handle.source, name);
+        session.record({ kind: "synth", name: resolved, freq: Number(freq), wave });
         out(`synth ${freq}${wave ? ` ${wave}` : ""} as '${resolved}'`);
         return false;
       }
@@ -175,7 +191,134 @@ export async function runRepl(): Promise<void> {
 
       case "vol": {
         const gain = parseGain(args[0], "volume");
-        session.resolveSource(args[1]).volume = gain;
+        const name = args[1] ?? session.current();
+        session.resolveSource(name).volume = gain;
+        session.record({ kind: "vol", name, gain });
+        return false;
+      }
+
+      case "pitch": {
+        const factor = Number(args[0]);
+        if (!Number.isFinite(factor) || factor <= 0) throw new Error("pitch <factor> [name] (factor > 0)");
+        const name = args[1] ?? session.current();
+        const handle = session.resolveSource(name);
+        if (!("setPitchShift" in handle)) throw new Error("pitch is only valid for file sources, not synths");
+        await (handle as Sound).setPitchShift(factor);
+        session.record({ kind: "pitch", name, factor });
+        out(`pitch ${factor} on '${name}'`);
+        return false;
+      }
+
+      case "stretch": {
+        const factor = Number(args[0]);
+        if (!Number.isFinite(factor) || factor <= 0) throw new Error("stretch <factor> [name] (factor > 0)");
+        const name = args[1] ?? session.current();
+        const handle = session.resolveSource(name);
+        if (!("timeStretch" in handle)) throw new Error("stretch is only valid for file sources, not synths");
+        const stretched = (handle as Sound).timeStretch(factor);
+        // Replace the handle in place (a fresh Sound at the stretched tempo).
+        session.addSource(stretched, name);
+        out(`stretch ${factor} -> replaced '${name}' (stretch is NOT replayed by 'render')`);
+        return false;
+      }
+
+      case "pos": {
+        const [xs, ys, zs] = args;
+        const x = Number(xs);
+        const y = Number(ys);
+        const z = Number(zs);
+        if ([x, y, z].some((n) => !Number.isFinite(n))) throw new Error("pos <x> <y> <z> [name]");
+        const name = args[3] ?? session.current();
+        const handle = session.resolveSource(name);
+        handle.position = [x, y, z];
+        session.record({ kind: "pos", name, position: [x, y, z], hrtf: true });
+        out(`pos ${x},${y},${z} on '${name}'`);
+        return false;
+      }
+
+      case "group": {
+        const name = args[0];
+        if (!name) throw new Error("group <name> <f1> <f2> ...");
+        const files = args.slice(1);
+        if (files.length === 0) throw new Error("group <name> needs at least one file");
+        const g = await buildGroup(cacophony, context as unknown as Parameters<typeof buildGroup>[1], files);
+        g.play();
+        out(`group '${name}' playing ${files.length} sounds (group is NOT replayed by 'render')`);
+        return false;
+      }
+
+      case "foa": {
+        // foa azimuth=<deg> [elevation=<deg>]
+        const opts = parseKvParams({ azimuth: "num", elevation: "num" }, args.join(","));
+        if (typeof opts.azimuth !== "number") throw new Error("foa azimuth=<deg> [elevation=<deg>]");
+        const sr = (context as unknown as { sampleRate: number }).sampleRate;
+        const foa = await buildFoaSource(
+          cacophony,
+          context as unknown as Parameters<typeof buildFoaSource>[1],
+          cacophony.master.input as unknown as AudioNode,
+          {
+            azimuthDeg: opts.azimuth,
+            elevationDeg: typeof opts.elevation === "number" ? opts.elevation : undefined,
+            lengthFrames: Math.floor(sr * 2.5),
+          },
+        );
+        foa.play();
+        out(
+          `foa azimuth=${opts.azimuth}${typeof opts.elevation === "number" ? ` elevation=${opts.elevation}` : ""} → binaural (NOT replayed by 'render')`,
+        );
+        return false;
+      }
+
+      case "meter": {
+        const sub = args[0];
+        if (sub === "on") {
+          if (meter) meter.disconnect();
+          meter = await cacophony.createLoudnessMeter();
+          meter.onUpdate = undefined;
+          out("loudness meter ON (master). use `meter read` for a snapshot.");
+          return false;
+        }
+        if (sub === "off") {
+          if (meter) {
+            meter.disconnect();
+            meter = undefined;
+          }
+          out("loudness meter OFF");
+          return false;
+        }
+        if (sub === "read") {
+          if (!meter) throw new Error("meter is off — `meter on` first");
+          const r = meter.reading;
+          const f = (v: number, u: string) => (Number.isFinite(v) ? `${v.toFixed(1)} ${u}` : "—");
+          out(
+            `momentary ${f(r.momentary, "LUFS")}, short-term ${f(r.shortTerm, "LUFS")}, ` +
+              `integrated ${f(r.integrated, "LUFS")}, true-peak ${f(r.truePeak, "dBTP")}`,
+          );
+          return false;
+        }
+        if (sub === "reset") {
+          if (!meter) throw new Error("meter is off — `meter on` first");
+          meter.reset();
+          out("integrated loudness reset");
+          return false;
+        }
+        throw new Error("meter on|off|read|reset");
+      }
+
+      case "render": {
+        const outPath = args[0];
+        if (!outPath) throw new Error("render <out.wav>");
+        const result = await replayToFile(session.commandLog(), outPath, {
+          durationSec: 2,
+          sampleRate: 48000,
+          numberOfChannels: 2,
+          bitDepth: 16,
+        });
+        out(
+          `rendered session → ${result.outPath} (${result.bytesWritten} bytes, ` +
+            `peak ${result.stats.peak.toFixed(4)}, non-silent ${result.stats.nonSilentSamples})` +
+            (result.skipped.length ? `\n  skipped (not replayable): ${result.skipped.join("; ")}` : ""),
+        );
         return false;
       }
 
@@ -209,19 +352,24 @@ export async function runRepl(): Promise<void> {
         const target = args[0];
         if (!target) throw new Error("route <bus> [send <gain>] | route master [name]");
         if (target === "master") {
-          session.resolveSource(args[1]).routeTo(cacophony.master);
+          const name = args[1] ?? session.current();
+          session.resolveSource(name).routeTo(cacophony.master);
+          session.record({ kind: "routeMaster", name });
           out("routed to master (dry)");
           return false;
         }
         // route <bus> [send <gain>]
         const bus = session.resolveBus(target);
-        const source = session.resolveSource();
+        const name = session.current();
+        const source = session.resolveSource(name);
         if (args[1] === "send") {
           const gain = parseGain(args[2], "send gain");
           source.routeTo(bus, gain);
+          session.record({ kind: "route", name, busName: target, sendGain: gain });
           out(`send to '${target}' @ ${gain}`);
         } else {
           source.routeTo(bus);
+          session.record({ kind: "route", name, busName: target });
           out(`routed to '${target}'`);
         }
         return false;
@@ -236,9 +384,11 @@ export async function runRepl(): Promise<void> {
           if (!def) throw new Error(`Unknown effect '${effect}' (known: ${Object.keys(EFFECT_REGISTRY).join(", ")})`);
           const { rest, bus: busName } = splitOnBus(args.slice(2));
           // tokens are space-separated k=v; join with commas for parseKvParams.
-          const opts = parseKvParams(def.schema, rest.join(","), aliasesFor(effect));
+          const paramStr = rest.join(",");
+          const opts = parseKvParams(def.schema, paramStr, aliasesFor(effect));
           const bus = busFor(busName);
           await bus.addFilter(def.factory(cacophony, opts) as Parameters<typeof bus.addFilter>[0]);
+          session.record({ kind: "fx", busName: busName ?? DEFAULT_FX_BUS, effect, params: paramStr });
           out(`fx add ${effect} on '${busName ?? DEFAULT_FX_BUS}' (#${bus.filters.length - 1})`);
           return false;
         }
@@ -288,6 +438,14 @@ export async function runRepl(): Promise<void> {
           duration = ms / 1000;
         }
         bus.rampFilterParam(node, paramName, value, duration !== undefined ? { duration } : undefined);
+        // Snapshot the FINAL value to the replay log (live ramps are not replayed).
+        session.record({
+          kind: "param",
+          busName: busName ?? DEFAULT_FX_BUS,
+          idx: Number(idxTok),
+          param: paramName,
+          value,
+        });
         out(`param #${idxTok} ${paramName} -> ${value}${duration !== undefined ? ` over ${msTok}ms` : ""}`);
         return false;
       }

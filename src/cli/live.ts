@@ -13,13 +13,15 @@
  * `AudioContext` hangs the process forever (`src/node.ts:11-14`).
  */
 import { createNodeCacophony } from "../node";
-import { buildFxBus, buildSource, type FxSpec } from "./commands";
+import { applyPitchAfterPlay, buildFxBus, buildGroup, buildSource, type FxSpec } from "./commands";
 import { filteringLogger } from "./logging";
 
 /** Parameters for a one-shot live run. */
 export interface LiveParams {
   /** Source spec: `synth:<freq>[:<wave>]` or a file path. */
   source: string;
+  /** Extra files: the source plus these play together as a group. */
+  groupSources?: readonly string[];
   /** Linear gain applied to the source. */
   volume?: number;
   /** Loop the source (count or `"infinite"`) — file sources only. */
@@ -28,6 +30,11 @@ export interface LiveParams {
   fx?: readonly FxSpec[];
   /** Stop and exit after this many seconds. Omit to run until `ended`/SIGINT. */
   durationSec?: number;
+  /** HRTF pan + spatial position. */
+  pan?: "stereo" | "hrtf";
+  position?: [number, number, number];
+  /** Pitch-shift factor (file sources only). */
+  pitch?: number;
 }
 
 /**
@@ -62,11 +69,28 @@ export async function runLive(params: LiveParams): Promise<void> {
   process.on("SIGINT", onSigint);
 
   try {
+    // Group playback (multiple files) — play them together, exit on duration/SIGINT.
+    if (params.groupSources && params.groupSources.length > 0) {
+      const files = [params.source, ...params.groupSources];
+      const group = await buildGroup(cacophony, context as unknown as Parameters<typeof buildGroup>[1], files);
+      group.play();
+      if (params.durationSec !== undefined) {
+        durationTimer = setTimeout(() => void shutdown(), params.durationSec * 1000);
+      }
+      await done;
+      return;
+    }
+
     const handle = await buildSource(
       cacophony,
       context as unknown as Parameters<typeof buildSource>[1],
       params.source,
-      { volume: params.volume, loop: params.loop },
+      {
+        volume: params.volume,
+        loop: params.loop,
+        panType: params.pan === "hrtf" ? "HRTF" : "stereo",
+        position: params.position,
+      },
     );
 
     if (params.fx && params.fx.length > 0) {
@@ -83,6 +107,7 @@ export async function runLive(params: LiveParams): Promise<void> {
     });
 
     handle.play();
+    await applyPitchAfterPlay(handle.source, params.pitch);
 
     if (params.durationSec !== undefined) {
       durationTimer = setTimeout(() => {

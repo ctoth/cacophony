@@ -10,9 +10,11 @@
  * machine. Each test has a generous timeout and force-kills any orphan.
  */
 import { spawn, type ChildProcess } from "node:child_process";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
-import { describe, expect, it } from "vitest";
+import { dirname, join, resolve } from "node:path";
+import { afterAll, describe, expect, it } from "vitest";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const bin = resolve(repoRoot, "bin", "cacophony.mjs");
@@ -93,4 +95,48 @@ describe("CLI process lifecycle (exit / SIGINT)", () => {
     // acceptable per the brief; a HANG (rejection above) is the only failure.
     expect(r.code === 0 || r.signal === "SIGINT" || r.code !== null).toBe(true);
   }, 15000);
+});
+
+/**
+ * Stage 5 end-to-end: drive the REPL over piped stdin to declare a synth + a
+ * distortion fx + route, then `render` the session to a WAV (plan R5 replay).
+ * Assert the file is a valid, non-silent WAV — proving the command-log replay
+ * produced real audio through the built bin. Runs the BUILT bin (imports built
+ * dist), so `npx vite build` must precede the test (the standing gate).
+ */
+describe("REPL render (R5 command-log replay, e2e via bin)", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "caco-cli-repl-"));
+  afterAll(() => rmSync(tmp, { recursive: true, force: true }));
+
+  /** Parse a WAV's channel-0 peak (16-bit PCM). */
+  function wavPeak(buf: Buffer): { riff: boolean; frames: number; peak: number } {
+    const riff = buf.toString("ascii", 0, 4) === "RIFF" && buf.toString("ascii", 8, 12) === "WAVE";
+    const blockAlign = buf.readUInt16LE(32);
+    const dataLen = buf.readUInt32LE(40);
+    const frames = blockAlign > 0 ? dataLen / blockAlign : 0;
+    let peak = 0;
+    let off = 44;
+    for (let i = 0; i < frames; i++) {
+      const raw = buf.readInt16LE(off);
+      const v = raw < 0 ? raw / 0x8000 : raw / 0x7fff;
+      if (Math.abs(v) > peak) peak = Math.abs(v);
+      off += blockAlign;
+    }
+    return { riff, frames, peak };
+  }
+
+  it("`render <out.wav>` from the REPL writes a valid non-silent WAV with the fx delta", async () => {
+    const out = join(tmp, "repl-render.wav");
+    const stdin = `synth 220 sawtooth\nfx add distortion drive=40 shape=tanh\nroute fx\nrender ${out}\nexit\n`;
+    const r = await spawnBin(["repl"], { stdin, killAfterMs: 15000 });
+
+    expect(r.code).toBe(0);
+    expect(existsSync(out)).toBe(true);
+
+    const parsed = wavPeak(readFileSync(out));
+    expect(parsed.riff).toBe(true);
+    expect(parsed.frames).toBeGreaterThan(0);
+    // Distortion on a sawtooth → saturated, peaks at/near full scale (non-silent).
+    expect(parsed.peak).toBeGreaterThan(0.5);
+  }, 20000);
 });

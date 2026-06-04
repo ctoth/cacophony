@@ -1,10 +1,12 @@
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import FFT from "fft.js";
 import { afterAll, describe, expect, it } from "vitest";
-import { createOfflineNodeCacophony as distMakeOffline } from "../../dist/node.mjs";
+import { createOfflineNodeCacophony as distMakeOffline, decodeAudioFile as distDecode } from "../../dist/node.mjs";
 import { parseFxToken } from "../../src/cli/commands";
 import { bufferStats, renderToBuffer, renderToFile } from "../../src/cli/render";
+import { replayToBuffer } from "../../src/cli/replay";
 
 /** Peak + mean(|x|) over channel 0 (mirrors scripts/node-smoke.mjs peakMean). */
 function peakMean(buffer: AudioBuffer): { peak: number; mean: number } {
@@ -329,3 +331,172 @@ describe("render-core fx parity (Stage 3 per-effect render delta, against built 
     expect(divergence).toBeGreaterThan(EPSILON);
   });
 });
+
+/** Total energy (Σ x²) over one channel of a buffer. */
+function channelEnergy(buffer: AudioBuffer, channel: number): number {
+  const d = new Float32Array(buffer.length);
+  buffer.copyFromChannel(d, channel);
+  let e = 0;
+  for (let i = 0; i < d.length; i++) e += d[i] * d[i];
+  return e;
+}
+
+/**
+ * Stage 5: spatial/FOA, pitch-shift, time-stretch, groups, REPL-render replay.
+ * All render through the BUILT `dist/node.mjs` (pitch is a phase-vocoder worklet,
+ * FOA decoder loads a bundled HRIR; both need the inlined `data:` bundles). Build
+ * before test: `npx vite build` then `npm run test`.
+ */
+describe("render-core Stage 5 (spatial/pitch/stretch/groups/replay, against built dist)", () => {
+  const sr = 48000;
+
+  it("FOA decode produces L/R asymmetry that FLIPS between +90° and −90°", async () => {
+    const dur = 1.0;
+    const base = { source: "n/a", durationSec: dur, sampleRate: sr, numberOfChannels: 2 };
+
+    const pos = await renderToBuffer({ ...base, foa: { azimuthDeg: 90 } }, distMakeOffline);
+    const neg = await renderToBuffer({ ...base, foa: { azimuthDeg: -90 } }, distMakeOffline);
+
+    const posL = channelEnergy(pos, 0);
+    const posR = channelEnergy(pos, 1);
+    const negL = channelEnergy(neg, 0);
+    const negR = channelEnergy(neg, 1);
+
+    // eslint-disable-next-line no-console
+    console.log(
+      `[foa] +90 L=${posL.toFixed(3)} R=${posR.toFixed(3)} | -90 L=${negL.toFixed(3)} R=${negR.toFixed(3)}`,
+    );
+
+    // Both renders are non-silent and binaurally asymmetric.
+    expect(posL + posR).toBeGreaterThan(0);
+    expect(Math.abs(posL - posR)).toBeGreaterThan(1);
+    expect(Math.abs(negL - negR)).toBeGreaterThan(1);
+    // The asymmetry flips: whichever channel is louder at +90 is quieter at -90.
+    expect(posL > posR).not.toBe(negL > negR);
+  });
+
+  it("pitch-shift ×2 raises the spectral centroid of test.ogg and stays non-silent", async () => {
+    const base = { source: TEST_OGG, durationSec: 0.72, sampleRate: sr, numberOfChannels: 2 };
+    const plain = await renderToBuffer(base, distMakeOffline);
+    const shifted = await renderToBuffer({ ...base, pitch: 2 }, distMakeOffline);
+
+    const cPlain = spectralCentroid(plain, sr);
+    const cShift = spectralCentroid(shifted, sr);
+    const shiftStats = bufferStats(shifted);
+
+    // eslint-disable-next-line no-console
+    console.log(`[pitch x2] centroid plain=${cPlain.toFixed(1)}Hz shifted=${cShift.toFixed(1)}Hz`);
+
+    expect(shiftStats.nonSilentSamples).toBeGreaterThan(0);
+    // A +1 octave shift moves spectral energy upward.
+    expect(cShift).toBeGreaterThan(cPlain);
+  });
+
+  it("time-stretch ×2 roughly doubles the buffer length and stays non-silent", async () => {
+    const base = { source: TEST_OGG, durationSec: 1, sampleRate: sr, numberOfChannels: 2 };
+    const plain = await renderToBuffer(base, distMakeOffline);
+    const stretched = await renderToBuffer({ ...base, stretch: 2 }, distMakeOffline);
+
+    // The source buffer (decoded) drives the stretched length; compare lengths.
+    const ratio = stretched.length / plain.length;
+    const stats = bufferStats(stretched);
+
+    // eslint-disable-next-line no-console
+    console.log(`[stretch x2] plainLen=${plain.length} stretchedLen=${stretched.length} ratio=${ratio.toFixed(3)}`);
+
+    // plain render is sized to durationSec=1s (48000 frames). The stretched render
+    // is sized to round(sourceFrames * 2). test.ogg ~0.7s so stretched ≈ 1.4s.
+    // Assert the stretched buffer is materially longer than the source content.
+    expect(stretched.length).toBeGreaterThan(Math.floor(sr * 1.2));
+    expect(stats.nonSilentSamples).toBeGreaterThan(0);
+  });
+
+  it("time-stretch ×2 on a decoded buffer is ≈2× the source buffer length", async () => {
+    // Directly verify the timeStretchBuffer length contract (round(len*factor))
+    // by decoding test.ogg and stretching it through the same dist path.
+    const { cacophony, context } = distMakeOffline({ length: 1, sampleRate: sr, numberOfChannels: 2, quiet: true });
+    const src = await distDecode(context, TEST_OGG);
+    const stretched = cacophony.timeStretchBuffer(src, 2);
+    const ratio = stretched.length / src.length;
+
+    // eslint-disable-next-line no-console
+    console.log(`[stretch buffer] srcLen=${src.length} stretchedLen=${stretched.length} ratio=${ratio.toFixed(4)}`);
+
+    expect(ratio).toBeCloseTo(2, 2);
+  });
+
+  it("group of two sounds sums to a peak ≥ a single source's peak", async () => {
+    const base = { source: TEST_OGG, durationSec: 1, sampleRate: sr, numberOfChannels: 2 };
+    const single = bufferStats(await renderToBuffer(base, distMakeOffline));
+    const group = bufferStats(
+      await renderToBuffer({ ...base, groupSources: [TEST_OGG] }, distMakeOffline),
+    );
+
+    // eslint-disable-next-line no-console
+    console.log(`[group] single peak=${single.peak.toFixed(4)} group(2x) peak=${group.peak.toFixed(4)}`);
+
+    expect(group.peak).toBeGreaterThanOrEqual(single.peak);
+    expect(group.nonSilentSamples).toBeGreaterThan(0);
+  });
+
+  it("REPL render replays a synth+fx command log into a non-silent buffer showing the fx delta", async () => {
+    // The synth+fx replay case (plan R5): the clean log (no fx) vs the same log
+    // with a distortion on the fx bus + route must differ.
+    const cleanLog = [{ kind: "synth" as const, name: "s1", freq: 220, wave: "sawtooth" }];
+    const fxLog = [
+      { kind: "synth" as const, name: "s1", freq: 220, wave: "sawtooth" },
+      { kind: "fx" as const, busName: "fx", effect: "distortion", params: "drive=40,shape=tanh" },
+      { kind: "route" as const, name: "s1", busName: "fx" },
+    ];
+    const replayParams = { durationSec: 0.3, sampleRate: sr, numberOfChannels: 2, bitDepth: 16 as const };
+
+    const clean = await replayToBuffer(cleanLog, replayParams, distMakeOffline);
+    const withFx = await replayToBuffer(fxLog, replayParams, distMakeOffline);
+
+    const cleanPeak = bufferStats(clean.buffer).peak;
+    const fxStats = bufferStats(withFx.buffer);
+
+    // eslint-disable-next-line no-console
+    console.log(`[repl render] clean peak=${cleanPeak.toFixed(4)} withFx peak=${fxStats.peak.toFixed(4)}`);
+
+    expect(fxStats.nonSilentSamples).toBeGreaterThan(0);
+    expect(Math.abs(fxStats.peak - cleanPeak)).toBeGreaterThan(1e-3);
+    expect(withFx.skipped).toHaveLength(0);
+  });
+});
+
+/**
+ * Coarse magnitude-weighted spectral centroid (Hz) over channel 0 via the repo's
+ * `fft.js` dependency. Used to prove the pitch-shift moves energy upward.
+ */
+function spectralCentroid(buffer: AudioBuffer, sampleRate: number): number {
+  const d = new Float32Array(buffer.length);
+  buffer.copyFromChannel(d, 0);
+
+  // Power-of-two window from the middle of the signal (avoid edges).
+  const N = 16384;
+  const start = Math.max(0, Math.floor((d.length - N) / 2));
+  const frame = new Float32Array(N);
+  for (let i = 0; i < N && start + i < d.length; i++) {
+    // Hann window.
+    const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (N - 1));
+    frame[i] = d[start + i] * w;
+  }
+
+  const fft = new FFT(N);
+  const out = fft.createComplexArray();
+  const input = fft.toComplexArray(frame);
+  fft.transform(out, input);
+
+  let weighted = 0;
+  let total = 0;
+  for (let k = 0; k < N / 2; k++) {
+    const re = out[2 * k];
+    const im = out[2 * k + 1];
+    const mag = Math.sqrt(re * re + im * im);
+    const freq = (k * sampleRate) / N;
+    weighted += freq * mag;
+    total += mag;
+  }
+  return total > 0 ? weighted / total : 0;
+}
