@@ -435,7 +435,7 @@ export async function runRepl(): Promise<void> {
         if (overKw === "over") {
           const ms = Number(msTok);
           if (!Number.isFinite(ms) || ms < 0) throw new Error(`Invalid ramp duration '${msTok}' ms`);
-          duration = ms / 1000;
+          duration = ms;
         }
         bus.rampFilterParam(node, paramName, value, duration !== undefined ? { duration } : undefined);
         // Snapshot the FINAL value to the replay log (live ramps are not replayed).
