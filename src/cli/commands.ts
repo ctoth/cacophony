@@ -9,6 +9,7 @@ import type { Bus } from "../bus";
 import type { Cacophony, LoopCount, PanType, Position } from "../cacophony";
 import { encodeMonoToFoaSN3D } from "../index";
 import { decodeAudioFile } from "../node";
+import type { Playback } from "../playback";
 import type { Sound } from "../sound";
 import type { Synth } from "../synth";
 import { aliasesFor, EFFECT_REGISTRY, parseKvParams } from "./effects-registry";
@@ -285,7 +286,7 @@ export async function buildGroup(
   caco: Cacophony,
   ctx: OfflineAudioContext,
   files: readonly string[],
-): Promise<{ play(): void; group: Awaited<ReturnType<Cacophony["createGroup"]>> }> {
+): Promise<{ play(): Playback[]; group: Awaited<ReturnType<Cacophony["createGroup"]>> }> {
   const sounds: Sound[] = [];
   for (const file of files) {
     const buffer = await decodeAudioFile(ctx as unknown as Parameters<typeof decodeAudioFile>[0], file);
@@ -293,7 +294,7 @@ export async function buildGroup(
   }
   const group = await caco.createGroup(sounds);
   return {
-    play: () => void group.play(),
+    play: () => group.play(),
     group,
   };
 }

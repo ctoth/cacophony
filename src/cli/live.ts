@@ -73,7 +73,19 @@ export async function runLive(params: LiveParams): Promise<void> {
     if (params.groupSources && params.groupSources.length > 0) {
       const files = [params.source, ...params.groupSources];
       const group = await buildGroup(cacophony, context as unknown as Parameters<typeof buildGroup>[1], files);
-      group.play();
+      const playbacks = group.play();
+      let remaining = playbacks.length;
+      if (remaining === 0) {
+        void shutdown();
+      }
+      for (const playback of playbacks) {
+        playback.on("ended", () => {
+          remaining -= 1;
+          if (remaining <= 0) {
+            void shutdown();
+          }
+        });
+      }
       if (params.durationSec !== undefined) {
         durationTimer = setTimeout(() => void shutdown(), params.durationSec * 1000);
       }
