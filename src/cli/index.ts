@@ -3,6 +3,9 @@
  * subcommands `play` / `synth`, and the interactive `repl`, plus `--help` /
  * `--version`.
  */
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import type { LoopCount } from "../cacophony";
 import { parseFxToken } from "./commands";
@@ -13,7 +16,8 @@ import { type FoaRenderSpec, renderToFile } from "./render";
 import { runRepl } from "./repl";
 import type { WavBitDepth } from "./wav";
 
-const VERSION = "0.25.1";
+const packageJsonPath = resolve(dirname(fileURLToPath(import.meta.url)), "../../package.json");
+const VERSION = (JSON.parse(readFileSync(packageJsonPath, "utf8")) as { version: string }).version;
 
 const HELP = `cacophony — headless audio CLI (render / live / repl)
 
