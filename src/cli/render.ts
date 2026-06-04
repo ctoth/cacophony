@@ -136,8 +136,18 @@ export async function renderToBuffer(
   // Group render: play several files at once through createGroup.
   if (params.groupSources && params.groupSources.length > 0) {
     const files = [params.source, ...params.groupSources];
-    const group = await buildGroup(cacophony, context, files);
+    const group = await buildGroup(cacophony, context, files, {
+      volume: params.volume,
+      loop: params.loop,
+      panType: params.pan === "hrtf" ? "HRTF" : "stereo",
+      position: params.position,
+    });
+    if (params.fx && params.fx.length > 0) {
+      const { bus } = await buildFxBus(cacophony, params.fx);
+      group.group.routeTo(bus);
+    }
     group.play();
+    await Promise.all(group.group.sounds.map((sound) => applyPitchAfterPlay(sound, params.pitch)));
     return context.startRendering();
   }
 

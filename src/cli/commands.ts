@@ -286,11 +286,23 @@ export async function buildGroup(
   caco: Cacophony,
   ctx: OfflineAudioContext,
   files: readonly string[],
+  options: BuildSourceOptions = {},
 ): Promise<{ play(): Playback[]; group: Awaited<ReturnType<Cacophony["createGroup"]>> }> {
   const sounds: Sound[] = [];
+  const panType: PanType = options.panType ?? "stereo";
   for (const file of files) {
     const buffer = await decodeAudioFile(ctx as unknown as Parameters<typeof decodeAudioFile>[0], file);
-    sounds.push(await caco.createSound(buffer, "buffer", "stereo"));
+    const sound = await caco.createSound(buffer, "buffer", panType);
+    if (options.volume !== undefined) {
+      sound.volume = options.volume;
+    }
+    if (options.loop !== undefined) {
+      sound.loop(options.loop);
+    }
+    if (options.position !== undefined) {
+      sound.position = options.position;
+    }
+    sounds.push(sound);
   }
   const group = await caco.createGroup(sounds);
   return {
