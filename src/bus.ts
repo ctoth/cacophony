@@ -534,7 +534,9 @@ export class Bus {
     // routes.
     this._disconnectFilterChainEdges();
     for (const entry of this._filterEntries) {
-      entry.dispose?.();
+      try {
+        entry.dispose?.();
+      } catch {}
     }
     this._filterEntries.length = 0;
     this._bypassedFilters.clear();

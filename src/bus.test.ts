@@ -314,6 +314,28 @@ describe("Bus: destroy lifecycle", () => {
 
     expect(dispose).toHaveBeenCalledTimes(1);
   });
+
+  it("continues cleanup and unregisters a named bus when filter disposal throws", async () => {
+    const bus = cacophony.createBus("dispose-throws-cleanup");
+    const graphInput = cacophony.context.createGain();
+    const graphOutput = cacophony.context.createGain();
+    const dispose = vi.fn(() => {
+      throw new Error("dispose failed");
+    });
+    await bus.addFilter({ build: () => ({ input: graphInput, output: graphOutput, dispose }) });
+    const inputDisconnect = vi.spyOn(bus.input, "disconnect");
+    const outputDisconnect = vi.spyOn(bus.output, "disconnect");
+
+    expect(() => bus.destroy()).not.toThrow();
+
+    expect(dispose).toHaveBeenCalledTimes(1);
+    expect(inputDisconnect).toHaveBeenCalled();
+    expect(outputDisconnect).toHaveBeenCalled();
+    expect(cacophony.getBus("dispose-throws-cleanup")).toBeUndefined();
+
+    const replacement = cacophony.createBus("dispose-throws-cleanup");
+    replacement.destroy();
+  });
 });
 
 describe("Bus: filter chain refresh", () => {
