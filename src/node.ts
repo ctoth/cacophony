@@ -13,23 +13,56 @@
  * return the context alongside the Cacophony instance for exactly this reason;
  * call `await context.close()` on exit / Ctrl-C.
  *
- * `node-web-audio-api` is an OPTIONAL peer dependency — install it yourself
- * (`npm i node-web-audio-api`) to use this module.
+ * `node-web-audio-api` is an OPTIONAL dependency (declared under
+ * `optionalDependencies`). It is loaded on demand — the first time a Node
+ * backend is constructed — so importing this module for its types, or using the
+ * browser build, never pulls in the native package. When it is genuinely
+ * missing at call time, {@link loadBackend} throws a directed install hint
+ * rather than letting a bare module-resolution error surface.
  */
 import { readFile } from "node:fs/promises";
-import { AudioContext, AudioWorkletNode, OfflineAudioContext } from "node-web-audio-api";
+import type { AudioContext, OfflineAudioContext } from "node-web-audio-api";
 import type { ICache } from "./cache";
 import { Cacophony, type RuntimeOptions } from "./cacophony";
 import type { BaseContext } from "./context";
 import type { CacophonyLogger } from "./logger";
 
+/** The shape of the lazily-loaded `node-web-audio-api` module namespace. */
+type NodeBackend = typeof import("node-web-audio-api");
+
+/** Memoized backend load — resolves once, retries only after a failed load. */
+let backendPromise: Promise<NodeBackend> | undefined;
+
 /**
- * The worklet-node factory Cacophony needs on the Node backend, where
- * `AudioWorkletNode` is not a global. Bridges to `node-web-audio-api`'s
- * constructor.
+ * Load the `node-web-audio-api` backend on demand. The dynamic `import()` keeps
+ * the native package out of any code path that does not actually construct a
+ * Node context (browser build, type-only imports). A failed load is converted
+ * into an actionable install hint and the cache is cleared so a later call can
+ * retry once the user installs the package.
  */
-const createAudioWorkletNode: NonNullable<RuntimeOptions["createAudioWorkletNode"]> = (context, name, options) =>
-  new AudioWorkletNode(context as ConstructorParameters<typeof AudioWorkletNode>[0], name, options);
+function loadBackend(): Promise<NodeBackend> {
+  backendPromise ??= import("node-web-audio-api").catch((cause) => {
+    backendPromise = undefined;
+    throw new Error(
+      "cacophony/node requires the optional 'node-web-audio-api' backend, which is not installed.\n" +
+        "Install it to use the Node / offline audio backend:\n\n" +
+        "    npm install node-web-audio-api\n",
+      { cause },
+    );
+  });
+  return backendPromise;
+}
+
+/**
+ * Build the worklet-node factory Cacophony needs on the Node backend, where
+ * `AudioWorkletNode` is not a global. Bridges to `node-web-audio-api`'s
+ * constructor, captured from the lazily-loaded backend.
+ */
+function makeCreateAudioWorkletNode(
+  Ctor: NodeBackend["AudioWorkletNode"],
+): NonNullable<RuntimeOptions["createAudioWorkletNode"]> {
+  return (context, name, options) => new Ctor(context as ConstructorParameters<typeof Ctor>[0], name, options);
+}
 
 /** Per-source-URL memoized `blob:` URL of a worklet bundle (built on first use). */
 const workletBlobUrlByDataUrl = new Map<string, string>();
@@ -116,10 +149,11 @@ export interface OfflineNodeCacophony {
  * keeps the Node process alive, so callers MUST `await context.close()` when
  * done (e.g. on exit or Ctrl-C) for the process to terminate.
  */
-export function createNodeCacophony(options: NodeCacophonyOptions = {}): NodeCacophony {
-  const context = options.context ?? new AudioContext({ latencyHint: "playback" });
+export async function createNodeCacophony(options: NodeCacophonyOptions = {}): Promise<NodeCacophony> {
+  const backend = await loadBackend();
+  const context = options.context ?? new backend.AudioContext({ latencyHint: "playback" });
   const cacophony = new Cacophony(context as unknown as BaseContext, options.cache, {
-    createAudioWorkletNode,
+    createAudioWorkletNode: makeCreateAudioWorkletNode(backend.AudioWorkletNode),
     resolveWorkletUrl,
     logger: options.logger,
     quiet: options.quiet,
@@ -137,14 +171,15 @@ export function createNodeCacophony(options: NodeCacophonyOptions = {}): NodeCac
  * `createAudioWorkletNode` seam would be lost and any worklet-backed effect
  * (reverb, distortion, dynamics, ...) would fail to construct.
  */
-export function createOfflineNodeCacophony(options: OfflineNodeCacophonyOptions): OfflineNodeCacophony {
-  const context = new OfflineAudioContext({
+export async function createOfflineNodeCacophony(options: OfflineNodeCacophonyOptions): Promise<OfflineNodeCacophony> {
+  const backend = await loadBackend();
+  const context = new backend.OfflineAudioContext({
     numberOfChannels: options.numberOfChannels ?? 2,
     length: options.length,
     sampleRate: options.sampleRate,
   });
   const cacophony = new Cacophony(context as unknown as BaseContext, options.cache, {
-    createAudioWorkletNode,
+    createAudioWorkletNode: makeCreateAudioWorkletNode(backend.AudioWorkletNode),
     resolveWorkletUrl,
     logger: options.logger,
     quiet: options.quiet,

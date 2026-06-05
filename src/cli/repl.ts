@@ -94,7 +94,7 @@ function parseGain(tok: string, label: string): number {
  * context closed (i.e. it is safe for the caller to exit 0).
  */
 export async function runRepl(): Promise<void> {
-  const { cacophony, context } = createNodeCacophony({ logger: filteringLogger });
+  const { cacophony, context } = await createNodeCacophony({ logger: filteringLogger });
   const session = new Session(cacophony);
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout, prompt: "cacophony> " });

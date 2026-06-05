@@ -21,7 +21,7 @@ function peakMean(buf) {
 }
 
 async function renderSynth(withDistortion) {
-  const { cacophony, context } = createOfflineNodeCacophony({
+  const { cacophony, context } = await createOfflineNodeCacophony({
     numberOfChannels: 2,
     length: 48000 * 0.3,
     sampleRate: 48000,

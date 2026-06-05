@@ -31,9 +31,14 @@ export default defineConfig({
       },
     },
     rollupOptions: {
-      // node-web-audio-api is a native, optional peer dep — it must never be
-      // bundled (and it isn't in pkg.dependencies, so add it explicitly).
-      external: [...Object.keys(pkg.dependencies), "node-web-audio-api", /^node:.*/],
+      // Never bundle runtime deps. node-web-audio-api is a native optional dep
+      // (loaded via dynamic import in src/node.ts) and lives under
+      // optionalDependencies, so externalize those keys too.
+      external: [
+        ...Object.keys(pkg.dependencies),
+        ...Object.keys(pkg.optionalDependencies ?? {}),
+        /^node:.*/,
+      ],
     },
     target: "esnext",
   },

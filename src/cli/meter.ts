@@ -48,7 +48,12 @@ function peakAbs(samples: Float32Array): number {
 export async function meterFile(file: string, durationSec?: number): Promise<MeterResult> {
   // A tiny offline context is the cheapest decoder host. Its length doesn't
   // gate `decodeAudioFile` (which returns the full decoded buffer).
-  const { context } = createOfflineNodeCacophony({ length: 1, sampleRate: 48000, numberOfChannels: 2, quiet: true });
+  const { context } = await createOfflineNodeCacophony({
+    length: 1,
+    sampleRate: 48000,
+    numberOfChannels: 2,
+    quiet: true,
+  });
   const buffer = await decodeAudioFile(context as unknown as Parameters<typeof decodeAudioFile>[0], file);
 
   const sampleRate = buffer.sampleRate;

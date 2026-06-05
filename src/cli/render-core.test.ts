@@ -428,7 +428,12 @@ describe("render-core Stage 5 (spatial/pitch/stretch/groups/replay, against buil
   it("time-stretch ×2 on a decoded buffer is ≈2× the source buffer length", async () => {
     // Directly verify the timeStretchBuffer length contract (round(len*factor))
     // by decoding test.ogg and stretching it through the same dist path.
-    const { cacophony, context } = distMakeOffline({ length: 1, sampleRate: sr, numberOfChannels: 2, quiet: true });
+    const { cacophony, context } = await distMakeOffline({
+      length: 1,
+      sampleRate: sr,
+      numberOfChannels: 2,
+      quiet: true,
+    });
     const src = await distDecode(context, TEST_OGG);
     const stretched = cacophony.timeStretchBuffer(src, 2);
     const ratio = stretched.length / src.length;

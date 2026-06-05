@@ -50,7 +50,9 @@ describe("runLive", () => {
     const { runLive } = await import("./live");
     const livePromise = runLive({ source: "a.wav", groupSources: ["b.wav"] });
 
-    await Promise.resolve();
+    // Flush all pending microtasks so the graph is fully built (createNodeCacophony
+    // is now awaited, adding a tick before buildGroup runs).
+    await new Promise((resolve) => setImmediate(resolve));
 
     try {
       expect(mocks.play).toHaveBeenCalledTimes(1);

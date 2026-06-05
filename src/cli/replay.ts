@@ -50,7 +50,7 @@ export async function replayToBuffer(
   makeOffline: OfflineCacophonyFactory = createOfflineNodeCacophony,
 ): Promise<{ buffer: AudioBuffer; skipped: string[] }> {
   const length = Math.ceil(params.sampleRate * params.durationSec);
-  const { cacophony, context } = makeOffline({
+  const { cacophony, context } = await makeOffline({
     length,
     sampleRate: params.sampleRate,
     numberOfChannels: params.numberOfChannels,

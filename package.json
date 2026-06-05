@@ -83,7 +83,9 @@
     "environment": "node"
   },
   "dependencies": {
-    "fft.js": "^4.0.4",
+    "fft.js": "^4.0.4"
+  },
+  "optionalDependencies": {
     "node-web-audio-api": "^2.0.0"
   },
   "peerDependencies": {

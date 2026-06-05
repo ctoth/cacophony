@@ -19,7 +19,7 @@ function peak(buffer: AudioBuffer): number {
 
 describe("cacophony/node adapter", () => {
   it("renders a bare oscillator synth to a non-silent buffer (real Node backend)", async () => {
-    const { cacophony, context } = createOfflineNodeCacophony({
+    const { cacophony, context } = await createOfflineNodeCacophony({
       length: Math.round(48000 * 0.1),
       sampleRate: 48000,
       quiet: true,
@@ -37,7 +37,7 @@ describe("cacophony/node adapter", () => {
   });
 
   it("decodes an audio file into an AudioBuffer", async () => {
-    const { context } = createOfflineNodeCacophony({
+    const { context } = await createOfflineNodeCacophony({
       length: Math.round(48000 * 0.1),
       sampleRate: 48000,
       quiet: true,

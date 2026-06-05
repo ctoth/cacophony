@@ -113,7 +113,7 @@ export async function renderToBuffer(
   }
 
   const length = Math.ceil(params.sampleRate * params.durationSec);
-  const { cacophony, context } = makeOffline({
+  const { cacophony, context } = await makeOffline({
     length,
     sampleRate: params.sampleRate,
     numberOfChannels: params.numberOfChannels,
@@ -184,7 +184,7 @@ async function renderStretched(params: RenderParams, makeOffline: OfflineCacopho
   const factor = params.stretch as number;
 
   // Decode the source on a throwaway context to learn its length.
-  const probe = makeOffline({
+  const probe = await makeOffline({
     length: 1,
     sampleRate: params.sampleRate,
     numberOfChannels: params.numberOfChannels,
@@ -196,7 +196,7 @@ async function renderStretched(params: RenderParams, makeOffline: OfflineCacopho
   );
   const stretchedLen = Math.round(srcBuf.length * factor);
 
-  const { cacophony, context } = makeOffline({
+  const { cacophony, context } = await makeOffline({
     length: stretchedLen,
     sampleRate: srcBuf.sampleRate,
     numberOfChannels: params.numberOfChannels,

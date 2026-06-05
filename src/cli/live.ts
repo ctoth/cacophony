@@ -44,7 +44,7 @@ export interface LiveParams {
  * should treat resolution as "done, safe to exit 0".
  */
 export async function runLive(params: LiveParams): Promise<void> {
-  const { cacophony, context } = createNodeCacophony({ logger: filteringLogger });
+  const { cacophony, context } = await createNodeCacophony({ logger: filteringLogger });
 
   let closed = false;
   let resolveDone!: () => void;
