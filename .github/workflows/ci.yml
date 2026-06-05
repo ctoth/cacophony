@@ -45,8 +45,12 @@ jobs:
           cache: npm
       - run: npm ci
       # The CLI e2e tests run against the built artifact (dist/node.mjs and the
-      # spawned bin -> dist/cli/index.mjs), so build before testing.
+      # spawned bin -> dist/cli/index.mjs), so build before testing. Only on
+      # Node >= 22: node-web-audio-api (engines: node >=22) is omitted on Node 20,
+      # so the build (tsc/dts need its types) can't run there and the e2e suites
+      # that need dist are skipped anyway (see src/backend-available.ts).
       - run: npm run build
+        if: matrix.node-version != 20
       - run: npm test
 
   build:

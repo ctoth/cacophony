@@ -21,12 +21,19 @@ import { replayToBuffer } from "./replay";
 // Specifier held in a variable so tsc does not pull the built artifact into its
 // `rootDir: ./src` program (which would trip TS6059); the runtime resolves it fine.
 const distNodeSpecifier = "../../dist/node.mjs";
-const distNode = (await import(distNodeSpecifier)) as {
-  createOfflineNodeCacophony: typeof createOfflineNodeCacophony;
-  decodeAudioFile: typeof decodeAudioFile;
-};
-const distMakeOffline: OfflineCacophonyFactory = distNode.createOfflineNodeCacophony;
-const distDecode = distNode.decodeAudioFile;
+// Only import the built artifact when the native backend is available. Every
+// suite below is skipped otherwise (see backend-available.ts), so these bindings
+// are never read — but the import itself runs at collection time, and on the
+// Node < 22 leg dist is not built (and node-web-audio-api is absent), so it must
+// be guarded to avoid a module-not-found at collection.
+const distNode = nodeBackendAvailable
+  ? ((await import(distNodeSpecifier)) as {
+      createOfflineNodeCacophony: typeof createOfflineNodeCacophony;
+      decodeAudioFile: typeof decodeAudioFile;
+    })
+  : undefined;
+const distMakeOffline = distNode?.createOfflineNodeCacophony as OfflineCacophonyFactory;
+const distDecode = distNode?.decodeAudioFile as typeof decodeAudioFile;
 
 /** Peak + mean(|x|) over channel 0 (mirrors scripts/node-smoke.mjs peakMean). */
 function peakMean(buffer: AudioBuffer): { peak: number; mean: number } {
