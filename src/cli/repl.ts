@@ -486,6 +486,12 @@ export async function runRepl(): Promise<void> {
       if (shouldExit) break;
       if (!closed) rl.prompt();
     }
+  } catch (err) {
+    // `node:readline/promises` rejects the in-flight line read with "readline
+    // was closed" when piped stdin reaches EOF while a command is still being
+    // awaited (a slow `render` on a fast runner). That is a normal end-of-input,
+    // not a failure — fall through to a clean shutdown rather than exiting 1.
+    if (!(err instanceof Error && /readline was closed/i.test(err.message))) throw err;
   } finally {
     await shutdown();
   }
