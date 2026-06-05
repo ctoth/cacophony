@@ -41,10 +41,17 @@ function spawnBin(
     const t0 = Date.now();
     const child = spawn(process.execPath, [bin, ...args], {
       cwd: repoRoot,
-      stdio: ["pipe", "ignore", "ignore"],
+      // stderr piped so a failing child's diagnostics are surfaced (below) rather
+      // than silently discarded.
+      stdio: ["pipe", "ignore", "pipe"],
       // Null audio sink: these tests assert process lifecycle, not sound, and CI
       // runners have no audio device (a real sink crashes DeviceNotAvailable).
       env: { ...process.env, CACOPHONY_SINK: "none" },
+    });
+
+    let stderr = "";
+    child.stderr?.on("data", (chunk) => {
+      stderr += String(chunk);
     });
 
     const hangGuard = setTimeout(() => {
@@ -65,6 +72,10 @@ function spawnBin(
     child.on("exit", (code, signal) => {
       clearTimeout(hangGuard);
       if (timer) clearTimeout(timer);
+      if (code !== null && code !== 0) {
+        // eslint-disable-next-line no-console
+        console.error(`[spawnBin] cacophony ${args.join(" ")} exited ${code}\n${stderr}`);
+      }
       resolvePromise({ code, signal, ms: Date.now() - t0 });
     });
 
