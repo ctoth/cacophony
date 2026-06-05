@@ -14,6 +14,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import { nodeBackendAvailable } from "../backend-available";
 
 const repoRoot = process.cwd();
 const bin = resolve(repoRoot, "bin", "cacophony.mjs");
@@ -69,7 +70,9 @@ function spawnBin(
   });
 }
 
-describe("CLI process lifecycle (exit / SIGINT)", () => {
+// These spawn the built bin, which constructs the real Node backend; skipped
+// when the optional native dep is absent (e.g. Node < 22). See backend-available.ts.
+describe.skipIf(!nodeBackendAvailable)("CLI process lifecycle (exit / SIGINT)", () => {
   it("synth --duration 0.3 exits 0", async () => {
     const r = await spawnBin(["synth", "440", "--duration", "0.3"]);
     expect(r.code).toBe(0);
@@ -103,7 +106,7 @@ describe("CLI process lifecycle (exit / SIGINT)", () => {
  * produced real audio through the built bin. Runs the BUILT bin (imports built
  * dist), so `npx vite build` must precede the test (the standing gate).
  */
-describe("REPL render (R5 command-log replay, e2e via bin)", () => {
+describe.skipIf(!nodeBackendAvailable)("REPL render (R5 command-log replay, e2e via bin)", () => {
   const tmp = mkdtempSync(join(tmpdir(), "caco-cli-repl-"));
   afterAll(() => rmSync(tmp, { recursive: true, force: true }));
 

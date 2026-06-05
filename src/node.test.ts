@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+import { nodeBackendAvailable } from "./backend-available";
 import { createOfflineNodeCacophony, decodeAudioFile } from "./node";
 
 // These tests run against the REAL node-web-audio-api backend (the same one the
@@ -17,7 +18,9 @@ function peak(buffer: AudioBuffer): number {
   return p;
 }
 
-describe("cacophony/node adapter", () => {
+// Skipped when the optional native backend is absent (e.g. Node < 22, where its
+// `engines` exclude it and npm omits the optionalDependency). See backend-available.ts.
+describe.skipIf(!nodeBackendAvailable)("cacophony/node adapter", () => {
   it("renders a bare oscillator synth to a non-silent buffer (real Node backend)", async () => {
     const { cacophony, context } = await createOfflineNodeCacophony({
       length: Math.round(48000 * 0.1),

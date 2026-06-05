@@ -11,6 +11,7 @@
  */
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { nodeBackendAvailable } from "../backend-available";
 import { integratedLoudness } from "../index";
 import { meterFile } from "./meter";
 
@@ -51,7 +52,9 @@ describe("loudness self-check (BS.1770-5, pure)", () => {
   });
 });
 
-describe("meter <file> (offline, decodes + measures)", () => {
+// Decodes via the real Node backend; skipped when the optional native dep is
+// absent (e.g. Node < 22). The pure BS.1770 self-checks above always run.
+describe.skipIf(!nodeBackendAvailable)("meter <file> (offline, decodes + measures)", () => {
   it("measures a finite integrated loudness for test.ogg", async () => {
     const r = await meterFile(TEST_OGG);
 
