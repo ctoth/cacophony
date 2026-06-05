@@ -106,6 +106,13 @@ interface LoggingOptions {
   quiet?: boolean;
 }
 
+/**
+ * An `AudioContext` output sink id: a device id string, or `{ type: "none" }`
+ * for a null sink (headless / no audio device). Mirrors the Audio Output
+ * Devices API `sinkId`, which `node-web-audio-api` honors at runtime.
+ */
+export type NodeAudioSinkId = string | { type: "none" };
+
 /** Options for {@link createNodeCacophony}. */
 export interface NodeCacophonyOptions extends LoggingOptions {
   /**
@@ -116,6 +123,15 @@ export interface NodeCacophonyOptions extends LoggingOptions {
   context?: AudioContext;
   /** Optional cache implementation (defaults to Cacophony's `AudioCache`). */
   cache?: ICache;
+  /**
+   * Output sink for the constructed `AudioContext` (ignored when `context` is
+   * supplied). Pass `{ type: "none" }` for a null sink in environments with no
+   * audio device (CI, containers) — otherwise the backend crashes with
+   * `DeviceNotAvailable`. Omit for the system default output device. (Typed
+   * locally: `node-web-audio-api` accepts this per the Audio Output Devices API,
+   * but the DOM lib this project targets does not yet model it.)
+   */
+  sinkId?: NodeAudioSinkId;
 }
 
 /** Options for {@link createOfflineNodeCacophony}. */
@@ -151,7 +167,11 @@ export interface OfflineNodeCacophony {
  */
 export async function createNodeCacophony(options: NodeCacophonyOptions = {}): Promise<NodeCacophony> {
   const backend = await loadBackend();
-  const context = options.context ?? new backend.AudioContext({ latencyHint: "playback" });
+  // `sinkId` is cast in because the DOM lib's AudioContextOptions does not model
+  // it yet; node-web-audio-api reads it at runtime (undefined -> default device).
+  const context =
+    options.context ??
+    new backend.AudioContext({ latencyHint: "playback", sinkId: options.sinkId } as AudioContextOptions);
   const cacophony = new Cacophony(context as unknown as BaseContext, options.cache, {
     createAudioWorkletNode: makeCreateAudioWorkletNode(backend.AudioWorkletNode),
     resolveWorkletUrl,

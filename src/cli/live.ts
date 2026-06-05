@@ -13,6 +13,7 @@
  * `AudioContext` hangs the process forever (`src/node.ts:11-14`).
  */
 import { createNodeCacophony } from "../node";
+import { cliSinkId } from "./audio-sink";
 import { applyPitchAfterPlay, buildFxBus, buildGroup, buildSource, type FxSpec } from "./commands";
 import { filteringLogger } from "./logging";
 
@@ -44,7 +45,7 @@ export interface LiveParams {
  * should treat resolution as "done, safe to exit 0".
  */
 export async function runLive(params: LiveParams): Promise<void> {
-  const { cacophony, context } = await createNodeCacophony({ logger: filteringLogger });
+  const { cacophony, context } = await createNodeCacophony({ logger: filteringLogger, sinkId: cliSinkId() });
 
   let closed = false;
   let resolveDone!: () => void;

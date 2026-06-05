@@ -18,6 +18,7 @@ import type { Bus } from "../bus";
 import type { LoudnessMeter } from "../meters/loudness-meter";
 import { createNodeCacophony } from "../node";
 import type { Sound } from "../sound";
+import { cliSinkId } from "./audio-sink";
 import { buildFoaSource, buildGroup, buildSource } from "./commands";
 import { aliasesFor, EFFECT_REGISTRY, parseKvParams } from "./effects-registry";
 import { filteringLogger } from "./logging";
@@ -94,7 +95,7 @@ function parseGain(tok: string, label: string): number {
  * context closed (i.e. it is safe for the caller to exit 0).
  */
 export async function runRepl(): Promise<void> {
-  const { cacophony, context } = await createNodeCacophony({ logger: filteringLogger });
+  const { cacophony, context } = await createNodeCacophony({ logger: filteringLogger, sinkId: cliSinkId() });
   const session = new Session(cacophony);
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout, prompt: "cacophony> " });

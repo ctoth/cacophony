@@ -6,8 +6,10 @@
  * `context.close()` (`src/node.ts:11-14`). The DSP itself is already proven by
  * the render tests; here we only prove clean process lifecycle.
  *
- * These spawn real AudioContexts that briefly emit sound — expected on this
- * machine. Each test has a generous timeout and force-kills any orphan.
+ * The children run with `CACOPHONY_SINK=none` (a null audio sink) so they need
+ * no audio device — they exercise lifecycle, not sound, and run on headless CI
+ * without crashing `DeviceNotAvailable`. Each test has a generous timeout and
+ * force-kills any orphan.
  */
 import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -40,6 +42,9 @@ function spawnBin(
     const child = spawn(process.execPath, [bin, ...args], {
       cwd: repoRoot,
       stdio: ["pipe", "ignore", "ignore"],
+      // Null audio sink: these tests assert process lifecycle, not sound, and CI
+      // runners have no audio device (a real sink crashes DeviceNotAvailable).
+      env: { ...process.env, CACOPHONY_SINK: "none" },
     });
 
     const hangGuard = setTimeout(() => {
