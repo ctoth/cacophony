@@ -22,14 +22,25 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock("node:readline/promises", () => ({
-  createInterface: () => ({
-    close: mocks.closeReadline,
-    prompt: mocks.prompt,
-    async *[Symbol.asyncIterator]() {
-      yield "param 0 frequency 800 over 1000";
-      yield "exit";
-    },
-  }),
+  createInterface: () => {
+    const lineCbs: Array<(line: string) => void> = [];
+    const closeCbs: Array<() => void> = [];
+    // Deliver the scripted lines via `line` events (then `close`), matching the
+    // event-driven loop in runRepl, once its listeners are attached.
+    queueMicrotask(() => {
+      for (const cb of lineCbs) cb("param 0 frequency 800 over 1000");
+      for (const cb of lineCbs) cb("exit");
+      for (const cb of closeCbs) cb();
+    });
+    return {
+      close: mocks.closeReadline,
+      prompt: mocks.prompt,
+      on(event: string, cb: (line: string) => void): void {
+        if (event === "line") lineCbs.push(cb);
+        else if (event === "close") closeCbs.push(cb as () => void);
+      },
+    };
+  },
 }));
 
 vi.mock("../node", () => ({

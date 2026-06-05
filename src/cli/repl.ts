@@ -474,9 +474,36 @@ export async function runRepl(): Promise<void> {
     }
   }
 
+  // Collect lines via the `line` event and drain them sequentially, rather than
+  // `for await (const line of rl)`. On Node 24 the readline async iterator drops
+  // buffered lines when piped stdin reaches EOF while a slow command (e.g.
+  // `render`) is still being awaited — silently skipping the rest of the script.
+  // The `line` event fires for every parsed line regardless, so queue them and
+  // await each command in turn; `close` signals end-of-input.
+  const queue: string[] = [];
+  let notify: (() => void) | undefined;
+  let inputEnded = false;
+  rl.on("line", (line) => {
+    queue.push(line);
+    notify?.();
+  });
+  rl.on("close", () => {
+    inputEnded = true;
+    notify?.();
+  });
+
   rl.prompt();
   try {
-    for await (const line of rl) {
+    while (true) {
+      if (queue.length === 0) {
+        if (inputEnded) break;
+        await new Promise<void>((resolve) => {
+          notify = resolve;
+        });
+        notify = undefined;
+        continue;
+      }
+      const line = queue.shift() as string;
       let shouldExit = false;
       try {
         shouldExit = await dispatch(line);
@@ -484,14 +511,10 @@ export async function runRepl(): Promise<void> {
         out(`error: ${err instanceof Error ? err.message : String(err)}`);
       }
       if (shouldExit) break;
-      if (!closed) rl.prompt();
+      // Don't prompt once stdin has closed: rl.prompt() on a closed
+      // readline/promises interface throws "readline was closed".
+      if (!closed && !inputEnded) rl.prompt();
     }
-  } catch (err) {
-    // `node:readline/promises` rejects the in-flight line read with "readline
-    // was closed" when piped stdin reaches EOF while a command is still being
-    // awaited (a slow `render` on a fast runner). That is a normal end-of-input,
-    // not a failure — fall through to a clean shutdown rather than exiting 1.
-    if (!(err instanceof Error && /readline was closed/i.test(err.message))) throw err;
   } finally {
     await shutdown();
   }
