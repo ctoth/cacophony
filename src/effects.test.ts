@@ -1,6 +1,13 @@
 import { AudioContext } from "standardized-audio-context-mock";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { BiquadEffect, isCacophonyBuiltBiquad, isCacophonyEffect, markAsCacophonyBiquad, ShareEffect } from "./effects";
+import {
+  BiquadEffect,
+  isBuiltEffectGraph,
+  isCacophonyBuiltBiquad,
+  isCacophonyEffect,
+  markAsCacophonyBiquad,
+  ShareEffect,
+} from "./effects";
 import { audioContextMock, cacophony } from "./setupTests";
 import { WORKLETS } from "./worklets";
 
@@ -63,6 +70,22 @@ describe("effects: isCacophonyEffect", () => {
     const biquad = cacophony.createBiquadFilter({ frequency: 500 });
     expect(isCacophonyEffect(new BiquadEffect(biquad))).toBe(true);
     expect(isCacophonyEffect(new ShareEffect(cacophony.context.createGain()))).toBe(true);
+  });
+});
+
+describe("effects: isBuiltEffectGraph", () => {
+  it("returns true for a graph with AudioNode-like input and output endpoints", () => {
+    const graph = {
+      input: cacophony.context.createGain(),
+      output: cacophony.context.createGain(),
+    };
+    expect(isBuiltEffectGraph(graph)).toBe(true);
+  });
+
+  it("returns false for a single AudioNode or malformed graph", () => {
+    expect(isBuiltEffectGraph(cacophony.context.createGain())).toBe(false);
+    expect(isBuiltEffectGraph({ input: cacophony.context.createGain() })).toBe(false);
+    expect(isBuiltEffectGraph({ input: {}, output: {} })).toBe(false);
   });
 });
 

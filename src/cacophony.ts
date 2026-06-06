@@ -21,7 +21,11 @@ import {
   FdnReverbEffect,
   type FdnReverbOptions,
   FoaDecoder,
+  FoaDecoderEffect,
   type FoaDecoderOptions,
+  ImpulseResponseEffect,
+  type ImpulseResponseOptions,
+  type ImpulseResponseSource,
   ModulatedDelayEffect,
   type ModulatedDelayOptions,
   markAsCacophonyBiquad,
@@ -225,6 +229,12 @@ export class Cacophony {
    * `loadFoaHrir` calls share a single fetch/decode.
    */
   private foaHrirCache: WeakMap<BaseContext, Promise<AudioBuffer>> = new WeakMap();
+  /**
+   * Per-context, per-URL decoded impulse-response cache. Stores in-flight
+   * promises so concurrent effect builds for the same context/URL share the
+   * same fetch/decode. Rejected promises are evicted so the caller can retry.
+   */
+  private impulseResponseCache: WeakMap<BaseContext, Map<string, Promise<AudioBuffer>>> = new WeakMap();
   private finalizationRegistry: FinalizationRegistry<SoundCleanupHoldings>;
   private eventEmitter: TypedEventEmitter<CacophonyEvents> = new TypedEventEmitter<CacophonyEvents>();
   private cache: ICache;
@@ -525,6 +535,49 @@ export class Cacophony {
     }
   }
 
+  /**
+   * Fetches and decodes an impulse response URL on the requested audio context,
+   * memoized per context and URL. Buffers decoded by one context are not reused
+   * on another context, matching Web Audio's context-bound decode behavior.
+   *
+   * @param url Impulse-response audio URL.
+   * @param context Optional decode context. Defaults to this Cacophony instance.
+   * @param signal Optional abort signal for the fetch. Decode itself is not
+   *   abortable in Web Audio, but an already-aborted signal is honored before
+   *   decode starts.
+   */
+  async loadImpulseResponseBuffer(url: string, context?: BaseContext, signal?: AbortSignal): Promise<AudioBuffer> {
+    const ctx = context ?? this.context;
+    let cacheForContext = this.impulseResponseCache.get(ctx);
+    if (!cacheForContext) {
+      cacheForContext = new Map<string, Promise<AudioBuffer>>();
+      this.impulseResponseCache.set(ctx, cacheForContext);
+    }
+    const cached = cacheForContext.get(url);
+    if (cached) {
+      return this.waitForImpulseResponseLoad(cached, signal);
+    }
+    if (signal?.aborted) {
+      throw this.createAbortError();
+    }
+
+    const pending = (async () => {
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`Failed to load impulse response from ${url}: ${response.status} ${response.statusText}`);
+      }
+      const encoded = await response.arrayBuffer();
+      return ctx.decodeAudioData(encoded);
+    })();
+    cacheForContext.set(url, pending);
+    void pending.catch(() => {
+      if (cacheForContext.get(url) === pending) {
+        cacheForContext.delete(url);
+      }
+    });
+    return this.waitForImpulseResponseLoad(pending, signal);
+  }
+
   async createWorkletNode(
     name: string,
     url: string,
@@ -650,6 +703,35 @@ export class Cacophony {
 
   private createAbortError(): DOMException {
     return new DOMException("Operation was aborted", "AbortError");
+  }
+
+  private waitForImpulseResponseLoad(pending: Promise<AudioBuffer>, signal?: AbortSignal): Promise<AudioBuffer> {
+    if (!signal) {
+      return pending;
+    }
+    if (signal.aborted) {
+      return Promise.reject(this.createAbortError());
+    }
+    return new Promise((resolve, reject) => {
+      const handleAbort = () => {
+        cleanup();
+        reject(this.createAbortError());
+      };
+      const cleanup = () => {
+        signal.removeEventListener("abort", handleAbort);
+      };
+      signal.addEventListener("abort", handleAbort, { once: true });
+      pending.then(
+        (buffer) => {
+          cleanup();
+          resolve(buffer);
+        },
+        (err: unknown) => {
+          cleanup();
+          reject(err);
+        },
+      );
+    });
   }
 
   private createMediaSound(
@@ -976,6 +1058,17 @@ export class Cacophony {
   }
 
   /**
+   * Creates a native ConvolverNode impulse-response effect. Pass an AudioBuffer
+   * for an already-decoded IR or a URL to fetch/decode through the per-context
+   * IR cache. The default is wet-only (`dry: 0`, `wet: 1`) and returns a single
+   * ConvolverNode when added to a bus; setting `dry` or non-unity `wet` builds
+   * an owned dry/wet endpoint graph exposing `dry` and `wet` automation params.
+   */
+  createImpulseResponse(source: ImpulseResponseSource, options: ImpulseResponseOptions = {}): ImpulseResponseEffect {
+    return new ImpulseResponseEffect(this, source, options);
+  }
+
+  /**
    * Creates a Feedback Delay Network (FDN) {@link CacophonyEffect} — an
    * algorithmic reverb with a lossless degree-0 paraunitary Hadamard feedback
    * matrix (Schlecht & Habets 2019), per-delay-line absorption filters setting
@@ -1199,8 +1292,8 @@ export class Cacophony {
    * Omnitone's WY/ZX 2-stereo-ConvolverNode packing and the bundled order-1
    * SH-HRIR.
    *
-   * It is 4-channel-in / 2-channel-out, so it is NOT a `CacophonyEffect` and is
-   * NOT added via `bus.addFilter`. Wire it EXPLICITLY using its two endpoints:
+   * It is 4-channel-in / 2-channel-out; this method returns the explicit
+   * endpoint object for custom graph wiring:
    * feed FOA into `decoder.input` (4-ch) and route `decoder.output` (2-ch
    * stereo) downstream:
    * ```ts
@@ -1214,6 +1307,16 @@ export class Cacophony {
    */
   async createFoaDecoder(options: FoaDecoderOptions = {}, context?: BaseContext): Promise<FoaDecoder> {
     return FoaDecoder.create(this, options, context);
+  }
+
+  /**
+   * Creates a bus-filter wrapper around {@link FoaDecoder}. Use this on a
+   * dedicated 4-channel ACN/SN3D FOA bus, typically as the first and only
+   * filter that converts that bus to stereo binaural output. For custom manual
+   * wiring, use {@link createFoaDecoder} instead.
+   */
+  createFoaDecoderEffect(options: FoaDecoderOptions = {}): FoaDecoderEffect {
+    return new FoaDecoderEffect(this, options);
   }
 
   /**

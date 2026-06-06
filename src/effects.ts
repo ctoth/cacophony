@@ -2,20 +2,19 @@
  * Cacophony Effects: a thin abstraction over Web Audio nodes that lets a Bus
  * carry rich, possibly worklet-backed processing in its filter chain.
  *
- * A {@link CacophonyEffect} is responsible for producing a live AudioNode
- * subgraph when its `build` method is invoked. The returned node is the
- * "head" of the subgraph (the input the chain will connect into); the effect
- * implementation is responsible for wiring any internal structure and
- * arranging that the same node also serves as the output (or that the head
- * is the only externally-visible node).
+ * A {@link CacophonyEffect} is responsible for producing a live AudioNode or
+ * endpoint graph when its `build` method is invoked. Single-node effects return
+ * the node directly. Multi-node effects return a {@link BuiltEffectGraph} with
+ * distinct `input` and `output` endpoints so Bus chains can connect into and out
+ * of the graph without pretending the head node is also the tail.
  *
- * The `build` return is `Promise<AudioNode> | AudioNode` so worklet-backed
- * effects (e.g. DattorroReverb) can `await` their AudioWorklet module load
- * before constructing the node, while pure-DOM effects (BiquadFilter, simple
- * GainNode wrappers) can return synchronously.
+ * The `build` return is async-capable so worklet-backed effects (e.g.
+ * DattorroReverb) can `await` their AudioWorklet module load before
+ * constructing the node, while pure-DOM effects (BiquadFilter, simple GainNode
+ * wrappers, ConvolverNode graphs) can return synchronously.
  */
 
-import type { AudioBuffer, AudioNode, AudioWorkletNode, BaseContext, BiquadFilterNode } from "./context";
+import type { AudioBuffer, AudioNode, AudioParam, AudioWorkletNode, BaseContext, BiquadFilterNode } from "./context";
 import type { WorkletModule } from "./worklets";
 import { WORKLETS } from "./worklets";
 
@@ -49,6 +48,30 @@ interface FoaDecoderHost {
 }
 
 /**
+ * Minimal structural interface for loading URL-backed impulse responses without
+ * importing `Cacophony` into this module.
+ */
+interface ImpulseResponseHost {
+  loadImpulseResponseBuffer(url: string, context: BaseContext, signal?: AbortSignal): Promise<AudioBuffer>;
+}
+
+/**
+ * A built effect graph with distinct endpoints. `input` is where the previous
+ * Bus chain entry connects, and `output` is where the next entry connects.
+ * `handle` is the public AudioNode identity returned by `Bus.addFilter()` and
+ * exposed through `Bus.filters`; when omitted the bus uses `input`.
+ */
+export interface BuiltEffectGraph {
+  input: AudioNode;
+  output: AudioNode;
+  handle?: AudioNode;
+  params?: Readonly<Record<string, AudioParam>>;
+  dispose?: () => void;
+}
+
+export type BuiltEffect = AudioNode | BuiltEffectGraph;
+
+/**
  * Public surface every Cacophony effect implements. `build` is called by
  * `Bus.addFilter` to materialize the effect's live node graph against a
  * specific audio context. An effect may be built more than once (e.g. on
@@ -56,7 +79,7 @@ interface FoaDecoderHost {
  * implementation is free to choose. Cacophony itself does not cache.
  */
 export interface CacophonyEffect {
-  build(context: BaseContext): Promise<AudioNode> | AudioNode;
+  build(context: BaseContext): Promise<BuiltEffect> | BuiltEffect;
 }
 
 /**
@@ -142,6 +165,90 @@ export class ShareEffect implements CacophonyEffect {
 
   build(_context: BaseContext): AudioNode {
     return this.node;
+  }
+}
+
+export type ImpulseResponseSource = AudioBuffer | string;
+
+export interface ImpulseResponseOptions {
+  /** Web Audio convolver normalization. Default false to preserve measured IR gain. */
+  normalize?: boolean;
+  /** Dry gain for an inline dry/wet graph. Default 0 for wet-only send-bus use. */
+  dry?: number;
+  /** Wet gain for the convolved path. Default 1. */
+  wet?: number;
+  /** Optional abort signal for URL-backed impulse-response loading. */
+  signal?: AbortSignal;
+}
+
+/**
+ * Native ConvolverNode impulse-response effect. Wet-only construction returns a
+ * single ConvolverNode and is intended for send buses. Supplying `dry` or a
+ * non-unity `wet` builds an owned dry/wet graph with exposed `dry` and `wet`
+ * gain AudioParams.
+ */
+export class ImpulseResponseEffect implements CacophonyEffect {
+  constructor(
+    private readonly host: ImpulseResponseHost,
+    private readonly source: ImpulseResponseSource,
+    private readonly options: ImpulseResponseOptions = {},
+  ) {}
+
+  async build(context: BaseContext): Promise<BuiltEffect> {
+    if (!context.createConvolver) {
+      throw new Error("ImpulseResponseEffect requires createConvolver");
+    }
+
+    const buffer =
+      typeof this.source === "string"
+        ? await this.host.loadImpulseResponseBuffer(this.source, context, this.options.signal)
+        : this.source;
+    const convolver = context.createConvolver();
+    convolver.normalize = this.options.normalize ?? false;
+    convolver.buffer = buffer;
+
+    const dry = this.options.dry ?? 0;
+    const wet = this.options.wet ?? 1;
+    if (dry === 0 && wet === 1) {
+      return convolver;
+    }
+
+    const input = context.createGain();
+    const dryGain = context.createGain();
+    const wetGain = context.createGain();
+    const output = context.createGain();
+    dryGain.gain.value = dry;
+    wetGain.gain.value = wet;
+
+    input.connect(dryGain);
+    dryGain.connect(output);
+    input.connect(convolver);
+    convolver.connect(wetGain);
+    wetGain.connect(output);
+
+    return {
+      input,
+      output,
+      handle: input,
+      params: { dry: dryGain.gain, wet: wetGain.gain },
+      dispose: () => {
+        try {
+          input.disconnect(dryGain);
+        } catch {}
+        try {
+          dryGain.disconnect(output);
+        } catch {}
+        try {
+          input.disconnect(convolver);
+        } catch {}
+        try {
+          convolver.disconnect(wetGain);
+        } catch {}
+        try {
+          wetGain.disconnect(output);
+        } catch {}
+      },
+    };
   }
 }
 
@@ -542,25 +649,20 @@ export interface FoaDecoderOptions {
  * Standalone 4-channel-in / 2-channel-out FOA → binaural FORMAT CONVERTER,
  * built entirely from native Web Audio nodes (NO worklet).
  *
- * ## Why this is NOT a `CacophonyEffect`
- * A `CacophonyEffect` (and the `Bus.addFilter` chain) assumes ONE node that is
- * both the input the chain connects into and the output it connects out of
- * (see the module docstring above). A FOA decoder cannot satisfy that contract:
- * its input is a **4-channel** FOA node and its output is a **2-channel**
- * binaural node — two distinct nodes with different channel counts. Squeezing
- * it into `build(): AudioNode` forced the head splitter to masquerade as both,
- * so downstream routing read the 4-channel splitter, not the stereo tail.
- *
- * Instead this is a standalone construct exposing the two endpoints explicitly:
+ * This standalone construct exposes the two endpoints explicitly:
  *   - {@link input}  — the 4-channel `ChannelSplitterNode` you feed FOA into.
  *   - {@link output} — the 2-channel binaural `GainNode` you route downstream.
  *
- * Wire it EXPLICITLY (it is NOT a bus filter):
+ * Wire it explicitly when building custom FOA graphs:
  * ```ts
  *   const decoder = await cacophony.createFoaDecoder();
  *   foaSourceNode.connect(decoder.input);          // 4-ch FOA in
  *   decoder.output.connect(bus.input /* or context.destination *\/); // stereo out
  * ```
+ *
+ * For the common bus-filter case use {@link FoaDecoderEffect}, created via
+ * `cacophony.createFoaDecoderEffect()`, which returns the same endpoint graph
+ * through the standard `CacophonyEffect.build()` contract.
  *
  * ## Math (Ahrens 2022, eq. 31)
  * Under a real (SN3D/ACN) SH basis the binaural decode collapses to a single
@@ -622,10 +724,21 @@ export class FoaDecoder {
   readonly input: AudioNode;
   /** The 2-channel binaural stereo node. Route THIS downstream. */
   readonly output: AudioNode;
+  private readonly ownedNodes: readonly AudioNode[];
 
-  private constructor(input: AudioNode, output: AudioNode) {
+  private constructor(input: AudioNode, output: AudioNode, ownedNodes: readonly AudioNode[]) {
     this.input = input;
     this.output = output;
+    this.ownedNodes = ownedNodes;
+  }
+
+  /** Disconnects the decoder's owned native nodes. Safe to call more than once. */
+  dispose(): void {
+    for (const node of this.ownedNodes) {
+      try {
+        node.disconnect();
+      } catch {}
+    }
   }
 
   /**
@@ -700,7 +813,18 @@ export class FoaDecoder {
     const output = ctx.createGain();
     mergerBinaural.connect(output);
 
-    return new FoaDecoder(input, output);
+    return new FoaDecoder(input, output, [
+      input,
+      mergerWY,
+      mergerZX,
+      convolverWY,
+      convolverZX,
+      splitterWY,
+      splitterZX,
+      yRightInverter,
+      mergerBinaural,
+      output,
+    ]);
   }
 
   /**
@@ -719,6 +843,51 @@ export class FoaDecoder {
     stereo.copyToChannel(hrir.getChannelData(rowB), 1);
     return stereo;
   }
+}
+
+/**
+ * `CacophonyEffect` wrapper for a FOA decoder endpoint graph. Use only on a
+ * dedicated 4-channel ACN/SN3D FOA bus where the decoder is the first/only
+ * filter converting the bus from FOA to stereo binaural.
+ */
+export class FoaDecoderEffect implements CacophonyEffect {
+  constructor(
+    private readonly host: FoaDecoderHost,
+    private readonly options: FoaDecoderOptions = {},
+  ) {}
+
+  async build(context: BaseContext): Promise<BuiltEffectGraph> {
+    const decoder = await FoaDecoder.create(this.host, this.options, context);
+    return {
+      input: decoder.input,
+      output: decoder.output,
+      handle: decoder.input,
+      dispose: () => decoder.dispose(),
+    };
+  }
+}
+
+function isAudioNodeLike(value: unknown): value is AudioNode {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    typeof (value as AudioNode).connect === "function" &&
+    typeof (value as AudioNode).disconnect === "function"
+  );
+}
+
+/**
+ * Type guard for the endpoint-graph shape returned by multi-node effects.
+ */
+export function isBuiltEffectGraph(value: unknown): value is BuiltEffectGraph {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "input" in value &&
+    "output" in value &&
+    isAudioNodeLike((value as { input: unknown }).input) &&
+    isAudioNodeLike((value as { output: unknown }).output)
+  );
 }
 
 /**
