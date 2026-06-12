@@ -127,3 +127,97 @@ describe("MediaStreamSound", () => {
     expect(events).toEqual(["play", "pause", "stop"]);
   });
 });
+
+interface MockPrimeElement {
+  muted: boolean;
+  srcObject: MediaStream | null;
+  play: ReturnType<typeof vi.fn>;
+  pause: ReturnType<typeof vi.fn>;
+}
+
+describe("MediaStreamSound Chromium priming", () => {
+  let context: AudioContext;
+  let track: MediaStreamTrack;
+  let stream: MediaStream;
+  let source: ReturnType<typeof createMockMediaStreamSource>;
+  let globalGainNode: ReturnType<AudioContext["createGain"]>;
+  let createdElements: MockPrimeElement[];
+  let originalAudio: typeof globalThis.Audio | undefined;
+
+  beforeEach(() => {
+    context = new AudioContext();
+    track = createMockTrack();
+    stream = createMockStream([track]);
+    source = createMockMediaStreamSource(stream);
+    globalGainNode = context.createGain();
+    vi.spyOn(context as any, "createMediaStreamSource").mockReturnValue(source);
+
+    createdElements = [];
+    originalAudio = (globalThis as any).Audio;
+    (globalThis as any).Audio = vi.fn().mockImplementation(function MockAudio() {
+      const element: MockPrimeElement = {
+        muted: false,
+        srcObject: null,
+        play: vi.fn().mockResolvedValue(undefined),
+        pause: vi.fn(),
+      };
+      createdElements.push(element);
+      return element;
+    });
+  });
+
+  afterEach(() => {
+    (globalThis as any).Audio = originalAudio;
+    vi.restoreAllMocks();
+    context.close();
+  });
+
+  it("primes Chromium with a muted media element carrying the stream on play", () => {
+    const sound = new MediaStreamSound(stream, context, globalGainNode, {
+      stopTracksOnStop: false,
+    });
+
+    sound.play();
+
+    expect(createdElements).toHaveLength(1);
+    const element = createdElements[0];
+    expect(element.muted).toBe(true);
+    expect(element.srcObject).toBe(stream);
+    expect(element.play).toHaveBeenCalledOnce();
+  });
+
+  it("pauses the prime element when the stream pauses", () => {
+    const sound = new MediaStreamSound(stream, context, globalGainNode, {
+      stopTracksOnStop: false,
+    });
+
+    sound.play();
+    sound.pause();
+
+    expect(createdElements[0].pause).toHaveBeenCalledOnce();
+  });
+
+  it("tears down the prime element on stop", () => {
+    const sound = new MediaStreamSound(stream, context, globalGainNode, {
+      stopTracksOnStop: false,
+    });
+
+    sound.play();
+    const element = createdElements[0];
+    sound.stop();
+
+    expect(element.pause).toHaveBeenCalled();
+    expect(element.srcObject).toBeNull();
+  });
+
+  it("does not create a prime element when priming is disabled", () => {
+    const sound = new MediaStreamSound(stream, context, globalGainNode, {
+      primeWithMediaElement: false,
+    });
+
+    sound.play();
+
+    expect(createdElements).toHaveLength(0);
+    expect(sound.isPlaying).toBe(true);
+  });
+});

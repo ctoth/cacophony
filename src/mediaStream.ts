@@ -14,6 +14,21 @@ import { FilterManager } from "./filters";
 export interface MediaStreamSoundOptions {
   panType?: PanType;
   stopTracksOnStop?: boolean;
+  /**
+   * Attach the stream to a muted `HTMLAudioElement` while it plays.
+   *
+   * Chromium will not render a remote WebRTC `MediaStreamTrack` that is only
+   * connected to the Web Audio graph: packets arrive but the decoder produces
+   * zero samples, so a `MediaStreamAudioSourceNode` taps pure silence. Pulling
+   * the same stream through a media element "primes" the decode pipeline; the
+   * Web Audio path then receives real audio. The element is muted so it does
+   * not double-play over the (possibly spatialised) Web Audio output. Firefox
+   * does not need this, but the priming element is harmless there.
+   *
+   * Defaults to `true`. Set to `false` for streams that are never routed to a
+   * Web Audio graph, or in environments without `HTMLAudioElement`.
+   */
+  primeWithMediaElement?: boolean;
 }
 
 export class MediaStreamPlayback extends BasePlayback {
@@ -21,6 +36,12 @@ export class MediaStreamPlayback extends BasePlayback {
   public declare source?: MediaStreamAudioSourceNode;
   private hasStarted: boolean = false;
   private stopTracksOnStop: boolean;
+  /**
+   * Muted media element that keeps Chromium's decode pipeline alive for the
+   * stream so the Web Audio tap receives real audio. See
+   * {@link MediaStreamSoundOptions.primeWithMediaElement}.
+   */
+  private primeElement?: HTMLAudioElement;
 
   constructor(
     origin: MediaStreamSound,
@@ -30,6 +51,7 @@ export class MediaStreamPlayback extends BasePlayback {
     outputNode: AudioNode,
     panType: PanType,
     stopTracksOnStop: boolean,
+    primeWithMediaElement: boolean = true,
   ) {
     super(origin);
     this.stopTracksOnStop = stopTracksOnStop;
@@ -40,6 +62,38 @@ export class MediaStreamPlayback extends BasePlayback {
     this.panner!.connect(this.gainNode!);
     this.gainNode!.connect(outputNode);
     this.refreshFilters();
+    if (primeWithMediaElement) {
+      this.createPrimeElement();
+    }
+  }
+
+  private createPrimeElement(): void {
+    if (typeof Audio === "undefined" || !this.source) {
+      return;
+    }
+    try {
+      const element = new Audio();
+      element.muted = true;
+      element.srcObject = this.source.mediaStream;
+      this.primeElement = element;
+    } catch {
+      // Environment without media-element support: priming is best-effort.
+      this.primeElement = undefined;
+    }
+  }
+
+  private teardownPrimeElement(): void {
+    const element = this.primeElement;
+    if (!element) {
+      return;
+    }
+    this.primeElement = undefined;
+    try {
+      element.pause();
+      element.srcObject = null;
+    } catch {
+      // Element may already be torn down by the browser.
+    }
   }
 
   get duration(): number {
@@ -54,6 +108,9 @@ export class MediaStreamPlayback extends BasePlayback {
       return [this];
     }
     this.source.mediaStream.getTracks().forEach((track) => (track.enabled = true));
+    // Muted autoplay is always permitted, so this needs no user gesture; the
+    // returned promise is ignored because failure only loses Chromium priming.
+    this.primeElement?.play().catch(() => {});
     this.hasStarted = true;
     this._playing = true;
     this.emit("play", this);
@@ -69,6 +126,7 @@ export class MediaStreamPlayback extends BasePlayback {
       return;
     }
     this.source.mediaStream.getTracks().forEach((track) => (track.enabled = false));
+    this.primeElement?.pause();
     this._playing = false;
     this.emit("pause", undefined);
     this.origin.cacophony?.emit("globalPause", {
@@ -89,6 +147,7 @@ export class MediaStreamPlayback extends BasePlayback {
     if (this.stopTracksOnStop) {
       this.source.mediaStream.getTracks().forEach((track) => track.stop());
     }
+    this.teardownPrimeElement();
     this.hasStarted = false;
     this._playing = false;
     if (shouldEmitStop) {
@@ -156,6 +215,7 @@ export class MediaStreamPlayback extends BasePlayback {
       return;
     }
     this._playing = false;
+    this.teardownPrimeElement();
     this.source.disconnect();
     this.source = undefined;
     super.cleanup();
@@ -169,6 +229,7 @@ export class MediaStreamSound extends PlaybackContainer(FilterManager) implement
   private stream: MediaStream;
   private stopTracksOnStop: boolean;
   private panType: PanType;
+  private primeWithMediaElement: boolean;
 
   constructor(
     stream: MediaStream,
@@ -183,6 +244,7 @@ export class MediaStreamSound extends PlaybackContainer(FilterManager) implement
     this.globalGainNode = globalGainNode;
     this.panType = options.panType ?? "HRTF";
     this.stopTracksOnStop = options.stopTracksOnStop ?? true;
+    this.primeWithMediaElement = options.primeWithMediaElement ?? true;
   }
 
   get cacophony(): Cacophony | undefined {
@@ -211,6 +273,7 @@ export class MediaStreamSound extends PlaybackContainer(FilterManager) implement
       this.globalGainNode,
       this.panType,
       this.stopTracksOnStop,
+      this.primeWithMediaElement,
     );
     playback.volume = this.volume;
     if (this.panType === "HRTF") {
