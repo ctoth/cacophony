@@ -41,6 +41,6 @@
     "lineWidth": 120
   },
   "files": {
-    "includes": ["src/**/*.ts", "*.json"]
+    "includes": ["src/**/*.ts", "bin/**/*.mjs", "*.json"]
   }
 }
