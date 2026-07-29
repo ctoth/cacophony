@@ -595,7 +595,7 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
    * primary target. Handles the master bus alias and the destroyed-bus
    * fallback (which warns).
    */
-  private _resolveRouteTargetNode(): GainNode {
+  _resolveRouteTargetNode(): GainNode {
     if (!this._routeTarget) {
       return this.globalGainNode;
     }

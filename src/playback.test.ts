@@ -239,10 +239,40 @@ describe("Playback cloning", () => {
     expect(clone.panType).toBe(originalPlayback.panType);
   });
 
-  it.skip("keeps a clone reachable from the destination (#100)", () => {
+  it("keeps a clone reachable from the destination (#100)", () => {
     const clone = originalPlayback.clone();
 
     expectReachable(clone.source!, destination);
+  });
+
+  it("starts a clone when the original playback is playing", () => {
+    vi.spyOn(audioContextMock, "createBufferSource").mockImplementation(
+      () =>
+        ({
+          buffer: null,
+          connect: vi.fn(),
+          disconnect: vi.fn(),
+          start: vi.fn(),
+          stop: vi.fn(),
+          onended: null,
+        }) as unknown as AudioBufferSourceNode,
+    );
+    originalPlayback.play();
+
+    const clone = originalPlayback.clone();
+
+    expect(clone.isPlaying).toBe(true);
+    expect(clone.source).toBeDefined();
+    expect(clone.source && "start" in clone.source ? clone.source.start : undefined).toHaveBeenCalledWith(0, 0);
+  });
+
+  it("registers a clone with its origin", () => {
+    const clone = originalPlayback.clone();
+
+    expect(sound.playbacks).toContain(clone);
+
+    sound.stop();
+    expect(clone.source).toBeUndefined();
   });
 
   it("creates a clone with independent properties", () => {

@@ -804,6 +804,7 @@ export class Playback extends BasePlayback implements BaseSound {
    * Creates a clone of the current Playback instance with optional overrides for certain properties.
    * This method allows for the creation of a new Playback instance that shares the same audio context
    * and source node but can have different settings such as loop count or pan type.
+   * The clone is connected to the origin Sound's primary route and registered with the Sound.
    * @throws {Error} Throws an error if the sound has been cleaned up.
    */
 
@@ -814,6 +815,7 @@ export class Playback extends BasePlayback implements BaseSound {
     const panType = overrides.panType ?? this.panType;
     // we'll need to create a new gain node
     const gainNode = this.context.createGain();
+    gainNode.connect(this.origin._resolveRouteTargetNode());
     // clone the source node
     let source: SourceNode;
     if ("buffer" in this.source && this.source.buffer) {
@@ -843,7 +845,9 @@ export class Playback extends BasePlayback implements BaseSound {
     clone.volume = this.volume;
     clone.playbackRate = this._playbackRate;
     clone._offset = this._offset;
-    clone._state = this._state;
+    if (this._state !== "playing") {
+      clone._state = this._state;
+    }
 
     // Deep clone filters
     this._filters.forEach((filter) => {
@@ -860,6 +864,7 @@ export class Playback extends BasePlayback implements BaseSound {
       clone.play();
     }
 
+    this.origin.playbacks.push(clone);
     return clone;
   }
 }
