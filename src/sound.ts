@@ -21,7 +21,6 @@
  * instances of a sound with different settings, without requiring the user to manually manage each playback instance.
  */
 
-import type { Bus, BusRoutedSource } from "./bus";
 import type {
   BaseSound,
   Cacophony,
@@ -31,14 +30,13 @@ import type {
   SoundCleanupHoldings,
   SoundType,
 } from "./cacophony";
-import { PlaybackContainer } from "./container";
 import type { AudioBuffer, BaseContext, BiquadFilterNode, GainNode, SourceNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { SoundEvents } from "./events";
-import { FilterManager } from "./filters";
 import type { PanCloneOverrides } from "./pannerMixin";
 import { Playback } from "./playback";
 import type { TimeStretchOptions } from "./processors/timestretch-core";
+import { RoutableSource } from "./routableSource";
 import type { VolumeCloneOverrides } from "./volumeMixin";
 
 type SoundCloneOverrides = PanCloneOverrides &
@@ -48,7 +46,7 @@ type SoundCloneOverrides = PanCloneOverrides &
     filters?: BiquadFilterNode[];
   };
 
-export class Sound extends PlaybackContainer(FilterManager) implements BaseSound, BusRoutedSource {
+export class Sound extends RoutableSource implements BaseSound {
   public declare playbacks: Playback[];
   buffer?: AudioBuffer;
   context: BaseContext;
@@ -73,30 +71,11 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
    * tied to the playback identity.
    */
   private _playbackUnsubscribes: WeakMap<Playback, Array<() => void>> = new WeakMap();
-  /**
-   * Primary route target for this Sound. `null` means master (the default —
-   * preplay connects to {@link globalGainNode} which IS `master.input`).
-   * When a Bus is assigned via {@link routeTo}, future playbacks connect to
-   * `bus.input` instead, and live playbacks are rewired.
-   */
-  private _routeTarget: Bus | null = null;
-  /**
-   * Additional send edges established by {@link routeTo}(bus, sendGain).
-   * Keyed by target bus → send gain value. At preplay we allocate one
-   * GainNode per send per playback so each playback has its own send edges
-   * (a per-Sound shared sendGain would crash the second simultaneous
-   * playback because both gainNodes would connect into the same single
-   * sendGain, doubling the dry signal). The actual GainNode lifecycle is
-   * owned by each Playback in {@link Playback._sendGains} — iterable so
-   * cleanup can walk every send and call `disconnect()`.
-   */
-  private _sends: Map<Bus, number> = new Map();
-
   constructor(
     public url: string,
     buffer: AudioBuffer | undefined,
     context: BaseContext,
-    private globalGainNode: GainNode,
+    protected globalGainNode: GainNode,
     public soundType: SoundType = "buffer",
     public panType: PanType = "HRTF",
     private _cacophony?: Cacophony,
@@ -231,23 +210,7 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
       const primaryTargetNode = this._resolveRouteTargetNode();
       gainNode.connect(primaryTargetNode);
       const playback = new Playback(this, source, gainNode);
-      // Establish send edges (per-playback allocation so each playback owns
-      // its own send-gain nodes — see _sends docstring). The allocated
-      // GainNode lives on the Playback (`playback._sendGains`) so it gets
-      // torn down explicitly in Playback.cleanup().
-      if (this._sends.size > 0) {
-        for (const [bus, gainValue] of this._sends) {
-          if (bus.destroyed) {
-            console.warn(`Sound has a send to destroyed bus '${bus.name ?? "<anonymous>"}'; skipping`);
-            continue;
-          }
-          const sendGain = this.context.createGain();
-          sendGain.gain.value = gainValue;
-          gainNode.connect(sendGain);
-          sendGain.connect(bus.input);
-          playback._sendGains.set(bus, sendGain);
-        }
-      }
+      this._wireRouteSends(playback);
       this._holdings.sources.push(source);
       this._holdings.gainNodes.push(gainNode);
       if ("mediaElement" in source && source.mediaElement) {
@@ -552,193 +515,8 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
     await Promise.all(this.playbacks.map((p) => p.setPitchShift(factor)));
   }
 
-  /**
-   * Routes this Sound to a Bus (or back to master). Two modes:
-   *
-   * - `routeTo(target)` — replace primary routing. Live playbacks are
-   *   rewired: each playback's outputNode is disconnected from its current
-   *   target and re-connected to the new target's input. Future playbacks
-   *   read the stored target at preplay.
-   * - `routeTo(target, sendGain)` — ADD a send (does not change primary
-   *   routing). An additional edge is created from each live playback
-   *   through an allocated GainNode set to `sendGain`. Future playbacks
-   *   get the same send at preplay.
-   *
-   * `target` may be a Bus instance or the name of a registered bus (string
-   *  lookup via `cacophony.getBus`). A string with no matching bus throws.
-   *
-   * Passing the master bus (or `cacophony.master`) as `target` (no
-   *  sendGain) is the canonical way to reset primary routing back to master.
-   */
-  routeTo(target: Bus | string, sendGain?: number): void {
-    const bus = this._resolveBusArg(target);
-    if (sendGain !== undefined) {
-      this._addSend(bus, sendGain);
-      return;
-    }
-    this._setPrimary(bus);
-  }
-
-  private _resolveBusArg(target: Bus | string): Bus {
-    if (typeof target !== "string") {
-      return target;
-    }
-    const bus = this._cacophony?.getBus(target);
-    if (!bus) {
-      throw new Error(`No bus registered with name '${target}'`);
-    }
-    return bus;
-  }
-
-  /**
-   * Returns the AudioNode that future playbacks should connect to as their
-   * primary target. Handles the master bus alias and the destroyed-bus
-   * fallback (which warns).
-   */
-  _resolveRouteTargetNode(): GainNode {
-    if (!this._routeTarget) {
-      return this.globalGainNode;
-    }
-    if (this._routeTarget.destroyed) {
-      console.warn(
-        `Sound routed to destroyed bus '${this._routeTarget.name ?? "<anonymous>"}'; falling back to master`,
-      );
-      return this.globalGainNode;
-    }
-    return this._routeTarget.input;
-  }
-
-  /**
-   * Apply a new primary route. If a bus is passed and it's the master bus,
-   * collapse to `null` so the canonical "route to master" representation is
-   * always `null` (matches the default).
-   *
-   * @throws if `bus` is destroyed. Symmetric with {@link _addSend}'s guard;
-   *   a destroyed bus is an invalid mutation target. (Sounds already routed
-   *   BEFORE the bus was destroyed still fall back to master at preplay via
-   *   {@link _resolveRouteTargetNode} — that path is separate.)
-   */
-  private _setPrimary(bus: Bus): void {
-    if (bus.destroyed) {
-      throw new Error(`Cannot route to destroyed bus '${bus.name ?? "<anonymous>"}'`);
-    }
-    // master.input === globalGainNode — normalize to null in either case so
-    // there is one canonical "route to master" state.
-    const collapseToMaster = bus.input === this.globalGainNode;
-    const oldTarget = this._routeTarget;
-    const oldTargetNode = this._resolveRouteTargetNode();
-    this._routeTarget = collapseToMaster ? null : bus;
-    const newTarget = this._routeTarget;
-    const newTargetNode = this._resolveRouteTargetNode();
-    // Maintain inbound source-tracking driven by the route-target BUS IDENTITY,
-    // independent of whether the resolved AudioNode changed. A bus-identity
-    // transition (e.g. off a destroyed bus that resolves to globalGainNode, onto
-    // master which is ALSO globalGainNode) leaves the resolved nodes equal — so
-    // this must run BEFORE the node-equality early-return below, or the
-    // unregister of the old bus is skipped and the sound leaks in the old bus's
-    // `_routedSources`. (master/null is excluded because it is `null`.)
-    if (oldTarget !== newTarget) {
-      if (oldTarget && !this._sends.has(oldTarget)) {
-        oldTarget._unregisterRoutedSource(this);
-      }
-      if (newTarget) {
-        newTarget._registerRoutedSource(this);
-      }
-    }
-    // The node-equality guard gates only the live-playback rewire: when the
-    // resolved primary AudioNode is unchanged there is nothing to disconnect/
-    // reconnect. Registration bookkeeping has already been settled above.
-    if (oldTargetNode === newTargetNode) {
-      return;
-    }
-    for (const playback of this.playbacks) {
-      try {
-        playback.outputNode.disconnect(oldTargetNode);
-      } catch {
-        // Some playbacks may already have been disconnected (cleanup, manual
-        // disconnect). Tolerate.
-      }
-      try {
-        playback.outputNode.connect(newTargetNode);
-      } catch {
-        // Best-effort live rewire.
-      }
-    }
-  }
-
-  private _addSend(bus: Bus, gainValue: number): void {
-    if (bus.destroyed) {
-      throw new Error(`Cannot add a send to destroyed bus '${bus.name ?? "<anonymous>"}'`);
-    }
-    this._sends.set(bus, gainValue);
-    // A sound that sends to a bus is an inbound source of it too, so it must
-    // be drained off when the bus is torn down.
-    bus._registerRoutedSource(this);
-    // Establish send edges on existing playbacks. The per-playback Map is
-    // the canonical owner of the GainNode lifecycle (so cleanup can iterate
-    // and disconnect every send).
-    for (const playback of this.playbacks) {
-      const existing = playback._sendGains.get(bus);
-      if (existing) {
-        existing.gain.value = gainValue;
-        continue;
-      }
-      const sendGain = this.context.createGain();
-      sendGain.gain.value = gainValue;
-      try {
-        playback.outputNode.connect(sendGain);
-      } catch {
-        // Playback may have been cleaned up; skip.
-        continue;
-      }
-      sendGain.connect(bus.input);
-      playback._sendGains.set(bus, sendGain);
-    }
-  }
-
-  /**
-   * Reroute this sound off `bus` onto `target` when `bus` is being drained
-   * (typically just before it is destroyed). A sound may be BOTH primary-routed
-   * to `bus` AND have a send to it — both edges move.
-   */
-  _onBusDrained(bus: Bus, target: Bus): void {
-    // Primary route: reuse _setPrimary so live playbacks are rewired and the
-    // source-registration (un)registers through the normal path.
-    if (this._routeTarget === bus) {
-      this._setPrimary(target);
-    }
-    // Send: capture the gain, tear down the old send (map entry + per-playback
-    // GainNode for `bus`), then re-establish an equivalent send to `target`.
-    if (this._sends.has(bus)) {
-      const gainValue = this._sends.get(bus) as number;
-      this._sends.delete(bus);
-      for (const playback of this.playbacks) {
-        const sendGain = playback._sendGains.get(bus);
-        if (!sendGain) {
-          continue;
-        }
-        // Same per-playback send-teardown shape as Playback.cleanup.
-        try {
-          sendGain.disconnect();
-        } catch {
-          // Best-effort — node may already have been disconnected externally.
-        }
-        playback._sendGains.delete(bus);
-      }
-      this._addSend(target, gainValue);
-    }
-  }
-
   cleanup(): void {
     this._cacophony?.unregisterSoundCleanup(this._unregisterToken);
-    // Drop ourselves from the source-tracking of every bus we route to, so a
-    // later drain/destroy of that bus does not touch this dead sound.
-    if (this._routeTarget) {
-      this._routeTarget._unregisterRoutedSource(this);
-    }
-    for (const bus of this._sends.keys()) {
-      bus._unregisterRoutedSource(this);
-    }
     this._holdings.sources.length = 0;
     this._holdings.gainNodes.length = 0;
     this._holdings.mediaElements.length = 0;
@@ -752,5 +530,6 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
     });
     this.playbacks = [];
     this.eventEmitter.removeAllListeners();
+    super.cleanup();
   }
 }

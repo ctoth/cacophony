@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Cacophony } from "./cacophony";
 import { MediaStreamPlayback, MediaStreamSound } from "./mediaStream";
-import { expectPath } from "./setupTests";
+import { expectNotReachable, expectPath, expectReachable } from "./setupTests";
 
 function createMockTrack(): MediaStreamTrack {
   return {
@@ -130,6 +130,27 @@ describe("MediaStreamSound", () => {
 
     expect(sound).toBeInstanceOf(MediaStreamSound);
     expect(events).toEqual(["play", "pause", "stop"]);
+  });
+
+  it("routes a live stream through a bus via the public Cacophony API", () => {
+    const cacophony = new Cacophony(context as any);
+    vi.spyOn(context as any, "createMediaStreamSource").mockReturnValue(source);
+    const sound = cacophony.createMediaStreamSound(stream, {
+      primeWithMediaElement: false,
+      stopTracksOnStop: false,
+    });
+    const bus = cacophony.createBus("media-stream-route");
+    bus.disconnect(cacophony.master);
+    const [playback] = sound.play();
+
+    sound.routeTo(bus);
+
+    expectPath(playback.outputNode, [], bus.input);
+    expectReachable(source, bus.output);
+    expectNotReachable(playback.outputNode, cacophony.master.input);
+
+    sound.cleanup();
+    bus.destroy();
   });
 });
 
