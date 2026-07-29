@@ -175,7 +175,7 @@ export class Synth extends PlaybackContainer(FilterManager) implements BaseSound
   }
 
   resume(): void {
-    this.playbacks.forEach((playback) => playback.play());
+    this.playbacks.filter((playback) => playback.isPaused).forEach((playback) => playback.play());
     this.emit("resume", undefined);
     this.cacophony?.emit("globalPlay", { source: this, timestamp: Date.now() });
   }

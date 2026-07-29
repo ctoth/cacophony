@@ -76,6 +76,20 @@ describe("Sound playback and state management", () => {
     expect(newPlaybacks[0].isPlaying).toBe(true);
   });
 
+  it("resumes only paused playbacks", () => {
+    const paused = sound.play()[0];
+    const stopped = sound.play()[0];
+    const unplayed = sound.preplay()[0];
+
+    paused.pause();
+    stopped.stop();
+    sound.resume();
+
+    expect(paused.isPlaying).toBe(true);
+    expect(stopped.isPlaying).toBe(false);
+    expect(unplayed.isPlaying).toBe(false);
+  });
+
   it("stops all playbacks when sound is stopped", () => {
     const playbacks1 = sound.play();
     const playbacks2 = sound.play();

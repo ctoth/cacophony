@@ -433,7 +433,7 @@ export class Sound extends PlaybackContainer(FilterManager) implements BaseSound
   }
 
   resume(): void {
-    this.playbacks.forEach((playback) => playback.play());
+    this.playbacks.filter((playback) => playback.isPaused).forEach((playback) => playback.play());
     this.emit("resume", undefined);
   }
 
