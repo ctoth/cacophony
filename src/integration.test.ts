@@ -1,5 +1,7 @@
-import { AudioBuffer } from "standardized-audio-context-mock";
+import { AudioBuffer, AudioContext } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AudioCache } from "./cache";
+import { Cacophony } from "./cacophony";
 import { audioContextMock, cacophony } from "./setupTests";
 
 describe("Event System Integration Tests", () => {
@@ -341,5 +343,79 @@ describe("Event System Integration Tests", () => {
       expect(listener1).toHaveBeenCalledTimes(0); // Removed
       expect(listener2).toHaveBeenCalledTimes(1); // Still active
     });
+  });
+});
+
+describe("Audio cache isolation integration", () => {
+  let contexts: AudioContext[];
+  let instances: Cacophony[];
+  let originalCaches: typeof caches;
+
+  beforeEach(() => {
+    contexts = [];
+    instances = [];
+    originalCaches = global.caches;
+  });
+
+  afterEach(async () => {
+    for (const instance of instances) {
+      instance.clearMemoryCache();
+    }
+    await Promise.all(contexts.map((context) => context.close()));
+    global.caches = originalCaches;
+    vi.restoreAllMocks();
+  });
+
+  it("decodes concurrent loads independently for contexts with different sample rates", async () => {
+    const url = "https://example.com/context-isolation.wav";
+    const contextA = new AudioContext({ sampleRate: 48000 });
+    const contextB = new AudioContext({ sampleRate: 44100 });
+    const sharedCache = new AudioCache();
+    const instanceA = new Cacophony(contextA, sharedCache);
+    const instanceB = new Cacophony(contextB, sharedCache);
+    const bufferA = new AudioBuffer({ length: 480, sampleRate: 48000 });
+    const bufferB = new AudioBuffer({ length: 441, sampleRate: 44100 });
+    contexts.push(contextA, contextB);
+    instances.push(instanceA, instanceB);
+    global.caches = undefined as unknown as CacheStorage;
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      arrayBuffer: () => Promise.resolve(new ArrayBuffer(8)),
+      headers: new Headers(),
+    } as Response);
+    const decodeA = vi.spyOn(contextA, "decodeAudioData").mockResolvedValue(bufferA);
+    const decodeB = vi.spyOn(contextB, "decodeAudioData").mockResolvedValue(bufferB);
+
+    const [soundA, soundB] = await Promise.all([instanceA.createSound(url), instanceB.createSound(url)]);
+
+    expect(soundA.buffer).toBe(bufferA);
+    expect(soundB.buffer).toBe(bufferB);
+    expect(decodeA).toHaveBeenCalledOnce();
+    expect(decodeB).toHaveBeenCalledOnce();
+  });
+
+  it("keeps one instance's decoded entry when another instance clears its memory cache", async () => {
+    const urlA = "data:audio/wav;base64,QQ==";
+    const urlB = "data:audio/wav;base64,Qg==";
+    const contextA = new AudioContext({ sampleRate: 48000 });
+    const contextB = new AudioContext({ sampleRate: 44100 });
+    const instanceA = new Cacophony(contextA);
+    const instanceB = new Cacophony(contextB);
+    const bufferA = new AudioBuffer({ length: 480, sampleRate: 48000 });
+    const bufferB = new AudioBuffer({ length: 441, sampleRate: 44100 });
+    contexts.push(contextA, contextB);
+    instances.push(instanceA, instanceB);
+    const decodeA = vi.spyOn(contextA, "decodeAudioData").mockResolvedValue(bufferA);
+    const decodeB = vi.spyOn(contextB, "decodeAudioData").mockResolvedValue(bufferB);
+
+    await instanceA.createSound(urlA);
+    await instanceB.createSound(urlB);
+    instanceA.clearMemoryCache();
+    const cachedSoundB = await instanceB.createSound(urlB);
+
+    expect(cachedSoundB.buffer).toBe(bufferB);
+    expect(decodeA).toHaveBeenCalledOnce();
+    expect(decodeB).toHaveBeenCalledOnce();
   });
 });
