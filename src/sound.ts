@@ -62,6 +62,7 @@ export class Sound extends RoutableSource implements BaseSound {
   private eventEmitter: TypedEventEmitter<SoundEvents> = new TypedEventEmitter<SoundEvents>();
   private _holdings: SoundCleanupHoldings = { sources: [], gainNodes: [], mediaElements: [] };
   private _unregisterToken: object = {};
+  private _preparedMediaElement?: HTMLAudioElement;
   /**
    * Per-playback unsubscribe functions for the listeners that Sound attaches
    * to each playback in {@link preplay}. Tracked so the Sound→playback
@@ -79,10 +80,12 @@ export class Sound extends RoutableSource implements BaseSound {
     public soundType: SoundType = "buffer",
     public panType: PanType = "HRTF",
     private _cacophony?: Cacophony,
+    preparedMediaElement?: HTMLAudioElement,
   ) {
     super();
     this.buffer = buffer;
     this.context = context;
+    this._preparedMediaElement = preparedMediaElement;
     this._cacophony?.registerSoundForCleanup(this, this._holdings, this._unregisterToken);
   }
 
@@ -194,12 +197,15 @@ export class Sound extends RoutableSource implements BaseSound {
             "Media element sources are not supported on this audio context (e.g. OfflineAudioContext). Use buffer-based sounds instead.",
           );
         }
-        const audio = new Audio();
+        const audio = this._preparedMediaElement ?? new Audio();
         audio.crossOrigin = "anonymous";
         audio.src = this.url;
         audio.preload = "auto";
         // we have the audio, let's make a buffer source node out of it
         source = this.context.createMediaElementSource(audio);
+        if (audio === this._preparedMediaElement) {
+          this._preparedMediaElement = undefined;
+        }
       }
       createdSource = source;
       const gainNode = this.context.createGain();
@@ -517,6 +523,12 @@ export class Sound extends RoutableSource implements BaseSound {
 
   cleanup(): void {
     this._cacophony?.unregisterSoundCleanup(this._unregisterToken);
+    if (this._preparedMediaElement) {
+      this._preparedMediaElement.pause();
+      this._preparedMediaElement.src = "";
+      this._preparedMediaElement.load();
+      this._preparedMediaElement = undefined;
+    }
     this._holdings.sources.length = 0;
     this._holdings.gainNodes.length = 0;
     this._holdings.mediaElements.length = 0;

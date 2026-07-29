@@ -57,6 +57,10 @@ describe("SynthGroup class", () => {
     expect(new SynthGroup().volume).toBe(1);
   });
 
+  it("returns detune 0 for an empty group", () => {
+    expect(new SynthGroup().detune).toBe(0);
+  });
+
   it("delegates stereo pan to grouped stereo synths", () => {
     const stereoSynth1 = cacophony.createOscillator({ frequency: 220, type: "sine" }, "stereo");
     const stereoSynth2 = cacophony.createOscillator({ frequency: 330, type: "triangle" }, "stereo");
