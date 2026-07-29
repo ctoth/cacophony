@@ -1,7 +1,14 @@
 import { AudioBuffer, type AudioBufferSourceNode } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Playback } from "./playback";
-import { audioContextMock, cacophony, expectPath, expectReachable } from "./setupTests";
+import {
+  audioContextMock,
+  cacophony,
+  expectNotReachable,
+  expectPath,
+  expectReachable,
+  graphSnapshot,
+} from "./setupTests";
 import { Sound } from "./sound";
 
 describe("Playback class", () => {
@@ -54,10 +61,16 @@ describe("Playback class", () => {
     expectPath(source, [playback.panner!, gainNode], destination);
   });
 
-  it.skip("keeps the source wired after changing the pan type (#101)", () => {
+  it("keeps the source wired after changing the pan type (#101)", () => {
+    const oldPanner = playback.panner!;
+    const filter = audioContextMock.createBiquadFilter();
+    playback.addFilter(filter);
+
     playback.setPanType("stereo", audioContextMock);
 
-    expectPath(source, [playback.panner!, gainNode], destination);
+    expectPath(source, [playback.panner!, filter, gainNode], destination);
+    expectNotReachable(source, oldPanner);
+    expect(graphSnapshot(oldPanner).edges).toEqual([]);
   });
 
   it("can pause and resume", () => {
@@ -294,6 +307,13 @@ describe("Playback cloning", () => {
     expect(clone.panType).toBe("HRTF");
     expect(clone.volume).toBe(originalPlayback.volume);
     expect(clone.playbackRate).toBe(originalPlayback.playbackRate);
+  });
+
+  it("keeps a clone wired when overriding its pan type (#101)", () => {
+    const clone = originalPlayback.clone({ panType: "stereo" });
+
+    expectPath(clone.source!, [clone.panner!, clone._filters[0]!, clone.gainNode!], gainNode);
+    expectReachable(clone.source!, destination);
   });
 
   it("clones filters correctly", () => {

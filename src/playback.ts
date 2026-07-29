@@ -115,6 +115,19 @@ export class Playback extends BasePlayback implements BaseSound {
     this.refreshFilters();
   }
 
+  override setPanType(panType: PanType, audioContext: BaseContext): void {
+    const previousPanner = this.panner;
+    super.setPanType(panType, audioContext);
+
+    if (this.panner === previousPanner || !this.panner || !this.source || !this.gainNode) {
+      return;
+    }
+
+    this.source.disconnect();
+    this.source.connect(this.panner);
+    this.refreshFilters();
+  }
+
   private setupSourceNode(source: SourceNode) {
     if ("mediaElement" in source && source.mediaElement) {
       source.mediaElement.onended = this.loopEnded;
