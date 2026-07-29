@@ -34,7 +34,6 @@ export interface MediaStreamSoundOptions {
 export class MediaStreamPlayback extends BasePlayback {
   public declare origin: MediaStreamSound;
   public declare source?: MediaStreamAudioSourceNode;
-  private hasStarted: boolean = false;
   private stopTracksOnStop: boolean;
   /**
    * Muted media element that keeps Chromium's decode pipeline alive for the
@@ -104,15 +103,14 @@ export class MediaStreamPlayback extends BasePlayback {
     if (!this.source) {
       throw new Error("Cannot play a media stream that has been cleaned up");
     }
-    if (this._playing) {
+    if (this.isPlaying) {
       return [this];
     }
     this.source.mediaStream.getTracks().forEach((track) => (track.enabled = true));
     // Muted autoplay is always permitted, so this needs no user gesture; the
     // returned promise is ignored because failure only loses Chromium priming.
     this.primeElement?.play().catch(() => {});
-    this.hasStarted = true;
-    this._playing = true;
+    this.markPlaying();
     this.emit("play", this);
     this.origin.cacophony?.emit("globalPlay", {
       source: this.origin,
@@ -122,12 +120,12 @@ export class MediaStreamPlayback extends BasePlayback {
   }
 
   pause(): void {
-    if (!this.source || !this._playing) {
+    if (!this.source || !this.isPlaying) {
       return;
     }
     this.source.mediaStream.getTracks().forEach((track) => (track.enabled = false));
     this.primeElement?.pause();
-    this._playing = false;
+    this.markPaused();
     this.emit("pause", undefined);
     this.origin.cacophony?.emit("globalPause", {
       source: this.origin,
@@ -143,13 +141,12 @@ export class MediaStreamPlayback extends BasePlayback {
     if (!this.source) {
       throw new Error("Cannot stop a media stream that has been cleaned up");
     }
-    const shouldEmitStop = this.hasStarted;
+    const shouldEmitStop = this._state === "playing" || this._state === "paused";
     if (this.stopTracksOnStop) {
       this.source.mediaStream.getTracks().forEach((track) => track.stop());
     }
     this.teardownPrimeElement();
-    this.hasStarted = false;
-    this._playing = false;
+    this.markStopped();
     if (shouldEmitStop) {
       this.emit("stop", undefined);
       this.origin.cacophony?.emit("globalStop", {
@@ -214,7 +211,7 @@ export class MediaStreamPlayback extends BasePlayback {
     if (!this.source) {
       return;
     }
-    this._playing = false;
+    this.markStopped();
     this.teardownPrimeElement();
     this.source.disconnect();
     this.source = undefined;

@@ -4,11 +4,8 @@ import type { AudioNode, AudioParam, BaseContext, GainNode, OscillatorNode } fro
 import { OscillatorMixin } from "./oscillatorMixin";
 import type { Synth } from "./synth";
 
-type SynthPlaybackState = "unplayed" | "playing" | "paused" | "stopped";
-
 export class SynthPlayback extends OscillatorMixin implements BaseSound {
   context: BaseContext;
-  private _state: SynthPlaybackState = "unplayed";
   /**
    * Per-playback send-gain allocations: bus → allocated GainNode. Mirrors
    * {@link Playback._sendGains}. Owned/teardown contract is identical:
@@ -48,10 +45,6 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
     };
   }
 
-  get isPaused(): boolean {
-    return this._state === "paused";
-  }
-
   play(): [this] {
     if (!this.source || !this.panner) {
       throw new Error("Cannot play a synth that has been cleaned up");
@@ -70,8 +63,7 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
     if (this.oscillatorOptions.type) this.source.type = this.oscillatorOptions.type;
 
     this.source.start();
-    this._playing = true;
-    this._state = "playing";
+    this.markPlaying();
     return [this];
   }
 
@@ -81,8 +73,7 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
     }
 
     this.source.stop();
-    this._playing = false;
-    this._state = "paused";
+    this.markPaused();
   }
 
   stop(): void {
@@ -94,8 +85,7 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
       this.source.stop();
     }
 
-    this._playing = false;
-    this._state = "stopped";
+    this.markStopped();
   }
 
   /**
@@ -131,7 +121,7 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
     }
     this.source = undefined;
     this.panner = undefined;
-    this._state = "stopped";
+    this.markStopped();
     // Tear down per-playback send-gain nodes before super.cleanup() severs
     // the gainNode edges they feed off of.
     for (const sendGain of this._sendGains.values()) {

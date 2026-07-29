@@ -39,8 +39,6 @@ type PlaybackCloneOverrides = {
   panType: PanType;
 };
 
-type PlaybackState = "unplayed" | "playing" | "paused" | "stopped";
-
 export class Playback extends BasePlayback implements BaseSound {
   private context: BaseContext;
   public declare source?: SourceNode;
@@ -49,7 +47,6 @@ export class Playback extends BasePlayback implements BaseSound {
   private buffer?: AudioBuffer;
   private _offset: number = 0;
   private _startTime: number = 0;
-  private _state: PlaybackState = "unplayed";
   private _playbackRate: number = 1;
   /**
    * Promise that tracks an in-flight media-element `.play()` settlement.
@@ -136,14 +133,6 @@ export class Playback extends BasePlayback implements BaseSound {
     } else {
       throw new Error("Unsupported source type");
     }
-  }
-
-  get isPlaying(): boolean {
-    return this._state === "playing";
-  }
-
-  get isPaused(): boolean {
-    return this._state === "paused";
   }
 
   /**
@@ -320,7 +309,6 @@ export class Playback extends BasePlayback implements BaseSound {
 
       if (mediaPlayPromise) {
         // For media-element sources, defer state and events until browser accepts playback
-        const previousState = this._state;
         // Stash the pending promise so loopEnded (and any future caller that
         // needs to sequence after the deferred state transition) can await it
         // rather than racing source-state mutations against it.
@@ -328,7 +316,7 @@ export class Playback extends BasePlayback implements BaseSound {
           .then(
             () => {
               this._startTime = this.context.currentTime;
-              this._state = "playing";
+              this.markPlaying();
               this.emit("play", this);
               if (isResume) {
                 this.emit("resume", undefined);
@@ -339,7 +327,6 @@ export class Playback extends BasePlayback implements BaseSound {
               });
             },
             (error: Error) => {
-              this._state = previousState;
               void this.emitAsync("error", {
                 error,
                 errorType: "source",
@@ -357,7 +344,7 @@ export class Playback extends BasePlayback implements BaseSound {
       } else {
         // For buffer sources, state transition is immediate (start() is synchronous)
         this._startTime = this.context.currentTime;
-        this._state = "playing";
+        this.markPlaying();
         this.emit("play", this);
         if (isResume) {
           this.emit("resume", undefined);
@@ -396,7 +383,7 @@ export class Playback extends BasePlayback implements BaseSound {
       this.source.stop();
     }
 
-    this._state = "paused";
+    this.markPaused();
     this.emit("pause", undefined);
 
     // Emit globalPause for all playback
@@ -426,7 +413,7 @@ export class Playback extends BasePlayback implements BaseSound {
 
     this._offset = 0;
     this._startTime = 0;
-    this._state = "stopped";
+    this.markStopped();
     this.emit("stop", undefined);
 
     // Emit globalStop for all playback
@@ -592,7 +579,7 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     this._offset = 0;
     this._startTime = 0;
-    this._state = "stopped";
+    this.markStopped();
     this.currentLoop = 0;
     this.source.disconnect();
     this.source = undefined;
@@ -862,8 +849,10 @@ export class Playback extends BasePlayback implements BaseSound {
     clone.volume = this.volume;
     clone.playbackRate = this._playbackRate;
     clone._offset = this._offset;
-    if (this._state !== "playing") {
-      clone._state = this._state;
+    if (this._state === "paused") {
+      clone.markPaused();
+    } else if (this._state === "stopped") {
+      clone.markStopped();
     }
 
     // Deep clone filters
