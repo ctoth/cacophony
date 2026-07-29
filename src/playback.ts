@@ -142,6 +142,10 @@ export class Playback extends BasePlayback implements BaseSound {
     return this._state === "playing";
   }
 
+  get isPaused(): boolean {
+    return this._state === "paused";
+  }
+
   /**
    * Gets the duration of the audio in seconds.
    * @returns {number} The duration of the audio or NaN if the duration is unknown.

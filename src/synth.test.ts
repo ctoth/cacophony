@@ -74,6 +74,20 @@ describe("Synth class", () => {
     expect(playback.filters[0].frequency.value).toBe(900);
   });
 
+  it("resumes only paused playbacks", () => {
+    const paused = synth.play()[0];
+    const stopped = synth.play()[0];
+    const unplayed = synth.preplay()[0];
+
+    paused.pause();
+    stopped.stop();
+    synth.resume();
+
+    expect(paused.isPlaying).toBe(true);
+    expect(stopped.isPlaying).toBe(false);
+    expect(unplayed.isPlaying).toBe(false);
+  });
+
   it("applies synth and playback changes made while paused when resumed", () => {
     const filter = audioContextMock.createBiquadFilter();
     filter.type = "lowpass";

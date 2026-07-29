@@ -48,6 +48,10 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
     };
   }
 
+  get isPaused(): boolean {
+    return this._state === "paused";
+  }
+
   play(): [this] {
     if (!this.source || !this.panner) {
       throw new Error("Cannot play a synth that has been cleaned up");
