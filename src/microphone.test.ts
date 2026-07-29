@@ -1,6 +1,8 @@
 import { AudioContext } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Cacophony } from "./cacophony";
 import { MicrophonePlayback, MicrophoneStream } from "./microphone";
+import { expectPath } from "./setupTests";
 
 function createMockTrack(): MediaStreamTrack {
   return {
@@ -240,25 +242,27 @@ describe("MicrophoneStream", () => {
     // See notes/scout-routing-graph.md ("MicrophonePlayback" / dangling
     // gain node observation).
     const outputNode = context.createGain();
-    const gainConnectSpy = vi.fn();
-    const realCreateGain = (context as any).createGain.bind(context);
-    let firstGain: any;
-    vi.spyOn(context as any, "createGain").mockImplementation(() => {
-      const node = realCreateGain();
-      if (!firstGain) {
-        firstGain = node;
-        const realConnect = node.connect.bind(node);
-        node.connect = (...args: any[]) => {
-          gainConnectSpy(...args);
-          return realConnect(...args);
-        };
+    const microphone = new MicrophoneStream(context, mockStream, outputNode);
+    const microphoneGainNode = (
+      microphone as unknown as {
+        microphoneGainNode: GainNode;
       }
-      return node;
-    });
+    ).microphoneGainNode;
 
-    const _mic = new MicrophoneStream(context, mockStream, outputNode);
+    expectPath(microphoneGainNode, [], outputNode);
+  });
 
-    expect(gainConnectSpy).toHaveBeenCalled();
-    expect(gainConnectSpy.mock.calls.some((call) => call[0] === outputNode)).toBe(true);
+  it.skip("routes Cacophony microphone monitoring through the master bus (#102)", async () => {
+    (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
+    const cacophony = new Cacophony(context as any);
+
+    const microphone = await cacophony.getMicrophoneStream();
+    const microphoneGainNode = (
+      microphone as unknown as {
+        microphoneGainNode: GainNode;
+      }
+    ).microphoneGainNode;
+
+    expectPath(microphoneGainNode, [], cacophony.master.input);
   });
 });

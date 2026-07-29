@@ -7,7 +7,7 @@
 
 import { AudioBuffer } from "standardized-audio-context-mock";
 import { describe, expect, it, vi } from "vitest";
-import { cacophony } from "./setupTests";
+import { cacophony, expectPath } from "./setupTests";
 
 const buildSound = async () => {
   const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
@@ -21,16 +21,12 @@ describe("Bus.drainTo: primary route", () => {
     const busB = cacophony.createBus("drain-primary-b");
     sound.routeTo(busA);
     const [playback] = sound.play();
-    const disconnectSpy = vi.spyOn(playback.outputNode, "disconnect");
-    const connectSpy = vi.spyOn(playback.outputNode, "connect");
 
     busA.drainTo(busB);
 
     // _routeTarget is now busB.
     expect((sound as unknown as { _routeTarget: unknown })._routeTarget).toBe(busB);
-    // Live playback was rewired off busA.input onto busB.input.
-    expect(disconnectSpy).toHaveBeenCalledWith(busA.input);
-    expect(connectSpy).toHaveBeenCalledWith(busB.input);
+    expectPath(playback.outputNode, [], busB.input);
 
     busA.destroy();
     busB.destroy();
@@ -49,18 +45,6 @@ describe("Bus.drainTo: send", () => {
     expect(oldSendGain).toBeDefined();
     const oldSendGainDisconnect = vi.spyOn(oldSendGain!, "disconnect");
 
-    // Capture the new sendGain that _addSend(busB, ...) will allocate so we can
-    // assert its outgoing edge targets busB.input.
-    const realCreateGain = cacophony.context.createGain.bind(cacophony.context);
-    const allocated: Array<{ node: any; connect: ReturnType<typeof vi.fn> }> = [];
-    vi.spyOn(cacophony.context, "createGain").mockImplementationOnce(() => {
-      const node = realCreateGain();
-      const connectSpy = vi.fn(node.connect.bind(node));
-      Object.assign(node, { connect: connectSpy });
-      allocated.push({ node, connect: connectSpy });
-      return node;
-    });
-
     busA.drainTo(busB);
 
     const sends = (sound as unknown as { _sends: Map<unknown, number> })._sends;
@@ -69,10 +53,10 @@ describe("Bus.drainTo: send", () => {
     // Old per-playback sendGain to busA was disconnected and dropped.
     expect(oldSendGainDisconnect).toHaveBeenCalled();
     expect(playback._sendGains.has(busA)).toBe(false);
-    // New sendGain → busB.input.
-    expect(allocated.length).toBe(1);
-    expect(allocated[0]?.node.gain.value).toBe(0.3);
-    expect(allocated[0]?.connect).toHaveBeenCalledWith(busB.input);
+    const newSendGain = playback._sendGains.get(busB);
+    expect(newSendGain).toBeDefined();
+    expect(newSendGain!.gain.value).toBe(0.3);
+    expectPath(playback.outputNode, [newSendGain!], busB.input);
 
     busA.destroy();
     busB.destroy();
@@ -86,14 +70,11 @@ describe("Bus.drainTo: synth sources", () => {
     const busB = cacophony.createBus("drain-synth-primary-b");
     synth.routeTo(busA);
     const [playback] = synth.play();
-    const disconnectSpy = vi.spyOn(playback.outputNode, "disconnect");
-    const connectSpy = vi.spyOn(playback.outputNode, "connect");
 
     busA.drainTo(busB);
 
     expect((synth as unknown as { _routeTarget: unknown })._routeTarget).toBe(busB);
-    expect(disconnectSpy).toHaveBeenCalledWith(busA.input);
-    expect(connectSpy).toHaveBeenCalledWith(busB.input);
+    expectPath(playback.outputNode, [], busB.input);
 
     busA.destroy();
     busB.destroy();
@@ -117,6 +98,9 @@ describe("Bus.drainTo: synth sources", () => {
     expect(sends.get(busB)).toBe(0.25);
     expect(playback._sendGains.has(busA)).toBe(false);
     expect(oldSendGainDisconnect).toHaveBeenCalled();
+    const newSendGain = playback._sendGains.get(busB);
+    expect(newSendGain).toBeDefined();
+    expectPath(playback.outputNode, [newSendGain!], busB.input);
 
     busA.destroy();
     busB.destroy();

@@ -1,7 +1,7 @@
 import { AudioBuffer, type AudioBufferSourceNode } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Playback } from "./playback";
-import { audioContextMock, cacophony } from "./setupTests";
+import { audioContextMock, cacophony, expectPath, expectReachable } from "./setupTests";
 import { Sound } from "./sound";
 
 describe("Playback class", () => {
@@ -9,6 +9,7 @@ describe("Playback class", () => {
   let buffer: AudioBuffer;
   let source: AudioBufferSourceNode;
   let gainNode: GainNode;
+  let destination: (typeof audioContextMock)["destination"];
   let sound: Sound;
 
   beforeEach(() => {
@@ -16,6 +17,8 @@ describe("Playback class", () => {
     source = audioContextMock.createBufferSource();
     source.buffer = buffer;
     gainNode = audioContextMock.createGain();
+    destination = audioContextMock.destination;
+    gainNode.connect(destination);
     sound = new Sound("test-url", buffer, audioContextMock, gainNode);
     playback = new Playback(sound, source, gainNode);
 
@@ -45,6 +48,16 @@ describe("Playback class", () => {
     expect(playback.isPlaying).toBe(true);
     playback.stop();
     expect(playback.isPlaying).toBe(false);
+  });
+
+  it("wires the source through its panner and gain node to the destination", () => {
+    expectPath(source, [playback.panner!, gainNode], destination);
+  });
+
+  it.skip("keeps the source wired after changing the pan type (#101)", () => {
+    playback.setPanType("stereo", audioContextMock);
+
+    expectPath(source, [playback.panner!, gainNode], destination);
   });
 
   it("can pause and resume", () => {
@@ -185,6 +198,7 @@ describe("Playback cloning", () => {
   let buffer: AudioBuffer;
   let source: AudioBufferSourceNode;
   let gainNode: GainNode;
+  let destination: (typeof audioContextMock)["destination"];
   let sound: Sound;
 
   beforeEach(() => {
@@ -192,6 +206,8 @@ describe("Playback cloning", () => {
     source = audioContextMock.createBufferSource();
     source.buffer = buffer;
     gainNode = audioContextMock.createGain();
+    destination = audioContextMock.destination;
+    gainNode.connect(destination);
     sound = new Sound("test-url", buffer, audioContextMock, gainNode);
     originalPlayback = new Playback(sound, source, gainNode);
 
@@ -221,6 +237,12 @@ describe("Playback cloning", () => {
     expect(clone.playbackRate).toBe(originalPlayback.playbackRate);
     expect(clone.loopCount).toBe(originalPlayback.loopCount);
     expect(clone.panType).toBe(originalPlayback.panType);
+  });
+
+  it.skip("keeps a clone reachable from the destination (#100)", () => {
+    const clone = originalPlayback.clone();
+
+    expectReachable(clone.source!, destination);
   });
 
   it("creates a clone with independent properties", () => {
@@ -440,6 +462,7 @@ describe("Playback filters chain", () => {
   let buffer: AudioBuffer;
   let source: AudioBufferSourceNode;
   let gainNode: GainNode;
+  let destination: (typeof audioContextMock)["destination"];
   let sound: Sound;
 
   beforeEach(() => {
@@ -447,6 +470,8 @@ describe("Playback filters chain", () => {
     source = audioContextMock.createBufferSource();
     source.buffer = buffer;
     gainNode = audioContextMock.createGain();
+    destination = audioContextMock.destination;
+    gainNode.connect(destination);
     sound = new Sound("test-url", buffer, audioContextMock, gainNode);
     playback = new Playback(sound, source, gainNode);
   });
@@ -476,6 +501,7 @@ describe("Playback filters chain", () => {
     expect(playback._filters.length).toBe(2);
     expect(playback._filters[0].type).toBe(filter1.type);
     expect(playback._filters[1].type).toBe(filter2.type);
+    expectPath(source, [playback.panner!, filter1, filter2, gainNode], destination);
   });
 });
 

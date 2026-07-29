@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { cacophony } from "./setupTests";
+import { cacophony, expectPath } from "./setupTests";
 
 describe("SynthPlayback: outputNode / connect / disconnect parity with Playback", () => {
   it("exposes outputNode (a GainNode) on a live synth playback", () => {
@@ -8,6 +8,7 @@ describe("SynthPlayback: outputNode / connect / disconnect parity with Playback"
     expect(playback.outputNode).toBeDefined();
     // outputNode should be a GainNode (has .gain.value).
     expect((playback.outputNode as unknown as { gain: { value: number } }).gain.value).toBeDefined();
+    expectPath(playback.source!, [playback.panner!, playback.outputNode], cacophony.master.input);
     synth.stop();
   });
 
