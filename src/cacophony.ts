@@ -813,7 +813,7 @@ export class Cacophony {
 
       const handleLoadedMetadata = () => {
         settle(() => {
-          resolve(new Sound(url, undefined, this.context, this.globalGainNode, soundType, panType, this));
+          resolve(new Sound(url, undefined, this.context, this.globalGainNode, soundType, panType, this, audio));
         });
       };
 

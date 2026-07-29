@@ -108,7 +108,7 @@ export class SynthGroup {
   }
 
   get detune(): number {
-    return this.synths[0]?.detune as number;
+    return this.synths[0]?.detune ?? 0;
   }
 
   set detune(detune: number) {

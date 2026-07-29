@@ -325,6 +325,7 @@ describe("Cacophony advanced features", () => {
       const controller = new AbortController();
       const htmlAudio = createControllableAudioElement();
       const streamingAudio = createControllableAudioElement();
+      const createMediaElementSourceSpy = vi.spyOn(audioContextMock, "createMediaElementSource");
 
       // Set up spy to track cache calls
       const getAudioBufferSpy = vi.spyOn(mockCache, "getAudioBuffer");
@@ -354,6 +355,13 @@ describe("Cacophony advanced features", () => {
       expect(streamSound.soundType).toBe("streaming");
       expect(streamSound.url).toBe(url);
       expect(getAudioBufferSpy).not.toHaveBeenCalled();
+
+      htmlSound.preplay();
+      streamSound.preplay();
+
+      expect(global.Audio).toHaveBeenCalledTimes(2);
+      expect(createMediaElementSourceSpy).toHaveBeenCalledWith(htmlAudio.audio);
+      expect(createMediaElementSourceSpy).toHaveBeenCalledWith(streamingAudio.audio);
     });
 
     it("createSound with HTML throws AbortError when signal is aborted during media load", async () => {

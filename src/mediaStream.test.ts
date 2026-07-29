@@ -6,9 +6,15 @@ import { MediaStreamPlayback, MediaStreamSound } from "./mediaStream";
 import { expectNotReachable, expectPath, expectReachable } from "./setupTests";
 
 function createMockTrack(): MediaStreamTrack {
+  let readyState: MediaStreamTrackState = "live";
   return {
     enabled: true,
-    stop: vi.fn(),
+    get readyState() {
+      return readyState;
+    },
+    stop: vi.fn(() => {
+      readyState = "ended";
+    }),
   } as unknown as MediaStreamTrack;
 }
 
@@ -97,6 +103,19 @@ describe("MediaStreamSound", () => {
     sound.stop();
 
     expect(track.stop).toHaveBeenCalledOnce();
+  });
+
+  it("throws when replaying after the default stop ends every track", () => {
+    const cacophony = new Cacophony(context as any);
+    vi.spyOn(context as any, "createMediaStreamSource").mockReturnValue(source);
+    const sound = cacophony.createMediaStreamSound(stream, {
+      primeWithMediaElement: false,
+    });
+
+    sound.play();
+    sound.stop();
+
+    expect(() => sound.play()).toThrow("Cannot play a media stream whose tracks have ended");
   });
 
   it("pauses and resumes by toggling track enabled state", () => {

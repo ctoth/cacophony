@@ -109,6 +109,25 @@ describe("OfflineAudioContext support", () => {
       expect(playbacks.length).toBeGreaterThan(0);
       expect(playbacks[0].isPlaying).toBe(true);
     });
+
+    it("schedules fades without waiting on a wall-clock timer", async () => {
+      vi.useFakeTimers();
+      try {
+        const offlineCtx = createOfflineContextMock();
+        const cacophony = new Cacophony(offlineCtx, mockCache);
+        const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 }) as unknown as CacophonyAudioBuffer;
+        const sound = await cacophony.createSound(buffer, "buffer");
+        const [playback] = sound.play();
+
+        const fade = playback.fadeTo(0.25, 10_000);
+
+        expect(vi.getTimerCount()).toBe(0);
+        await fade;
+        expect(playback.isFading).toBe(false);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 
   describe("createOscillator on offline context", () => {

@@ -75,7 +75,8 @@ export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
      * @param {number} value - The target volume (0 to 1).
      * @param {number} duration - The fade duration in milliseconds.
      * @param {FadeType} type - The fade curve type, "linear" or "exponential". Defaults to "linear".
-     * @returns {Promise<void>} Resolves when the fade completes.
+     * @returns {Promise<void>} Resolves when the fade completes on a live context, or when its automation has been
+     * scheduled on an offline context.
      */
     fadeTo(value: number, duration: number, type: FadeType = "linear"): Promise<void> {
       if (!this.gainNode) {
@@ -96,6 +97,14 @@ export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
         node.gain.exponentialRampToValueAtTime(value === 0 ? 0.0001 : value, endTime);
       } else {
         node.gain.linearRampToValueAtTime(value, endTime);
+      }
+
+      if ("startRendering" in node.context) {
+        if (value === 0 && type === "exponential") {
+          node.gain.setValueAtTime(0, endTime);
+        }
+        this._isFading = false;
+        return Promise.resolve();
       }
 
       this._isFading = true;

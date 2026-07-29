@@ -105,7 +105,11 @@ export class MediaStreamPlayback extends BasePlayback {
     if (this.isPlaying) {
       return [this];
     }
-    this.source.mediaStream.getTracks().forEach((track) => (track.enabled = true));
+    const tracks = this.source.mediaStream.getTracks();
+    if (tracks.length > 0 && tracks.every((track) => track.readyState === "ended")) {
+      throw new Error("Cannot play a media stream whose tracks have ended");
+    }
+    tracks.forEach((track) => (track.enabled = true));
     // Muted autoplay is always permitted, so this needs no user gesture; the
     // returned promise is ignored because failure only loses Chromium priming.
     this.primeElement?.play().catch(() => {});
