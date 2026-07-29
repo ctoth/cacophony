@@ -1,4 +1,3 @@
-import type { Bus } from "./bus";
 import type { BaseSound } from "./cacophony";
 import type { AudioNode, AudioParam, BaseContext, GainNode, OscillatorNode } from "./context";
 import { OscillatorMixin } from "./oscillatorMixin";
@@ -6,13 +5,6 @@ import type { Synth } from "./synth";
 
 export class SynthPlayback extends OscillatorMixin implements BaseSound {
   context: BaseContext;
-  /**
-   * Per-playback send-gain allocations: bus → allocated GainNode. Mirrors
-   * {@link Playback._sendGains}. Owned/teardown contract is identical:
-   * Synth allocates send gains at preplay or `routeTo(bus, gain)`; cleanup
-   * walks this map and calls `disconnect()` on every send.
-   */
-  _sendGains: Map<Bus, GainNode> = new Map();
   /**
    * Live oscillator node. Set in the constructor; cleared to `undefined` in
    * {@link cleanup} (matches Playback's `source?` shape so post-cleanup
@@ -122,14 +114,6 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
     this.source = undefined;
     this.panner = undefined;
     this.markStopped();
-    // Tear down per-playback send-gain nodes before super.cleanup() severs
-    // the gainNode edges they feed off of.
-    for (const sendGain of this._sendGains.values()) {
-      try {
-        sendGain.disconnect();
-      } catch {}
-    }
-    this._sendGains.clear();
     this.eventEmitter.removeAllListeners();
     // super.cleanup() (VolumeMixin) disconnects + clears `gainNode`; after
     // this call `outputNode` throws (parity with Playback.cleanup).

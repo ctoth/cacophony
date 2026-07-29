@@ -1,6 +1,7 @@
+import type { Bus } from "./bus";
 import type { FadeType } from "./cacophony";
 import type { PlaybackContainer } from "./container";
-import type { AudioNode } from "./context";
+import type { AudioNode, GainNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { PlaybackEvents } from "./events";
 import { FilterManager } from "./filters";
@@ -11,6 +12,11 @@ export type PlaybackState = "unplayed" | "playing" | "paused" | "stopped";
 
 export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager)) {
   public source?: AudioNode;
+  /**
+   * Per-playback send-gain allocations owned by the shared routing state
+   * machine. Cleanup disconnects every allocation deterministically.
+   */
+  _sendGains: Map<Bus, GainNode> = new Map();
   protected _state: PlaybackState = "unplayed";
   public origin: PlaybackContainer;
   public eventEmitter: TypedEventEmitter<PlaybackEvents> = new TypedEventEmitter<PlaybackEvents>();
@@ -93,6 +99,14 @@ export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager
   }
 
   cleanup(): void {
+    for (const sendGain of this._sendGains.values()) {
+      try {
+        sendGain.disconnect();
+      } catch {
+        // The node may already have been disconnected externally.
+      }
+    }
+    this._sendGains.clear();
     this.eventEmitter.removeAllListeners();
     super.cleanup();
   }

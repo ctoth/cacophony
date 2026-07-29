@@ -1,6 +1,5 @@
 import { BasePlayback } from "./basePlayback";
 import type { BaseSound, Cacophony, LoopCount, PanType } from "./cacophony";
-import { PlaybackContainer } from "./container";
 import type {
   AudioNode,
   AudioParam,
@@ -9,7 +8,7 @@ import type {
   GainNode,
   MediaStreamAudioSourceNode,
 } from "./context";
-import { FilterManager } from "./filters";
+import { RoutableSource } from "./routableSource";
 
 export interface MediaStreamSoundOptions {
   panType?: PanType;
@@ -219,10 +218,10 @@ export class MediaStreamPlayback extends BasePlayback {
   }
 }
 
-export class MediaStreamSound extends PlaybackContainer(FilterManager) implements BaseSound {
+export class MediaStreamSound extends RoutableSource implements BaseSound {
   public declare playbacks: MediaStreamPlayback[];
-  private context: BaseContext;
-  private globalGainNode: GainNode;
+  protected context: BaseContext;
+  protected globalGainNode: GainNode;
   private stream: MediaStream;
   private stopTracksOnStop: boolean;
   private panType: PanType;
@@ -267,11 +266,12 @@ export class MediaStreamSound extends PlaybackContainer(FilterManager) implement
       source,
       gainNode,
       this.context,
-      this.globalGainNode,
+      this._resolveRouteTargetNode(),
       this.panType,
       this.stopTracksOnStop,
       this.primeWithMediaElement,
     );
+    this._wireRouteSends(playback);
     playback.volume = this.volume;
     if (this.panType === "HRTF") {
       playback.threeDOptions = this.threeDOptions;
