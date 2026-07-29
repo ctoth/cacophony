@@ -66,6 +66,7 @@
     "@rollup/plugin-typescript": "^11.1.6",
     "@types/audioworklet": "^0.0.87",
     "@types/node": "^22.18.1",
+    "glob": "^13.0.6",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
     "rimraf": "^6.1.3",
