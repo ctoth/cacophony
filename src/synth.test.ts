@@ -1,15 +1,21 @@
 import { AudioContext } from "standardized-audio-context-mock";
 import { beforeEach, describe, expect, it } from "vitest";
+import { expectPath } from "./setupTests";
 import { Synth } from "./synth";
 import { SynthPlayback } from "./synthPlayback";
 
 describe("Synth class", () => {
   let synth: Synth;
   let audioContextMock: AudioContext;
+  let masterInput: ReturnType<AudioContext["createGain"]>;
+  let destination: AudioContext["destination"];
 
   beforeEach(() => {
     audioContextMock = new AudioContext();
-    synth = new Synth(audioContextMock, audioContextMock.createGain());
+    masterInput = audioContextMock.createGain();
+    destination = audioContextMock.destination;
+    masterInput.connect(destination);
+    synth = new Synth(audioContextMock, masterInput);
   });
 
   it("is created with correct default properties", () => {
@@ -23,6 +29,7 @@ describe("Synth class", () => {
     const playbacks = synth.preplay();
     expect(playbacks.length).toBe(1);
     expect(playbacks[0]).toBeInstanceOf(SynthPlayback);
+    expectPath(playbacks[0].source!, [playbacks[0].panner!, playbacks[0].outputNode, masterInput], destination);
   });
 
   it("can play and stop a synth", () => {
@@ -147,6 +154,18 @@ describe("Synth class", () => {
     expect(playbacks[0].filters[0]).not.toBe(filter);
     expect(playbacks[0].filters[0].type).toBe(filter.type);
     expect(playbacks[0].filters[0].frequency.value).toBe(filter.frequency.value);
+  });
+
+  it.skip("wires cloned filters into the synth playback path (#41)", () => {
+    const filter = audioContextMock.createBiquadFilter();
+    synth.addFilter(filter);
+    const [playback] = synth.preplay();
+
+    expectPath(
+      playback.source!,
+      [playback.panner!, playback.filters[0], playback.outputNode, masterInput],
+      destination,
+    );
   });
 
   it("prevents adding same filter instance twice", () => {

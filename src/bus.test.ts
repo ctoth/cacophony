@@ -136,31 +136,15 @@ describe("Bus: per-edge gain on connect", () => {
   it("allocates a sendGain when gain !== 1; output → sendGain → target.input", () => {
     const a = new Bus(cacophony.context, null);
     const b = new Bus(cacophony.context, null);
-    // Wrap createGain so the allocated sendGain's connect call is observable.
-    const realCreateGain = cacophony.context.createGain.bind(cacophony.context);
-    const allocated: Array<{ node: any; connect: ReturnType<typeof vi.fn> }> = [];
-    vi.spyOn(cacophony.context, "createGain").mockImplementation(() => {
-      const node = realCreateGain();
-      const connectSpy = vi.fn(node.connect.bind(node));
-      Object.assign(node, { connect: connectSpy });
-      allocated.push({ node, connect: connectSpy });
-      return node;
-    });
-    const outputConnectSpy = vi.spyOn(a.output, "connect");
     a.connect(b, 0.5);
-    // First hop: a.output → sendGain (not b.input directly).
-    expect(outputConnectSpy).toHaveBeenCalled();
-    const firstCallTarget = outputConnectSpy.mock.calls[0]?.[0] as { gain?: { value: number } };
-    expect(firstCallTarget).toBeDefined();
-    expect(firstCallTarget).not.toBe(b.input);
-    expect(firstCallTarget.gain?.value).toBe(0.5);
-    // Second hop: sendGain → b.input. The sendGain was the LAST allocated
-    // gain in this connect call (a.output and b.input were allocated earlier
-    // when the buses were constructed).
-    const sendGainRecord = allocated[allocated.length - 1];
-    expect(sendGainRecord).toBeDefined();
-    expect(sendGainRecord.node).toBe(firstCallTarget);
-    expect(sendGainRecord.connect).toHaveBeenCalledWith(b.input);
+    const sendGain = (
+      a as unknown as {
+        _sendGains: Map<Bus, GainNode>;
+      }
+    )._sendGains.get(b);
+    expect(sendGain).toBeDefined();
+    expect(sendGain!.gain.value).toBe(0.5);
+    expectPath(a.output, [sendGain!], b.input);
   });
 
   it("connects to a raw AudioNode target", () => {
@@ -352,6 +336,7 @@ describe("Bus: filter chain refresh", () => {
     await bus.addFilter(f1);
     await bus.addFilter(f2);
     expect(bus.filters).toEqual([f1, f2]);
+    expectPath(bus.input, [f1, f2], bus.output);
   });
 
   it("removeFilter removes by identity and rebuilds the chain", async () => {
@@ -362,6 +347,7 @@ describe("Bus: filter chain refresh", () => {
     await bus.addFilter(f2);
     bus.removeFilter(f1);
     expect(bus.filters).toEqual([f2]);
+    expectPath(bus.input, [f2], bus.output);
   });
 
   it("removeFilter tears down an owned endpoint graph after removing its chain edges", async () => {

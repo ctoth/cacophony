@@ -1,6 +1,6 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, test, vi } from "vitest";
-import { audioContextMock, cacophony } from "./setupTests";
+import { audioContextMock, cacophony, expectPath, expectReachable } from "./setupTests";
 import { Sound } from "./sound";
 
 describe("Sound playback and state management", () => {
@@ -25,6 +25,8 @@ describe("Sound playback and state management", () => {
     expect(sound.isPlaying).toBe(true);
     expect(playbacks1.length).toBe(1);
     expect(playbacks1[0].isPlaying).toBe(true);
+    expectPath(playbacks1[0].source!, [playbacks1[0].panner!, playbacks1[0].outputNode], cacophony.master.input);
+    expectReachable(playbacks1[0].source!, cacophony.master.output);
 
     sound.stop();
     expect(sound.isPlaying).toBe(false);
@@ -35,6 +37,30 @@ describe("Sound playback and state management", () => {
     expect(playbacks2.length).toBe(1);
     expect(playbacks2[0].isPlaying).toBe(true);
     expect(playbacks2[0]).not.toBe(playbacks1[0]); // New playback instance
+  });
+
+  it("keeps the primary path while adding a send edge", () => {
+    const bus = cacophony.createBus("sound-test-send");
+    const [playback] = sound.play();
+
+    sound.routeTo(bus, 0.4);
+
+    const sendGain = playback._sendGains.get(bus);
+    expect(sendGain).toBeDefined();
+    expectPath(playback.outputNode, [], cacophony.master.input);
+    expectPath(playback.outputNode, [sendGain!], bus.input);
+    bus.destroy();
+  });
+
+  it("rewires a live playback from its old primary route to the new one", () => {
+    const bus = cacophony.createBus("sound-test-primary");
+    const [playback] = sound.play();
+    expectPath(playback.outputNode, [], cacophony.master.input);
+
+    sound.routeTo(bus);
+
+    expectPath(playback.outputNode, [], bus.input);
+    bus.destroy();
   });
 
   it("can pause and resume", () => {

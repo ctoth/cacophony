@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Cacophony } from "./cacophony";
 import { MediaStreamPlayback, MediaStreamSound } from "./mediaStream";
+import { expectPath } from "./setupTests";
 
 function createMockTrack(): MediaStreamTrack {
   return {
@@ -33,6 +34,7 @@ describe("MediaStreamSound", () => {
   let stream: MediaStream;
   let source: ReturnType<typeof createMockMediaStreamSource>;
   let globalGainNode: ReturnType<AudioContext["createGain"]>;
+  let destination: AudioContext["destination"];
 
   beforeEach(() => {
     context = new AudioContext();
@@ -40,6 +42,8 @@ describe("MediaStreamSound", () => {
     stream = createMockStream([track]);
     source = createMockMediaStreamSource(stream);
     globalGainNode = context.createGain();
+    destination = context.destination;
+    globalGainNode.connect(destination);
     vi.spyOn(context as any, "createMediaStreamSource").mockReturnValue(source);
   });
 
@@ -59,6 +63,7 @@ describe("MediaStreamSound", () => {
     expect(secondPlay[0]).toBe(firstPlay[0]);
     expect(context.createMediaStreamSource).toHaveBeenCalledTimes(1);
     expect(sound.isPlaying).toBe(true);
+    expectPath(source, [firstPlay[0].panner!, firstPlay[0].outputNode, globalGainNode], destination);
   });
 
   it("applies volume and HRTF position to the live playback", () => {
