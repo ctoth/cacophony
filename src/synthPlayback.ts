@@ -1,15 +1,12 @@
 import type { Bus } from "./bus";
 import type { BaseSound } from "./cacophony";
 import type { AudioNode, AudioParam, BaseContext, GainNode, OscillatorNode } from "./context";
-import { FilterManager } from "./filters";
 import { OscillatorMixin } from "./oscillatorMixin";
-import { PannerMixin } from "./pannerMixin";
 import type { Synth } from "./synth";
-import { VolumeMixin } from "./volumeMixin";
 
 type SynthPlaybackState = "unplayed" | "playing" | "paused" | "stopped";
 
-export class SynthPlayback extends OscillatorMixin(PannerMixin(VolumeMixin(FilterManager))) implements BaseSound {
+export class SynthPlayback extends OscillatorMixin implements BaseSound {
   context: BaseContext;
   private _state: SynthPlaybackState = "unplayed";
   /**

@@ -5,95 +5,66 @@ export type OscillatorCloneOverrides = {
   oscillatorOptions?: Partial<OscillatorOptions>;
 };
 
-type Constructor<T = {}> = abstract new (...args: any[]) => T;
+export abstract class OscillatorMixin extends BasePlayback {
+  _oscillatorOptions: Partial<OscillatorOptions> = {};
+  public declare source?: OscillatorNode;
 
-export function OscillatorMixin<TBase extends Constructor>(Base: TBase) {
-  abstract class OscillatorMixin extends BasePlayback {
-    _oscillatorOptions: Partial<OscillatorOptions> = {};
-    public declare source?: OscillatorNode;
+  get oscillatorOptions(): Partial<OscillatorOptions> {
+    return this._oscillatorOptions;
+  }
 
-    get oscillatorOptions(): Partial<OscillatorOptions> {
-      return this._oscillatorOptions;
-    }
-
-    set oscillatorOptions(options: Partial<OscillatorOptions>) {
-      this._oscillatorOptions = options;
-      if (this.source) {
-        if (this.oscillatorOptions.detune !== undefined) this.source.detune.value = this.oscillatorOptions.detune;
-        if (this.oscillatorOptions.frequency !== undefined)
-          this.source.frequency.value = this.oscillatorOptions.frequency;
-        if (this.oscillatorOptions.type) this.source.type = this.oscillatorOptions.type;
-      }
-    }
-
-    play(): [this] {
-      if (!this.source) {
-        throw new Error("No source node found");
-      }
+  set oscillatorOptions(options: Partial<OscillatorOptions>) {
+    this._oscillatorOptions = options;
+    if (this.source) {
       if (this.oscillatorOptions.detune !== undefined) this.source.detune.value = this.oscillatorOptions.detune;
       if (this.oscillatorOptions.frequency !== undefined)
         this.source.frequency.value = this.oscillatorOptions.frequency;
       if (this.oscillatorOptions.type) this.source.type = this.oscillatorOptions.type;
-      this.source.start();
-      this._playing = true;
-      return [this];
-    }
-
-    stop() {
-      if (this.source?.stop) {
-        this.source.stop();
-        this._playing = false;
-      }
-    }
-
-    pause(): void {
-      this.stop();
-    }
-
-    get frequency(): number {
-      if (!this.source) {
-        throw new Error("No source node found");
-      }
-      return this.source.frequency.value;
-    }
-
-    set frequency(frequency: number) {
-      if (!this.source) {
-        throw new Error("No source node found");
-      }
-      this.source.frequency.value = frequency;
-      this.oscillatorOptions.frequency = frequency;
-    }
-
-    get detune(): number {
-      if (!this.source) {
-        throw new Error("No source node found");
-      }
-      return this.source.detune.value;
-    }
-
-    set detune(detune: number) {
-      if (!this.source) {
-        throw new Error("No source node found");
-      }
-      this.source.detune.value = detune;
-      this.oscillatorOptions.detune = detune;
-    }
-
-    get type(): OscillatorType {
-      if (!this.source) {
-        throw new Error("No source node found");
-      }
-      return this.source.type;
-    }
-
-    set type(type: OscillatorType) {
-      if (!this.source) {
-        throw new Error("No source node found");
-      }
-      this.source.type = type;
-      this.oscillatorOptions.type = type;
     }
   }
-  return OscillatorMixin;
+
+  get frequency(): number {
+    if (!this.source) {
+      throw new Error("No source node found");
+    }
+    return this.source.frequency.value;
+  }
+
+  set frequency(frequency: number) {
+    if (!this.source) {
+      throw new Error("No source node found");
+    }
+    this.source.frequency.value = frequency;
+    this.oscillatorOptions.frequency = frequency;
+  }
+
+  get detune(): number {
+    if (!this.source) {
+      throw new Error("No source node found");
+    }
+    return this.source.detune.value;
+  }
+
+  set detune(detune: number) {
+    if (!this.source) {
+      throw new Error("No source node found");
+    }
+    this.source.detune.value = detune;
+    this.oscillatorOptions.detune = detune;
+  }
+
+  get type(): OscillatorType {
+    if (!this.source) {
+      throw new Error("No source node found");
+    }
+    return this.source.type;
+  }
+
+  set type(type: OscillatorType) {
+    if (!this.source) {
+      throw new Error("No source node found");
+    }
+    this.source.type = type;
+    this.oscillatorOptions.type = type;
+  }
 }
