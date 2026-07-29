@@ -2,9 +2,9 @@ import resolve from '@rollup/plugin-node-resolve';
 import commonjs from '@rollup/plugin-commonjs';
 import replace from '@rollup/plugin-replace';
 import typescript from '@rollup/plugin-typescript';
-import glob from 'glob'; // Ensure you have the 'glob' package installed
+import { globSync } from 'glob';
 
-const inputFiles = glob.sync('src/processors/**/*.ts').filter((file) => {
+const inputFiles = globSync('src/processors/**/*.ts', { posix: true }).filter((file) => {
   // exclude tests and definitions
   return !file.endsWith('.test.ts') && !file.endsWith('.d.ts');
 });
