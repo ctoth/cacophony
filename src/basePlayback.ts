@@ -7,9 +7,11 @@ import { FilterManager } from "./filters";
 import { PannerMixin } from "./pannerMixin";
 import { VolumeMixin } from "./volumeMixin";
 
+export type PlaybackState = "unplayed" | "playing" | "paused" | "stopped";
+
 export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager)) {
   public source?: AudioNode;
-  _playing: boolean = false;
+  protected _state: PlaybackState = "unplayed";
   public origin: PlaybackContainer;
   public eventEmitter: TypedEventEmitter<PlaybackEvents> = new TypedEventEmitter<PlaybackEvents>();
 
@@ -27,10 +29,23 @@ export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager
    */
 
   get isPlaying(): boolean {
-    if (!this.source) {
-      return false;
-    }
-    return this._playing;
+    return this._state === "playing";
+  }
+
+  get isPaused(): boolean {
+    return this._state === "paused";
+  }
+
+  protected markPlaying(): void {
+    this._state = "playing";
+  }
+
+  protected markPaused(): void {
+    this._state = "paused";
+  }
+
+  protected markStopped(): void {
+    this._state = "stopped";
   }
 
   /**
