@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { Bus } from "./bus";
-import { cacophony } from "./setupTests";
+import { cacophony, expectPath } from "./setupTests";
 
 describe("Bus: construction", () => {
   it("creates an anonymous bus with name=null when no name supplied", () => {
@@ -19,6 +19,12 @@ describe("Bus: construction", () => {
     expect(bus.input).toBeDefined();
     expect(bus.output).toBeDefined();
     expect(bus.input).not.toBe(bus.output);
+  });
+
+  it("wires the input directly to the output before filters are added", () => {
+    const bus = new Bus(cacophony.context, "dry");
+
+    expectPath(bus.input, [], bus.output);
   });
 
   it("uses the externally supplied input GainNode when provided", () => {
