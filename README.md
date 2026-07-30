@@ -780,6 +780,44 @@ The browser, rather than a Cacophony chunk decoder, provides progressive
 download, range requests, native buffering, and live Icecast/SHOUTcast
 playback.
 
+For audio that arrives as decoded samples instead of a URL, use the
+AudioWorklet-backed push source:
+
+```typescript
+const pcm = await cacophony.createPcmStreamSound({
+  channelCount: 1,
+  bufferDuration: 1,
+  latency: 0.05,
+  signal: abortController.signal,
+});
+
+pcm.on('underrun', () => console.warn('PCM producer fell behind'));
+pcm.on('drain', () => writeNextChunk());
+pcm.on('ended', () => console.log('PCM playback finished'));
+
+pcm.play();
+const hasCapacity = pcm.write(samples); // interleaved Float32Array at context.sampleRate
+if (!hasCapacity) {
+  // The accepted write filled the ring buffer, or the chunk was rejected
+  // because it would exceed capacity. Wait for drain before writing again.
+}
+console.log(pcm.bufferedDuration);
+pcm.end(); // no more writes; "ended" fires after buffered PCM is consumed
+```
+
+`bufferDuration` fixes the ring-buffer capacity; `latency` sets how much PCM is
+collected before initial consumption. `write()` returns `false` when the buffer
+needs producer backpressure. An accepted write that fills the buffer also
+returns `false`; a chunk that would exceed remaining capacity is rejected and
+must be retried after `drain`.
+
+PCM underrun emits silence plus one `underrun` event per underrun episode;
+writing more samples recovers playback without repeating stale audio.
+`pause()` stops consuming and `resume()` continues from the buffered frame.
+Volume, stereo/HRTF pan, filters, buses, and sends use the same public APIs as
+other sources. Seek is not supported for a push PCM source. Loop is not
+supported because the source does not retain consumed samples.
+
 Native HLS playback is limited to Safari. An `.m3u8` URL therefore needs an
 adapter such as hls.js in other browsers; follow the
 [hls.js adapter issue](https://github.com/ctoth/cacophony/issues/132) for that

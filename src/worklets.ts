@@ -13,6 +13,7 @@ import dynamicsBundleUrl from "./bundles/dynamics-bundle.js?url";
 import fdnReverbBundleUrl from "./bundles/fdn-reverb-bundle.js?url";
 import loudnessMeterBundleUrl from "./bundles/loudness-meter-bundle.js?url";
 import modulatedDelayBundleUrl from "./bundles/modulated-delay-bundle.js?url";
+import pcmStreamBundleUrl from "./bundles/pcm-stream-bundle.js?url";
 import phaseVocoderBundleUrl from "./bundles/phase-vocoder-bundle.js?url";
 import phaserBundleUrl from "./bundles/phaser-bundle.js?url";
 import stereoToBFormatBundleUrl from "./bundles/stereo-to-bformat-bundle.js?url";
@@ -42,6 +43,7 @@ export const WORKLETS = {
   fdnReverb: { name: "fdn-reverb", url: fdnReverbBundleUrl },
   waveshaper: { name: "waveshaper", url: waveshaperBundleUrl },
   modulatedDelay: { name: "modulated-delay", url: modulatedDelayBundleUrl },
+  pcmStream: { name: "pcm-stream", url: pcmStreamBundleUrl },
   phaser: { name: "phaser", url: phaserBundleUrl },
   tremolo: { name: "tremolo", url: tremoloBundleUrl },
   loudnessMeter: { name: "loudness-meter", url: loudnessMeterBundleUrl },
