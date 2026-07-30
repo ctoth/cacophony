@@ -1,3 +1,4 @@
+import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { nodeBackendAvailable } from "./backend-available";
@@ -79,5 +80,32 @@ describe.skipIf(!nodeBackendAvailable)("cacophony/node adapter", () => {
     const buffer = await decodeAudioFile(context, resolve(__dirname, "..", "test.ogg"));
     expect(buffer.numberOfChannels).toBeGreaterThanOrEqual(1);
     expect(buffer.duration).toBeGreaterThan(0);
+  });
+
+  it("falls back to the second URL when the first candidate cannot be decoded", async () => {
+    const { cacophony } = await createOfflineNodeCacophony({
+      length: Math.round(48000 * 0.1),
+      sampleRate: 48000,
+      quiet: true,
+    });
+    const urls = ["https://example.com/audio.mp3", "https://example.com/audio.ogg"];
+    const encodedOgg = await readFile(resolve(__dirname, "..", "test.ogg"));
+    const validAudio = encodedOgg.buffer.slice(
+      encodedOgg.byteOffset,
+      encodedOgg.byteOffset + encodedOgg.byteLength,
+    ) as ArrayBuffer;
+    const invalidAudio = new TextEncoder().encode("not audio").buffer;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+      return new Response(String(input) === urls[0] ? invalidAudio : validAudio);
+    });
+
+    try {
+      const sound = await cacophony.createSound(urls);
+
+      expect(sound.url).toBe(urls[1]);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 });
