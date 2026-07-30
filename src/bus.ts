@@ -100,6 +100,7 @@ export class Bus {
    * the named-bus registry on destroy. Anonymous buses leave this undefined.
    */
   private readonly _onDestroy?: () => void;
+  private readonly _destroyable: boolean;
   private _destroyed = false;
 
   /**
@@ -109,13 +110,21 @@ export class Bus {
    *   the `master` bus to alias `cacophony.globalGainNode`. If omitted, a
    *   fresh GainNode is allocated.
    * @param onDestroy Optional registry-cleanup hook fired by destroy().
+   * @param destroyable Whether destroy() may tear down this bus.
    */
-  constructor(context: BaseContext, name: string | null = null, input?: GainNode, onDestroy?: () => void) {
+  constructor(
+    context: BaseContext,
+    name: string | null = null,
+    input?: GainNode,
+    onDestroy?: () => void,
+    destroyable = true,
+  ) {
     this._context = context;
     this.name = name;
     this.input = input ?? context.createGain();
     this.output = context.createGain();
     this._onDestroy = onDestroy;
+    this._destroyable = destroyable;
     this._connectFilterChainEdge(this.input, this.output);
   }
 
@@ -514,6 +523,9 @@ export class Bus {
    * playback (the routeTo machinery checks `destroyed` at preplay).
    */
   destroy(options?: { drainTo?: Bus }): void {
+    if (!this._destroyable) {
+      throw new Error("The master bus cannot be destroyed");
+    }
     if (this._destroyed) {
       return;
     }
