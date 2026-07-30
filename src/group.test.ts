@@ -38,12 +38,12 @@ describe("Group class", () => {
   });
 
   it("performs collective operations on grouped sounds", () => {
-    const preplaySpy1 = vi.spyOn(sound1, "preplay").mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
-    const preplaySpy2 = vi.spyOn(sound2, "preplay").mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
+    const playSpy1 = vi.spyOn(sound1, "play").mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
+    const playSpy2 = vi.spyOn(sound2, "play").mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
 
     group.play();
-    expect(preplaySpy1).toHaveBeenCalled();
-    expect(preplaySpy2).toHaveBeenCalled();
+    expect(playSpy1).toHaveBeenCalled();
+    expect(playSpy2).toHaveBeenCalled();
 
     const stopSpy1 = vi.spyOn(sound1, "stop");
     const stopSpy2 = vi.spyOn(sound2, "stop");
@@ -57,23 +57,61 @@ describe("Group class", () => {
     expect(sound2.volume).toBe(0.5);
   });
 
+  it("emits each member Sound's play event", () => {
+    const playListener1 = vi.fn();
+    const playListener2 = vi.fn();
+    sound1.on("play", playListener1);
+    sound2.on("play", playListener2);
+
+    const [playback1, playback2] = group.play();
+
+    expect(playListener1).toHaveBeenCalledWith(playback1);
+    expect(playListener2).toHaveBeenCalledWith(playback2);
+  });
+
+  it("forwards PlayOptions to every sound", () => {
+    const options = {
+      fadeIn: 500,
+      fadeOut: 250,
+      fadeType: "exponential" as const,
+      fadeInPerLoop: true,
+    };
+    const playback1 = { play: vi.fn() } as unknown as Playback;
+    const playback2 = { play: vi.fn() } as unknown as Playback;
+    const playSpy1 = vi.spyOn(sound1, "play").mockReturnValue([playback1]);
+    const playSpy2 = vi.spyOn(sound2, "play").mockReturnValue([playback2]);
+
+    expect(group.play(options)).toEqual([playback1, playback2]);
+    expect(playSpy1).toHaveBeenCalledWith(options);
+    expect(playSpy2).toHaveBeenCalledWith(options);
+  });
+
   it("plays sounds in order", () => {
-    const preplaySpy1 = vi.spyOn(sound1, "preplay").mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
-    const preplaySpy2 = vi.spyOn(sound2, "preplay").mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
+    const playSpy1 = vi.spyOn(sound1, "play").mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
+    const playSpy2 = vi.spyOn(sound2, "play").mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
 
     const playback1 = group.playOrdered();
-    expect(preplaySpy1).toHaveBeenCalled();
-    expect(preplaySpy2).not.toHaveBeenCalled();
+    expect(playSpy1).toHaveBeenCalled();
+    expect(playSpy2).not.toHaveBeenCalled();
     expect(playback1).toBeDefined();
 
     const playback2 = group.playOrdered();
-    expect(preplaySpy2).toHaveBeenCalled();
+    expect(playSpy2).toHaveBeenCalled();
     expect(playback2).toBeDefined();
   });
 
+  it("forwards PlayOptions when playing sounds in order", () => {
+    const options = { fadeIn: 500 };
+    const playback = { play: vi.fn() } as unknown as Playback;
+    const playSpy = vi.spyOn(sound1, "play").mockReturnValue([playback]);
+
+    expect(group.playOrdered(false, options)).toBe(playback);
+    expect(playSpy).toHaveBeenCalledWith(options);
+  });
+
   it("playOrdered(false) returns undefined after exhausting all sounds", () => {
-    vi.spyOn(sound1, "preplay").mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
-    vi.spyOn(sound2, "preplay").mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
+    vi.spyOn(sound1, "play").mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
+    vi.spyOn(sound2, "play").mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
 
     const playback1 = group.playOrdered(false);
     expect(playback1).toBeDefined();
@@ -90,15 +128,32 @@ describe("Group class", () => {
     expect(playback4).toBeUndefined();
   });
 
+  it("can reset and replay an exhausted non-looping order", () => {
+    const playback1 = { play: vi.fn() } as unknown as Playback;
+    const playback2 = { play: vi.fn() } as unknown as Playback;
+    const playSpy1 = vi.spyOn(sound1, "play").mockReturnValue([playback1]);
+    vi.spyOn(sound2, "play").mockReturnValue([playback2]);
+
+    expect(group.playOrdered(false)).toBe(playback1);
+    expect(group.playOrdered(false)).toBe(playback2);
+    expect(group.playOrdered(false)).toBeUndefined();
+
+    group.resetOrder();
+
+    expect(group.playOrdered(false)).toBe(playback1);
+    expect(playSpy1).toHaveBeenCalledTimes(2);
+  });
+
   it("plays random sounds", () => {
     const randomSpy = vi.spyOn(Math, "random").mockReturnValue(0.7);
-    const preplaySpy1 = vi.spyOn(sound1, "preplay").mockReturnValue([]);
-    const preplaySpy2 = vi.spyOn(sound2, "preplay").mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
+    const options = { fadeOut: 500 };
+    const playSpy1 = vi.spyOn(sound1, "play").mockReturnValue([]);
+    const playSpy2 = vi.spyOn(sound2, "play").mockReturnValue([{ play: vi.fn() } as unknown as Playback]);
 
-    const playback = group.playRandom();
+    const playback = group.playRandom(options);
     expect(randomSpy).toHaveBeenCalled();
-    expect(preplaySpy2).toHaveBeenCalled();
-    expect(preplaySpy1).not.toHaveBeenCalled();
+    expect(playSpy2).toHaveBeenCalledWith(options);
+    expect(playSpy1).not.toHaveBeenCalled();
     expect(playback).toBeDefined();
   });
 
