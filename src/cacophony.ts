@@ -334,7 +334,7 @@ export class Cacophony {
     // globalGainNode directly. If globalGainNode were pre-connected to
     // destination, adding a master filter would call _refreshFilters() which
     // disconnects master.input's outgoing edges, severing the audible path.
-    this.master = new Bus(this.context, "master", this.globalGainNode);
+    this.master = new Bus(this.context, "master", this.globalGainNode, undefined, false);
     this.master.output.connect(this.context.destination);
     this.cache = cache ?? new AudioCache();
     this.createAudioWorkletNode =

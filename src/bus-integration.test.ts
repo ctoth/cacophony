@@ -2,7 +2,7 @@ import { AudioContext } from "standardized-audio-context-mock";
 import { describe, expect, it, vi } from "vitest";
 import { Bus } from "./bus";
 import { Cacophony } from "./cacophony";
-import { cacophony } from "./setupTests";
+import { cacophony, expectReachable } from "./setupTests";
 
 describe("Cacophony.master", () => {
   it("exists as a Bus instance after construction", () => {
@@ -15,6 +15,15 @@ describe("Cacophony.master", () => {
 
   it("master.name === 'master'", () => {
     expect(cacophony.master.name).toBe("master");
+  });
+
+  it("refuses destruction without breaking the audible graph", () => {
+    expectReachable(cacophony.master.input, cacophony.master.output);
+
+    expect(() => cacophony.master.destroy()).toThrow("The master bus cannot be destroyed");
+
+    expect(cacophony.master.destroyed).toBe(false);
+    expectReachable(cacophony.master.input, cacophony.master.output);
   });
 
   it("cacophony.volume = 0.5 reflects on master.input.gain.value", () => {
