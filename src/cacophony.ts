@@ -256,6 +256,7 @@ export class Cacophony {
   master: Bus;
   listener: AudioListener;
   private prevVolume: number = 1;
+  private isMuted: boolean = false;
   /**
    * Per-context cache of "module-name has been loaded on this BaseContext".
    * Keyed on the context itself because `AudioWorklet.addModule()` registers
@@ -1743,6 +1744,7 @@ export class Cacophony {
   mute() {
     if (!this.muted) {
       this.prevVolume = this.globalGainNode.gain.value;
+      this.isMuted = true;
       this.setGlobalVolume(0);
       this.emit("mute", undefined);
     }
@@ -1750,13 +1752,14 @@ export class Cacophony {
 
   unmute() {
     if (this.muted) {
+      this.isMuted = false;
       this.setGlobalVolume(this.prevVolume);
       this.emit("unmute", undefined);
     }
   }
 
   get muted(): boolean {
-    return this.globalGainNode.gain.value === 0;
+    return this.isMuted;
   }
 
   set muted(muted: boolean) {
