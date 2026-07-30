@@ -1,4 +1,4 @@
-<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>Playback | cacophony</title><meta name="description" content="Documentation for cacophony"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script><script async src="../assets/hierarchy.js" id="tsd-hierarchy-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
+<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>PcmStreamPlayback | cacophony</title><meta name="description" content="Documentation for cacophony"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script><script async src="../assets/hierarchy.js" id="tsd-hierarchy-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
 <div class="tsd-toolbar-contents container"><a href="../index.html" class="title">cacophony</a>
 <div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/>
 <ul role="listbox" id="tsd-search-results"></ul>
@@ -8,24 +8,16 @@
 <div class="col-content">
 <div class="tsd-page-title">
 <ul class="tsd-breadcrumb" aria-label="Breadcrumb">
-<li><a href="" aria-current="page">Playback</a></li></ul>
-<h1>Class Playback</h1></div>
-<section class="tsd-panel tsd-comment">
-<div class="tsd-comment tsd-typography"><p>The base interface for any sound-producing entity, including individual sounds, groups, and playbacks.
-BaseSound</p>
-</div></section>
-<section class="tsd-panel tsd-hierarchy" data-refl="2477">
+<li><a href="" aria-current="page">PcmStreamPlayback</a></li></ul>
+<h1>Class PcmStreamPlayback</h1></div>
+<section class="tsd-panel tsd-hierarchy" data-refl="2170">
 <h4>Hierarchy</h4>
 <ul class="tsd-hierarchy">
 <li class="tsd-hierarchy-item"><span class="tsd-signature-type">BasePlayback</span>
 <ul class="tsd-hierarchy">
-<li class="tsd-hierarchy-item"><span class="tsd-hierarchy-target">Playback</span></li></ul></li></ul></section>
-<section class="tsd-panel">
-<h4>Implements</h4>
-<ul class="tsd-hierarchy">
-<li><a href="../interfaces/BaseSound.html" class="tsd-signature-type tsd-kind-interface">BaseSound</a></li></ul></section><aside class="tsd-sources">
+<li class="tsd-hierarchy-item"><span class="tsd-hierarchy-target">PcmStreamPlayback</span></li></ul></li></ul></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L41">src/playback.ts:41</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pcmStream.ts#L39">src/pcmStream.ts:39</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -37,59 +29,48 @@ BaseSound</p>
 </div></section>
 <section class="tsd-index-section">
 <h3 class="tsd-index-heading tsd-anchor-link" id="properties">Properties<a href="#properties" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-index-list"><a href="#_fadeinconfig" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>fade<wbr/>In<wbr/>Config?</span></a>
-<a href="#_fadeoutconfig" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>fade<wbr/>Out<wbr/>Config?</span></a>
-<a href="#_fadetimeout" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>fade<wbr/>Timeout?</span></a>
+<div class="tsd-index-list"><a href="#_fadetimeout" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>fade<wbr/>Timeout?</span></a>
 <a href="#_filters" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>filters</span></a>
 <a href="#_isfading" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>is<wbr/>Fading</span></a>
-<a href="#_loopendcallback" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>loop<wbr/>End<wbr/>Callback?</span></a>
 <a href="#_pantype" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>pan<wbr/>Type</span></a>
 <a href="#_sendgains" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>send<wbr/>Gains</span></a>
 <a href="#_state" class="tsd-index-link tsd-is-protected tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>state</span></a>
-<a href="#currentloop" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>current<wbr/>Loop</span></a>
 <a href="#eventemitter" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>event<wbr/>Emitter</span></a>
 <a href="#gainnode" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>gain<wbr/>Node?</span></a>
-<a href="#loopcount" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>loop<wbr/>Count</span></a>
-<a href="#origin" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>origin</span></a>
+<a href="#origin" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>origin</span></a>
 <a href="#panner" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>panner?</span></a>
 <a href="#source" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>source?</span></a>
 </div></section>
 <section class="tsd-index-section">
 <h3 class="tsd-index-heading tsd-anchor-link" id="accessors">Accessors<a href="#accessors" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-index-list"><a href="#currenttime" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>current<wbr/>Time</span></a>
-<a href="#duration" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>duration</span></a>
+<div class="tsd-index-list"><a href="#duration" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>duration</span></a>
 <a href="#filters" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>filters</span></a>
 <a href="#isfading" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>is<wbr/>Fading</span></a>
 <a href="#ispaused" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>is<wbr/>Paused</span></a>
 <a href="#isplaying" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>is<wbr/>Playing</span></a>
 <a href="#outputnode" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>output<wbr/>Node</span></a>
 <a href="#pantype" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>pan<wbr/>Type</span></a>
-<a href="#pitchshift" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>pitch<wbr/>Shift</span></a>
 <a href="#playbackrate" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>playback<wbr/>Rate</span></a>
 <a href="#position" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>position</span></a>
-<a href="#sourceloop" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>source<wbr/>Loop</span></a>
 <a href="#stereopan" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>stereo<wbr/>Pan</span></a>
 <a href="#threedoptions" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>three<wbr/>D<wbr/>Options</span></a>
-<a href="#volume" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>volume</span></a>
+<a href="#volume" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>volume</span></a>
 </div></section>
 <section class="tsd-index-section">
 <h3 class="tsd-index-heading tsd-anchor-link" id="methods">Methods<a href="#methods" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-index-list"><a href="#addfilter" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add<wbr/>Filter</span></a>
+<div class="tsd-index-list"><a href="#_handleended" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>_<wbr/>handle<wbr/>Ended</span></a>
+<a href="#addfilter" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add<wbr/>Filter</span></a>
 <a href="#addfilters" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add<wbr/>Filters</span></a>
 <a href="#applyfilters" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>apply<wbr/>Filters</span></a>
 <a href="#cancelfade" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>cancel<wbr/>Fade</span></a>
 <a href="#cleanup" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>cleanup</span></a>
-<a href="#clone" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>clone</span></a>
-<a href="#configurefadeout" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>configure<wbr/>Fade<wbr/>Out</span></a>
 <a href="#connect" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>connect</span></a>
 <a href="#disconnect" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>disconnect</span></a>
 <a href="#emit" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>emit</span></a>
 <a href="#emitasync" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>emit<wbr/>Async</span></a>
-<a href="#fadein" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>fade<wbr/>In</span></a>
+<a href="#fadein" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>fade<wbr/>In</span></a>
 <a href="#fadeout" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>fade<wbr/>Out</span></a>
 <a href="#fadeto" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>fade<wbr/>To</span></a>
-<a href="#loop" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>loop</span></a>
-<a href="#loopended" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>loop<wbr/>Ended</span></a>
 <a href="#markpaused" class="tsd-index-link tsd-is-protected tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Paused</span></a>
 <a href="#markplaying" class="tsd-index-link tsd-is-protected tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Playing</span></a>
 <a href="#markstopped" class="tsd-index-link tsd-is-protected tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Stopped</span></a>
@@ -99,13 +80,10 @@ BaseSound</p>
 <a href="#play" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>play</span></a>
 <a href="#removefilter" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filter</span></a>
 <a href="#removefilters" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filters</span></a>
-<a href="#seek" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>seek</span></a>
 <a href="#setgainnode" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Gain<wbr/>Node</span></a>
 <a href="#setpannernode" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Panner<wbr/>Node</span></a>
-<a href="#setpantype" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Pan<wbr/>Type</span></a>
-<a href="#setpitchshift" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Pitch<wbr/>Shift</span></a>
+<a href="#setpantype" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Pan<wbr/>Type</span></a>
 <a href="#stop" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>stop</span></a>
-<a href="#stopwithfade" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>stop<wbr/>With<wbr/>Fade</span></a>
 </div></section></div></details></section></section>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Constructors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="constructors-1">Constructors<a href="#constructors-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
@@ -114,37 +92,24 @@ BaseSound</p>
 <h3 class="tsd-anchor-link" id="constructor"><span>constructor</span><a href="#constructor" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
-<div class="tsd-signature tsd-anchor-link" id="constructorplayback"><span class="tsd-signature-keyword">new</span> <span class="tsd-kind-constructor-signature">Playback</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">origin</span><span class="tsd-signature-symbol">:</span> <a href="Sound.html" class="tsd-signature-type tsd-kind-class">Sound</a><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">source</span><span class="tsd-signature-symbol">:</span> <a href="../types/SourceNode.html" class="tsd-signature-type tsd-kind-type-alias">SourceNode</a><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">gainNode</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/GainNode.html" class="tsd-signature-type tsd-kind-interface">GainNode</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="" class="tsd-signature-type tsd-kind-class">Playback</a><a href="#constructorplayback" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-signature tsd-anchor-link" id="constructorpcmstreamplayback"><span class="tsd-signature-keyword">new</span> <span class="tsd-kind-constructor-signature">PcmStreamPlayback</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">origin</span><span class="tsd-signature-symbol">:</span> <a href="PcmStreamSound.html" class="tsd-signature-type tsd-kind-class">PcmStreamSound</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">source</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/AudioWorkletNode.html" class="tsd-signature-type tsd-kind-interface">AudioWorkletNode</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">gainNode</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/GainNode.html" class="tsd-signature-type tsd-kind-interface">GainNode</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">context</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/BaseContext.html" class="tsd-signature-type tsd-kind-interface">BaseContext</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">outputNode</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/AudioNode.html" class="tsd-signature-type tsd-kind-interface">AudioNode</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">panType</span><span class="tsd-signature-symbol">:</span> <a href="../types/PanType.html" class="tsd-signature-type tsd-kind-type-alias">PanType</a><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="" class="tsd-signature-type tsd-kind-class">PcmStreamPlayback</a><a href="#constructorpcmstreamplayback" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Creates an instance of the Playback class.</p>
-</div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
-<li><span><span class="tsd-kind-parameter">origin</span>: <a href="Sound.html" class="tsd-signature-type tsd-kind-class">Sound</a></span></li>
-<li><span><span class="tsd-kind-parameter">source</span>: <a href="../types/SourceNode.html" class="tsd-signature-type tsd-kind-type-alias">SourceNode</a></span></li>
-<li><span><span class="tsd-kind-parameter">gainNode</span>: <a href="../interfaces/GainNode.html" class="tsd-signature-type tsd-kind-interface">GainNode</a></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">Playback</a></h4>
-<div class="tsd-comment tsd-typography">
-<div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws">Throws<a href="#throws" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if an invalid pan type is provided.</p>
-</div></div><aside class="tsd-sources">
+<li><span><span class="tsd-kind-parameter">origin</span>: <a href="PcmStreamSound.html" class="tsd-signature-type tsd-kind-class">PcmStreamSound</a></span></li>
+<li><span><span class="tsd-kind-parameter">source</span>: <a href="../interfaces/AudioWorkletNode.html" class="tsd-signature-type tsd-kind-interface">AudioWorkletNode</a></span></li>
+<li><span><span class="tsd-kind-parameter">gainNode</span>: <a href="../interfaces/GainNode.html" class="tsd-signature-type tsd-kind-interface">GainNode</a></span></li>
+<li><span><span class="tsd-kind-parameter">context</span>: <a href="../interfaces/BaseContext.html" class="tsd-signature-type tsd-kind-interface">BaseContext</a></span></li>
+<li><span><span class="tsd-kind-parameter">outputNode</span>: <a href="../interfaces/AudioNode.html" class="tsd-signature-type tsd-kind-interface">AudioNode</a></span></li>
+<li><span><span class="tsd-kind-parameter">panType</span>: <a href="../types/PanType.html" class="tsd-signature-type tsd-kind-type-alias">PanType</a></span></li></ul></div>
+<h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">PcmStreamPlayback</a></h4><aside class="tsd-sources">
 <p>Overrides BasePlayback.constructor</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L82">src/playback.ts:82</a></li></ul></aside></div></li></ul></section></section></details>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pcmStream.ts#L43">src/pcmStream.ts:43</a></li></ul></aside></div></li></ul></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="properties-1">Properties<a href="#properties-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="_fadeinconfig"><code class="tsd-tag">Optional</code><span>_<wbr/>fade<wbr/>In<wbr/>Config</span><a href="#_fadeinconfig" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-signature"><span class="tsd-kind-property">_fadeInConfig</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">{</span><br/>    <span class="tsd-kind-property">duration</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-kind-property">perLoop</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-kind-property">targetVolume</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <span class="tsd-kind-property">type</span><span class="tsd-signature-symbol">:</span> <a href="../types/FadeType.html" class="tsd-signature-type tsd-kind-type-alias">FadeType</a><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L58">src/playback.ts:58</a></li></ul></aside></section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="_fadeoutconfig"><code class="tsd-tag">Optional</code><span>_<wbr/>fade<wbr/>Out<wbr/>Config</span><a href="#_fadeoutconfig" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-signature"><span class="tsd-kind-property">_fadeOutConfig</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">duration</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span> <span class="tsd-kind-property">type</span><span class="tsd-signature-symbol">:</span> <a href="../types/FadeType.html" class="tsd-signature-type tsd-kind-type-alias">FadeType</a> <span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L59">src/playback.ts:59</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="_fadetimeout"><code class="tsd-tag">Optional</code><span>_<wbr/>fade<wbr/>Timeout</span><a href="#_fadetimeout" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">_fadeTimeout</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Timeout</span></div><aside class="tsd-sources">
@@ -163,11 +128,6 @@ BaseSound</p>
 <p>Inherited from BasePlayback._isFading</p>
 <ul>
 <li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/volumeMixin.ts#L23">src/volumeMixin.ts:23</a></li></ul></aside></section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="_loopendcallback"><code class="tsd-tag">Optional</code><span>_<wbr/>loop<wbr/>End<wbr/>Callback</span><a href="#_loopendcallback" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-signature"><span class="tsd-kind-property">_loopEndCallback</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">()</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span></div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L60">src/playback.ts:60</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="_pantype"><span>_<wbr/>pan<wbr/>Type</span><a href="#_pantype" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">_panType</span><span class="tsd-signature-symbol">:</span> <a href="../types/PanType.html" class="tsd-signature-type tsd-kind-type-alias">PanType</a><span class="tsd-signature-symbol"> = &quot;stereo&quot;</span></div><aside class="tsd-sources">
@@ -189,11 +149,6 @@ machine. Cleanup disconnects every allocation deterministically.</p>
 <p>Inherited from BasePlayback._state</p>
 <ul>
 <li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/basePlayback.ts#L20">src/basePlayback.ts:20</a></li></ul></aside></section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="currentloop"><span>current<wbr/>Loop</span><a href="#currentloop" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-signature"><span class="tsd-kind-property">currentLoop</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> = 0</span></div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L45">src/playback.ts:45</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="eventemitter"><span>event<wbr/>Emitter</span><a href="#eventemitter" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">eventEmitter</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">TypedEventEmitter</span><span class="tsd-signature-symbol">&lt;</span><a href="../types/PlaybackEvents.html" class="tsd-signature-type tsd-kind-type-alias">PlaybackEvents</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol"> = ...</span></div><aside class="tsd-sources">
@@ -207,16 +162,11 @@ machine. Cleanup disconnects every allocation deterministically.</p>
 <ul>
 <li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/volumeMixin.ts#L21">src/volumeMixin.ts:21</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="loopcount"><span>loop<wbr/>Count</span><a href="#loopcount" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-signature"><span class="tsd-kind-property">loopCount</span><span class="tsd-signature-symbol">:</span> <a href="../types/LoopCount.html" class="tsd-signature-type tsd-kind-type-alias">LoopCount</a><span class="tsd-signature-symbol"> = 0</span></div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L44">src/playback.ts:44</a></li></ul></aside></section>
-<section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="origin"><span>origin</span><a href="#origin" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-signature"><span class="tsd-kind-property">origin</span><span class="tsd-signature-symbol">:</span> <a href="Sound.html" class="tsd-signature-type tsd-kind-class">Sound</a></div><aside class="tsd-sources">
-<p>Inherited from BasePlayback.origin</p>
+<div class="tsd-signature"><span class="tsd-kind-property">origin</span><span class="tsd-signature-symbol">:</span> <a href="PcmStreamSound.html" class="tsd-signature-type tsd-kind-class">PcmStreamSound</a></div><aside class="tsd-sources">
+<p>Overrides BasePlayback.origin</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L83">src/playback.ts:83</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pcmStream.ts#L40">src/pcmStream.ts:40</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="panner"><code class="tsd-tag">Optional</code><span>panner</span><a href="#panner" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">panner</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/PannerNode.html" class="tsd-signature-type tsd-kind-interface">PannerNode</a> <span class="tsd-signature-symbol">|</span> <a href="../interfaces/StereoPannerNode.html" class="tsd-signature-type tsd-kind-interface">StereoPannerNode</a></div><aside class="tsd-sources">
@@ -225,38 +175,22 @@ machine. Cleanup disconnects every allocation deterministically.</p>
 <li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pannerMixin.ts#L60">src/pannerMixin.ts:60</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="source"><code class="tsd-tag">Optional</code><span>source</span><a href="#source" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-signature"><span class="tsd-kind-property">source</span><span class="tsd-signature-symbol">?:</span> <a href="../types/SourceNode.html" class="tsd-signature-type tsd-kind-type-alias">SourceNode</a></div><aside class="tsd-sources">
+<div class="tsd-signature"><span class="tsd-kind-property">source</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/AudioWorkletNode.html" class="tsd-signature-type tsd-kind-interface">AudioWorkletNode</a></div><aside class="tsd-sources">
 <p>Overrides BasePlayback.source</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L43">src/playback.ts:43</a></li></ul></aside></section></section></details>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pcmStream.ts#L41">src/pcmStream.ts:41</a></li></ul></aside></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Accessors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="accessors-1">Accessors<a href="#accessors-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="currenttime"><span>current<wbr/>Time</span><a href="#currenttime" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<ul class="tsd-signatures">
-<li>
-<div class="tsd-signature" id="currenttimecurrenttime"><span class="tsd-signature-keyword">get</span> <span class="tsd-kind-get-signature">currentTime</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
-<div class="tsd-description">
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L487">src/playback.ts:487</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="duration"><span>duration</span><a href="#duration" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li>
 <div class="tsd-signature" id="durationduration"><span class="tsd-signature-keyword">get</span> <span class="tsd-kind-get-signature">duration</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Gets the duration of the audio in seconds.</p>
-</div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4><p>The duration of the audio or NaN if the duration is unknown.</p>
-
-<div class="tsd-comment tsd-typography">
-<div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-1">Throws<a href="#throws-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up.</p>
-</div></div><aside class="tsd-sources">
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L131">src/playback.ts:131</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pcmStream.ts#L61">src/pcmStream.ts:61</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="filters"><span>filters</span><a href="#filters" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -298,7 +232,6 @@ machine. Cleanup disconnects every allocation deterministically.</p>
 <div class="tsd-comment tsd-typography"><p>Checks if the audio is currently playing.</p>
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4><aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#isplaying">isPlaying</a></p>
 <p>Inherited from BasePlayback.isPlaying</p>
 <ul>
 <li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/basePlayback.ts#L37">src/basePlayback.ts:37</a></li></ul></aside></div></li></ul></section>
@@ -308,23 +241,9 @@ machine. Cleanup disconnects every allocation deterministically.</p>
 <li>
 <div class="tsd-signature" id="outputnodeoutputnode"><span class="tsd-signature-keyword">get</span> <span class="tsd-kind-get-signature">outputNode</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/GainNode.html" class="tsd-signature-type tsd-kind-interface">GainNode</a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Gets the output node of this playback's audio graph.
-This is the final node in the internal chain before connection to destination.
-Use this to manually wire the playback into custom audio graphs.</p>
-</div>
-<h4 class="tsd-returns-title">Returns <a href="../interfaces/GainNode.html" class="tsd-signature-type tsd-kind-interface">GainNode</a></h4><p>The gain node that serves as the output of this playback.</p>
-
-<div class="tsd-comment tsd-typography">
-<div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-2">Throws<a href="#throws-2" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the playback has been cleaned up.</p>
-</div>
-<div class="tsd-tag-example">
-<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-7">// Manual routing through custom effects</span><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">playback</span><span class="hl-1"> = </span><span class="hl-4">sound</span><span class="hl-1">.</span><span class="hl-0">play</span><span class="hl-1">()[</span><span class="hl-8">0</span><span class="hl-1">];</span><br/><span class="hl-4">playback</span><span class="hl-1">.</span><span class="hl-0">disconnect</span><span class="hl-1">(); </span><span class="hl-7">// Disconnect from default destination</span><br/><span class="hl-4">playback</span><span class="hl-1">.</span><span class="hl-0">connect</span><span class="hl-1">(</span><span class="hl-4">reverbNode</span><span class="hl-1">).</span><span class="hl-0">connect</span><span class="hl-1">(</span><span class="hl-4">context</span><span class="hl-1">.</span><span class="hl-4">destination</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-</div></div><aside class="tsd-sources">
+<h4 class="tsd-returns-title">Returns <a href="../interfaces/GainNode.html" class="tsd-signature-type tsd-kind-interface">GainNode</a></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L738">src/playback.ts:738</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pcmStream.ts#L151">src/pcmStream.ts:151</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="pantype"><span>pan<wbr/>Type</span><a href="#pantype" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -336,43 +255,24 @@ Use this to manually wire the playback into custom audio graphs.</p>
 <ul>
 <li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pannerMixin.ts#L63">src/pannerMixin.ts:63</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="pitchshift"><span>pitch<wbr/>Shift</span><a href="#pitchshift" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<ul class="tsd-signatures">
-<li>
-<div class="tsd-signature" id="pitchshiftpitchshift"><span class="tsd-signature-keyword">get</span> <span class="tsd-kind-get-signature">pitchShift</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
-<div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>The current pitch-shift factor (1 = no shift). See <a href="#setpitchshift" class="tsd-kind-method">setPitchShift</a>.</p>
-</div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L720">src/playback.ts:720</a></li></ul></aside></div></li></ul></section>
-<section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="playbackrate"><span>playback<wbr/>Rate</span><a href="#playbackrate" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li>
 <div class="tsd-signature" id="playbackrateplaybackrate"><span class="tsd-signature-keyword">get</span> <span class="tsd-kind-get-signature">playbackRate</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Gets the current playback rate of the audio.</p>
-</div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L148">src/playback.ts:148</a></li></ul></aside></div></li>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pcmStream.ts#L119">src/pcmStream.ts:119</a></li></ul></aside></div></li>
 <li>
-<div class="tsd-signature" id="playbackrateplaybackrate-1"><span class="tsd-signature-keyword">set</span> <span class="tsd-kind-set-signature">playbackRate</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">rate</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span></div>
+<div class="tsd-signature" id="playbackrateplaybackrate-1"><span class="tsd-signature-keyword">set</span> <span class="tsd-kind-set-signature">playbackRate</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">_rate</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Sets the playback rate of the audio.</p>
-</div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
-<li><span><span class="tsd-kind-parameter">rate</span>: <span class="tsd-signature-type">number</span></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
-<div class="tsd-comment tsd-typography">
-<div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-3">Throws<a href="#throws-3" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up or if the source type is unsupported.</p>
-</div></div><aside class="tsd-sources">
+<li><span><span class="tsd-kind-parameter">_rate</span>: <span class="tsd-signature-type">number</span></span></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L166">src/playback.ts:166</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pcmStream.ts#L123">src/pcmStream.ts:123</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="position"><span>position</span><a href="#position" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -385,9 +285,8 @@ Use this to manually wire the playback into custom audio graphs.</p>
 
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-4">Throws<a href="#throws-4" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up or if HRTF panning is not used.</p>
+<h4 class="tsd-anchor-link" id="throws">Throws<a href="#throws" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up or if HRTF panning is not used.</p>
 </div></div><aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#position">position</a></p>
 <p>Inherited from BasePlayback.position</p>
 <ul>
 <li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pannerMixin.ts#L220">src/pannerMixin.ts:220</a></li></ul></aside></div></li>
@@ -405,31 +304,11 @@ Use this to manually wire the playback into custom audio graphs.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-5">Throws<a href="#throws-5" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up or if HRTF panning is not used.</p>
+<h4 class="tsd-anchor-link" id="throws-1">Throws<a href="#throws-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up or if HRTF panning is not used.</p>
 </div></div><aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#position">position</a></p>
 <p>Inherited from BasePlayback.position</p>
 <ul>
 <li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pannerMixin.ts#L200">src/pannerMixin.ts:200</a></li></ul></aside></div></li></ul></section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="sourceloop"><span>source<wbr/>Loop</span><a href="#sourceloop" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<ul class="tsd-signatures">
-<li>
-<div class="tsd-signature" id="sourceloopsourceloop"><span class="tsd-signature-keyword">set</span> <span class="tsd-kind-set-signature">sourceLoop</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">loop</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span></div>
-<div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Sets whether the audio source should loop.</p>
-</div>
-<div class="tsd-parameters">
-<h4 class="tsd-parameters-title">Parameters</h4>
-<ul class="tsd-parameter-list">
-<li><span><span class="tsd-kind-parameter">loop</span>: <span class="tsd-signature-type">boolean</span></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
-<div class="tsd-comment tsd-typography">
-<div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-6">Throws<a href="#throws-6" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up.</p>
-</div></div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L538">src/playback.ts:538</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="stereopan"><span>stereo<wbr/>Pan</span><a href="#stereopan" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -457,7 +336,7 @@ Use this to manually wire the playback into custom audio graphs.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-7">Throws<a href="#throws-7" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if stereo panning is not available, if the sound has been cleaned up, or if the value is out of bounds.</p>
+<h4 class="tsd-anchor-link" id="throws-2">Throws<a href="#throws-2" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if stereo panning is not available, if the sound has been cleaned up, or if the value is out of bounds.</p>
 </div></div><aside class="tsd-sources">
 <p>Inherited from BasePlayback.stereoPan</p>
 <ul>
@@ -474,9 +353,8 @@ Use this to manually wire the playback into custom audio graphs.</p>
 
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-8">Throws<a href="#throws-8" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up or if HRTF panning is not used.</p>
+<h4 class="tsd-anchor-link" id="throws-3">Throws<a href="#throws-3" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up or if HRTF panning is not used.</p>
 </div></div><aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#threedoptions">threeDOptions</a></p>
 <p>Inherited from BasePlayback.threeDOptions</p>
 <ul>
 <li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pannerMixin.ts#L127">src/pannerMixin.ts:127</a></li></ul></aside></div></li>
@@ -494,15 +372,14 @@ Any field omitted from the input is left at its current value on the underlying 
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-9">Throws<a href="#throws-9" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up or if HRTF panning is not used.</p>
+<h4 class="tsd-anchor-link" id="throws-4">Throws<a href="#throws-4" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up or if HRTF panning is not used.</p>
 </div></div><aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#threedoptions">threeDOptions</a></p>
 <p>Inherited from BasePlayback.threeDOptions</p>
 <ul>
 <li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pannerMixin.ts#L163">src/pannerMixin.ts:163</a></li></ul></aside></div></li></ul></section>
-<section class="tsd-panel tsd-member">
+<section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="volume"><span>volume</span><a href="#volume" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<ul class="tsd-signatures">
+<ul class="tsd-signatures tsd-is-inherited">
 <li>
 <div class="tsd-signature" id="volumevolume"><span class="tsd-signature-keyword">get</span> <span class="tsd-kind-get-signature">volume</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-description">
@@ -511,33 +388,40 @@ Any field omitted from the input is left at its current value on the underlying 
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-10">Throws<a href="#throws-10" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up.</p>
+<h4 class="tsd-anchor-link" id="throws-5">Throws<a href="#throws-5" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up.</p>
 </div></div><aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#volume">volume</a></p>
-<p>Overrides BasePlayback.volume</p>
+<p>Inherited from BasePlayback.volume</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L152">src/playback.ts:152</a></li></ul></aside></div></li>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/volumeMixin.ts#L46">src/volumeMixin.ts:46</a></li></ul></aside></div></li>
 <li>
-<div class="tsd-signature" id="volumevolume-1"><span class="tsd-signature-keyword">set</span> <span class="tsd-kind-set-signature">volume</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">volume</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span></div>
+<div class="tsd-signature" id="volumevolume-1"><span class="tsd-signature-keyword">set</span> <span class="tsd-kind-set-signature">volume</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">v</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Gets the current volume of the audio.</p>
+<div class="tsd-comment tsd-typography"><p>Sets the volume of the audio.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
-<li><span><span class="tsd-kind-parameter">volume</span>: <span class="tsd-signature-type">number</span></span></li></ul></div>
+<li><span><span class="tsd-kind-parameter">v</span>: <span class="tsd-signature-type">number</span></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-11">Throws<a href="#throws-11" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up.</p>
+<h4 class="tsd-anchor-link" id="throws-6">Throws<a href="#throws-6" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up.</p>
 </div></div><aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#volume">volume</a></p>
-<p>Overrides BasePlayback.volume</p>
+<p>Inherited from BasePlayback.volume</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L156">src/playback.ts:156</a></li></ul></aside></div></li></ul></section></section></details>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/volumeMixin.ts#L58">src/volumeMixin.ts:58</a></li></ul></aside></div></li></ul></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="_handleended"><span>_<wbr/>handle<wbr/>Ended</span><a href="#_handleended" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="_handleended-1"><span class="tsd-kind-call-signature">_handleEnded</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#_handleended-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pcmStream.ts#L111">src/pcmStream.ts:111</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="addfilter"><span>add<wbr/>Filter</span><a href="#addfilter" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -553,12 +437,11 @@ Any field omitted from the input is left at its current value on the underlying 
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-12">Throws<a href="#throws-12" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>If the same filter instance is added twice.</p>
+<h4 class="tsd-anchor-link" id="throws-7">Throws<a href="#throws-7" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>If the same filter instance is added twice.</p>
 </div></div><aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#addfilter">addFilter</a></p>
 <p>Overrides BasePlayback.addFilter</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L591">src/playback.ts:591</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pcmStream.ts#L125">src/pcmStream.ts:125</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="addfilters"><span>add<wbr/>Filters</span><a href="#addfilters" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -605,113 +488,36 @@ Any field omitted from the input is left at its current value on the underlying 
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="cleanup-1"><span class="tsd-kind-call-signature">cleanup</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#cleanup-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Cleans up resources used by the Playback instance.
-This method should be called when the audio is no longer needed to free up resources.</p>
-</div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <p>Overrides BasePlayback.cleanup</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L555">src/playback.ts:555</a></li></ul></aside></div></li></ul></section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="clone"><span>clone</span><a href="#clone" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<ul class="tsd-signatures">
-<li class="">
-<div class="tsd-signature tsd-anchor-link" id="clone-1"><span class="tsd-kind-call-signature">clone</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">overrides</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Partial</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">PlaybackCloneOverrides</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="" class="tsd-signature-type tsd-kind-class">Playback</a><a href="#clone-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
-<div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Creates a clone of the current Playback instance with optional overrides for certain properties.
-This method allows for the creation of a new Playback instance that shares the same audio context
-and source node but can have different settings such as loop count or pan type.
-The clone is connected to the origin Sound's primary route and registered with the Sound.</p>
-</div>
-<div class="tsd-parameters">
-<h4 class="tsd-parameters-title">Parameters</h4>
-<ul class="tsd-parameter-list">
-<li><span><span class="tsd-kind-parameter">overrides</span>: <span class="tsd-signature-type">Partial</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">PlaybackCloneOverrides</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol"> = {}</span></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">Playback</a></h4>
-<div class="tsd-comment tsd-typography">
-<div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-13">Throws<a href="#throws-13" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up.</p>
-</div></div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L791">src/playback.ts:791</a></li></ul></aside></div></li></ul></section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="configurefadeout"><span>configure<wbr/>Fade<wbr/>Out</span><a href="#configurefadeout" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<ul class="tsd-signatures">
-<li class="">
-<div class="tsd-signature tsd-anchor-link" id="configurefadeout-1"><span class="tsd-kind-call-signature">configureFadeOut</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">duration</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">type</span><span class="tsd-signature-symbol">?:</span> <a href="../types/FadeType.html" class="tsd-signature-type tsd-kind-type-alias">FadeType</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#configurefadeout-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
-<div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Configures a fade-out to be applied when the playback ends naturally (last loop iteration).</p>
-</div>
-<div class="tsd-parameters">
-<h4 class="tsd-parameters-title">Parameters</h4>
-<ul class="tsd-parameter-list">
-<li><span><span class="tsd-kind-parameter">duration</span>: <span class="tsd-signature-type">number</span></span>
-<div class="tsd-comment tsd-typography"><p>The fade-out duration in milliseconds.</p>
-</div></li>
-<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">type</span>: <a href="../types/FadeType.html" class="tsd-signature-type tsd-kind-type-alias">FadeType</a></span>
-<div class="tsd-comment tsd-typography"><p>The fade curve type. Defaults to &quot;linear&quot;.</p>
-</div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L438">src/playback.ts:438</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pcmStream.ts#L170">src/pcmStream.ts:170</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="connect"><span>connect</span><a href="#connect" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="connect-1"><span class="tsd-kind-call-signature">connect</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">destination</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/AudioParam.html" class="tsd-signature-type tsd-kind-interface">AudioParam</a> <span class="tsd-signature-symbol">|</span> <a href="../interfaces/AudioNode.html" class="tsd-signature-type tsd-kind-interface">AudioNode</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/AudioNode.html" class="tsd-signature-type tsd-kind-interface">AudioNode</a><a href="#connect-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Connects this playback's output to an AudioNode or AudioParam.
-Follows the Web Audio API connection pattern.</p>
-</div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">destination</span>: <a href="../interfaces/AudioParam.html" class="tsd-signature-type tsd-kind-interface">AudioParam</a> <span class="tsd-signature-symbol">|</span> <a href="../interfaces/AudioNode.html" class="tsd-signature-type tsd-kind-interface">AudioNode</a></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <a href="../interfaces/AudioNode.html" class="tsd-signature-type tsd-kind-interface">AudioNode</a></h4><p>The destination node (for chaining).</p>
-
-<div class="tsd-comment tsd-typography">
-<div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-14">Throws<a href="#throws-14" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the playback has been cleaned up.</p>
-</div>
-<div class="tsd-tag-example">
-<h4 class="tsd-anchor-link" id="example-1">Example<a href="#example-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-7">// Chain multiple effects</span><br/><span class="hl-4">playback</span><span class="hl-1">.</span><span class="hl-0">connect</span><span class="hl-1">(</span><span class="hl-4">delay</span><span class="hl-1">).</span><span class="hl-0">connect</span><span class="hl-1">(</span><span class="hl-4">reverb</span><span class="hl-1">).</span><span class="hl-0">connect</span><span class="hl-1">(</span><span class="hl-4">context</span><span class="hl-1">.</span><span class="hl-4">destination</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-</div></div><aside class="tsd-sources">
+<h4 class="tsd-returns-title">Returns <a href="../interfaces/AudioNode.html" class="tsd-signature-type tsd-kind-interface">AudioNode</a></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L756">src/playback.ts:756</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pcmStream.ts#L158">src/pcmStream.ts:158</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="disconnect"><span>disconnect</span><a href="#disconnect" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="disconnect-1"><span class="tsd-kind-call-signature">disconnect</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">destination</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/AudioParam.html" class="tsd-signature-type tsd-kind-interface">AudioParam</a> <span class="tsd-signature-symbol">|</span> <a href="../interfaces/AudioNode.html" class="tsd-signature-type tsd-kind-interface">AudioNode</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#disconnect-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Disconnects this playback's output from a specific destination or from all destinations.</p>
-</div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
-<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">destination</span>: <a href="../interfaces/AudioParam.html" class="tsd-signature-type tsd-kind-interface">AudioParam</a> <span class="tsd-signature-symbol">|</span> <a href="../interfaces/AudioNode.html" class="tsd-signature-type tsd-kind-interface">AudioNode</a></span>
-<div class="tsd-comment tsd-typography"><p>Optional specific destination to disconnect from.
-If omitted, disconnects from all destinations.</p>
-</div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
-<div class="tsd-comment tsd-typography">
-<div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-15">Throws<a href="#throws-15" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the playback has been cleaned up.</p>
-</div>
-<div class="tsd-tag-example">
-<h4 class="tsd-anchor-link" id="example-2">Example<a href="#example-2" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-7">// Disconnect from all</span><br/><span class="hl-4">playback</span><span class="hl-1">.</span><span class="hl-0">disconnect</span><span class="hl-1">();</span>
-</code><button type="button">Copy</button></pre>
-
-</div>
-<div class="tsd-tag-example">
-<h4 class="tsd-anchor-link" id="example-3">Example<a href="#example-3" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="ts"><span class="hl-7">// Disconnect from specific node</span><br/><span class="hl-4">playback</span><span class="hl-1">.</span><span class="hl-0">disconnect</span><span class="hl-1">(</span><span class="hl-4">reverbNode</span><span class="hl-1">);</span>
-</code><button type="button">Copy</button></pre>
-
-</div></div><aside class="tsd-sources">
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">destination</span>: <a href="../interfaces/AudioParam.html" class="tsd-signature-type tsd-kind-interface">AudioParam</a> <span class="tsd-signature-symbol">|</span> <a href="../interfaces/AudioNode.html" class="tsd-signature-type tsd-kind-interface">AudioNode</a></span></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L775">src/playback.ts:775</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pcmStream.ts#L162">src/pcmStream.ts:162</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="emit"><span>emit</span><a href="#emit" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -750,14 +556,13 @@ If omitted, disconnects from all destinations.</p>
 <p>Inherited from BasePlayback.emitAsync</p>
 <ul>
 <li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/basePlayback.ts#L76">src/basePlayback.ts:76</a></li></ul></aside></div></li></ul></section>
-<section class="tsd-panel tsd-member">
+<section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="fadein"><span>fade<wbr/>In</span><a href="#fadein" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<ul class="tsd-signatures">
-<li class="">
-<div class="tsd-signature tsd-anchor-link" id="fadein-1"><span class="tsd-kind-call-signature">fadeIn</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">duration</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">type</span><span class="tsd-signature-symbol">?:</span> <a href="../types/FadeType.html" class="tsd-signature-type tsd-kind-type-alias">FadeType</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">options</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">perLoop</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span> <span class="tsd-signature-symbol">}</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><a href="#fadein-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<ul class="tsd-signatures tsd-is-inherited">
+<li class="tsd-is-inherited">
+<div class="tsd-signature tsd-anchor-link" id="fadein-1"><span class="tsd-kind-call-signature">fadeIn</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">duration</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">type</span><span class="tsd-signature-symbol">?:</span> <a href="../types/FadeType.html" class="tsd-signature-type tsd-kind-type-alias">FadeType</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><a href="#fadein-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Fades in from silence to the current volume.
-Optionally stores config to re-trigger the fade on each loop iteration.</p>
+<div class="tsd-comment tsd-typography"><p>Fades in from silence to the current volume.</p>
 </div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
@@ -767,16 +572,12 @@ Optionally stores config to re-trigger the fade on each loop iteration.</p>
 </div></li>
 <li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">type</span>: <a href="../types/FadeType.html" class="tsd-signature-type tsd-kind-type-alias">FadeType</a></span>
 <div class="tsd-comment tsd-typography"><p>The fade curve type. Defaults to &quot;linear&quot;.</p>
-</div></li>
-<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">options</span>: <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">perLoop</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span> <span class="tsd-signature-symbol">}</span></span>
-<div class="tsd-comment tsd-typography"><p>Optional. Set perLoop: true to re-trigger fadeIn on each loop.</p>
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><p>Resolves when the fade completes.</p>
 <aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#fadein">fadeIn</a></p>
-<p>Overrides BasePlayback.fadeIn</p>
+<p>Inherited from BasePlayback.fadeIn</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L421">src/playback.ts:421</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/volumeMixin.ts#L176">src/volumeMixin.ts:176</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="fadeout"><span>fade<wbr/>Out</span><a href="#fadeout" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -796,7 +597,6 @@ Optionally stores config to re-trigger the fade on each loop iteration.</p>
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><p>Resolves when the fade completes.</p>
 <aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#fadeout">fadeOut</a></p>
 <p>Inherited from BasePlayback.fadeOut</p>
 <ul>
 <li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/volumeMixin.ts#L191">src/volumeMixin.ts:191</a></li></ul></aside></div></li></ul></section>
@@ -815,45 +615,9 @@ Optionally stores config to re-trigger the fade on each loop iteration.</p>
 <li><span><span class="tsd-kind-parameter">duration</span>: <span class="tsd-signature-type">number</span></span></li>
 <li><span><span class="tsd-kind-parameter">type</span>: <a href="../types/FadeType.html" class="tsd-signature-type tsd-kind-type-alias">FadeType</a><span class="tsd-signature-symbol"> = &quot;linear&quot;</span></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#fadeto">fadeTo</a></p>
 <p>Inherited from BasePlayback.fadeTo</p>
 <ul>
 <li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/basePlayback.ts#L83">src/basePlayback.ts:83</a></li></ul></aside></div></li></ul></section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="loop"><span>loop</span><a href="#loop" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<ul class="tsd-signatures">
-<li class="">
-<div class="tsd-signature tsd-anchor-link" id="loop-1"><span class="tsd-kind-call-signature">loop</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">loopCount</span><span class="tsd-signature-symbol">?:</span> <a href="../types/LoopCount.html" class="tsd-signature-type tsd-kind-type-alias">LoopCount</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="../types/LoopCount.html" class="tsd-signature-type tsd-kind-type-alias">LoopCount</a><a href="#loop-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
-<div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Sets or gets the loop count for the audio.</p>
-</div>
-<div class="tsd-parameters">
-<h4 class="tsd-parameters-title">Parameters</h4>
-<ul class="tsd-parameter-list">
-<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">loopCount</span>: <a href="../types/LoopCount.html" class="tsd-signature-type tsd-kind-type-alias">LoopCount</a></span>
-<div class="tsd-comment tsd-typography"><p>The number of times the audio should loop. 'infinite' for endless looping.</p>
-</div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <a href="../types/LoopCount.html" class="tsd-signature-type tsd-kind-type-alias">LoopCount</a></h4><p>The loop count if no parameter is provided.</p>
-
-<div class="tsd-comment tsd-typography">
-<div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-16">Throws<a href="#throws-16" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up or if the source type is unsupported.</p>
-</div></div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L610">src/playback.ts:610</a></li></ul></aside></div></li></ul></section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="loopended"><span>loop<wbr/>Ended</span><a href="#loopended" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<ul class="tsd-signatures">
-<li class="">
-<div class="tsd-signature tsd-anchor-link" id="loopended-1"><span class="tsd-kind-call-signature">loopEnded</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#loopended-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
-<div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Handles the loop event when the audio ends.
-This method is bound to the 'onended' event of the audio source.
-It manages looping logic and restarts playback if necessary.</p>
-</div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L192">src/playback.ts:192</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-protected tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="markpaused"><code class="tsd-tag">Protected</code><span>mark<wbr/>Paused</span><a href="#markpaused" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-protected tsd-is-inherited">
@@ -934,28 +698,19 @@ It manages looping logic and restarts playback if necessary.</p>
 <div class="tsd-signature tsd-anchor-link" id="pause-1"><span class="tsd-kind-call-signature">pause</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#pause-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#pause">pause</a></p>
 <p>Overrides BasePlayback.pause</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L357">src/playback.ts:357</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pcmStream.ts#L82">src/pcmStream.ts:82</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="play"><span>play</span><a href="#play" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
-<div class="tsd-signature tsd-anchor-link" id="play-1"><span class="tsd-kind-call-signature">play</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">[</span><a href="" class="tsd-signature-type tsd-kind-class">Playback</a><span class="tsd-signature-symbol">]</span><a href="#play-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-signature tsd-anchor-link" id="play-1"><span class="tsd-kind-call-signature">play</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">[</span><a href="" class="tsd-signature-type tsd-kind-class">PcmStreamPlayback</a><span class="tsd-signature-symbol">]</span><a href="#play-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Starts playing the audio.</p>
-</div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-symbol">[</span><a href="" class="tsd-signature-type tsd-kind-class">Playback</a><span class="tsd-signature-symbol">]</span></h4><p>Returns the instance of the Playback class for chaining.</p>
-
-<div class="tsd-comment tsd-typography">
-<div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-17">Throws<a href="#throws-17" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Throws an error if the sound has been cleaned up.</p>
-</div></div><aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#play">play</a></p>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-symbol">[</span><a href="" class="tsd-signature-type tsd-kind-class">PcmStreamPlayback</a><span class="tsd-signature-symbol">]</span></h4><aside class="tsd-sources">
 <p>Overrides BasePlayback.play</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L260">src/playback.ts:260</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pcmStream.ts#L65">src/pcmStream.ts:65</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="removefilter"><span>remove<wbr/>Filter</span><a href="#removefilter" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -971,12 +726,11 @@ It manages looping logic and restarts playback if necessary.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
 <div class="tsd-comment tsd-typography">
 <div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-18">Throws<a href="#throws-18" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>If the filter was never added to this container.</p>
+<h4 class="tsd-anchor-link" id="throws-8">Throws<a href="#throws-8" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>If the filter was never added to this container.</p>
 </div></div><aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#removefilter">removeFilter</a></p>
 <p>Overrides BasePlayback.removeFilter</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L597">src/playback.ts:597</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pcmStream.ts#L133">src/pcmStream.ts:133</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="removefilters"><span>remove<wbr/>Filters</span><a href="#removefilters" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -991,20 +745,6 @@ It manages looping logic and restarts playback if necessary.</p>
 <p>Inherited from BasePlayback.removeFilters</p>
 <ul>
 <li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/filters.ts#L54">src/filters.ts:54</a></li></ul></aside></div></li></ul></section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="seek"><span>seek</span><a href="#seek" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<ul class="tsd-signatures">
-<li class="">
-<div class="tsd-signature tsd-anchor-link" id="seek-1"><span class="tsd-kind-call-signature">seek</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">time</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#seek-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
-<div class="tsd-description">
-<div class="tsd-parameters">
-<h4 class="tsd-parameters-title">Parameters</h4>
-<ul class="tsd-parameter-list">
-<li><span><span class="tsd-kind-parameter">time</span>: <span class="tsd-signature-type">number</span></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#seek">seek</a></p>
-<ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L462">src/playback.ts:462</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="setgainnode"><span>set<wbr/>Gain<wbr/>Node</span><a href="#setgainnode" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -1033,10 +773,10 @@ It manages looping logic and restarts playback if necessary.</p>
 <p>Inherited from BasePlayback.setPannerNode</p>
 <ul>
 <li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pannerMixin.ts#L86">src/pannerMixin.ts:86</a></li></ul></aside></div></li></ul></section>
-<section class="tsd-panel tsd-member">
+<section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="setpantype"><span>set<wbr/>Pan<wbr/>Type</span><a href="#setpantype" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<ul class="tsd-signatures">
-<li class="">
+<ul class="tsd-signatures tsd-is-inherited">
+<li class="tsd-is-inherited">
 <div class="tsd-signature tsd-anchor-link" id="setpantype-1"><span class="tsd-kind-call-signature">setPanType</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">panType</span><span class="tsd-signature-symbol">:</span> <a href="../types/PanType.html" class="tsd-signature-type tsd-kind-type-alias">PanType</a><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">audioContext</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/BaseContext.html" class="tsd-signature-type tsd-kind-interface">BaseContext</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#setpantype-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
 <div class="tsd-parameters">
@@ -1045,38 +785,9 @@ It manages looping logic and restarts playback if necessary.</p>
 <li><span><span class="tsd-kind-parameter">panType</span>: <a href="../types/PanType.html" class="tsd-signature-type tsd-kind-type-alias">PanType</a></span></li>
 <li><span><span class="tsd-kind-parameter">audioContext</span>: <a href="../interfaces/BaseContext.html" class="tsd-signature-type tsd-kind-interface">BaseContext</a></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
-<p>Overrides BasePlayback.setPanType</p>
+<p>Inherited from BasePlayback.setPanType</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L102">src/playback.ts:102</a></li></ul></aside></div></li></ul></section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="setpitchshift"><span>set<wbr/>Pitch<wbr/>Shift</span><a href="#setpitchshift" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<ul class="tsd-signatures">
-<li class="">
-<div class="tsd-signature tsd-anchor-link" id="setpitchshift-1"><span class="tsd-kind-call-signature">setPitchShift</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">factor</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><a href="#setpitchshift-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
-<div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Sets the pitch-shift factor for this playback, resurrecting the dormant
-phase-vocoder worklet (Jean Laroche &amp; Mark Dolson, &quot;New Phase-Vocoder
-Techniques for Pitch-Shifting, Harmonizing and Other Exotic Effects&quot;,
-1999 IEEE WASPAA — peak-based pitch shift with Identity Phase-Locking).</p>
-<p>On first use (factor !== 1) the phase-vocoder AudioWorkletNode is built via
-<code>cacophony.createPhaseVocoderNode</code> and spliced into this playback's graph at
-the refreshFilters seam (panner → [filters] → pitchShiftNode →
-gainNode). The factor is forwarded to the node's <code>pitchFactor</code> AudioParam
-(1 = no shift, 2 = +1 octave, 0.5 = -1 octave).</p>
-</div>
-<div class="tsd-parameters">
-<h4 class="tsd-parameters-title">Parameters</h4>
-<ul class="tsd-parameter-list">
-<li><span><span class="tsd-kind-parameter">factor</span>: <span class="tsd-signature-type">number</span></span>
-<div class="tsd-comment tsd-typography"><p>Pitch multiplier (&gt; 0).</p>
-</div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4>
-<div class="tsd-comment tsd-typography">
-<div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws-19">Throws<a href="#throws-19" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>if the playback has been cleaned up or factor &lt;= 0.</p>
-</div></div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L674">src/playback.ts:674</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pannerMixin.ts#L67">src/pannerMixin.ts:67</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="stop"><span>stop</span><a href="#stop" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -1084,32 +795,9 @@ gainNode). The factor is forwarded to the node's <code>pitchFactor</code> AudioP
 <div class="tsd-signature tsd-anchor-link" id="stop-1"><span class="tsd-kind-call-signature">stop</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#stop-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#stop">stop</a></p>
 <p>Overrides BasePlayback.stop</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L383">src/playback.ts:383</a></li></ul></aside></div></li></ul></section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="stopwithfade"><span>stop<wbr/>With<wbr/>Fade</span><a href="#stopwithfade" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<ul class="tsd-signatures">
-<li class="">
-<div class="tsd-signature tsd-anchor-link" id="stopwithfade-1"><span class="tsd-kind-call-signature">stopWithFade</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">duration</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">type</span><span class="tsd-signature-symbol">?:</span> <a href="../types/FadeType.html" class="tsd-signature-type tsd-kind-type-alias">FadeType</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span><a href="#stopwithfade-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
-<div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Fades out then stops the playback.</p>
-</div>
-<div class="tsd-parameters">
-<h4 class="tsd-parameters-title">Parameters</h4>
-<ul class="tsd-parameter-list">
-<li><span><span class="tsd-kind-parameter">duration</span>: <span class="tsd-signature-type">number</span></span>
-<div class="tsd-comment tsd-typography"><p>The fade-out duration in milliseconds.</p>
-</div></li>
-<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">type</span>: <a href="../types/FadeType.html" class="tsd-signature-type tsd-kind-type-alias">FadeType</a></span>
-<div class="tsd-comment tsd-typography"><p>The fade curve type. Defaults to &quot;linear&quot;.</p>
-</div></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><p>Resolves when the fade completes and playback is stopped.</p>
-<aside class="tsd-sources">
-<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#stopwithfade">stopWithFade</a></p>
-<ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/playback.ts#L448">src/playback.ts:448</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ee32f3c0233aa88a703af1872aff34984ed5c434/src/pcmStream.ts#L95">src/pcmStream.ts:95</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
@@ -1128,11 +816,11 @@ gainNode). The factor is forwarded to the node's <code>pitchFactor</code> AudioP
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Constructors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Constructors</summary>
 <div><a href="#constructor"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Constructor"><use href="../assets/icons.svg#icon-512"></use></svg><span>constructor</span></a></div></details>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Properties</summary>
-<div><a href="#_fadeinconfig"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>fade<wbr/>In<wbr/>Config</span></a><a href="#_fadeoutconfig"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>fade<wbr/>Out<wbr/>Config</span></a><a href="#_fadetimeout" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>fade<wbr/>Timeout</span></a><a href="#_filters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>filters</span></a><a href="#_isfading" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>is<wbr/>Fading</span></a><a href="#_loopendcallback"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>loop<wbr/>End<wbr/>Callback</span></a><a href="#_pantype" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>pan<wbr/>Type</span></a><a href="#_sendgains" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>send<wbr/>Gains</span></a><a href="#_state" class="tsd-is-protected tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>state</span></a><a href="#currentloop"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>current<wbr/>Loop</span></a><a href="#eventemitter" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>event<wbr/>Emitter</span></a><a href="#gainnode" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>gain<wbr/>Node</span></a><a href="#loopcount"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>loop<wbr/>Count</span></a><a href="#origin" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>origin</span></a><a href="#panner" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>panner</span></a><a href="#source"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>source</span></a></div></details>
+<div><a href="#_fadetimeout" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>fade<wbr/>Timeout</span></a><a href="#_filters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>filters</span></a><a href="#_isfading" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>is<wbr/>Fading</span></a><a href="#_pantype" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>pan<wbr/>Type</span></a><a href="#_sendgains" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>send<wbr/>Gains</span></a><a href="#_state" class="tsd-is-protected tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>state</span></a><a href="#eventemitter" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>event<wbr/>Emitter</span></a><a href="#gainnode" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>gain<wbr/>Node</span></a><a href="#origin"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>origin</span></a><a href="#panner" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>panner</span></a><a href="#source"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>source</span></a></div></details>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Accessors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Accessors</summary>
-<div><a href="#currenttime"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>current<wbr/>Time</span></a><a href="#duration"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>duration</span></a><a href="#filters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>filters</span></a><a href="#isfading" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>is<wbr/>Fading</span></a><a href="#ispaused" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>is<wbr/>Paused</span></a><a href="#isplaying" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>is<wbr/>Playing</span></a><a href="#outputnode"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>output<wbr/>Node</span></a><a href="#pantype" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>pan<wbr/>Type</span></a><a href="#pitchshift"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>pitch<wbr/>Shift</span></a><a href="#playbackrate"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>playback<wbr/>Rate</span></a><a href="#position" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>position</span></a><a href="#sourceloop"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>source<wbr/>Loop</span></a><a href="#stereopan" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>stereo<wbr/>Pan</span></a><a href="#threedoptions" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>three<wbr/>D<wbr/>Options</span></a><a href="#volume"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>volume</span></a></div></details>
+<div><a href="#duration"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>duration</span></a><a href="#filters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>filters</span></a><a href="#isfading" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>is<wbr/>Fading</span></a><a href="#ispaused" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>is<wbr/>Paused</span></a><a href="#isplaying" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>is<wbr/>Playing</span></a><a href="#outputnode"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>output<wbr/>Node</span></a><a href="#pantype" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>pan<wbr/>Type</span></a><a href="#playbackrate"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>playback<wbr/>Rate</span></a><a href="#position" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>position</span></a><a href="#stereopan" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>stereo<wbr/>Pan</span></a><a href="#threedoptions" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>three<wbr/>D<wbr/>Options</span></a><a href="#volume" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>volume</span></a></div></details>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Methods</summary>
-<div><a href="#addfilter"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add<wbr/>Filter</span></a><a href="#addfilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add<wbr/>Filters</span></a><a href="#applyfilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>apply<wbr/>Filters</span></a><a href="#cancelfade" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>cancel<wbr/>Fade</span></a><a href="#cleanup"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>cleanup</span></a><a href="#clone"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>clone</span></a><a href="#configurefadeout"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>configure<wbr/>Fade<wbr/>Out</span></a><a href="#connect"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>connect</span></a><a href="#disconnect"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>disconnect</span></a><a href="#emit" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>emit</span></a><a href="#emitasync" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>emit<wbr/>Async</span></a><a href="#fadein"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>fade<wbr/>In</span></a><a href="#fadeout" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>fade<wbr/>Out</span></a><a href="#fadeto" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>fade<wbr/>To</span></a><a href="#loop"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>loop</span></a><a href="#loopended"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>loop<wbr/>Ended</span></a><a href="#markpaused" class="tsd-is-protected tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Paused</span></a><a href="#markplaying" class="tsd-is-protected tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Playing</span></a><a href="#markstopped" class="tsd-is-protected tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Stopped</span></a><a href="#off" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>off</span></a><a href="#on" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>on</span></a><a href="#pause"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>pause</span></a><a href="#play"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>play</span></a><a href="#removefilter"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filter</span></a><a href="#removefilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filters</span></a><a href="#seek"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>seek</span></a><a href="#setgainnode" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Gain<wbr/>Node</span></a><a href="#setpannernode" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Panner<wbr/>Node</span></a><a href="#setpantype"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Pan<wbr/>Type</span></a><a href="#setpitchshift"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Pitch<wbr/>Shift</span></a><a href="#stop"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>stop</span></a><a href="#stopwithfade"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>stop<wbr/>With<wbr/>Fade</span></a></div></details></div></details></div>
+<div><a href="#_handleended"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>_<wbr/>handle<wbr/>Ended</span></a><a href="#addfilter"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add<wbr/>Filter</span></a><a href="#addfilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add<wbr/>Filters</span></a><a href="#applyfilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>apply<wbr/>Filters</span></a><a href="#cancelfade" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>cancel<wbr/>Fade</span></a><a href="#cleanup"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>cleanup</span></a><a href="#connect"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>connect</span></a><a href="#disconnect"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>disconnect</span></a><a href="#emit" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>emit</span></a><a href="#emitasync" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>emit<wbr/>Async</span></a><a href="#fadein" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>fade<wbr/>In</span></a><a href="#fadeout" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>fade<wbr/>Out</span></a><a href="#fadeto" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>fade<wbr/>To</span></a><a href="#markpaused" class="tsd-is-protected tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Paused</span></a><a href="#markplaying" class="tsd-is-protected tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Playing</span></a><a href="#markstopped" class="tsd-is-protected tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>mark<wbr/>Stopped</span></a><a href="#off" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>off</span></a><a href="#on" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>on</span></a><a href="#pause"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>pause</span></a><a href="#play"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>play</span></a><a href="#removefilter"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filter</span></a><a href="#removefilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filters</span></a><a href="#setgainnode" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Gain<wbr/>Node</span></a><a href="#setpannernode" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Panner<wbr/>Node</span></a><a href="#setpantype" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Pan<wbr/>Type</span></a><a href="#stop"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>stop</span></a></div></details></div></details></div>
 <div class="site-menu">
 <nav class="tsd-navigation"><a href="../modules.html">cacophony</a>
 <ul class="tsd-small-nested-navigation" id="tsd-nav-container">
