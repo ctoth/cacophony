@@ -252,6 +252,18 @@ describe("Playback cloning", () => {
     expect(clone.panType).toBe(originalPlayback.panType);
   });
 
+  it("copies fade configuration without sharing references", () => {
+    void originalPlayback.fadeIn(500, "exponential", { perLoop: true });
+    originalPlayback.configureFadeOut(750, "linear");
+
+    const clone = originalPlayback.clone();
+
+    expect(clone._fadeInConfig).toEqual(originalPlayback._fadeInConfig);
+    expect(clone._fadeInConfig).not.toBe(originalPlayback._fadeInConfig);
+    expect(clone._fadeOutConfig).toEqual(originalPlayback._fadeOutConfig);
+    expect(clone._fadeOutConfig).not.toBe(originalPlayback._fadeOutConfig);
+  });
+
   it("keeps a clone reachable from the destination (#100)", () => {
     const clone = originalPlayback.clone();
 

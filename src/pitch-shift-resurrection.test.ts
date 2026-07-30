@@ -227,4 +227,26 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
     expect(future.pitchShift).toBe(2);
     expect(built.length).toBe(2);
   });
+
+  it("Playback.clone preserves pitch shift with its own worklet node", async () => {
+    sound = await cacophony.createSound(buffer);
+    const built: ReturnType<typeof makeFakePvNode>[] = [];
+    vi.spyOn(cacophony, "buildWorkletEffect").mockImplementation(async () => {
+      const node = makeFakePvNode();
+      built.push(node);
+      return node as unknown as Awaited<ReturnType<typeof cacophony.buildWorkletEffect>>;
+    });
+
+    const original = sound.preplay()[0];
+    await original.setPitchShift(2);
+
+    const clone = original.clone();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(clone.pitchShift).toBe(original.pitchShift);
+    expect(built).toHaveLength(2);
+    expect(inspectPlayback(clone)._pitchShiftNode).toBe(built[1]);
+    expect(inspectPlayback(clone)._pitchShiftNode).not.toBe(inspectPlayback(original)._pitchShiftNode);
+  });
 });
