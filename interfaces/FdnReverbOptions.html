@@ -22,7 +22,7 @@ adds early echo density at no multiply cost (Fagerström et al. 2020).</p>
 </div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">FdnReverbOptions</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#damping">damping</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#decaytime">decayTime</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#diffusion">diffusion</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#mix">mix</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#predelay">preDelay</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/1dc8b8e2cba392b9998cc6ebbed99bac12ae20cb/src/effects.ts#L361">src/effects.ts:361</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/effects.ts#L361">src/effects.ts:361</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -45,35 +45,35 @@ adds early echo density at no multiply cost (Fagerström et al. 2020).</p>
 <div class="tsd-comment tsd-typography"><p>High-frequency damping (0..1); higher shortens the HF tail. Default 0.3.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/1dc8b8e2cba392b9998cc6ebbed99bac12ae20cb/src/effects.ts#L367">src/effects.ts:367</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/effects.ts#L367">src/effects.ts:367</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="decaytime"><code class="tsd-tag">Optional</code><span>decay<wbr/>Time</span><a href="#decaytime" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">decayTime</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Reverberation time T60 in seconds (−60 dB decay). Default 1.5. Range 0.001..20.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/1dc8b8e2cba392b9998cc6ebbed99bac12ae20cb/src/effects.ts#L363">src/effects.ts:363</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/effects.ts#L363">src/effects.ts:363</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="diffusion"><code class="tsd-tag">Optional</code><span>diffusion</span><a href="#diffusion" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">diffusion</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Velvet-noise diffusion amount (0..1); 0 bypasses. Default 0.5.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/1dc8b8e2cba392b9998cc6ebbed99bac12ae20cb/src/effects.ts#L369">src/effects.ts:369</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/effects.ts#L369">src/effects.ts:369</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="mix"><code class="tsd-tag">Optional</code><span>mix</span><a href="#mix" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">mix</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Wet/dry mix (0..1); 0 = dry, 1 = wet. Default 0.3.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/1dc8b8e2cba392b9998cc6ebbed99bac12ae20cb/src/effects.ts#L371">src/effects.ts:371</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/effects.ts#L371">src/effects.ts:371</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="predelay"><code class="tsd-tag">Optional</code><span>pre<wbr/>Delay</span><a href="#predelay" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">preDelay</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Pre-delay before the wet path in seconds. Default 0. Range 0..1.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/1dc8b8e2cba392b9998cc6ebbed99bac12ae20cb/src/effects.ts#L365">src/effects.ts:365</a></li></ul></aside></section></section></details></div>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/effects.ts#L365">src/effects.ts:365</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
