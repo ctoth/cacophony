@@ -1,5 +1,5 @@
 import type { Bus } from "./bus";
-import type { BaseSound, FadeType, LoopCount, Position } from "./cacophony";
+import type { BaseSound, FadeType, LoopCount, PlayOptions, Position } from "./cacophony";
 import type { BiquadFilterNode } from "./context";
 import type { Playback } from "./playback";
 import type { Sound } from "./sound";
@@ -26,14 +26,14 @@ export class Group implements BaseSound {
 
   /**
    * Plays a random sound from the group.
+   * @param options - Options for configuring fade behavior.
    * @returns The playback object representing the played sound, or undefined if the group is empty.
    */
-  playRandom(): Playback | undefined {
-    const playback = this.preplayRandom();
-    if (playback) {
-      playback.play();
+  playRandom(options?: PlayOptions): Playback | undefined {
+    if (this.sounds.length === 0) {
+      return undefined;
     }
-    return playback;
+    return this.randomSound().play(options)[0];
   }
 
   /**
@@ -65,14 +65,29 @@ export class Group implements BaseSound {
    * Plays the sounds in the group in a specific order.
    *
    * @param shouldLoop - Indicates whether the sounds should be played in a loop.
+   * @param options - Options for configuring fade behavior.
    * @returns The playback object representing the first sound being played, or undefined if the group is empty.
    */
-  playOrdered(shouldLoop: boolean = true): Playback | undefined {
-    const playback = this.preplayOrdered(shouldLoop);
-    if (playback) {
-      playback.play();
+  playOrdered(shouldLoop: boolean = true, options?: PlayOptions): Playback | undefined {
+    if (this.sounds.length === 0 || this.playIndex >= this.sounds.length) {
+      return undefined;
     }
-    return playback;
+    const playbacks = this.sounds[this.playIndex].play(options);
+    if (playbacks.length === 0) {
+      return undefined;
+    }
+    this.playIndex = (this.playIndex + 1) % this.sounds.length;
+    if (!shouldLoop && this.playIndex === 0) {
+      this.playIndex = this.sounds.length;
+    }
+    return playbacks[0];
+  }
+
+  /**
+   * Restarts ordered playback from the first sound in the group.
+   */
+  resetOrder(): void {
+    this.playIndex = 0;
   }
 
   get duration() {
@@ -109,15 +124,8 @@ export class Group implements BaseSound {
    *  @returns {Playback[]} An array of Playback objects, one for each sound in the group.
    */
 
-  play(): Playback[] {
-    // const playbacks = this.preplay().map((playback) => playback.play()[0]);
-    const playbacks: Playback[] = [];
-    // preplay returns an array, and then play on each of those also returns an array, and we only want one array of playbacks
-    this.preplay().forEach((playback) => {
-      playback.play();
-      playbacks.push(playback);
-    });
-    return playbacks;
+  play(options?: PlayOptions): Playback[] {
+    return this.sounds.flatMap((sound) => sound.play(options));
   }
 
   /**
