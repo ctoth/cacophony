@@ -1,5 +1,5 @@
 import { BasePlayback } from "./basePlayback";
-import type { BaseSound, Cacophony, LoopCount, PanType } from "./cacophony";
+import type { BaseSound, Cacophony, LoopCount, PanType, SoundType, StreamCapabilities } from "./cacophony";
 import type { AudioNode, AudioParam, AudioWorkletNode, BaseContext, BiquadFilterNode, GainNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
 import { RoutableSource } from "./routableSource";
@@ -15,7 +15,13 @@ export type PcmStreamEvents = {
   underrun: PcmStreamBufferEvent;
   drain: PcmStreamBufferEvent;
   ended: undefined;
+  error: unknown;
 };
+
+export interface PcmStreamPullSource {
+  seek(time: number): void;
+  cleanup(): void;
+}
 
 export interface PcmStreamSoundOptions {
   /** Number of interleaved channels in every {@link PcmStreamSound.write} call. @default 1 */
@@ -180,6 +186,8 @@ export class PcmStreamPlayback extends BasePlayback {
 
 export class PcmStreamSound extends RoutableSource implements BaseSound {
   public declare playbacks: PcmStreamPlayback[];
+  public soundType?: SoundType;
+  public streamCapabilities?: StreamCapabilities;
   protected context: BaseContext;
   protected globalGainNode: GainNode;
   private readonly workletNode: AudioWorkletNode;
@@ -193,6 +201,7 @@ export class PcmStreamSound extends RoutableSource implements BaseSound {
   private inputEnded = false;
   private disposed = false;
   private state: PcmStreamState = "idle";
+  private pullSource?: PcmStreamPullSource;
 
   private readonly handleWorkletMessage = (event: MessageEvent<PcmWorkletMessage>): void => {
     switch (event.data.type) {
@@ -254,6 +263,10 @@ export class PcmStreamSound extends RoutableSource implements BaseSound {
     return this.bufferedFrames / this.context.sampleRate;
   }
 
+  get inputChannelCount(): number {
+    return this.channelCount;
+  }
+
   on<K extends keyof PcmStreamEvents>(event: K, listener: (data: PcmStreamEvents[K]) => void): () => void {
     return this.eventEmitter.on(event, listener);
   }
@@ -272,6 +285,21 @@ export class PcmStreamSound extends RoutableSource implements BaseSound {
     }
     this.state = state;
     this.emit("stateChange", state);
+  }
+
+  attachPullSource(source: PcmStreamPullSource, capabilities: StreamCapabilities): void {
+    if (this.disposed || this.pullSource) {
+      throw new Error("Cannot attach a pull source to this PCM stream");
+    }
+    this.pullSource = source;
+    this.soundType = "streaming";
+    this.streamCapabilities = capabilities;
+  }
+
+  handlePullError(error: unknown): void {
+    if (!this.disposed) {
+      this.emit("error", error);
+    }
   }
 
   /**
@@ -392,8 +420,11 @@ export class PcmStreamSound extends RoutableSource implements BaseSound {
     this.setState("stopped");
   }
 
-  seek(_time: number): void {
-    throw new Error("PCM streams do not support seeking");
+  seek(time: number): void {
+    if (!this.pullSource) {
+      throw new Error("PCM streams do not support seeking");
+    }
+    this.pullSource.seek(time);
   }
 
   loop(_loopCount?: LoopCount): LoopCount {
@@ -412,6 +443,8 @@ export class PcmStreamSound extends RoutableSource implements BaseSound {
     }
     this.stop();
     this.disposed = true;
+    this.pullSource?.cleanup();
+    this.pullSource = undefined;
     this.signal?.removeEventListener("abort", this.handleAbort);
     this.workletNode.port.removeEventListener("message", this.handleWorkletMessage as EventListener);
     this.workletNode.disconnect();

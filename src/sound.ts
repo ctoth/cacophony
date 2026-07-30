@@ -29,6 +29,7 @@ import type {
   PlayOptions,
   SoundCleanupHoldings,
   SoundType,
+  StreamCapabilities,
 } from "./cacophony";
 import type { AudioBuffer, BaseContext, BiquadFilterNode, GainNode, SourceNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
@@ -49,6 +50,7 @@ type SoundCloneOverrides = PanCloneOverrides &
 export class Sound extends RoutableSource implements BaseSound {
   public declare playbacks: Playback[];
   buffer?: AudioBuffer;
+  streamCapabilities?: StreamCapabilities;
   context: BaseContext;
   loopCount: LoopCount = 0;
   private _playbackRate: number = 1;

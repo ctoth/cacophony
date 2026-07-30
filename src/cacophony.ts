@@ -53,9 +53,17 @@ import { DATTORRO_INV_SQRT2 } from "./processors/modulated-delay-core";
 import { type TimeStretchOptions, timeStretch } from "./processors/timestretch-core";
 import { Sound } from "./sound";
 import { Synth } from "./synth";
+import { WebCodecsPullAdapter, type WebCodecsStreamSound } from "./webCodecsStream";
 import { ALL_WORKLETS, WORKLETS, type WorkletModule } from "./worklets";
 
 export type SoundType = "html" | "streaming" | "buffer" | "oscillator";
+
+export interface StreamCapabilities {
+  transport: "webcodecs" | "media-element";
+  seekable: boolean;
+  live: boolean;
+  duration: number;
+}
 
 /**
  * Represents a 3D position in space.
@@ -109,6 +117,7 @@ export interface PlayOptions {
  */
 export interface BaseSound {
   isPlaying: boolean;
+  streamCapabilities?: StreamCapabilities;
   play(): BaseSound[];
   seek?(time: number): void;
   stop(): void;
@@ -815,7 +824,16 @@ export class Cacophony {
 
       const handleLoadedMetadata = () => {
         settle(() => {
-          resolve(new Sound(url, undefined, this.context, this.globalGainNode, soundType, panType, this, audio));
+          const sound = new Sound(url, undefined, this.context, this.globalGainNode, soundType, panType, this, audio);
+          if (soundType === "streaming") {
+            sound.streamCapabilities = {
+              duration: Number.isFinite(audio.duration) ? audio.duration : Number.POSITIVE_INFINITY,
+              live: audio.duration === Number.POSITIVE_INFINITY,
+              seekable: (audio.seekable?.length ?? 0) > 0,
+              transport: "media-element",
+            };
+          }
+          resolve(sound);
         });
       };
 
@@ -1052,19 +1070,32 @@ export class Cacophony {
   }
 
   /**
-   * Creates a media-element-backed Sound instance from a URL.
-   *
-   * This is a convenience for the transport semantics of
-   * `createSound(url, "html")`, while preserving the `"streaming"` sound type
-   * label. Both paths use an `HTMLAudioElement`; `createStream()` does not
-   * select a distinct streaming transport.
-   *
-   * @param url - URL for media-element-backed playback
-   * @param signal - Optional AbortSignal to cancel media loading
-   * @returns Promise that resolves to a media-element-backed Sound labeled `"streaming"`
+   * Creates a sample-accurate URL stream when WebCodecs can decode the primary
+   * audio track. Encoded media is fetched and demuxed incrementally, then its
+   * PCM is fed into the same routable AudioWorklet source returned by
+   * {@link createPcmStreamSound}. Browsers without WebCodecs, or without a
+   * decoder for the track, fall back to the media-element streaming tier.
    */
-  async createStream(url: string, signal?: AbortSignal): Promise<Sound> {
-    return this.createMediaSound(url, "streaming", "HRTF", signal);
+  async createStream(url: string, signal?: AbortSignal): Promise<Sound | WebCodecsStreamSound> {
+    if (typeof globalThis.AudioDecoder !== "function") {
+      return this.createMediaSound(url, "streaming", "HRTF", signal);
+    }
+
+    const adapter = await WebCodecsPullAdapter.open(url, this.context.sampleRate, signal);
+    if (!adapter) {
+      return this.createMediaSound(url, "streaming", "HRTF", signal);
+    }
+    try {
+      const sound = await this.createPcmStreamSound({
+        channelCount: adapter.channelCount,
+        panType: "HRTF",
+        signal,
+      });
+      return adapter.attach(sound);
+    } catch (error) {
+      adapter.cleanup();
+      throw error;
+    }
   }
 
   createMediaStreamSound(stream: MediaStream, options?: MediaStreamSoundOptions): MediaStreamSound {
