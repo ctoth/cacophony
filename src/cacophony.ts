@@ -47,6 +47,7 @@ import { MediaStreamSound, type MediaStreamSoundOptions } from "./mediaStream";
 import { LoudnessMeter } from "./meters/loudness-meter";
 import { MicrophoneStream } from "./microphone";
 import type { ThreeDOptions } from "./pannerMixin";
+import { PcmStreamSound, type PcmStreamSoundOptions } from "./pcmStream";
 import { GATE_DEFAULT_RATIO } from "./processors/dynamics-core";
 import { DATTORRO_INV_SQRT2 } from "./processors/modulated-delay-core";
 import { type TimeStretchOptions, timeStretch } from "./processors/timestretch-core";
@@ -1067,6 +1068,59 @@ export class Cacophony {
 
   createMediaStreamSound(stream: MediaStream, options?: MediaStreamSoundOptions): MediaStreamSound {
     return new MediaStreamSound(stream, this.context, this.globalGainNode, options, this);
+  }
+
+  /**
+   * Creates a push-based PCM source backed by a fixed-size AudioWorklet ring
+   * buffer. Each write is an interleaved Float32Array at this context's sample
+   * rate.
+   */
+  async createPcmStreamSound(options: PcmStreamSoundOptions = {}): Promise<PcmStreamSound> {
+    options.signal?.throwIfAborted();
+    const channelCount = options.channelCount ?? 1;
+    const bufferDuration = options.bufferDuration ?? 1;
+    const latency = options.latency ?? 0.05;
+    if (!Number.isInteger(channelCount) || channelCount < 1 || channelCount > 32) {
+      throw new RangeError("PCM channelCount must be an integer between 1 and 32");
+    }
+    if (!Number.isFinite(bufferDuration) || bufferDuration <= 0) {
+      throw new RangeError("PCM bufferDuration must be greater than zero");
+    }
+    if (!Number.isFinite(latency) || latency < 0 || latency > bufferDuration) {
+      throw new RangeError("PCM latency must be between zero and bufferDuration");
+    }
+
+    const capacityFrames = Math.ceil(this.context.sampleRate * bufferDuration);
+    const latencyFrames = Math.ceil(this.context.sampleRate * latency);
+    const node = await this.createWorkletNode(WORKLETS.pcmStream.name, WORKLETS.pcmStream.url, options.signal, {
+      numberOfInputs: 0,
+      numberOfOutputs: 1,
+      outputChannelCount: [channelCount],
+      channelCount,
+      channelCountMode: "explicit",
+      processorOptions: {
+        capacityFrames,
+        channelCount,
+        latencyFrames,
+      },
+    });
+    const sound = new PcmStreamSound(
+      node,
+      this.context,
+      this.globalGainNode,
+      {
+        ...options,
+        channelCount,
+        bufferDuration,
+        latency,
+      },
+      this,
+    );
+    if (options.signal?.aborted) {
+      sound.cleanup();
+      options.signal.throwIfAborted();
+    }
+    return sound;
   }
 
   createBiquadFilter = ({ type, frequency, gain, Q }: BiquadFilterOptions): BiquadFilterNode => {

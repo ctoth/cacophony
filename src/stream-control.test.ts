@@ -76,4 +76,15 @@ describe("Stream contract documentation", () => {
     expect(existsSync(join(process.cwd(), "src", "stream.ts"))).toBe(false);
     expect(existsSync(join(process.cwd(), "src", "stream.test.ts"))).toBe(false);
   });
+
+  it("documents the push PCM source and its capability limits", () => {
+    const readme = readFileSync(join(process.cwd(), "README.md"), "utf8");
+
+    expect(readme).toMatch(/createPcmStreamSound/);
+    expect(readme).toMatch(/interleaved Float32Array/i);
+    expect(readme).toMatch(/bufferedDuration/);
+    expect(readme).toMatch(/underrun[^.]*silence/i);
+    expect(readme).toMatch(/Seek is not supported/i);
+    expect(readme).toMatch(/Loop is not\s+supported/i);
+  });
 });

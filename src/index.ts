@@ -115,6 +115,13 @@ export { LoudnessMeter } from "./meters/loudness-meter";
 export { TruePeakDetector, truePeakDb } from "./meters/truepeak-core";
 export { MicrophonePlayback } from "./microphone";
 export type { HrtfPannerOptions, PanCloneOverrides, ThreeDOptions } from "./pannerMixin";
+export type {
+  PcmStreamBufferEvent,
+  PcmStreamEvents,
+  PcmStreamSoundOptions,
+  PcmStreamState,
+} from "./pcmStream";
+export { PcmStreamPlayback, PcmStreamSound } from "./pcmStream";
 export { Playback } from "./playback";
 export type { TimeStretchOptions } from "./processors/timestretch-core";
 export { timeStretch, timeStretchChannels } from "./processors/timestretch-core";

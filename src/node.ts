@@ -21,6 +21,7 @@
  * rather than letting a bare module-resolution error surface.
  */
 import { readFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import type { AudioContext, OfflineAudioContext } from "node-web-audio-api";
 import type { ICache } from "./cache";
 import { Cacophony, type RuntimeOptions } from "./cacophony";
@@ -65,7 +66,7 @@ function makeCreateAudioWorkletNode(
 }
 
 /** Per-source-URL memoized `blob:` URL of a worklet bundle (built on first use). */
-const workletBlobUrlByDataUrl = new Map<string, string>();
+const workletBlobUrlBySourceUrl = new Map<string, string>();
 
 /**
  * Worklet-URL resolver for the Node backend: rewrites the library's inlined
@@ -84,17 +85,24 @@ const workletBlobUrlByDataUrl = new Map<string, string>();
  * keeps the published `cacophony/node` adapter self-contained in `dist`.
  */
 const resolveWorkletUrl: NonNullable<RuntimeOptions["resolveWorkletUrl"]> = async (_name, url) => {
-  if (!url.startsWith("data:")) {
+  const isDataUrl = url.startsWith("data:");
+  const isSourceBundleUrl = url.startsWith("/src/bundles/");
+  if (!isDataUrl && !isSourceBundleUrl) {
     return url;
   }
-  const cached = workletBlobUrlByDataUrl.get(url);
+  const cached = workletBlobUrlBySourceUrl.get(url);
   if (cached) {
     return cached;
   }
-  // `fetch` decodes the `data:` URL (base64 + charset) into the bundle source.
-  const code = await (await fetch(url)).text();
+  // Published builds provide an inlined data URL. Vite source/test execution
+  // exposes the same bundle as a root-relative /src/bundles URL; read that
+  // repository file directly so the Node offline backend exercises the same
+  // worklet without requiring a pre-built package.
+  const code = isDataUrl
+    ? await (await fetch(url)).text()
+    : await readFile(resolve(process.cwd(), url.slice(1)), "utf8");
   const blobUrl = URL.createObjectURL(new Blob([code], { type: "text/javascript" }));
-  workletBlobUrlByDataUrl.set(url, blobUrl);
+  workletBlobUrlBySourceUrl.set(url, blobUrl);
   return blobUrl;
 };
 
