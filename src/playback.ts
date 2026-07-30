@@ -825,6 +825,12 @@ export class Playback extends BasePlayback implements BaseSound {
     clone.volume = this.volume;
     clone.playbackRate = this._playbackRate;
     clone._offset = this._offset;
+    if (this._fadeInConfig) {
+      clone._fadeInConfig = { ...this._fadeInConfig };
+    }
+    if (this._fadeOutConfig) {
+      clone._fadeOutConfig = { ...this._fadeOutConfig };
+    }
     if (this._state === "paused") {
       clone.markPaused();
     } else if (this._state === "stopped") {
@@ -840,6 +846,12 @@ export class Playback extends BasePlayback implements BaseSound {
       clonedFilter.gain.value = filter.gain.value;
       clone.addFilter(clonedFilter as unknown as BiquadFilterNode);
     });
+
+    if (this._pitchFactor !== 1) {
+      void clone.setPitchShift(this._pitchFactor).catch(() => {
+        /* worklet unavailable on this context — clone proceeds unshifted */
+      });
+    }
 
     // If the original is playing, start the clone
     if (this._state === "playing") {
