@@ -175,6 +175,27 @@ describe("Cacophony core", () => {
       expect(cacophony.globalGainNode.gain.value).toBe(0.75);
     });
 
+    it("treats zero volume as silent without muting", () => {
+      cacophony.volume = 0;
+
+      expect(cacophony.muted).toBe(false);
+
+      cacophony.volume = 0.5;
+
+      expect(cacophony.volume).toBe(0.5);
+      expect(cacophony.globalGainNode.gain.value).toBe(0.5);
+    });
+
+    it("applies volume changes made while muted when unmuting", () => {
+      cacophony.mute();
+      cacophony.volume = 0.7;
+      cacophony.unmute();
+
+      expect(cacophony.muted).toBe(false);
+      expect(cacophony.volume).toBe(0.7);
+      expect(cacophony.globalGainNode.gain.value).toBe(0.7);
+    });
+
     it("mutes and unmutes correctly", () => {
       cacophony.volume = 0.8;
       expect(cacophony.muted).toBe(false);
