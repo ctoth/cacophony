@@ -7,6 +7,42 @@ import { Group } from "./group";
 import { audioContextMock, cacophony, mockCache } from "./setupTests";
 import { Sound } from "./sound";
 
+const hlsMock = vi.hoisted(() => {
+  const instances: MockHls[] = [];
+  const isSupported = vi.fn(() => true);
+
+  class MockHls {
+    static readonly Events = { ERROR: "hlsError" };
+    static readonly isSupported = isSupported;
+
+    readonly listeners = new Map<string, (...args: any[]) => void>();
+    readonly attachMedia = vi.fn();
+    readonly detachMedia = vi.fn();
+    readonly destroy = vi.fn();
+    readonly loadSource = vi.fn();
+    readonly on = vi.fn((event: string, listener: (...args: any[]) => void) => {
+      this.listeners.set(event, listener);
+    });
+    readonly off = vi.fn((event: string, listener: (...args: any[]) => void) => {
+      if (this.listeners.get(event) === listener) {
+        this.listeners.delete(event);
+      }
+    });
+
+    constructor() {
+      instances.push(this);
+    }
+
+    emitError(data: Record<string, unknown>): void {
+      this.listeners.get(MockHls.Events.ERROR)?.(MockHls.Events.ERROR, data);
+    }
+  }
+
+  return { instances, isSupported, MockHls };
+});
+
+vi.mock("hls.js", () => ({ default: hlsMock.MockHls }));
+
 const createControllableAudioElement = () => {
   const listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
   const audio = {
@@ -402,6 +438,107 @@ describe("Cacophony advanced features", () => {
       });
       expect(streamingAudio.audio.pause).toHaveBeenCalledOnce();
       expect(streamingAudio.audio.src).toBe("");
+    });
+
+    it("createStream uses native HLS when the media element supports it", async () => {
+      const url = "https://example.com/live.m3u8";
+      const streamingAudio = createControllableAudioElement();
+      const canPlayType = vi.fn().mockReturnValue("maybe");
+      Object.assign(streamingAudio.audio, { canPlayType });
+
+      vi.mocked(global.Audio).mockImplementationOnce(function MockStreamingAudio() {
+        return streamingAudio.audio as any;
+      });
+
+      const streamPromise = cacophony.createStream(url);
+
+      expect(canPlayType).toHaveBeenCalledWith("application/vnd.apple.mpegurl");
+      streamingAudio.dispatch("loadedmetadata");
+
+      const sound = await streamPromise;
+      expect(sound.soundType).toBe("streaming");
+      expect(streamingAudio.audio.src).toBe(url);
+    });
+
+    it("createStream attaches hls.js for HLS without native support and destroys it on cleanup", async () => {
+      const url = "https://example.com/live.m3u8";
+      const streamingAudio = createControllableAudioElement();
+      const canPlayType = vi.fn().mockReturnValue("");
+      Object.assign(streamingAudio.audio, { canPlayType });
+      hlsMock.instances.length = 0;
+      hlsMock.isSupported.mockReturnValue(true);
+
+      vi.mocked(global.Audio).mockImplementationOnce(function MockStreamingAudio() {
+        return streamingAudio.audio as any;
+      });
+
+      const streamPromise = cacophony.createStream(url);
+
+      await vi.waitFor(() => expect(hlsMock.instances).toHaveLength(1));
+      const hls = hlsMock.instances[0];
+      expect(hls.attachMedia).toHaveBeenCalledWith(streamingAudio.audio);
+      expect(hls.loadSource).toHaveBeenCalledWith(url);
+      expect(streamingAudio.audio.src).toBe("");
+
+      streamingAudio.dispatch("loadedmetadata");
+      const sound = await streamPromise;
+      sound.cleanup();
+
+      expect(hls.detachMedia).toHaveBeenCalledOnce();
+      expect(hls.destroy).toHaveBeenCalledOnce();
+    });
+
+    it("maps hls.js errors into the Sound event system", async () => {
+      const url = "https://example.com/live.m3u8";
+      const streamingAudio = createControllableAudioElement();
+      Object.assign(streamingAudio.audio, { canPlayType: vi.fn().mockReturnValue("") });
+      hlsMock.instances.length = 0;
+      hlsMock.isSupported.mockReturnValue(true);
+
+      vi.mocked(global.Audio).mockImplementationOnce(function MockStreamingAudio() {
+        return streamingAudio.audio as any;
+      });
+
+      const streamPromise = cacophony.createStream(url);
+      await vi.waitFor(() => expect(hlsMock.instances).toHaveLength(1));
+      streamingAudio.dispatch("loadedmetadata");
+      const sound = await streamPromise;
+      const soundError = vi.fn();
+      sound.on("soundError", soundError);
+
+      hlsMock.instances[0].emitError({
+        type: "networkError",
+        details: "manifestLoadError",
+        fatal: true,
+        error: new Error("manifest request failed"),
+      });
+
+      await vi.waitFor(() =>
+        expect(soundError).toHaveBeenCalledWith(
+          expect.objectContaining({
+            url,
+            errorType: "load",
+            recoverable: false,
+            error: expect.objectContaining({
+              message: expect.stringContaining("manifestLoadError"),
+            }),
+          }),
+        ),
+      );
+    });
+
+    it("createStream gives install guidance when neither native HLS nor hls.js can play HLS", async () => {
+      const streamingAudio = createControllableAudioElement();
+      Object.assign(streamingAudio.audio, { canPlayType: vi.fn().mockReturnValue("") });
+      hlsMock.isSupported.mockReturnValue(false);
+
+      vi.mocked(global.Audio).mockImplementationOnce(function MockStreamingAudio() {
+        return streamingAudio.audio as any;
+      });
+
+      await expect(cacophony.createStream("https://example.com/live.m3u8")).rejects.toThrow(
+        "install hls.js or use a direct stream URL",
+      );
     });
 
     it("createGroupFromUrls passes AbortSignal to all createSound calls", async () => {

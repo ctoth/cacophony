@@ -31,12 +31,12 @@ export default defineConfig({
       },
     },
     rollupOptions: {
-      // Never bundle runtime deps. node-web-audio-api is a native optional dep
-      // (loaded via dynamic import in src/node.ts) and lives under
-      // optionalDependencies, so externalize those keys too.
+      // Never bundle runtime deps. Optional dependencies and peers are loaded
+      // only by the feature paths that need them, so externalize those keys too.
       external: [
         ...Object.keys(pkg.dependencies),
         ...Object.keys(pkg.optionalDependencies ?? {}),
+        ...Object.keys(pkg.peerDependencies ?? {}),
         /^node:.*/,
       ],
     },
