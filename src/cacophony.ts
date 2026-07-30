@@ -394,12 +394,13 @@ export class Cacophony {
    *
    * @param options - Offline context configuration (channels, length, sampleRate)
    * @param cache - Optional cache implementation
+   * @param runtimeOptions - Optional runtime configuration
    * @returns A Cacophony instance backed by OfflineAudioContext
    */
-  static createOffline(options: OfflineOptions, cache?: ICache): Cacophony {
+  static createOffline(options: OfflineOptions, cache?: ICache, runtimeOptions?: RuntimeOptions): Cacophony {
     const offlineContext =
       options.context ?? new OfflineAudioContext(options.numberOfChannels, options.length, options.sampleRate);
-    return new Cacophony(offlineContext, cache);
+    return new Cacophony(offlineContext, cache, runtimeOptions);
   }
 
   /**

@@ -1,6 +1,7 @@
 import { resolve } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { nodeBackendAvailable } from "./backend-available";
+import { Cacophony } from "./cacophony";
 import { createOfflineNodeCacophony, decodeAudioFile } from "./node";
 
 // These tests run against the REAL node-web-audio-api backend (the same one the
@@ -21,6 +22,36 @@ function peak(buffer: AudioBuffer): number {
 // Skipped when the optional native backend is absent (e.g. Node < 22, where its
 // `engines` exclude it and npm omits the optionalDependency). See backend-available.ts.
 describe.skipIf(!nodeBackendAvailable)("cacophony/node adapter", () => {
+  it("constructs offline instances through Cacophony.createOffline", async () => {
+    const createOfflineSpy = vi.spyOn(Cacophony, "createOffline");
+
+    try {
+      const { context } = await createOfflineNodeCacophony({
+        numberOfChannels: 1,
+        length: 128,
+        sampleRate: 48000,
+        quiet: true,
+      });
+
+      expect(createOfflineSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          numberOfChannels: 1,
+          length: 128,
+          sampleRate: 48000,
+          context,
+        }),
+        undefined,
+        expect.objectContaining({
+          createAudioWorkletNode: expect.any(Function),
+          resolveWorkletUrl: expect.any(Function),
+          quiet: true,
+        }),
+      );
+    } finally {
+      createOfflineSpy.mockRestore();
+    }
+  });
+
   it("renders a bare oscillator synth to a non-silent buffer (real Node backend)", async () => {
     const { cacophony, context } = await createOfflineNodeCacophony({
       length: Math.round(48000 * 0.1),
