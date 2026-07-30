@@ -196,6 +196,27 @@ describe("Cacophony core", () => {
       expect(cacophony.globalGainNode.gain.value).toBe(0.7);
     });
 
+    it("defers setGlobalVolume changes made while muted until unmuting", () => {
+      cacophony.volume = 0.8;
+      cacophony.mute();
+      const listener = vi.fn();
+      const cleanup = cacophony.on("volumeChange", listener);
+
+      cacophony.setGlobalVolume(0.5);
+
+      expect(cacophony.muted).toBe(true);
+      expect(cacophony.globalGainNode.gain.value).toBe(0);
+      expect(listener).not.toHaveBeenCalled();
+
+      cacophony.unmute();
+
+      expect(cacophony.muted).toBe(false);
+      expect(cacophony.volume).toBe(0.5);
+      expect(listener).toHaveBeenCalledOnce();
+      expect(listener).toHaveBeenCalledWith(0.5);
+      cleanup();
+    });
+
     it("mutes and unmutes correctly", () => {
       cacophony.volume = 0.8;
       expect(cacophony.muted).toBe(false);

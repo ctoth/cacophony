@@ -1725,6 +1725,10 @@ export class Cacophony {
   }
 
   setGlobalVolume(volume: number) {
+    if (this.muted) {
+      this.prevVolume = volume;
+      return;
+    }
     if (this.globalGainNode.gain.value === volume) {
       return;
     }
@@ -1748,7 +1752,10 @@ export class Cacophony {
     if (!this.muted) {
       this.prevVolume = this.globalGainNode.gain.value;
       this.isMuted = true;
-      this.setGlobalVolume(0);
+      if (this.globalGainNode.gain.value !== 0) {
+        this.globalGainNode.gain.value = 0;
+        this.emit("volumeChange", 0);
+      }
       this.emit("mute", undefined);
     }
   }
