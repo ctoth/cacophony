@@ -59,6 +59,28 @@ describe("OfflineAudioContext support", () => {
       expect(cacophony.isOffline).toBe(true);
       expect(cacophony.context).toBe(offlineCtx);
     });
+
+    it("forwards runtime options to worklet-backed effects", async () => {
+      const offlineCtx = createOfflineContextMock(128);
+      Object.defineProperty(offlineCtx, "audioWorklet", {
+        value: { addModule: vi.fn().mockResolvedValue(undefined) },
+        configurable: true,
+      });
+      const createAudioWorkletNode = vi.fn(() => offlineCtx.createGain());
+      const cacophony = Cacophony.createOffline(
+        { numberOfChannels: 1, length: 128, sampleRate: 44100, context: offlineCtx },
+        mockCache,
+        { createAudioWorkletNode },
+      );
+
+      await cacophony.createReverb().build(offlineCtx);
+
+      expect(createAudioWorkletNode).toHaveBeenCalledWith(
+        offlineCtx,
+        "dattorro-reverb",
+        expect.objectContaining({ parameterData: {} }),
+      );
+    });
   });
 
   describe("isOffline", () => {

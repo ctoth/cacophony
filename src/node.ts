@@ -192,12 +192,6 @@ export async function createNodeCacophony(options: NodeCacophonyOptions = {}): P
 /**
  * Create an offline (render-mode) Cacophony wired to the `node-web-audio-api`
  * backend. Drive it with `await context.startRendering()`.
- *
- * NOTE: this constructs the OfflineAudioContext and `new Cacophony(...)`
- * DIRECTLY rather than going through `Cacophony.createOffline()`, because that
- * static helper does not forward `runtimeOptions` — so the
- * `createAudioWorkletNode` seam would be lost and any worklet-backed effect
- * (reverb, distortion, dynamics, ...) would fail to construct.
  */
 export async function createOfflineNodeCacophony(options: OfflineNodeCacophonyOptions): Promise<OfflineNodeCacophony> {
   const backend = await loadBackend();
@@ -206,12 +200,21 @@ export async function createOfflineNodeCacophony(options: OfflineNodeCacophonyOp
     length: options.length,
     sampleRate: options.sampleRate,
   });
-  const cacophony = new Cacophony(context as unknown as BaseContext, options.cache, {
-    createAudioWorkletNode: makeCreateAudioWorkletNode(backend.AudioWorkletNode),
-    resolveWorkletUrl,
-    logger: options.logger,
-    quiet: options.quiet,
-  });
+  const cacophony = Cacophony.createOffline(
+    {
+      numberOfChannels: options.numberOfChannels ?? 2,
+      length: options.length,
+      sampleRate: options.sampleRate,
+      context: context as unknown as BaseContext & { startRendering(): Promise<AudioBuffer> },
+    },
+    options.cache,
+    {
+      createAudioWorkletNode: makeCreateAudioWorkletNode(backend.AudioWorkletNode),
+      resolveWorkletUrl,
+      logger: options.logger,
+      quiet: options.quiet,
+    },
+  );
   return { cacophony, context };
 }
 
