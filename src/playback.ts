@@ -65,16 +65,6 @@ export class Playback extends BasePlayback implements BaseSound {
    */
   private _pitchFactor: number = 1;
   /**
-   * The phase-vocoder AudioWorkletNode (Laroche & Dolson 1999 peak-based
-   * pitch-shift with Identity Phase-Locking) spliced into this playback's chain
-   * between the filter tail and {@link gainNode}. `undefined` until
-   * {@link setPitchShift} is first called with a factor != 1; lazily built via
-   * `cacophony.createPhaseVocoderNode`. {@link refreshFilters} re-inserts it on
-   * every chain rebuild so it is never bypassed.
-   */
-  private _pitchShiftNode?: AudioWorkletNode;
-
-  /**
    * Creates an instance of the Playback class.
    * @throws {Error} Throws an error if an invalid pan type is provided.
    */
@@ -93,10 +83,9 @@ export class Playback extends BasePlayback implements BaseSound {
       this.buffer = source.buffer;
     }
     this.setupSourceNode(source);
-    this.source.connect(this.panner!);
     this.setGainNode(gainNode);
+    this.setEffectChainEndpoints(this.source, this.panner!);
     this.panner!.connect(this.gainNode!);
-    this.refreshFilters();
   }
 
   override setPanType(panType: PanType, audioContext: BaseContext): void {
@@ -107,9 +96,8 @@ export class Playback extends BasePlayback implements BaseSound {
       return;
     }
 
-    this.source.disconnect();
-    this.source.connect(this.panner);
-    this.refreshFilters();
+    this.setEffectChainEndpoints(this.source, this.panner);
+    this.panner.connect(this.gainNode);
   }
 
   private setupSourceNode(source: SourceNode) {
@@ -516,10 +504,9 @@ export class Playback extends BasePlayback implements BaseSound {
       }
       this.source = this.context.createBufferSource();
       this.source.buffer = this.buffer;
-      this.source.connect(this.panner);
+      this.setEffectChainEndpoints(this.source, this.panner);
       this.source.onended = this.loopEnded;
       this.playbackRate = this._playbackRate;
-      this.refreshFilters();
     } catch (error) {
       this.emitAsync("error", {
         error: error as Error,
@@ -570,15 +557,6 @@ export class Playback extends BasePlayback implements BaseSound {
     this.currentLoop = 0;
     this.source.disconnect();
     this.source = undefined;
-    // Tear down the phase-vocoder pitch-shift worklet node if one was spliced in.
-    if (this._pitchShiftNode) {
-      try {
-        this._pitchShiftNode.disconnect();
-      } catch {
-        // Best-effort — node may already have been disconnected externally.
-      }
-      this._pitchShiftNode = undefined;
-    }
     super.cleanup();
   }
 
@@ -591,13 +569,11 @@ export class Playback extends BasePlayback implements BaseSound {
   addFilter(filter: BiquadFilterNode): void {
     this.assertNotCleanedUp();
     super.addFilter(filter);
-    this.refreshFilters();
   }
 
   removeFilter(filter: BiquadFilterNode): void {
     this.assertNotCleanedUp();
     super.removeFilter(filter);
-    this.refreshFilters();
   }
 
   /**
@@ -631,42 +607,16 @@ export class Playback extends BasePlayback implements BaseSound {
   }
 
   /**
-   * Refreshes the audio filters by re-applying them to the audio signal chain.
-   * This method is called internally whenever filters are added or removed.
-   * @throws {Error} Throws an error if the sound has been cleaned up.
-   */
-
-  private refreshFilters(): void {
-    if (!this.panner || !this.gainNode) {
-      throw new Error("Cannot update filters on a sound that has been cleaned up");
-    }
-    let connection: AudioNode = this.panner;
-    connection.disconnect();
-    connection = this.applyFilters(connection);
-    // Splice the phase-vocoder pitch-shift worklet (if active) AFTER the filter
-    // chain and BEFORE the gainNode, so the rebuilt chain is
-    // panner → [filters] → pitchShiftNode → gainNode. Re-inserted on every
-    // rebuild so it is never bypassed when filters change. (Laroche & Dolson
-    // 1999 peak-based pitch shift — see Playback.setPitchShift.)
-    if (this._pitchShiftNode) {
-      this._pitchShiftNode.disconnect();
-      connection.connect(this._pitchShiftNode);
-      connection = this._pitchShiftNode;
-    }
-    connection.connect(this.gainNode);
-  }
-
-  /**
    * Sets the pitch-shift factor for this playback, resurrecting the dormant
    * phase-vocoder worklet (Jean Laroche & Mark Dolson, "New Phase-Vocoder
    * Techniques for Pitch-Shifting, Harmonizing and Other Exotic Effects",
    * 1999 IEEE WASPAA — peak-based pitch shift with Identity Phase-Locking).
    *
-   * On first use (factor !== 1) the phase-vocoder AudioWorkletNode is built via
-   * `cacophony.createPhaseVocoderNode` and spliced into this playback's graph at
-   * the {@link refreshFilters} seam (panner → [filters] → pitchShiftNode →
-   * gainNode). The factor is forwarded to the node's `pitchFactor` AudioParam
-   * (1 = no shift, 2 = +1 octave, 0.5 = -1 octave).
+   * On first use (factor !== 1) the phase-vocoder AudioWorkletNode is built and
+   * added as an ordinary entry at the tail of the pre-panner effect chain:
+   * source → [filters] → phase vocoder → panner → gainNode. The factor is
+   * forwarded to the node's `pitchFactor` AudioParam (1 = no shift, 2 = +1
+   * octave, 0.5 = -1 octave).
    *
    * @param factor Pitch multiplier (> 0).
    * @throws {Error} if the playback has been cleaned up or factor <= 0.
@@ -677,38 +627,39 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Pitch-shift factor must be greater than 0");
     }
     this._pitchFactor = factor;
+    const effectChain = this._effectChain;
+    if (!effectChain) {
+      throw new Error("Cannot pitch-shift a playback before its effect chain is initialized");
+    }
+    let pitchShiftNode = effectChain.nodes.find((node) => {
+      const parameters = (node as AudioWorkletNode).parameters;
+      return parameters && typeof parameters.get === "function" && parameters.get("pitchFactor") !== undefined;
+    }) as AudioWorkletNode | undefined;
 
     // factor === 1 is the documented "no shift" contract and MUST be a genuine
     // passthrough. The peak/region phase-vocoder pipeline does NOT guarantee
     // identity for peakless / edge-bin / broadband content (it zero-fills and
     // only repopulates detected peak regions), so we cannot leave the node in
-    // the chain at factor 1. Tear it down and rebuild the chain so the signal
-    // bypasses the worklet entirely (panner → [filters] → gainNode). A later
+    // the chain at factor 1. Remove its ordinary chain entry so the signal
+    // bypasses the worklet entirely (source → [filters] → panner). A later
     // non-unity factor rebuilds a fresh node.
     if (factor === 1) {
-      if (this._pitchShiftNode) {
-        try {
-          this._pitchShiftNode.disconnect();
-        } catch {
-          // Best-effort — node may already have been disconnected.
-        }
-        this._pitchShiftNode = undefined;
-        this.refreshFilters();
+      if (pitchShiftNode) {
+        effectChain.remove(pitchShiftNode);
       }
       return;
     }
 
-    if (!this._pitchShiftNode) {
+    if (!pitchShiftNode) {
       const cacophony = this.origin.cacophony;
       if (!cacophony) {
         throw new Error("Cannot pitch-shift a playback whose Sound has no Cacophony instance");
       }
-      this._pitchShiftNode = await cacophony.buildWorkletEffect(WORKLETS.phaseVocoder, {}, this.context);
-      // Insert the freshly built node into the live chain.
-      this.refreshFilters();
+      pitchShiftNode = await cacophony.buildWorkletEffect(WORKLETS.phaseVocoder, {}, this.context);
+      effectChain.add(pitchShiftNode);
     }
 
-    const pitchParam = this._pitchShiftNode.parameters?.get("pitchFactor");
+    const pitchParam = pitchShiftNode.parameters?.get("pitchFactor");
     if (pitchParam) {
       pitchParam.value = factor;
     }

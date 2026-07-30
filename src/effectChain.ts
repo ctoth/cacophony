@@ -36,12 +36,22 @@ export class EffectChain {
     return this.entries.some((entry) => entry.handle === node);
   }
 
-  add(built: BuiltEffect): AudioNode {
+  setEndpoints(input: AudioNode, output: AudioNode): void {
+    if (input === this.input && output === this.output) {
+      return;
+    }
+    this.disconnectEdges();
+    this.input = input;
+    this.output = output;
+    this.refresh();
+  }
+
+  add(built: BuiltEffect, index = this.entries.length): AudioNode {
     const entry = this.normalize(built);
     if (this.has(entry.handle)) {
       throw new Error("Cannot add the same effect node to a chain twice");
     }
-    this.entries.push(entry);
+    this.entries.splice(index, 0, entry);
     this.refresh();
     return entry.handle;
   }

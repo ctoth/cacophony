@@ -170,14 +170,14 @@ describe("Synth class", () => {
     expect(playbacks[0].filters[0].frequency.value).toBe(filter.frequency.value);
   });
 
-  it.skip("wires cloned filters into the synth playback path (#41)", () => {
+  it("wires cloned filters before the synth playback panner", () => {
     const filter = audioContextMock.createBiquadFilter();
     synth.addFilter(filter);
     const [playback] = synth.preplay();
 
     expectPath(
       playback.source!,
-      [playback.panner!, playback.filters[0], playback.outputNode, masterInput],
+      [playback.filters[0], playback.panner!, playback.outputNode, masterInput],
       destination,
     );
   });

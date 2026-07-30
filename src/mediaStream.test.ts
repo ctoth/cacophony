@@ -60,6 +60,7 @@ describe("MediaStreamSound", () => {
 
   it("creates one reusable playback for a live MediaStream", () => {
     const sound = new MediaStreamSound(stream, context, globalGainNode);
+    sound.addFilter(context.createBiquadFilter());
 
     const firstPlay = sound.play();
     const secondPlay = sound.play();
@@ -69,7 +70,11 @@ describe("MediaStreamSound", () => {
     expect(secondPlay[0]).toBe(firstPlay[0]);
     expect(context.createMediaStreamSource).toHaveBeenCalledTimes(1);
     expect(sound.isPlaying).toBe(true);
-    expectPath(source, [firstPlay[0].panner!, firstPlay[0].outputNode, globalGainNode], destination);
+    expectPath(
+      source,
+      [firstPlay[0].filters[0], firstPlay[0].panner!, firstPlay[0].outputNode, globalGainNode],
+      destination,
+    );
   });
 
   it("applies volume and HRTF position to the live playback", () => {

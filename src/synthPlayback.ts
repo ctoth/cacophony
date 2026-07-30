@@ -26,10 +26,9 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
     if (!panner) {
       throw new Error("setPanType did not produce a panner node");
     }
-    source.connect(panner);
     this.setGainNode(gainNode);
+    this.setEffectChainEndpoints(source, panner);
     panner.connect(gainNode);
-    this.refreshFilters();
     this.oscillatorOptions = {
       detune: source.detune.value,
       frequency: source.frequency.value,
@@ -78,22 +77,6 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
     }
 
     this.markStopped();
-  }
-
-  /**
-   * Refreshes the audio filters by re-applying them to the audio signal chain.
-   * This method is called internally whenever filters are added or removed.
-   * @throws {Error} Throws an error if the synth has been cleaned up.
-   */
-
-  private refreshFilters(): void {
-    if (!this.panner || !this.gainNode) {
-      throw new Error("Cannot update filters on a sound that has been cleaned up");
-    }
-    let connection: AudioNode = this.panner;
-    connection.disconnect();
-    connection = this.applyFilters(connection);
-    connection.connect(this.gainNode);
   }
 
   cleanup(): void {
@@ -166,6 +149,6 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
 
     this.source.disconnect();
     this.source = this.context.createOscillator();
-    this.source.connect(this.panner);
+    this.setEffectChainEndpoints(this.source, this.panner);
   }
 }

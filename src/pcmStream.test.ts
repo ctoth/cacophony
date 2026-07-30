@@ -68,7 +68,7 @@ describe("PcmStreamSound", () => {
     expect(playback.volume).toBe(0.25);
     expect(playback.stereoPan).toBe(-0.5);
     expect(playback.filters).toHaveLength(1);
-    expectPath(playback.source!, [playback.panner!, playback.filters[0], playback.outputNode], bus.input);
+    expectPath(playback.source!, [playback.filters[0], playback.panner!, playback.outputNode], bus.input);
     expectReachable(playback.source!, bus.output);
     expectNotReachable(playback.outputNode, cacophony.master.input);
   });
