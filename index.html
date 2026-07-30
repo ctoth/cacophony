@@ -114,9 +114,17 @@ source. MP3, ADTS/MP4 AAC, Ogg, FLAC, and WAVE containers are supported.</p>
 <code>createStream()</code> falls back to a media-element <code>Sound</code>. Check
 <code>streamCapabilities.transport</code> for <code>'webcodecs'</code> or <code>'media-element'</code> rather
 than assuming a tier.</p>
-<p>Native HLS (<code>.m3u8</code>) playback is limited to Safari. Cross-browser HLS support
-requires an adapter such as the one tracked in the
-<a href="https://github.com/ctoth/cacophony/issues/132">hls.js adapter issue</a>.</p>
+<p>Native HLS (<code>.m3u8</code>) playback, notably in Safari, uses the media element
+directly. In browsers without native HLS, <code>createStream()</code> lazily uses
+<code>hls.js</code>, declared as an optional peer dependency:</p>
+<pre><code class="bash"><span class="hl-0">npm</span><span class="hl-1"> </span><span class="hl-2">install</span><span class="hl-1"> </span><span class="hl-2">hls.js</span>
+</code><button type="button">Copy</button></pre>
+
+<p>If neither native HLS nor an installed, MSE-capable <code>hls.js</code> is available,
+<code>createStream()</code> rejects with install guidance instead of leaving a media
+element silently waiting. hls.js failures after loading are emitted through
+the Sound's <code>soundError</code> event, and <code>sound.cleanup()</code> detaches and destroys the
+hls.js instance.</p>
 <h3 id="format-fallback-howler-style" class="tsd-anchor-link">Format Fallback (Howler-style)<a href="#format-fallback-howler-style" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <p>Pass an array of URLs and Cacophony picks the first one the browser can play.
 It queries <code>HTMLAudioElement.canPlayType</code> per extension and fetches only the
@@ -317,11 +325,11 @@ writing more samples recovers playback without repeating stale audio.
 Volume, stereo/HRTF pan, filters, buses, and sends use the same public APIs as
 other sources. Seek is not supported for a push PCM source. Loop is not
 supported because the source does not retain consumed samples.</p>
-<p>Adaptive HLS/DASH and DRM are outside the WebCodecs pull transport. Native HLS
-playback is limited to Safari; use the media tier or an hls.js adapter for
-<code>.m3u8</code> URLs in other browsers. Follow the
-<a href="https://github.com/ctoth/cacophony/issues/132">hls.js adapter issue</a> for that
-integration.</p>
+<p>Adaptive HLS/DASH and DRM are outside the WebCodecs pull transport. <code>.m3u8</code>
+URLs use the media tier: native HLS where <code>HTMLAudioElement.canPlayType()</code>
+reports support (notably Safari), then the optional <code>hls.js</code> peer in
+MSE-capable browsers. Install that peer with <code>npm install hls.js</code>. DASH and DRM
+remain outside this integration.</p>
 <pre><code class="typescript"><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">cacophony</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">Cacophony</span><span class="hl-1">();</span><br/><br/><span class="hl-3">try</span><span class="hl-1"> {</span><br/><span class="hl-1">  </span><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">streamedSound</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">cacophony</span><span class="hl-1">.</span><span class="hl-0">createStream</span><span class="hl-1">(</span><span class="hl-2">&#39;https://example.com/live_radio_stream&#39;</span><span class="hl-1">);</span><br/><span class="hl-1">  </span><span class="hl-4">streamedSound</span><span class="hl-1">.</span><span class="hl-0">play</span><span class="hl-1">();</span><br/><br/><span class="hl-1">  </span><span class="hl-7">// Apply real-time effects to the stream</span><br/><span class="hl-1">  </span><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">highPassFilter</span><span class="hl-1"> = </span><span class="hl-4">cacophony</span><span class="hl-1">.</span><span class="hl-0">createBiquadFilter</span><span class="hl-1">({ </span><span class="hl-4">type:</span><span class="hl-1"> </span><span class="hl-2">&#39;highpass&#39;</span><span class="hl-1">, </span><span class="hl-4">frequency:</span><span class="hl-1"> </span><span class="hl-8">500</span><span class="hl-1"> });</span><br/><span class="hl-1">  </span><span class="hl-4">streamedSound</span><span class="hl-1">.</span><span class="hl-0">addFilter</span><span class="hl-1">(</span><span class="hl-4">highPassFilter</span><span class="hl-1">);</span><br/><br/><span class="hl-1">  </span><span class="hl-7">// Control streaming playback</span><br/><span class="hl-1">  </span><span class="hl-0">setTimeout</span><span class="hl-1">(() </span><span class="hl-5">=&gt;</span><span class="hl-1"> {</span><br/><span class="hl-1">    </span><span class="hl-4">streamedSound</span><span class="hl-1">.</span><span class="hl-0">pause</span><span class="hl-1">();</span><br/><span class="hl-1">    </span><span class="hl-0">setTimeout</span><span class="hl-1">(() </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">streamedSound</span><span class="hl-1">.</span><span class="hl-0">play</span><span class="hl-1">(), </span><span class="hl-8">5000</span><span class="hl-1">);</span><br/><span class="hl-1">  }, </span><span class="hl-8">10000</span><span class="hl-1">);</span><br/><br/><span class="hl-1">} </span><span class="hl-3">catch</span><span class="hl-1"> (</span><span class="hl-4">error</span><span class="hl-1">) {</span><br/><span class="hl-1">  </span><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">error</span><span class="hl-1">(</span><span class="hl-2">&quot;Error streaming audio:&quot;</span><span class="hl-1">, </span><span class="hl-4">error</span><span class="hl-1">);</span><br/><span class="hl-1">}</span>
 </code><button type="button">Copy</button></pre>
 

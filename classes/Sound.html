@@ -14,7 +14,7 @@
 <div class="tsd-comment tsd-typography"><p>The base interface for any sound-producing entity, including individual sounds, groups, and playbacks.
 BaseSound</p>
 </div></section>
-<section class="tsd-panel tsd-hierarchy" data-refl="2724">
+<section class="tsd-panel tsd-hierarchy" data-refl="2730">
 <h4>Hierarchy</h4>
 <ul class="tsd-hierarchy">
 <li class="tsd-hierarchy-item"><span class="tsd-signature-type">RoutableSource</span>
@@ -25,7 +25,7 @@ BaseSound</p>
 <ul class="tsd-hierarchy">
 <li><a href="../interfaces/BaseSound.html" class="tsd-signature-type tsd-kind-interface">BaseSound</a></li></ul></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L50">src/sound.ts:50</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L50">src/sound.ts:50</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -90,6 +90,7 @@ BaseSound</p>
 <a href="#preplay" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>preplay</span></a>
 <a href="#removefilter" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filter</span></a>
 <a href="#removefilters" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filters</span></a>
+<a href="#reportloaderror" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>report<wbr/>Load<wbr/>Error</span></a>
 <a href="#resume" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>resume</span></a>
 <a href="#routeto" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>route<wbr/>To</span></a>
 <a href="#seek" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>seek</span></a>
@@ -105,7 +106,7 @@ BaseSound</p>
 <h3 class="tsd-anchor-link" id="constructor"><span>constructor</span><a href="#constructor" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
-<div class="tsd-signature tsd-anchor-link" id="constructorsound"><span class="tsd-signature-keyword">new</span> <span class="tsd-kind-constructor-signature">Sound</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">url</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">buffer</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/AudioBuffer.html" class="tsd-signature-type tsd-kind-interface">AudioBuffer</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">context</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/BaseContext.html" class="tsd-signature-type tsd-kind-interface">BaseContext</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">globalGainNode</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/GainNode.html" class="tsd-signature-type tsd-kind-interface">GainNode</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">soundType</span><span class="tsd-signature-symbol">?:</span> <a href="../types/SoundType.html" class="tsd-signature-type tsd-kind-type-alias">SoundType</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">panType</span><span class="tsd-signature-symbol">?:</span> <a href="../types/PanType.html" class="tsd-signature-type tsd-kind-type-alias">PanType</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">_cacophony</span><span class="tsd-signature-symbol">?:</span> <a href="Cacophony.html" class="tsd-signature-type tsd-kind-class">Cacophony</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">preparedMediaElement</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">HTMLAudioElement</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="" class="tsd-signature-type tsd-kind-class">Sound</a><a href="#constructorsound" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-signature tsd-anchor-link" id="constructorsound"><span class="tsd-signature-keyword">new</span> <span class="tsd-kind-constructor-signature">Sound</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">url</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">buffer</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/AudioBuffer.html" class="tsd-signature-type tsd-kind-interface">AudioBuffer</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">undefined</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">context</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/BaseContext.html" class="tsd-signature-type tsd-kind-interface">BaseContext</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">globalGainNode</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/GainNode.html" class="tsd-signature-type tsd-kind-interface">GainNode</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">soundType</span><span class="tsd-signature-symbol">?:</span> <a href="../types/SoundType.html" class="tsd-signature-type tsd-kind-type-alias">SoundType</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">panType</span><span class="tsd-signature-symbol">?:</span> <a href="../types/PanType.html" class="tsd-signature-type tsd-kind-type-alias">PanType</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">_cacophony</span><span class="tsd-signature-symbol">?:</span> <a href="Cacophony.html" class="tsd-signature-type tsd-kind-class">Cacophony</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">preparedMediaElement</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">HTMLAudioElement</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">_preparedMediaElementCleanup</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-symbol">()</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="" class="tsd-signature-type tsd-kind-class">Sound</a><a href="#constructorsound" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
@@ -117,11 +118,12 @@ BaseSound</p>
 <li><span><span class="tsd-kind-parameter">soundType</span>: <a href="../types/SoundType.html" class="tsd-signature-type tsd-kind-type-alias">SoundType</a><span class="tsd-signature-symbol"> = &quot;buffer&quot;</span></span></li>
 <li><span><span class="tsd-kind-parameter">panType</span>: <a href="../types/PanType.html" class="tsd-signature-type tsd-kind-type-alias">PanType</a><span class="tsd-signature-symbol"> = &quot;HRTF&quot;</span></span></li>
 <li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">_cacophony</span>: <a href="Cacophony.html" class="tsd-signature-type tsd-kind-class">Cacophony</a></span></li>
-<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">preparedMediaElement</span>: <span class="tsd-signature-type">HTMLAudioElement</span></span></li></ul></div>
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">preparedMediaElement</span>: <span class="tsd-signature-type">HTMLAudioElement</span></span></li>
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">_preparedMediaElementCleanup</span>: <span class="tsd-signature-symbol">()</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">Sound</a></h4><aside class="tsd-sources">
 <p>Overrides RoutableSource.constructor</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L77">src/sound.ts:77</a></li></ul></aside></div></li></ul></section></section></details>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L77">src/sound.ts:77</a></li></ul></aside></div></li></ul></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="properties-1">Properties<a href="#properties-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -130,13 +132,13 @@ BaseSound</p>
 <div class="tsd-signature"><span class="tsd-kind-property">_filters</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/BiquadFilterNode.html" class="tsd-signature-type tsd-kind-interface">BiquadFilterNode</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol"> = []</span></div><aside class="tsd-sources">
 <p>Inherited from RoutableSource._filters</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/filters.ts#L8">src/filters.ts:8</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/filters.ts#L8">src/filters.ts:8</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="_position"><span>_<wbr/>position</span><a href="#_position" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">_position</span><span class="tsd-signature-symbol">:</span> <a href="../types/Position.html" class="tsd-signature-type tsd-kind-type-alias">Position</a><span class="tsd-signature-symbol"> = ...</span></div><aside class="tsd-sources">
 <p>Inherited from RoutableSource._position</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/container.ts#L65">src/container.ts:65</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/container.ts#L65">src/container.ts:65</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-is-protected tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="_routetarget"><code class="tsd-tag">Protected</code><span>_<wbr/>route<wbr/>Target</span><a href="#_routetarget" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">_routeTarget</span><span class="tsd-signature-symbol">:</span> <a href="Bus.html" class="tsd-signature-type tsd-kind-class">Bus</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">null</span><span class="tsd-signature-symbol"> = null</span></div>
@@ -144,7 +146,7 @@ BaseSound</p>
 </div><aside class="tsd-sources">
 <p>Inherited from RoutableSource._routeTarget</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/routableSource.ts#L22">src/routableSource.ts:22</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/routableSource.ts#L22">src/routableSource.ts:22</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-is-protected tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="_sends"><code class="tsd-tag">Protected</code><span>_<wbr/>sends</span><a href="#_sends" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">_sends</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Map</span><span class="tsd-signature-symbol">&lt;</span><a href="Bus.html" class="tsd-signature-type tsd-kind-class">Bus</a><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol"> = ...</span></div>
@@ -152,13 +154,13 @@ BaseSound</p>
 </div><aside class="tsd-sources">
 <p>Inherited from RoutableSource._sends</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/routableSource.ts#L24">src/routableSource.ts:24</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/routableSource.ts#L24">src/routableSource.ts:24</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="_stereopan"><span>_<wbr/>stereo<wbr/>Pan</span><a href="#_stereopan" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">_stereoPan</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> = 0</span></div><aside class="tsd-sources">
 <p>Inherited from RoutableSource._stereoPan</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/container.ts#L66">src/container.ts:66</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/container.ts#L66">src/container.ts:66</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="_threedoptions"><span>_<wbr/>three<wbr/>D<wbr/>Options</span><a href="#_threedoptions" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">_threeDOptions</span><span class="tsd-signature-symbol">:</span> <a href="../types/ThreeDOptions.html" class="tsd-signature-type tsd-kind-type-alias">ThreeDOptions</a><span class="tsd-signature-symbol"> = ...</span></div>
@@ -169,62 +171,62 @@ variant replaces this with the stereo shape (no stale HRTF fields).</p>
 </div><aside class="tsd-sources">
 <p>Inherited from RoutableSource._threeDOptions</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/container.ts#L73">src/container.ts:73</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/container.ts#L73">src/container.ts:73</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="_volume"><span>_<wbr/>volume</span><a href="#_volume" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">_volume</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol"> = 1</span></div><aside class="tsd-sources">
 <p>Inherited from RoutableSource._volume</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/container.ts#L74">src/container.ts:74</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/container.ts#L74">src/container.ts:74</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="buffer"><code class="tsd-tag">Optional</code><span>buffer</span><a href="#buffer" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">buffer</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/AudioBuffer.html" class="tsd-signature-type tsd-kind-interface">AudioBuffer</a></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L52">src/sound.ts:52</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L52">src/sound.ts:52</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="context"><span>context</span><a href="#context" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">context</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/BaseContext.html" class="tsd-signature-type tsd-kind-interface">BaseContext</a></div><aside class="tsd-sources">
 <p>Overrides RoutableSource.context</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L54">src/sound.ts:54</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L54">src/sound.ts:54</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-is-protected tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="globalgainnode"><code class="tsd-tag">Protected</code><span>global<wbr/>Gain<wbr/>Node</span><a href="#globalgainnode" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">globalGainNode</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/GainNode.html" class="tsd-signature-type tsd-kind-interface">GainNode</a></div><aside class="tsd-sources">
 <p>Inherited from RoutableSource.globalGainNode</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L81">src/sound.ts:81</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L81">src/sound.ts:81</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="loopcount"><span>loop<wbr/>Count</span><a href="#loopcount" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">loopCount</span><span class="tsd-signature-symbol">:</span> <a href="../types/LoopCount.html" class="tsd-signature-type tsd-kind-type-alias">LoopCount</a><span class="tsd-signature-symbol"> = 0</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L55">src/sound.ts:55</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L55">src/sound.ts:55</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="pantype"><span>pan<wbr/>Type</span><a href="#pantype" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">panType</span><span class="tsd-signature-symbol">:</span> <a href="../types/PanType.html" class="tsd-signature-type tsd-kind-type-alias">PanType</a><span class="tsd-signature-symbol"> = &quot;HRTF&quot;</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L83">src/sound.ts:83</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L83">src/sound.ts:83</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="playbacks"><span>playbacks</span><a href="#playbacks" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">playbacks</span><span class="tsd-signature-symbol">:</span> <a href="Playback.html" class="tsd-signature-type tsd-kind-class">Playback</a><span class="tsd-signature-symbol">[]</span></div><aside class="tsd-sources">
 <p>Overrides RoutableSource.playbacks</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L51">src/sound.ts:51</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L51">src/sound.ts:51</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="soundtype"><span>sound<wbr/>Type</span><a href="#soundtype" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">soundType</span><span class="tsd-signature-symbol">:</span> <a href="../types/SoundType.html" class="tsd-signature-type tsd-kind-type-alias">SoundType</a><span class="tsd-signature-symbol"> = &quot;buffer&quot;</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L82">src/sound.ts:82</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L82">src/sound.ts:82</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="streamcapabilities"><code class="tsd-tag">Optional</code><span>stream<wbr/>Capabilities</span><a href="#streamcapabilities" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">streamCapabilities</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/StreamCapabilities.html" class="tsd-signature-type tsd-kind-interface">StreamCapabilities</a></div><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#streamcapabilities">streamCapabilities</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L53">src/sound.ts:53</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L53">src/sound.ts:53</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="url"><span>url</span><a href="#url" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">url</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L78">src/sound.ts:78</a></li></ul></aside></section></section></details>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L78">src/sound.ts:78</a></li></ul></aside></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Accessors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="accessors-1">Accessors<a href="#accessors-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -237,7 +239,7 @@ variant replaces this with the stereo shape (no stale HRTF fields).</p>
 <h4 class="tsd-returns-title">Returns <a href="Cacophony.html" class="tsd-signature-type tsd-kind-class">Cacophony</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">undefined</span></h4><aside class="tsd-sources">
 <p>Overrides RoutableSource.cacophony</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L94">src/sound.ts:94</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L95">src/sound.ts:95</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="duration"><span>duration</span><a href="#duration" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -251,7 +253,7 @@ Otherwise, if the sound has not been played and is a MediaElementSource, it retu
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4><p>The duration of the sound in seconds.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L428">src/sound.ts:428</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L443">src/sound.ts:443</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="filters"><span>filters</span><a href="#filters" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -261,7 +263,7 @@ Otherwise, if the sound has not been played and is a MediaElementSource, it retu
 <h4 class="tsd-returns-title">Returns <a href="../interfaces/BiquadFilterNode.html" class="tsd-signature-type tsd-kind-interface">BiquadFilterNode</a><span class="tsd-signature-symbol">[]</span></h4><aside class="tsd-sources">
 <p>Inherited from RoutableSource.filters</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/filters.ts#L45">src/filters.ts:45</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/filters.ts#L45">src/filters.ts:45</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="isplaying"><span>is<wbr/>Playing</span><a href="#isplaying" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -275,7 +277,7 @@ an object is playing if any of its playbacks are currently playing.</p>
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#isplaying">isPlaying</a></p>
 <p>Inherited from RoutableSource.isPlaying</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/container.ts#L138">src/container.ts:138</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/container.ts#L138">src/container.ts:138</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="pitchshift"><span>pitch<wbr/>Shift</span><a href="#pitchshift" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -286,7 +288,7 @@ an object is playing if any of its playbacks are currently playing.</p>
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L498">src/sound.ts:498</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L513">src/sound.ts:513</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="playbackrate"><span>playback<wbr/>Rate</span><a href="#playbackrate" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -295,7 +297,7 @@ an object is playing if any of its playbacks are currently playing.</p>
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L480">src/sound.ts:480</a></li></ul></aside></div></li>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L495">src/sound.ts:495</a></li></ul></aside></div></li>
 <li>
 <div class="tsd-signature" id="playbackrateplaybackrate-1"><span class="tsd-signature-keyword">set</span> <span class="tsd-kind-set-signature">playbackRate</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">rate</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span></div>
 <div class="tsd-description">
@@ -305,7 +307,7 @@ an object is playing if any of its playbacks are currently playing.</p>
 <li><span><span class="tsd-kind-parameter">rate</span>: <span class="tsd-signature-type">number</span></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L484">src/sound.ts:484</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L499">src/sound.ts:499</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="position"><span>position</span><a href="#position" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -319,7 +321,7 @@ The position is returned as an array of three values[x, y, z].</p>
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#position">position</a></p>
 <p>Inherited from <a href="MediaStreamSound.html">MediaStreamSound</a>.<a href="MediaStreamSound.html#position">position</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/container.ts#L147">src/container.ts:147</a></li></ul></aside></div></li>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/container.ts#L147">src/container.ts:147</a></li></ul></aside></div></li>
 <li>
 <div class="tsd-signature" id="positionposition-1"><span class="tsd-signature-keyword">set</span> <span class="tsd-kind-set-signature">position</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">position</span><span class="tsd-signature-symbol">:</span> <a href="../types/Position.html" class="tsd-signature-type tsd-kind-type-alias">Position</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span></div>
 <div class="tsd-description">
@@ -335,7 +337,7 @@ This method updates the position of all active playbacks of the sound.</p>
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#position">position</a></p>
 <p>Inherited from <a href="MediaStreamSound.html">MediaStreamSound</a>.<a href="MediaStreamSound.html#position">position</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/container.ts#L160">src/container.ts:160</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/container.ts#L160">src/container.ts:160</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="stereopan"><span>stereo<wbr/>Pan</span><a href="#stereopan" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -345,7 +347,7 @@ This method updates the position of all active playbacks of the sound.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4><aside class="tsd-sources">
 <p>Inherited from <a href="MediaStreamSound.html">MediaStreamSound</a>.<a href="MediaStreamSound.html#stereopan">stereoPan</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/container.ts#L200">src/container.ts:200</a></li></ul></aside></div></li>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/container.ts#L200">src/container.ts:200</a></li></ul></aside></div></li>
 <li>
 <div class="tsd-signature" id="stereopanstereopan-1"><span class="tsd-signature-keyword">set</span> <span class="tsd-kind-set-signature">stereoPan</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">value</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span></div>
 <div class="tsd-description">
@@ -356,7 +358,7 @@ This method updates the position of all active playbacks of the sound.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <p>Inherited from <a href="MediaStreamSound.html">MediaStreamSound</a>.<a href="MediaStreamSound.html#stereopan">stereoPan</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/container.ts#L204">src/container.ts:204</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/container.ts#L204">src/container.ts:204</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="threedoptions"><span>three<wbr/>D<wbr/>Options</span><a href="#threedoptions" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -371,7 +373,7 @@ returned reference (previously the raw <code>_threeDOptions</code> object leaked
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#threedoptions">threeDOptions</a></p>
 <p>Inherited from RoutableSource.threeDOptions</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/container.ts#L174">src/container.ts:174</a></li></ul></aside></div></li>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/container.ts#L174">src/container.ts:174</a></li></ul></aside></div></li>
 <li>
 <div class="tsd-signature" id="threedoptionsthreedoptions-1"><span class="tsd-signature-keyword">set</span> <span class="tsd-kind-set-signature">threeDOptions</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">options</span><span class="tsd-signature-symbol">:</span> <a href="../types/ThreeDOptions.html" class="tsd-signature-type tsd-kind-type-alias">ThreeDOptions</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Partial</span><span class="tsd-signature-symbol">&lt;</span><a href="../types/HrtfPannerOptions.html" class="tsd-signature-type tsd-kind-type-alias">HrtfPannerOptions</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span></div>
 <div class="tsd-description">
@@ -391,7 +393,7 @@ fields from the previous variant cannot be observed via the getter.</p>
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#threedoptions">threeDOptions</a></p>
 <p>Inherited from RoutableSource.threeDOptions</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/container.ts#L187">src/container.ts:187</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/container.ts#L187">src/container.ts:187</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="volume"><span>volume</span><a href="#volume" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -405,7 +407,7 @@ The volume is specified as a linear value between 0 (silent) and 1 (full volume)
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#volume">volume</a></p>
 <p>Overrides RoutableSource.volume</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L98">src/sound.ts:98</a></li></ul></aside></div></li>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L99">src/sound.ts:99</a></li></ul></aside></div></li>
 <li>
 <div class="tsd-signature" id="volumevolume-1"><span class="tsd-signature-keyword">set</span> <span class="tsd-kind-set-signature">volume</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">volume</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span></div>
 <div class="tsd-description">
@@ -420,7 +422,7 @@ The volume is specified as a linear value between 0 (silent) and 1 (full volume)
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#volume">volume</a></p>
 <p>Overrides RoutableSource.volume</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L490">src/sound.ts:490</a></li></ul></aside></div></li></ul></section></section></details>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L505">src/sound.ts:505</a></li></ul></aside></div></li></ul></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -442,7 +444,7 @@ targeted <code>bus</code>.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <p>Inherited from RoutableSource._onBusDrained</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/routableSource.ts#L148">src/routableSource.ts:148</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/routableSource.ts#L148">src/routableSource.ts:148</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="_resolveroutetargetnode"><span>_<wbr/>resolve<wbr/>Route<wbr/>Target<wbr/>Node</span><a href="#_resolveroutetargetnode" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -455,7 +457,7 @@ Sources left on a subsequently destroyed bus fall back to master.</p>
 <h4 class="tsd-returns-title">Returns <a href="../interfaces/GainNode.html" class="tsd-signature-type tsd-kind-interface">GainNode</a></h4><aside class="tsd-sources">
 <p>Inherited from RoutableSource._resolveRouteTargetNode</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/routableSource.ts#L54">src/routableSource.ts:54</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/routableSource.ts#L54">src/routableSource.ts:54</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-protected tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="_wireroutesends"><code class="tsd-tag">Protected</code><span>_<wbr/>wire<wbr/>Route<wbr/>Sends</span><a href="#_wireroutesends" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-protected tsd-is-inherited">
@@ -471,7 +473,7 @@ Sources left on a subsequently destroyed bus fall back to master.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <p>Inherited from RoutableSource._wireRouteSends</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/routableSource.ts#L70">src/routableSource.ts:70</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/routableSource.ts#L70">src/routableSource.ts:70</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="addfilter"><span>add<wbr/>Filter</span><a href="#addfilter" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -486,7 +488,7 @@ Sources left on a subsequently destroyed bus fall back to master.</p>
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#addfilter">addFilter</a></p>
 <p>Inherited from RoutableSource.addFilter</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/container.ts#L116">src/container.ts:116</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/container.ts#L116">src/container.ts:116</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="addfilters"><span>add<wbr/>Filters</span><a href="#addfilters" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -500,7 +502,7 @@ Sources left on a subsequently destroyed bus fall back to master.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <p>Inherited from RoutableSource.addFilters</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/filters.ts#L49">src/filters.ts:49</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/filters.ts#L49">src/filters.ts:49</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="applyfilters"><span>apply<wbr/>Filters</span><a href="#applyfilters" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -514,7 +516,7 @@ Sources left on a subsequently destroyed bus fall back to master.</p>
 <h4 class="tsd-returns-title">Returns <a href="../interfaces/AudioNode.html" class="tsd-signature-type tsd-kind-interface">AudioNode</a></h4><aside class="tsd-sources">
 <p>Inherited from RoutableSource.applyFilters</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/filters.ts#L38">src/filters.ts:38</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/filters.ts#L38">src/filters.ts:38</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="cleanup"><span>cleanup</span><a href="#cleanup" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -524,7 +526,7 @@ Sources left on a subsequently destroyed bus fall back to master.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <p>Overrides RoutableSource.cleanup</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L526">src/sound.ts:526</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L541">src/sound.ts:541</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="clone"><span>clone</span><a href="#clone" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -547,7 +549,7 @@ more complex configurations like 3D audio options and filter adjustments.</p>
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">Sound</a></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L137">src/sound.ts:137</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L152">src/sound.ts:152</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-protected">
 <h3 class="tsd-anchor-link" id="emit"><code class="tsd-tag">Protected</code><span>emit</span><a href="#emit" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-protected">
@@ -565,7 +567,7 @@ more complex configurations like 3D audio options and filter adjustments.</p>
 <li><span><span class="tsd-kind-parameter">data</span>: <a href="../types/SoundEvents.html" class="tsd-signature-type tsd-kind-type-alias">SoundEvents</a><span class="tsd-signature-symbol">[</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#emitk">K</a><span class="tsd-signature-symbol">]</span></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L117">src/sound.ts:117</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L118">src/sound.ts:118</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-protected">
 <h3 class="tsd-anchor-link" id="emitasync"><code class="tsd-tag">Protected</code><span>emit<wbr/>Async</span><a href="#emitasync" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-protected">
@@ -583,7 +585,7 @@ more complex configurations like 3D audio options and filter adjustments.</p>
 <li><span><span class="tsd-kind-parameter">data</span>: <a href="../types/SoundEvents.html" class="tsd-signature-type tsd-kind-type-alias">SoundEvents</a><span class="tsd-signature-symbol">[</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#emitasynck">K</a><span class="tsd-signature-symbol">]</span></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">void</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L121">src/sound.ts:121</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L122">src/sound.ts:122</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="fadein"><span>fade<wbr/>In</span><a href="#fadein" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -606,7 +608,7 @@ more complex configurations like 3D audio options and filter adjustments.</p>
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#fadein">fadeIn</a></p>
 <p>Inherited from RoutableSource.fadeIn</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/container.ts#L246">src/container.ts:246</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/container.ts#L246">src/container.ts:246</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="fadeout"><span>fade<wbr/>Out</span><a href="#fadeout" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -629,7 +631,7 @@ more complex configurations like 3D audio options and filter adjustments.</p>
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#fadeout">fadeOut</a></p>
 <p>Inherited from RoutableSource.fadeOut</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/container.ts#L256">src/container.ts:256</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/container.ts#L256">src/container.ts:256</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="fadeto"><span>fade<wbr/>To</span><a href="#fadeto" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -655,7 +657,7 @@ more complex configurations like 3D audio options and filter adjustments.</p>
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#fadeto">fadeTo</a></p>
 <p>Inherited from RoutableSource.fadeTo</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/container.ts#L235">src/container.ts:235</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/container.ts#L235">src/container.ts:235</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="loop"><span>loop</span><a href="#loop" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -676,7 +678,7 @@ If no argument is provided, the method returns the current loop count setting.</
 <h4 class="tsd-returns-title">Returns <a href="../types/LoopCount.html" class="tsd-signature-type tsd-kind-type-alias">LoopCount</a></h4><p>The current loop count setting if no argument is provided.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L471">src/sound.ts:471</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L486">src/sound.ts:486</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="off"><span>off</span><a href="#off" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -696,7 +698,7 @@ If no argument is provided, the method returns the current loop count setting.</
 <li><span><span class="tsd-kind-parameter">listener</span>: <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">data</span><span class="tsd-signature-symbol">:</span> <a href="../types/SoundEvents.html" class="tsd-signature-type tsd-kind-type-alias">SoundEvents</a><span class="tsd-signature-symbol">[</span><a class="tsd-signature-type tsd-kind-type-parameter" href="#offk">K</a><span class="tsd-signature-symbol">]</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L113">src/sound.ts:113</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L114">src/sound.ts:114</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="on"><span>on</span><a href="#on" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -717,7 +719,7 @@ If no argument is provided, the method returns the current loop count setting.</
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-symbol">()</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">void</span></h4><p>Cleanup function</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L106">src/sound.ts:106</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L107">src/sound.ts:107</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="pause"><span>pause</span><a href="#pause" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -730,7 +732,7 @@ If no argument is provided, the method returns the current loop count setting.</
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#pause">pause</a></p>
 <p>Overrides RoutableSource.pause</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L401">src/sound.ts:401</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L416">src/sound.ts:416</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="play"><span>play</span><a href="#play" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -749,7 +751,7 @@ allowing for the same sound to be played concurrently with different settings.</
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#play">play</a></p>
 <p>Overrides RoutableSource.play</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L346">src/sound.ts:346</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L361">src/sound.ts:361</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="preplay"><span>preplay</span><a href="#preplay" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -762,7 +764,7 @@ This allows for pre-configuration of playback properties such as volume and posi
 <h4 class="tsd-returns-title">Returns <a href="Playback.html" class="tsd-signature-type tsd-kind-class">Playback</a><span class="tsd-signature-symbol">[]</span></h4><aside class="tsd-sources">
 <p>Overrides RoutableSource.preplay</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L178">src/sound.ts:178</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L193">src/sound.ts:193</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="removefilter"><span>remove<wbr/>Filter</span><a href="#removefilter" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -777,7 +779,7 @@ This allows for pre-configuration of playback properties such as volume and posi
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#removefilter">removeFilter</a></p>
 <p>Inherited from RoutableSource.removeFilter</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/container.ts#L128">src/container.ts:128</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/container.ts#L128">src/container.ts:128</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="removefilters"><span>remove<wbr/>Filters</span><a href="#removefilters" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -791,7 +793,24 @@ This allows for pre-configuration of playback properties such as volume and posi
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <p>Inherited from RoutableSource.removeFilters</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/filters.ts#L54">src/filters.ts:54</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/filters.ts#L54">src/filters.ts:54</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="reportloaderror"><span>report<wbr/>Load<wbr/>Error</span><a href="#reportloaderror" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="reportloaderror-1"><span class="tsd-kind-call-signature">reportLoadError</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">error</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Error</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">recoverable</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#reportloaderror-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Routes a media-loader failure through the Sound's existing typed event
+system. Used by optional media transports after the Sound has loaded.</p>
+</div>
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><span class="tsd-kind-parameter">error</span>: <span class="tsd-signature-type">Error</span></span></li>
+<li><span><span class="tsd-kind-parameter">recoverable</span>: <span class="tsd-signature-type">boolean</span></span></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L130">src/sound.ts:130</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="resume"><span>resume</span><a href="#resume" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -800,7 +819,7 @@ This allows for pre-configuration of playback properties such as volume and posi
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L406">src/sound.ts:406</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L421">src/sound.ts:421</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="routeto"><span>route<wbr/>To</span><a href="#routeto" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -818,7 +837,7 @@ is provided.</p>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <p>Inherited from RoutableSource.routeTo</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/routableSource.ts#L30">src/routableSource.ts:30</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/routableSource.ts#L30">src/routableSource.ts:30</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="seek"><span>seek</span><a href="#seek" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -837,7 +856,7 @@ This method iterates through all active <code>Playback</code> instances and call
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#seek">seek</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L417">src/sound.ts:417</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L432">src/sound.ts:432</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="setpitchshift"><span>set<wbr/>Pitch<wbr/>Shift</span><a href="#setpitchshift" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -860,7 +879,7 @@ The factor is also stored so future playbacks pick it up at preplay.</p>
 and its <code>pitchFactor</code> param updated.</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L513">src/sound.ts:513</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L528">src/sound.ts:528</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="stop"><span>stop</span><a href="#stop" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -873,7 +892,7 @@ and its <code>pitchFactor</code> param updated.</p>
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#stop">stop</a></p>
 <p>Overrides RoutableSource.stop</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L393">src/sound.ts:393</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L408">src/sound.ts:408</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="stopwithfade"><span>stop<wbr/>With<wbr/>Fade</span><a href="#stopwithfade" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -896,7 +915,7 @@ and its <code>pitchFactor</code> param updated.</p>
 <p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#stopwithfade">stopWithFade</a></p>
 <p>Inherited from RoutableSource.stopWithFade</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/container.ts#L266">src/container.ts:266</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/container.ts#L266">src/container.ts:266</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="timestretch"><span>time<wbr/>Stretch</span><a href="#timestretch" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -928,7 +947,7 @@ buffer is returned. Delegates to <a href="Cacophony.html#timestretchbuffer" clas
 <h4 class="tsd-anchor-link" id="throws">Throws<a href="#throws" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>If this Sound has no AudioBuffer (e.g. streaming/HTML5 audio).</p>
 </div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b7074cc8a145eaf1fefc19a4c4dd80e460472dfc/src/sound.ts#L451">src/sound.ts:451</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cf7d84deaa67da72acb0bf54fbae8784ce0269e5/src/sound.ts#L466">src/sound.ts:466</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
@@ -951,7 +970,7 @@ buffer is returned. Delegates to <a href="Cacophony.html#timestretchbuffer" clas
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Accessors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Accessors</summary>
 <div><a href="#cacophony"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>cacophony</span></a><a href="#duration"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>duration</span></a><a href="#filters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>filters</span></a><a href="#isplaying" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>is<wbr/>Playing</span></a><a href="#pitchshift"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>pitch<wbr/>Shift</span></a><a href="#playbackrate"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>playback<wbr/>Rate</span></a><a href="#position" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>position</span></a><a href="#stereopan" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>stereo<wbr/>Pan</span></a><a href="#threedoptions" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>three<wbr/>D<wbr/>Options</span></a><a href="#volume"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>volume</span></a></div></details>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Methods</summary>
-<div><a href="#_onbusdrained" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>_<wbr/>on<wbr/>Bus<wbr/>Drained</span></a><a href="#_resolveroutetargetnode" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>_<wbr/>resolve<wbr/>Route<wbr/>Target<wbr/>Node</span></a><a href="#_wireroutesends" class="tsd-is-protected tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>_<wbr/>wire<wbr/>Route<wbr/>Sends</span></a><a href="#addfilter" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add<wbr/>Filter</span></a><a href="#addfilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add<wbr/>Filters</span></a><a href="#applyfilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>apply<wbr/>Filters</span></a><a href="#cleanup"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>cleanup</span></a><a href="#clone"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>clone</span></a><a href="#emit" class="tsd-is-protected"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>emit</span></a><a href="#emitasync" class="tsd-is-protected"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>emit<wbr/>Async</span></a><a href="#fadein" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>fade<wbr/>In</span></a><a href="#fadeout" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>fade<wbr/>Out</span></a><a href="#fadeto" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>fade<wbr/>To</span></a><a href="#loop"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>loop</span></a><a href="#off"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>off</span></a><a href="#on"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>on</span></a><a href="#pause"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>pause</span></a><a href="#play"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>play</span></a><a href="#preplay"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>preplay</span></a><a href="#removefilter" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filter</span></a><a href="#removefilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filters</span></a><a href="#resume"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>resume</span></a><a href="#routeto" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>route<wbr/>To</span></a><a href="#seek"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>seek</span></a><a href="#setpitchshift"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Pitch<wbr/>Shift</span></a><a href="#stop"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>stop</span></a><a href="#stopwithfade" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>stop<wbr/>With<wbr/>Fade</span></a><a href="#timestretch"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>time<wbr/>Stretch</span></a></div></details></div></details></div>
+<div><a href="#_onbusdrained" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>_<wbr/>on<wbr/>Bus<wbr/>Drained</span></a><a href="#_resolveroutetargetnode" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>_<wbr/>resolve<wbr/>Route<wbr/>Target<wbr/>Node</span></a><a href="#_wireroutesends" class="tsd-is-protected tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>_<wbr/>wire<wbr/>Route<wbr/>Sends</span></a><a href="#addfilter" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add<wbr/>Filter</span></a><a href="#addfilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add<wbr/>Filters</span></a><a href="#applyfilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>apply<wbr/>Filters</span></a><a href="#cleanup"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>cleanup</span></a><a href="#clone"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>clone</span></a><a href="#emit" class="tsd-is-protected"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>emit</span></a><a href="#emitasync" class="tsd-is-protected"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>emit<wbr/>Async</span></a><a href="#fadein" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>fade<wbr/>In</span></a><a href="#fadeout" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>fade<wbr/>Out</span></a><a href="#fadeto" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>fade<wbr/>To</span></a><a href="#loop"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>loop</span></a><a href="#off"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>off</span></a><a href="#on"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>on</span></a><a href="#pause"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>pause</span></a><a href="#play"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>play</span></a><a href="#preplay"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>preplay</span></a><a href="#removefilter" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filter</span></a><a href="#removefilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filters</span></a><a href="#reportloaderror"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>report<wbr/>Load<wbr/>Error</span></a><a href="#resume"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>resume</span></a><a href="#routeto" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>route<wbr/>To</span></a><a href="#seek"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>seek</span></a><a href="#setpitchshift"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Pitch<wbr/>Shift</span></a><a href="#stop"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>stop</span></a><a href="#stopwithfade" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>stop<wbr/>With<wbr/>Fade</span></a><a href="#timestretch"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>time<wbr/>Stretch</span></a></div></details></div></details></div>
 <div class="site-menu">
 <nav class="tsd-navigation"><a href="../modules.html">cacophony</a>
 <ul class="tsd-small-nested-navigation" id="tsd-nav-container">
