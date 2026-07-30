@@ -83,6 +83,7 @@ export class Sound extends RoutableSource implements BaseSound {
     public panType: PanType = "HRTF",
     private _cacophony?: Cacophony,
     preparedMediaElement?: HTMLAudioElement,
+    private _preparedMediaElementCleanup?: () => void,
   ) {
     super();
     this.buffer = buffer;
@@ -120,6 +121,20 @@ export class Sound extends RoutableSource implements BaseSound {
 
   protected async emitAsync<K extends keyof SoundEvents>(event: K, data: SoundEvents[K]): Promise<void> {
     return this.eventEmitter.emitAsync(event, data);
+  }
+
+  /**
+   * Routes a media-loader failure through the Sound's existing typed event
+   * system. Used by optional media transports after the Sound has loaded.
+   */
+  reportLoadError(error: Error, recoverable: boolean): void {
+    void this.emitAsync("soundError", {
+      url: this.url,
+      error,
+      errorType: "load",
+      timestamp: Date.now(),
+      recoverable,
+    });
   }
 
   /**
@@ -525,6 +540,8 @@ export class Sound extends RoutableSource implements BaseSound {
 
   cleanup(): void {
     this._cacophony?.unregisterSoundCleanup(this._unregisterToken);
+    this._preparedMediaElementCleanup?.();
+    this._preparedMediaElementCleanup = undefined;
     if (this._preparedMediaElement) {
       this._preparedMediaElement.pause();
       this._preparedMediaElement.src = "";

@@ -161,9 +161,19 @@ If WebCodecs is absent or the primary track has no WebCodecs decoder,
 `streamCapabilities.transport` for `'webcodecs'` or `'media-element'` rather
 than assuming a tier.
 
-Native HLS (`.m3u8`) playback is limited to Safari. Cross-browser HLS support
-requires an adapter such as the one tracked in the
-[hls.js adapter issue](https://github.com/ctoth/cacophony/issues/132).
+Native HLS (`.m3u8`) playback, notably in Safari, uses the media element
+directly. In browsers without native HLS, `createStream()` lazily uses
+`hls.js`, declared as an optional peer dependency:
+
+```bash
+npm install hls.js
+```
+
+If neither native HLS nor an installed, MSE-capable `hls.js` is available,
+`createStream()` rejects with install guidance instead of leaving a media
+element silently waiting. hls.js failures after loading are emitted through
+the Sound's `soundError` event, and `sound.cleanup()` detaches and destroys the
+hls.js instance.
 
 ### Format Fallback (Howler-style)
 
@@ -855,11 +865,11 @@ Volume, stereo/HRTF pan, filters, buses, and sends use the same public APIs as
 other sources. Seek is not supported for a push PCM source. Loop is not
 supported because the source does not retain consumed samples.
 
-Adaptive HLS/DASH and DRM are outside the WebCodecs pull transport. Native HLS
-playback is limited to Safari; use the media tier or an hls.js adapter for
-`.m3u8` URLs in other browsers. Follow the
-[hls.js adapter issue](https://github.com/ctoth/cacophony/issues/132) for that
-integration.
+Adaptive HLS/DASH and DRM are outside the WebCodecs pull transport. `.m3u8`
+URLs use the media tier: native HLS where `HTMLAudioElement.canPlayType()`
+reports support (notably Safari), then the optional `hls.js` peer in
+MSE-capable browsers. Install that peer with `npm install hls.js`. DASH and DRM
+remain outside this integration.
 
 ```typescript
 const cacophony = new Cacophony();

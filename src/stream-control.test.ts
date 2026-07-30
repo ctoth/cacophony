@@ -72,7 +72,10 @@ describe("Stream contract documentation", () => {
 
     expect(readme).toMatch(/media-element-backed/i);
     expect(readme).toMatch(/WebCodecs `AudioDecoder`/i);
-    expect(readme).toMatch(/native HLS[^.]*Safari/i);
+    expect(readme).toMatch(/native HLS[\s\S]{0,80}Safari/i);
+    expect(readme).toMatch(/npm install hls\.js/);
+    expect(readme).toMatch(/optional peer dependency/i);
+    expect(readme).not.toMatch(/hls\.js adapter issue/i);
     expect(cacophonySource).toMatch(/WebCodecsPullAdapter/);
     expect(cacophonySource).toMatch(/createMediaSound\(url, "streaming"/);
     expect(existsSync(join(process.cwd(), "src", "stream.ts"))).toBe(false);

@@ -42,6 +42,7 @@ import {
 import { TypedEventEmitter } from "./eventEmitter";
 import type { CacophonyEvents } from "./events";
 import { Group } from "./group";
+import { HlsAdapter } from "./hlsAdapter";
 import { type CacophonyLogger, consoleLogger, noopLogger } from "./logger";
 import { MediaStreamSound, type MediaStreamSoundOptions } from "./mediaStream";
 import { LoudnessMeter } from "./meters/loudness-meter";
@@ -792,14 +793,19 @@ export class Cacophony {
     soundType: "html" | "streaming",
     panType: PanType,
     signal?: AbortSignal,
+    preparedAudio?: HTMLAudioElement,
+    useHlsJs: boolean = false,
   ): Promise<Sound> {
     if (signal?.aborted) {
       return Promise.reject(this.createAbortError());
     }
 
     return new Promise<Sound>((resolve, reject) => {
-      const audio = new Audio();
+      const audio = preparedAudio ?? new Audio();
+      let hlsAdapter: HlsAdapter | undefined;
+      let sound: Sound | undefined;
       let settled = false;
+      const pendingHlsErrors: Array<{ error: Error; recoverable: boolean }> = [];
 
       const cleanup = () => {
         audio.removeEventListener("loadedmetadata", handleLoadedMetadata);
@@ -808,6 +814,7 @@ export class Cacophony {
       };
 
       const teardown = () => {
+        hlsAdapter?.destroy();
         audio.pause();
         audio.src = "";
         audio.load();
@@ -824,7 +831,17 @@ export class Cacophony {
 
       const handleLoadedMetadata = () => {
         settle(() => {
-          const sound = new Sound(url, undefined, this.context, this.globalGainNode, soundType, panType, this, audio);
+          sound = new Sound(
+            url,
+            undefined,
+            this.context,
+            this.globalGainNode,
+            soundType,
+            panType,
+            this,
+            audio,
+            hlsAdapter ? () => hlsAdapter?.destroy() : undefined,
+          );
           if (soundType === "streaming") {
             sound.streamCapabilities = {
               duration: Number.isFinite(audio.duration) ? audio.duration : Number.POSITIVE_INFINITY,
@@ -833,8 +850,24 @@ export class Cacophony {
               transport: "media-element",
             };
           }
+          for (const { error, recoverable } of pendingHlsErrors) {
+            sound.reportLoadError(error, recoverable);
+          }
           resolve(sound);
         });
+      };
+
+      const handleHlsError = (error: Error, recoverable: boolean) => {
+        if (sound) {
+          sound.reportLoadError(error, recoverable);
+        } else if (recoverable) {
+          pendingHlsErrors.push({ error, recoverable });
+        } else {
+          settle(() => {
+            teardown();
+            reject(error);
+          });
+        }
       };
 
       const handleError = () => {
@@ -858,9 +891,41 @@ export class Cacophony {
       audio.addEventListener("loadedmetadata", handleLoadedMetadata);
       audio.addEventListener("error", handleError);
       signal?.addEventListener("abort", handleAbort, { once: true });
-      audio.src = url;
-      audio.load();
+      if (useHlsJs) {
+        void HlsAdapter.create(handleHlsError).then(
+          (adapter) => {
+            hlsAdapter = adapter;
+            if (settled) {
+              adapter.destroy();
+              return;
+            }
+            try {
+              adapter.attach(audio, url);
+            } catch (error) {
+              settle(() => {
+                teardown();
+                reject(error);
+              });
+            }
+          },
+          (error: unknown) => {
+            settle(() => {
+              teardown();
+              reject(error);
+            });
+          },
+        );
+      } else {
+        audio.src = url;
+        audio.load();
+      }
     });
+  }
+
+  private createHlsSound(url: string, signal?: AbortSignal): Promise<Sound> {
+    const audio = new Audio();
+    const nativeHls = audio.canPlayType("application/vnd.apple.mpegurl") || audio.canPlayType("application/x-mpegURL");
+    return this.createMediaSound(url, "streaming", "HRTF", signal, audio, !nativeHls);
   }
 
   clearMemoryCache(): void {
@@ -1077,6 +1142,10 @@ export class Cacophony {
    * decoder for the track, fall back to the media-element streaming tier.
    */
   async createStream(url: string, signal?: AbortSignal): Promise<Sound | WebCodecsStreamSound> {
+    if (/\.m3u8(?:$|[?#])/i.test(url)) {
+      return this.createHlsSound(url, signal);
+    }
+
     if (typeof globalThis.AudioDecoder !== "function") {
       return this.createMediaSound(url, "streaming", "HRTF", signal);
     }
