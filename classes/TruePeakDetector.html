@@ -20,7 +20,7 @@ oversampling phases are needed for the same accuracy (Annex 2: 96 kHz → 2×
 suffices); this 4× design is the conservative default at any rate.</p>
 </div></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/0f7d39ca49881ed6ab06fb13d75a32c95a785d2b/src/meters/truepeak-core.ts#L142">src/meters/truepeak-core.ts:142</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ac2a68de0f66f6433e0e754962a97aab32c06dd5/src/meters/truepeak-core.ts#L142">src/meters/truepeak-core.ts:142</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -61,7 +61,7 @@ p.18). Defaults to 48 kHz (the rate the verbatim FIR is quoted at → 4×).</p>
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">TruePeakDetector</a></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/0f7d39ca49881ed6ab06fb13d75a32c95a785d2b/src/meters/truepeak-core.ts#L156">src/meters/truepeak-core.ts:156</a></li></ul></aside></div></li></ul></section></section></details>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ac2a68de0f66f6433e0e754962a97aab32c06dd5/src/meters/truepeak-core.ts#L156">src/meters/truepeak-core.ts:156</a></li></ul></aside></div></li></ul></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="properties-1">Properties<a href="#properties-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -71,14 +71,14 @@ p.18). Defaults to 48 kHz (the rate the verbatim FIR is quoted at → 4×).</p>
 <div class="tsd-comment tsd-typography"><p>The polyphase FIR actually used (verbatim at 4×, generated for &gt;4×).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/0f7d39ca49881ed6ab06fb13d75a32c95a785d2b/src/meters/truepeak-core.ts#L147">src/meters/truepeak-core.ts:147</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ac2a68de0f66f6433e0e754962a97aab32c06dd5/src/meters/truepeak-core.ts#L147">src/meters/truepeak-core.ts:147</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="oversample"><code class="tsd-tag">Readonly</code><span>oversample</span><a href="#oversample" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">oversample</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Oversampling factor chosen for the input sample rate (≥4; ≥192 kHz).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/0f7d39ca49881ed6ab06fb13d75a32c95a785d2b/src/meters/truepeak-core.ts#L149">src/meters/truepeak-core.ts:149</a></li></ul></aside></section></section></details>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ac2a68de0f66f6433e0e754962a97aab32c06dd5/src/meters/truepeak-core.ts#L149">src/meters/truepeak-core.ts:149</a></li></ul></aside></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -97,7 +97,7 @@ updates the running true peak (max absolute oversampled value).</p>
 <li><span><span class="tsd-kind-parameter">samples</span>: <span class="tsd-signature-type">Float32Array</span></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/0f7d39ca49881ed6ab06fb13d75a32c95a785d2b/src/meters/truepeak-core.ts#L166">src/meters/truepeak-core.ts:166</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ac2a68de0f66f6433e0e754962a97aab32c06dd5/src/meters/truepeak-core.ts#L166">src/meters/truepeak-core.ts:166</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="reset"><span>reset</span><a href="#reset" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -106,7 +106,7 @@ updates the running true peak (max absolute oversampled value).</p>
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/0f7d39ca49881ed6ab06fb13d75a32c95a785d2b/src/meters/truepeak-core.ts#L203">src/meters/truepeak-core.ts:203</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ac2a68de0f66f6433e0e754962a97aab32c06dd5/src/meters/truepeak-core.ts#L203">src/meters/truepeak-core.ts:203</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="truepeak"><span>true<wbr/>Peak</span><a href="#truepeak" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -117,7 +117,7 @@ updates the running true peak (max absolute oversampled value).</p>
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/0f7d39ca49881ed6ab06fb13d75a32c95a785d2b/src/meters/truepeak-core.ts#L190">src/meters/truepeak-core.ts:190</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ac2a68de0f66f6433e0e754962a97aab32c06dd5/src/meters/truepeak-core.ts#L190">src/meters/truepeak-core.ts:190</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="truepeakdb"><span>true<wbr/>Peak<wbr/>Db</span><a href="#truepeakdb" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -130,7 +130,7 @@ for pure silence.</p>
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/0f7d39ca49881ed6ab06fb13d75a32c95a785d2b/src/meters/truepeak-core.ts#L199">src/meters/truepeak-core.ts:199</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ac2a68de0f66f6433e0e754962a97aab32c06dd5/src/meters/truepeak-core.ts#L199">src/meters/truepeak-core.ts:199</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
