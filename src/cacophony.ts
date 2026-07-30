@@ -1095,6 +1095,9 @@ export class Cacophony {
   }
 
   private canPlaySource(url: string): boolean {
+    if (typeof Audio === "undefined") {
+      return true;
+    }
     const mime = mimeTypeForUrl(url);
     if (!mime) {
       return false;
