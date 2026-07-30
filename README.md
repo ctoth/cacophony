@@ -135,7 +135,7 @@ Cacophony supports three URL-backed sound labels:
 |------|--------|---------|---------|-------------------|----------|
 | **Buffer** (default) | High | None | Full | Yes | Sound effects, UI sounds, short music clips |
 | **HTML** | Medium | Low | Full | Yes | Media-element-backed background music, large audio files, and podcasts |
-| **Streaming** | Medium | Low | Full | Yes | The same media-element transport as HTML, labeled by `createStream()` |
+| **Streaming** | Bounded | Low | Range-backed | One stream per source | Sample-accurate URL audio with effects, panning, and metering |
 
 ```typescript
 // Buffer - entire file loaded into memory
@@ -144,16 +144,22 @@ const sfx = await cacophony.createSound('explosion.mp3', 'buffer');
 // HTML - media-element-backed playback, good for large files
 const music = await cacophony.createSound('bgm.mp3', 'html');
 
-// Streaming - the same transport with a distinct convenience label
+// Streaming - incremental demux + WebCodecs decode into a PCM worklet
 const radio = await cacophony.createStream('https://example.com/live-radio.mp3');
+console.log(radio.streamCapabilities);
+// { transport: 'webcodecs', seekable: false, live: true, duration: Infinity }
 ```
 
-Both `'html'` and `'streaming'` use an `HTMLAudioElement`; the browser handles
-progressive download, range requests, native buffering, and supported live
-radio streams. `createStream(url)` is a media-element-backed convenience with
-the transport semantics of `createSound(url, 'html')`, while preserving
-`sound.soundType === 'streaming'`. It does not select a separate streaming
-transport.
+`createStream(url)` uses a fetch → demux → WebCodecs `AudioDecoder` → PCM
+worklet path when WebCodecs is present and can decode the primary audio track.
+The returned source has `soundType === 'streaming'` and uses the same volume,
+pan/HRTF, filter, bus, send, and loudness-meter APIs as every other routable
+source. MP3, ADTS/MP4 AAC, Ogg, FLAC, and WAVE containers are supported.
+
+If WebCodecs is absent or the primary track has no WebCodecs decoder,
+`createStream()` falls back to a media-element `Sound`. Check
+`streamCapabilities.transport` for `'webcodecs'` or `'media-element'` rather
+than assuming a tier.
 
 Native HLS (`.m3u8`) playback is limited to Safari. Cross-browser HLS support
 requires an adapter such as the one tracked in the
@@ -773,12 +779,43 @@ try {
 
 ## Audio Streaming
 
-`createStream()` is a media-element-backed convenience for network audio. It
-uses the same `HTMLAudioElement` transport and playback controls as
-`createSound(url, 'html')`; the returned `Sound` keeps the `'streaming'` label.
-The browser, rather than a Cacophony chunk decoder, provides progressive
-download, range requests, native buffering, and live Icecast/SHOUTcast
-playback.
+`createStream()` incrementally fetches and demuxes MP3, ADTS/MP4 AAC, Ogg,
+FLAC, and WAVE audio. A WebCodecs `AudioDecoder` produces PCM chunks, which are
+resampled to the active audio context and written into the same AudioWorklet
+ring buffer used by `createPcmStreamSound()`. The returned stream is therefore
+sample-accurately scheduled, pannable, filterable, bus-routable, and meterable.
+
+```typescript
+const controller = new AbortController();
+const stream = await cacophony.createStream('/music.ogg', controller.signal);
+
+console.log(stream.streamCapabilities);
+// {
+//   transport: 'webcodecs',
+//   seekable: true,
+//   live: false,
+//   duration: 183.42,
+// }
+
+stream.routeTo(musicBus);
+stream.addFilter(cacophony.createBiquadFilter({ type: 'lowpass', frequency: 1800 }));
+await cacophony.createLoudnessMeter(musicBus);
+stream.play();
+stream.seek(30); // reopens the decoder at 30s when the server supports byte ranges
+
+controller.abort(); // cancels fetch/decoder work and tears down the PCM worklet
+```
+
+`seekable` becomes `true` only after the server answers a byte-range request
+with a range response. Live sources report `live: true`, `seekable: false`, and
+`duration: Infinity`; calling `seek()` on one throws a clear error. A finite
+file whose duration metadata is unavailable also reports `Infinity` rather
+than inventing a duration.
+
+When `AudioDecoder` is unavailable, or the primary audio track cannot be
+decoded by WebCodecs, `createStream()` returns the compatibility
+media-element tier. Its `streamCapabilities.transport` is `'media-element'`;
+the browser owns buffering, seeking, and live-stream behavior in that tier.
 
 For audio that arrives as decoded samples instead of a URL, use the
 AudioWorklet-backed push source:
@@ -818,8 +855,9 @@ Volume, stereo/HRTF pan, filters, buses, and sends use the same public APIs as
 other sources. Seek is not supported for a push PCM source. Loop is not
 supported because the source does not retain consumed samples.
 
-Native HLS playback is limited to Safari. An `.m3u8` URL therefore needs an
-adapter such as hls.js in other browsers; follow the
+Adaptive HLS/DASH and DRM are outside the WebCodecs pull transport. Native HLS
+playback is limited to Safari; use the media tier or an hls.js adapter for
+`.m3u8` URLs in other browsers. Follow the
 [hls.js adapter issue](https://github.com/ctoth/cacophony/issues/132) for that
 integration.
 

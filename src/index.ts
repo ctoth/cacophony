@@ -17,6 +17,7 @@ export type {
   RuntimeOptions,
   SoundCleanupHoldings,
   SoundType,
+  StreamCapabilities,
 } from "./cacophony";
 export { Cacophony } from "./cacophony";
 export type {
@@ -129,3 +130,4 @@ export { Sound } from "./sound";
 export { encodeMonoToFoaSN3D } from "./spatial/foa-encode";
 export { Synth } from "./synth";
 export { SynthGroup } from "./synthGroup";
+export type { WebCodecsStreamSound } from "./webCodecsStream";
