@@ -68,7 +68,7 @@ describe("Playback class", () => {
 
     playback.setPanType("stereo", audioContextMock);
 
-    expectPath(source, [playback.panner!, filter, gainNode], destination);
+    expectPath(source, [filter, playback.panner!, gainNode], destination);
     expectNotReachable(source, oldPanner);
     expect(graphSnapshot(oldPanner).edges).toEqual([]);
   });
@@ -324,7 +324,7 @@ describe("Playback cloning", () => {
   it("keeps a clone wired when overriding its pan type (#101)", () => {
     const clone = originalPlayback.clone({ panType: "stereo" });
 
-    expectPath(clone.source!, [clone.panner!, clone._filters[0]!, clone.gainNode!], gainNode);
+    expectPath(clone.source!, [clone._filters[0]!, clone.panner!, clone.gainNode!], gainNode);
     expectReachable(clone.source!, destination);
   });
 
@@ -443,6 +443,13 @@ describe("Playback cloning for media-element-backed playback", () => {
     expect((clone.source as any).mediaElement).toBe(clonedMediaElement);
     expect((originalPlayback.source as any).mediaElement).toBe(originalMediaElement);
   });
+
+  it("wires media-element playback filters before the panner", () => {
+    const filter = audioContextMock.createBiquadFilter();
+    originalPlayback.addFilter(filter);
+
+    expectPath(originalPlayback.source!, [filter, originalPlayback.panner!], gainNode);
+  });
 });
 
 describe("Playback cleanup functionality", () => {
@@ -550,20 +557,30 @@ describe("Playback filters chain", () => {
     const filter1 = audioContextMock.createBiquadFilter();
     const filter2 = audioContextMock.createBiquadFilter();
 
-    // Spy on refreshFilters method
-    const refreshSpy = vi.spyOn(playback as any, "refreshFilters");
-
     playback.addFilter(filter1);
     playback.addFilter(filter2);
 
-    // Verify refreshFilters was called for each filter addition
-    expect(refreshSpy).toHaveBeenCalledTimes(2);
-
-    // Verify filters are in the correct order in the array
     expect(playback._filters.length).toBe(2);
     expect(playback._filters[0].type).toBe(filter1.type);
     expect(playback._filters[1].type).toBe(filter2.type);
-    expectPath(source, [playback.panner!, filter1, filter2, gainNode], destination);
+    expectPath(source, [filter1, filter2, playback.panner!, gainNode], destination);
+  });
+
+  it("inherits reorder, bypass, and parameter automation from the effect chain", () => {
+    const filter1 = audioContextMock.createBiquadFilter();
+    const filter2 = audioContextMock.createBiquadFilter();
+    playback.addFilter(filter1);
+    playback.addFilter(filter2);
+
+    playback.setFilterOrder([filter2, filter1]);
+    playback.setFilterBypassed(filter2, true);
+    const setValueAtTime = vi.spyOn(filter1.frequency, "setValueAtTime");
+    playback.rampFilterParam(filter1, "frequency", 800);
+
+    expect(playback.filters).toEqual([filter2, filter1]);
+    expect(playback.isFilterBypassed(filter2)).toBe(true);
+    expectPath(source, [filter1, playback.panner!, gainNode], destination);
+    expect(setValueAtTime).toHaveBeenCalledWith(800, filter1.context.currentTime);
   });
 });
 

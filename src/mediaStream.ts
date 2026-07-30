@@ -56,10 +56,9 @@ export class MediaStreamPlayback extends BasePlayback {
     this.source = source;
     this.setPanType(panType, context);
     this.setGainNode(gainNode);
-    this.source.connect(this.panner!);
+    this.setEffectChainEndpoints(this.source, this.panner!);
     this.panner!.connect(this.gainNode!);
     this.gainNode!.connect(outputNode);
-    this.refreshFilters();
     if (primeWithMediaElement) {
       this.createPrimeElement();
     }
@@ -170,7 +169,6 @@ export class MediaStreamPlayback extends BasePlayback {
       throw new Error("Cannot add a filter to a media stream that has been cleaned up");
     }
     super.addFilter(filter);
-    this.refreshFilters();
   }
 
   removeFilter(filter: BiquadFilterNode): void {
@@ -178,17 +176,6 @@ export class MediaStreamPlayback extends BasePlayback {
       throw new Error("Cannot remove a filter from a media stream that has been cleaned up");
     }
     super.removeFilter(filter);
-    this.refreshFilters();
-  }
-
-  private refreshFilters(): void {
-    if (!this.panner || !this.gainNode) {
-      throw new Error("Cannot update filters on a media stream that has been cleaned up");
-    }
-    let connection: AudioNode = this.panner;
-    connection.disconnect();
-    connection = this.applyFilters(connection);
-    connection.connect(this.gainNode);
   }
 
   get outputNode(): GainNode {

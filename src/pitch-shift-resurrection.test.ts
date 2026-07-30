@@ -1,7 +1,7 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { audioContextMock, cacophony } from "./setupTests";
+import { audioContextMock, cacophony, expectPath } from "./setupTests";
 import type { Sound } from "./sound";
 import { WORKLETS } from "./worklets";
 
@@ -21,7 +21,7 @@ import { WORKLETS } from "./worklets";
 type PlaybackInternals = {
   context: unknown;
   panner: { connect: ReturnType<typeof vi.fn> };
-  _pitchShiftNode?: ReturnType<typeof makeFakePvNode>;
+  _effectChain: { nodes: readonly unknown[] };
 };
 
 const inspectPlayback = (playback: unknown): PlaybackInternals => playback as PlaybackInternals;
@@ -86,7 +86,7 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
     expect(playback.pitchShift).toBe(2);
   });
 
-  it("splices the phase-vocoder node into the graph: filterTail/panner → pvNode → gainNode", async () => {
+  it("adds the phase-vocoder as a pre-panner chain entry", async () => {
     sound = await cacophony.createSound(buffer);
     const fakeNode = makeFakePvNode();
     vi.spyOn(cacophony, "buildWorkletEffect").mockResolvedValue(
@@ -94,16 +94,10 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
     );
 
     const playback = sound.preplay()[0];
-    // With no filters, the panner is the chain tail feeding the pitch node.
-    const panner = inspectPlayback(playback).panner;
-    const pannerConnectSpy = vi.spyOn(panner, "connect");
-
     await playback.setPitchShift(1.5);
 
-    // panner now connects INTO the phase-vocoder node (not straight to gainNode).
-    expect(pannerConnectSpy).toHaveBeenCalledWith(fakeNode);
-    // and the phase-vocoder node connects OUT to the playback's gainNode.
-    expect(fakeNode.connect).toHaveBeenCalledWith(playback.outputNode);
+    expect(inspectPlayback(playback)._effectChain.nodes).toContain(fakeNode);
+    expectPath(playback.source!, [fakeNode, playback.panner!], playback.outputNode);
   });
 
   it("forwards the pitch factor to the node's pitchFactor AudioParam", async () => {
@@ -124,7 +118,7 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
     expect(fakeNode._pitchParam.value).toBe(2);
   });
 
-  it("the pitch node survives a later refreshFilters rebuild (never bypassed)", async () => {
+  it("keeps the pitch node after a later filter insertion", async () => {
     sound = await cacophony.createSound(buffer);
     const fakeNode = makeFakePvNode();
     vi.spyOn(cacophony, "buildWorkletEffect").mockResolvedValue(
@@ -133,14 +127,14 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
 
     const playback = sound.preplay()[0];
     await playback.setPitchShift(1.5);
-    fakeNode.connect.mockClear();
+    const pitchConnectCount = fakeNode.connect.mock.calls.length;
 
-    // Adding a filter triggers refreshFilters — the pitch node must be re-inserted.
     const filter = audioContextMock.createBiquadFilter();
     playback.addFilter(filter as unknown as Parameters<typeof playback.addFilter>[0]);
 
-    // pitch node still connects out to gainNode after the rebuild.
-    expect(fakeNode.connect).toHaveBeenCalledWith(playback.outputNode);
+    expect(inspectPlayback(playback)._effectChain.nodes).toContain(fakeNode);
+    expectPath(playback.source!, [filter, fakeNode, playback.panner!], playback.outputNode);
+    expect(fakeNode.connect).toHaveBeenCalledTimes(pitchConnectCount);
   });
 
   it("setPitchShift(1) tears the phase-vocoder node out and bypasses it (true passthrough)", async () => {
@@ -148,7 +142,7 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
     // The peak/region pipeline does NOT guarantee identity for peakless/broadband
     // content, so factor 1 must remove the node from the graph, not just set the
     // param. We assert the node is disconnected, dropped, and the chain rebuilt
-    // so the panner feeds the gainNode directly (no pv node in between).
+    // so the source feeds the panner directly (no pv node in between).
     sound = await cacophony.createSound(buffer);
     const fakeNode = makeFakePvNode();
     vi.spyOn(cacophony, "buildWorkletEffect").mockResolvedValue(
@@ -157,21 +151,17 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
 
     const playback = sound.preplay()[0];
     await playback.setPitchShift(1.5);
-    expect(inspectPlayback(playback)._pitchShiftNode).toBe(fakeNode); // node spliced in
+    expect(inspectPlayback(playback)._effectChain.nodes).toContain(fakeNode);
 
-    const panner = inspectPlayback(playback).panner;
-    const pannerConnectSpy = vi.spyOn(panner, "connect");
     fakeNode.disconnect.mockClear();
 
     await playback.setPitchShift(1);
 
     // node disconnected and dropped (genuine bypass, not param=1 with node live).
     expect(fakeNode.disconnect).toHaveBeenCalled();
-    expect(inspectPlayback(playback)._pitchShiftNode).toBeUndefined();
+    expect(inspectPlayback(playback)._effectChain.nodes).not.toContain(fakeNode);
     expect(playback.pitchShift).toBe(1);
-    // chain rebuilt so panner now feeds the gainNode directly, NOT the pv node.
-    expect(pannerConnectSpy).toHaveBeenCalledWith(playback.outputNode);
-    expect(pannerConnectSpy).not.toHaveBeenCalledWith(fakeNode);
+    expectPath(playback.source!, [playback.panner!], playback.outputNode);
   });
 
   it("Sound.setPitchShift rejects invalid factors (0/NaN/negative) WITHOUT storing them", async () => {
@@ -246,7 +236,7 @@ describe("phase-vocoder resurrection: pitch-shift wires the dead worklet into th
 
     expect(clone.pitchShift).toBe(original.pitchShift);
     expect(built).toHaveLength(2);
-    expect(inspectPlayback(clone)._pitchShiftNode).toBe(built[1]);
-    expect(inspectPlayback(clone)._pitchShiftNode).not.toBe(inspectPlayback(original)._pitchShiftNode);
+    expect(inspectPlayback(clone)._effectChain.nodes).toContain(built[1]);
+    expect(inspectPlayback(clone)._effectChain.nodes).not.toContain(built[0]);
   });
 });
