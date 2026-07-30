@@ -129,24 +129,35 @@ sound.stop();  // Stops all three playbacks
 
 ## Sound Types
 
-Cacophony supports three sound types:
+Cacophony supports three URL-backed sound labels:
 
 | Type | Memory | Latency | Seeking | Multiple Instances | Best For |
 |------|--------|---------|---------|-------------------|----------|
 | **Buffer** (default) | High | None | Full | Yes | Sound effects, UI sounds, short music clips |
-| **HTML** | Medium | Low | Full | Yes | Background music, large audio files, podcasts |
-| **Streaming** | Medium | Low | Full | Yes | Network-backed playback created via `createStream()` |
+| **HTML** | Medium | Low | Full | Yes | Media-element-backed background music, large audio files, and podcasts |
+| **Streaming** | Medium | Low | Full | Yes | The same media-element transport as HTML, labeled by `createStream()` |
 
 ```typescript
 // Buffer - entire file loaded into memory
 const sfx = await cacophony.createSound('explosion.mp3', 'buffer');
 
-// HTML - streams from network, good for large files
+// HTML - media-element-backed playback, good for large files
 const music = await cacophony.createSound('bgm.mp3', 'html');
 
-// Streaming - convenience helper for network-backed playback
-const radio = await cacophony.createStream('https://example.com/stream.m3u8');
+// Streaming - the same transport with a distinct convenience label
+const radio = await cacophony.createStream('https://example.com/live-radio.mp3');
 ```
+
+Both `'html'` and `'streaming'` use an `HTMLAudioElement`; the browser handles
+progressive download, range requests, native buffering, and supported live
+radio streams. `createStream(url)` is a media-element-backed convenience with
+the transport semantics of `createSound(url, 'html')`, while preserving
+`sound.soundType === 'streaming'`. It does not select a separate streaming
+transport.
+
+Native HLS (`.m3u8`) playback is limited to Safari. Cross-browser HLS support
+requires an adapter such as the one tracked in the
+[hls.js adapter issue](https://github.com/ctoth/cacophony/issues/132).
 
 ### Format Fallback (Howler-style)
 
@@ -762,7 +773,17 @@ try {
 
 ## Audio Streaming
 
-Stream audio content efficiently:
+`createStream()` is a media-element-backed convenience for network audio. It
+uses the same `HTMLAudioElement` transport and playback controls as
+`createSound(url, 'html')`; the returned `Sound` keeps the `'streaming'` label.
+The browser, rather than a Cacophony chunk decoder, provides progressive
+download, range requests, native buffering, and live Icecast/SHOUTcast
+playback.
+
+Native HLS playback is limited to Safari. An `.m3u8` URL therefore needs an
+adapter such as hls.js in other browsers; follow the
+[hls.js adapter issue](https://github.com/ctoth/cacophony/issues/132) for that
+integration.
 
 ```typescript
 const cacophony = new Cacophony();

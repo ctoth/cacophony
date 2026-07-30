@@ -1050,11 +1050,16 @@ export class Cacophony {
   }
 
   /**
-   * Creates a streaming Sound instance from a URL.
+   * Creates a media-element-backed Sound instance from a URL.
    *
-   * @param url - URL string to stream audio from
-   * @param signal - Optional AbortSignal to cancel the operation
-   * @returns Promise that resolves to a Sound instance for streaming
+   * This is a convenience for the transport semantics of
+   * `createSound(url, "html")`, while preserving the `"streaming"` sound type
+   * label. Both paths use an `HTMLAudioElement`; `createStream()` does not
+   * select a distinct streaming transport.
+   *
+   * @param url - URL for media-element-backed playback
+   * @param signal - Optional AbortSignal to cancel media loading
+   * @returns Promise that resolves to a media-element-backed Sound labeled `"streaming"`
    */
   async createStream(url: string, signal?: AbortSignal): Promise<Sound> {
     return this.createMediaSound(url, "streaming", "HRTF", signal);

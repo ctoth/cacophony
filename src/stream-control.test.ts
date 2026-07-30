@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cacophony } from "./setupTests";
 
@@ -60,5 +62,18 @@ describe("Stream control integration", () => {
     await cacophony.createStream("https://example.com/audio.wav", controller.signal);
     expect(global.fetch).not.toHaveBeenCalled();
     expect(global.Audio).toHaveBeenCalled();
+  });
+});
+
+describe("Stream contract documentation", () => {
+  it("describes media-element backing and removes the dead chunk decoder", () => {
+    const readme = readFileSync(join(process.cwd(), "README.md"), "utf8");
+    const cacophonySource = readFileSync(join(process.cwd(), "src", "cacophony.ts"), "utf8");
+
+    expect(readme).toMatch(/media-element-backed/i);
+    expect(readme).toMatch(/native HLS[^.]*Safari/i);
+    expect(cacophonySource).toMatch(/media-element-backed/i);
+    expect(existsSync(join(process.cwd(), "src", "stream.ts"))).toBe(false);
+    expect(existsSync(join(process.cwd(), "src", "stream.test.ts"))).toBe(false);
   });
 });
