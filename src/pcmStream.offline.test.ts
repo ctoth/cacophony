@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { nodeBackendAvailable } from "./backend-available";
 import { createOfflineNodeCacophony } from "./node";
 
 function longestAudibleRun(samples: Float32Array, threshold = 1e-5): number {
@@ -16,7 +17,7 @@ function longestAudibleRun(samples: Float32Array, threshold = 1e-5): number {
   return longest;
 }
 
-describe("PcmStreamSound offline rendering", () => {
+describe.skipIf(!nodeBackendAvailable)("PcmStreamSound offline rendering", () => {
   it("plays pushed chunks gaplessly across their boundary through the public API", async () => {
     const sampleRate = 48_000;
     const chunkFrames = 128;
