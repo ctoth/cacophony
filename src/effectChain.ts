@@ -11,14 +11,21 @@ interface EffectChainEntry {
   dispose?: () => void;
 }
 
+interface EffectChainReservation {
+  readonly reservation: symbol;
+}
+
+type EffectChainSlot = EffectChainEntry | EffectChainReservation;
+
 /**
  * Incrementally reconciles a series of built effects between two caller-owned
  * endpoint nodes.
  */
 export class EffectChain {
-  private readonly entries: EffectChainEntry[] = [];
+  private readonly entries: EffectChainSlot[] = [];
   private readonly bypassed = new Set<AudioNode>();
   private readonly edges: Array<readonly [AudioNode, AudioNode]> = [];
+  private destroyed = false;
 
   constructor(
     private input: AudioNode,
@@ -29,11 +36,11 @@ export class EffectChain {
   }
 
   get nodes(): readonly AudioNode[] {
-    return this.entries.map((entry) => entry.handle);
+    return this.entries.filter(this.isEntry).map((entry) => entry.handle);
   }
 
   has(node: AudioNode): boolean {
-    return this.entries.some((entry) => entry.handle === node);
+    return this.entries.some((entry) => this.isEntry(entry) && entry.handle === node);
   }
 
   setEndpoints(input: AudioNode, output: AudioNode): void {
@@ -47,6 +54,9 @@ export class EffectChain {
   }
 
   add(built: BuiltEffect, index = this.entries.length): AudioNode {
+    if (this.destroyed) {
+      throw new Error("Cannot add an effect to a destroyed chain");
+    }
     const entry = this.normalize(built);
     if (this.has(entry.handle)) {
       throw new Error("Cannot add the same effect node to a chain twice");
@@ -56,28 +66,76 @@ export class EffectChain {
     return entry.handle;
   }
 
+  /** Reserve a declaration-order position for an asynchronously built effect. */
+  reserve(): symbol {
+    if (this.destroyed) {
+      throw new Error("Cannot reserve an effect on a destroyed chain");
+    }
+    const reservation = Symbol("effect-chain-reservation");
+    this.entries.push({ reservation });
+    return reservation;
+  }
+
+  /** Replace a reservation with its built effect while retaining its position. */
+  resolve(reservation: symbol, built: BuiltEffect): AudioNode {
+    const entry = this.normalize(built);
+    if (this.destroyed) {
+      entry.dispose?.();
+      return entry.handle;
+    }
+    const index = this.entries.findIndex(
+      (candidate) => !this.isEntry(candidate) && candidate.reservation === reservation,
+    );
+    if (index === -1) {
+      entry.dispose?.();
+      throw new Error("Cannot resolve an unknown effect-chain reservation");
+    }
+    if (this.has(entry.handle)) {
+      entry.dispose?.();
+      throw new Error("Cannot add the same effect node to a chain twice");
+    }
+    this.entries[index] = entry;
+    this.refresh();
+    return entry.handle;
+  }
+
+  cancel(reservation: symbol): void {
+    const index = this.entries.findIndex(
+      (candidate) => !this.isEntry(candidate) && candidate.reservation === reservation,
+    );
+    if (index !== -1) {
+      this.entries.splice(index, 1);
+    }
+  }
+
   remove(node: AudioNode): void {
-    const index = this.entries.findIndex((entry) => entry.handle === node);
+    const index = this.entries.findIndex((entry) => this.isEntry(entry) && entry.handle === node);
     if (index === -1) {
       throw new Error("Cannot remove an effect that was never added to this chain");
     }
     const [entry] = this.entries.splice(index, 1);
     this.bypassed.delete(node);
     this.refresh();
-    entry?.dispose?.();
+    if (entry && this.isEntry(entry)) {
+      entry.dispose?.();
+    }
   }
 
   setOrder(nodes: readonly AudioNode[]): void {
     const isPermutation =
-      nodes.length === this.entries.length &&
+      nodes.length === this.nodes.length &&
       new Set(nodes).size === nodes.length &&
       nodes.every((node) => this.has(node));
     if (!isPermutation) {
       throw new Error("Effect chain order must be a permutation of the current nodes");
     }
-    const ordered = nodes.map((node) => this.entries.find((entry) => entry.handle === node)!);
-    this.entries.length = 0;
-    this.entries.push(...ordered);
+    const ordered = nodes.map((node) => this.entries.find((entry) => this.isEntry(entry) && entry.handle === node)!);
+    let orderedIndex = 0;
+    for (let index = 0; index < this.entries.length; index += 1) {
+      if (this.isEntry(this.entries[index]!)) {
+        this.entries[index] = ordered[orderedIndex++]!;
+      }
+    }
     this.refresh();
   }
 
@@ -102,7 +160,7 @@ export class EffectChain {
   }
 
   rampParam(node: AudioNode, paramName: string, value: number, options?: { duration?: number; type?: FadeType }): void {
-    const entry = this.entries.find((candidate) => candidate.handle === node);
+    const entry = this.entries.filter(this.isEntry).find((candidate) => candidate.handle === node);
     if (!entry) {
       console.warn(
         `${this.diagnosticScope}.rampFilterParam: node is not a filter on this ${this.diagnosticScope.toLowerCase()}; ignoring automation of '${paramName}'.`,
@@ -135,11 +193,14 @@ export class EffectChain {
   }
 
   destroy(): void {
+    this.destroyed = true;
     this.disconnectEdges();
     for (const entry of this.entries) {
-      try {
-        entry.dispose?.();
-      } catch {}
+      if (this.isEntry(entry)) {
+        try {
+          entry.dispose?.();
+        } catch {}
+      }
     }
     this.entries.length = 0;
     this.bypassed.clear();
@@ -170,7 +231,7 @@ export class EffectChain {
   }
 
   private desiredEdges(): Array<readonly [AudioNode, AudioNode]> {
-    const active = this.entries.filter((entry) => !this.bypassed.has(entry.handle));
+    const active = this.entries.filter(this.isEntry).filter((entry) => !this.bypassed.has(entry.handle));
     if (active.length === 0) {
       return [[this.input, this.output]];
     }
@@ -199,6 +260,10 @@ export class EffectChain {
       input: built,
       output: built,
     };
+  }
+
+  private isEntry(slot: EffectChainSlot): slot is EffectChainEntry {
+    return "handle" in slot;
   }
 
   private resolveAudioParam(node: AudioNode, paramName: string): AudioParam | undefined {

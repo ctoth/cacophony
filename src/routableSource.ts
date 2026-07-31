@@ -2,7 +2,9 @@ import type { BasePlayback } from "./basePlayback";
 import type { Bus, BusRoutedSource } from "./bus";
 import type { Cacophony } from "./cacophony";
 import { PlaybackContainer } from "./container";
-import type { BaseContext, GainNode } from "./context";
+import type { BaseContext, BiquadFilterNode, GainNode } from "./context";
+import type { CacophonyEffect } from "./effects";
+import { BiquadRecipeEffect } from "./effects";
 import { FilterManager } from "./filters";
 
 /**
@@ -22,6 +24,43 @@ export abstract class RoutableSource extends PlaybackContainer(FilterManager) im
   protected _routeTarget: Bus | null = null;
   /** Additional send target to gain-value mappings. */
   protected _sends: Map<Bus, number> = new Map();
+  /** Effect recipes materialized independently for each future playback. */
+  private readonly _effects: CacophonyEffect[] = [];
+  private readonly _filterEffects = new Map<BiquadFilterNode, CacophonyEffect>();
+  private readonly _filterEffectRecipes = new Set<CacophonyEffect>();
+
+  addEffect(effect: CacophonyEffect): void {
+    if (this._effects.includes(effect)) {
+      throw new Error("Cannot add the same effect recipe twice");
+    }
+    this._effects.push(effect);
+  }
+
+  removeEffect(effect: CacophonyEffect): void {
+    const index = this._effects.indexOf(effect);
+    if (index === -1) {
+      throw new Error("Cannot remove an effect recipe that was never added");
+    }
+    this._effects.splice(index, 1);
+  }
+
+  override addFilter(filter: BiquadFilterNode): void {
+    super.addFilter(filter);
+    const effect = new BiquadRecipeEffect(filter);
+    this._filterEffects.set(filter, effect);
+    this._filterEffectRecipes.add(effect);
+    this._effects.push(effect);
+  }
+
+  override removeFilter(filter: BiquadFilterNode): void {
+    super.removeFilter(filter);
+    const effect = this._filterEffects.get(filter);
+    if (effect) {
+      this._effects.splice(this._effects.indexOf(effect), 1);
+      this._filterEffects.delete(filter);
+      this._filterEffectRecipes.delete(effect);
+    }
+  }
 
   /**
    * Route this source to a bus, or add an independent send when `sendGain`
@@ -80,6 +119,19 @@ export abstract class RoutableSource extends PlaybackContainer(FilterManager) im
       sendGain.connect(bus.input);
       playback._sendGains.set(bus, sendGain);
     }
+  }
+
+  /** Materialize all declared recipes, then establish this playback's sends. */
+  protected _preparePlayback(playback: BasePlayback): void {
+    for (const effect of this._effects) {
+      const build = this._filterEffectRecipes.has(effect)
+        ? playback._addFilterEffect(effect)
+        : playback._addSourceEffect(effect);
+      void build.catch((error) => {
+        console.warn(`${this.constructor.name} could not build a per-playback effect; continuing without it.`, error);
+      });
+    }
+    this._wireRouteSends(playback);
   }
 
   private _setPrimary(bus: Bus): void {
@@ -176,6 +228,9 @@ export abstract class RoutableSource extends PlaybackContainer(FilterManager) im
     for (const bus of this._sends.keys()) {
       bus._unregisterRoutedSource(this);
     }
+    this._effects.length = 0;
+    this._filterEffects.clear();
+    this._filterEffectRecipes.clear();
     super.cleanup();
   }
 }

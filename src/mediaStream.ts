@@ -262,7 +262,7 @@ export class MediaStreamSound extends RoutableSource implements BaseSound {
       this.stopTracksOnStop,
       this.primeWithMediaElement,
     );
-    this._wireRouteSends(playback);
+    this._preparePlayback(playback);
     playback.volume = this.volume;
     if (this.panType === "HRTF") {
       playback.threeDOptions = this.threeDOptions;
@@ -270,7 +270,6 @@ export class MediaStreamSound extends RoutableSource implements BaseSound {
     } else {
       playback.stereoPan = this.stereoPan ?? 0;
     }
-    this._filters.forEach((filter) => playback.addFilter(filter));
     this.playbacks.push(playback);
     return [playback];
   }

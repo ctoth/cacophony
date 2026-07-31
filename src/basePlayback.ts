@@ -1,8 +1,9 @@
 import type { Bus } from "./bus";
 import type { FadeType } from "./cacophony";
 import type { PlaybackContainer } from "./container";
-import type { AudioNode, BiquadFilterNode, GainNode } from "./context";
+import type { AudioNode, BaseContext, BiquadFilterNode, GainNode } from "./context";
 import { EffectChain } from "./effectChain";
+import type { CacophonyEffect } from "./effects";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { PlaybackEvents } from "./events";
 import { FilterManager } from "./filters";
@@ -14,6 +15,7 @@ export type PlaybackState = "unplayed" | "playing" | "paused" | "stopped";
 export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager)) {
   public source?: AudioNode;
   protected _effectChain?: EffectChain;
+  private _effectContext?: BaseContext;
   /**
    * Per-playback send-gain allocations owned by the shared routing state
    * machine. Cleanup disconnects every allocation deterministically.
@@ -29,11 +31,83 @@ export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager
   }
 
   protected setEffectChainEndpoints(input: AudioNode, output: AudioNode): void {
+    this._effectContext =
+      (input.context as BaseContext | undefined) ??
+      (this.origin as PlaybackContainer & { context?: BaseContext }).context;
     if (this._effectChain) {
       this._effectChain.setEndpoints(input, output);
       return;
     }
     this._effectChain = new EffectChain(input, output, this.constructor.name);
+  }
+
+  /** Build and splice an effect into this live playback's pre-panner chain. */
+  addEffect(effect: CacophonyEffect): Promise<AudioNode> {
+    try {
+      return this.materializeEffect(effect);
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+
+  /** @internal Source preplay path that preserves synchronous native-build failures. */
+  _addSourceEffect(effect: CacophonyEffect): Promise<AudioNode> {
+    return this.materializeEffect(effect);
+  }
+
+  /** @internal Materialize a source-level biquad recipe and retain filter API compatibility. */
+  _addFilterEffect(effect: CacophonyEffect): Promise<AudioNode> {
+    return this.materializeEffect(effect, (handle) => {
+      this._filters.push(handle as BiquadFilterNode);
+    });
+  }
+
+  private materializeEffect(effect: CacophonyEffect, onBuilt?: (handle: AudioNode) => void): Promise<AudioNode> {
+    if (!this._effectChain || !this._effectContext) {
+      throw new Error("Cannot add an effect before the playback effect chain is initialized");
+    }
+    const chain = this._effectChain;
+    const reservation = chain.reserve();
+    let built;
+    try {
+      built = effect.build(this._effectContext);
+    } catch (error) {
+      chain.cancel(reservation);
+      throw error;
+    }
+    if (built instanceof Promise || (typeof built === "object" && built !== null && "then" in built)) {
+      return Promise.resolve(built).then(
+        (resolved) => {
+          const handle = chain.resolve(reservation, resolved);
+          onBuilt?.(handle);
+          return handle;
+        },
+        (error) => {
+          chain.cancel(reservation);
+          throw error;
+        },
+      );
+    }
+    try {
+      const handle = chain.resolve(reservation, built);
+      onBuilt?.(handle);
+      return Promise.resolve(handle);
+    } catch (error) {
+      chain.cancel(reservation);
+      throw error;
+    }
+  }
+
+  rampEffectParam(
+    handle: AudioNode,
+    paramName: string,
+    value: number,
+    options?: { duration?: number; type?: FadeType },
+  ): void {
+    if (!this._effectChain) {
+      throw new Error("Cannot automate an effect before the playback effect chain is initialized");
+    }
+    this._effectChain.rampParam(handle, paramName, value, options);
   }
 
   addFilter(filter: BiquadFilterNode): void {
@@ -174,6 +248,7 @@ export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager
     this._sendGains.clear();
     this._effectChain?.destroy();
     this._effectChain = undefined;
+    this._effectContext = undefined;
     this.eventEmitter.removeAllListeners();
     super.cleanup();
   }

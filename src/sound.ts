@@ -233,7 +233,7 @@ export class Sound extends RoutableSource implements BaseSound {
       const primaryTargetNode = this._resolveRouteTargetNode();
       gainNode.connect(primaryTargetNode);
       const playback = new Playback(this, source, gainNode);
-      this._wireRouteSends(playback);
+      this._preparePlayback(playback);
       this._holdings.sources.push(source);
       this._holdings.gainNodes.push(gainNode);
       if ("mediaElement" in source && source.mediaElement) {
@@ -251,15 +251,6 @@ export class Sound extends RoutableSource implements BaseSound {
           /* worklet unavailable on this context — playback proceeds unshifted */
         });
       }
-      // Clone filters from sound to playback (each playback gets independent filter instances)
-      this._filters.forEach((filter) => {
-        const clonedFilter = this.context.createBiquadFilter();
-        clonedFilter.type = filter.type;
-        clonedFilter.frequency.value = filter.frequency.value;
-        clonedFilter.Q.value = filter.Q.value;
-        clonedFilter.gain.value = filter.gain.value;
-        playback.addFilter(clonedFilter);
-      });
       if (this.panType === "HRTF") {
         playback.threeDOptions = this.threeDOptions;
         playback.position = this.position;

@@ -319,6 +319,40 @@ playback.filters[0].frequency.value = 500; // Only affects this playback
 
 See [TypeDoc](https://cacophony.js.org) for complete filter parameters and options.
 
+### Per-source effects
+
+Use `addEffect` for source character such as distortion, EQ, tremolo, or pitch
+processing. The source stores the `CacophonyEffect` as a recipe and builds a
+fresh effect instance for every playback, before that playback's panner. The
+returned playback handle can be automated without changing another playback.
+
+```typescript
+const guitar = await cacophony.createSound('guitar.mp3');
+const distortion = cacophony.createDistortion({ drive: 4 });
+guitar.addEffect(distortion);
+
+const [take] = guitar.play();
+const liveTremolo = await take.addEffect(cacophony.createTremolo({ rate: 5 }));
+take.rampEffectParam(liveTremolo, 'depth', 0.8, { duration: 250 });
+
+guitar.removeEffect(distortion); // future playbacks no longer build it
+```
+
+Keep shared space effects such as reverb on a bus and feed them with a wet
+send. This leaves the playback's dry character chain intact while every source
+sent to the bus shares one live reverb instance.
+
+```typescript
+const vocals = await cacophony.createSound('vocals.mp3');
+vocals.addEffect(cacophony.createDistortion({ drive: 1.5 })); // dry, per playback
+
+const chamber = cacophony.createBus('chamber');
+await chamber.addFilter(cacophony.createReverb({ wet: 1, dry: 0 }));
+vocals.routeTo(chamber, 0.25); // 25% wet send; primary output stays on master
+
+vocals.play();
+```
+
 ## Custom Audio Routing
 
 Cacophony exposes the underlying Web Audio graph through Playback instances, enabling manual routing through custom effects chains. This is the low-level foundation for building complex audio processing pipelines.

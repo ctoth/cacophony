@@ -182,6 +182,15 @@ describe("Synth class", () => {
     );
   });
 
+  it("builds source effects before the synth playback panner", () => {
+    const effect = audioContextMock.createGain();
+    synth.addEffect({ build: () => effect });
+
+    const [playback] = synth.preplay();
+
+    expectPath(playback.source!, [effect, playback.panner!, playback.outputNode, masterInput], destination);
+  });
+
   it("prevents adding same filter instance twice", () => {
     const filter = audioContextMock.createBiquadFilter();
     synth.addFilter(filter);

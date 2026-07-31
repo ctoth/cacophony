@@ -73,6 +73,16 @@ describe("PcmStreamSound", () => {
     expectNotReachable(playback.outputNode, cacophony.master.input);
   });
 
+  it("builds source effects before the PCM playback panner", async () => {
+    const sound = await cacophony.createPcmStreamSound({ latency: 0 });
+    const effect = audioContextMock.createGain();
+    sound.addEffect({ build: () => effect });
+
+    const [playback] = sound.preplay();
+
+    expectPath(playback.source!, [effect, playback.panner!, playback.outputNode], cacophony.master.input);
+  });
+
   it("accepts interleaved PCM, exposes buffered duration, and signals drain after backpressure", async () => {
     const capacityFrames = 4;
     const sound = await cacophony.createPcmStreamSound({

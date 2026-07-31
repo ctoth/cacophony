@@ -353,7 +353,7 @@ export class PcmStreamSound extends RoutableSource implements BaseSound {
       this._resolveRouteTargetNode(),
       this.panType,
     );
-    this._wireRouteSends(playback);
+    this._preparePlayback(playback);
     playback.volume = this.volume;
     if (this.panType === "HRTF") {
       playback.threeDOptions = this.threeDOptions;
@@ -361,7 +361,6 @@ export class PcmStreamSound extends RoutableSource implements BaseSound {
     } else {
       playback.stereoPan = this.stereoPan;
     }
-    this._filters.forEach((filter) => playback.addFilter(filter));
     this.playbacks.push(playback);
     return [playback];
   }
