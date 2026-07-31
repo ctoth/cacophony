@@ -1,4 +1,4 @@
-<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>MicrophonePlayback | cacophony</title><meta name="description" content="Documentation for cacophony"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script><script async src="../assets/hierarchy.js" id="tsd-hierarchy-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
+<!DOCTYPE html><html class="default" lang="en" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>MicrophoneStream | cacophony</title><meta name="description" content="Documentation for cacophony"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script><script async src="../assets/hierarchy.js" id="tsd-hierarchy-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
 <div class="tsd-toolbar-contents container"><a href="../index.html" class="title">cacophony</a>
 <div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="Search"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="Search"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="Search the docs" maxLength="100"/>
 <ul role="listbox" id="tsd-search-results"></ul>
@@ -8,16 +8,24 @@
 <div class="col-content">
 <div class="tsd-page-title">
 <ul class="tsd-breadcrumb" aria-label="Breadcrumb">
-<li><a href="" aria-current="page">MicrophonePlayback</a></li></ul>
-<h1>Class MicrophonePlayback</h1></div>
-<section class="tsd-panel tsd-hierarchy" data-refl="2134">
+<li><a href="" aria-current="page">MicrophoneStream</a></li></ul>
+<h1>Class MicrophoneStream</h1></div>
+<section class="tsd-panel tsd-comment">
+<div class="tsd-comment tsd-typography"><p>The base interface for any sound-producing entity, including individual sounds, groups, and playbacks.
+BaseSound</p>
+</div></section>
+<section class="tsd-panel tsd-hierarchy" data-refl="2191">
 <h4>Hierarchy</h4>
 <ul class="tsd-hierarchy">
 <li class="tsd-hierarchy-item"><span class="tsd-signature-type">FilterManager</span>
 <ul class="tsd-hierarchy">
-<li class="tsd-hierarchy-item"><span class="tsd-hierarchy-target">MicrophonePlayback</span></li></ul></li></ul></section><aside class="tsd-sources">
+<li class="tsd-hierarchy-item"><span class="tsd-hierarchy-target">MicrophoneStream</span></li></ul></li></ul></section>
+<section class="tsd-panel">
+<h4>Implements</h4>
+<ul class="tsd-hierarchy">
+<li><a href="../interfaces/BaseSound.html" class="tsd-signature-type tsd-kind-interface">BaseSound</a></li></ul></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L12">src/microphone.ts:12</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L127">src/microphone.ts:127</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -30,6 +38,8 @@
 <section class="tsd-index-section">
 <h3 class="tsd-index-heading tsd-anchor-link" id="properties">Properties<a href="#properties" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-index-list"><a href="#_filters" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>filters</span></a>
+<a href="#context" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>context</span></a>
+<a href="#loopcount" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>loop<wbr/>Count</span></a>
 </div></section>
 <section class="tsd-index-section">
 <h3 class="tsd-index-heading tsd-anchor-link" id="accessors">Accessors<a href="#accessors" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
@@ -46,11 +56,13 @@
 <a href="#addfilters" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add<wbr/>Filters</span></a>
 <a href="#applyfilters" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>apply<wbr/>Filters</span></a>
 <a href="#cleanup" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>cleanup</span></a>
+<a href="#loop" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>loop</span></a>
 <a href="#pause" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>pause</span></a>
 <a href="#play" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>play</span></a>
 <a href="#removefilter" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filter</span></a>
 <a href="#removefilters" class="tsd-index-link tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filters</span></a>
 <a href="#resume" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>resume</span></a>
+<a href="#seek" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>seek</span></a>
 <a href="#stop" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>stop</span></a>
 </div></section></div></details></section></section>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Constructors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -60,19 +72,18 @@
 <h3 class="tsd-anchor-link" id="constructor"><span>constructor</span><a href="#constructor" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
-<div class="tsd-signature tsd-anchor-link" id="constructormicrophoneplayback"><span class="tsd-signature-keyword">new</span> <span class="tsd-kind-constructor-signature">MicrophonePlayback</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">source</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/MediaStreamAudioSourceNode.html" class="tsd-signature-type tsd-kind-interface">MediaStreamAudioSourceNode</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">gainNode</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/GainNode.html" class="tsd-signature-type tsd-kind-interface">GainNode</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">context</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/BaseContext.html" class="tsd-signature-type tsd-kind-interface">BaseContext</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">loopCount</span><span class="tsd-signature-symbol">?:</span> <a href="../types/LoopCount.html" class="tsd-signature-type tsd-kind-type-alias">LoopCount</a><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="" class="tsd-signature-type tsd-kind-class">MicrophonePlayback</a><a href="#constructormicrophoneplayback" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-signature tsd-anchor-link" id="constructormicrophonestream"><span class="tsd-signature-keyword">new</span> <span class="tsd-kind-constructor-signature">MicrophoneStream</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">context</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/BaseContext.html" class="tsd-signature-type tsd-kind-interface">BaseContext</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">stream</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">MediaStream</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">outputNode</span><span class="tsd-signature-symbol">?:</span> <a href="../interfaces/AudioNode.html" class="tsd-signature-type tsd-kind-interface">AudioNode</a><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="" class="tsd-signature-type tsd-kind-class">MicrophoneStream</a><a href="#constructormicrophonestream" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
-<li><span><span class="tsd-kind-parameter">source</span>: <a href="../interfaces/MediaStreamAudioSourceNode.html" class="tsd-signature-type tsd-kind-interface">MediaStreamAudioSourceNode</a></span></li>
-<li><span><span class="tsd-kind-parameter">gainNode</span>: <a href="../interfaces/GainNode.html" class="tsd-signature-type tsd-kind-interface">GainNode</a></span></li>
 <li><span><span class="tsd-kind-parameter">context</span>: <a href="../interfaces/BaseContext.html" class="tsd-signature-type tsd-kind-interface">BaseContext</a></span></li>
-<li><span><span class="tsd-kind-parameter">loopCount</span>: <a href="../types/LoopCount.html" class="tsd-signature-type tsd-kind-type-alias">LoopCount</a><span class="tsd-signature-symbol"> = 0</span></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">MicrophonePlayback</a></h4><aside class="tsd-sources">
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">stream</span>: <span class="tsd-signature-type">MediaStream</span></span></li>
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">outputNode</span>: <a href="../interfaces/AudioNode.html" class="tsd-signature-type tsd-kind-interface">AudioNode</a></span></li></ul></div>
+<h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">MicrophoneStream</a></h4><aside class="tsd-sources">
 <p>Overrides FilterManager.constructor</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L18">src/microphone.ts:18</a></li></ul></aside></div></li></ul></section></section></details>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L137">src/microphone.ts:137</a></li></ul></aside></div></li></ul></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="properties-1">Properties<a href="#properties-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -81,7 +92,17 @@
 <div class="tsd-signature"><span class="tsd-kind-property">_filters</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/BiquadFilterNode.html" class="tsd-signature-type tsd-kind-interface">BiquadFilterNode</a><span class="tsd-signature-symbol">[]</span><span class="tsd-signature-symbol"> = []</span></div><aside class="tsd-sources">
 <p>Inherited from FilterManager._filters</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/filters.ts#L8">src/filters.ts:8</a></li></ul></aside></section></section></details>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/filters.ts#L8">src/filters.ts:8</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="context"><span>context</span><a href="#context" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">context</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/BaseContext.html" class="tsd-signature-type tsd-kind-interface">BaseContext</a></div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L128">src/microphone.ts:128</a></li></ul></aside></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="loopcount"><span>loop<wbr/>Count</span><a href="#loopcount" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<div class="tsd-signature"><span class="tsd-kind-property">loopCount</span><span class="tsd-signature-symbol">:</span> <a href="../types/LoopCount.html" class="tsd-signature-type tsd-kind-type-alias">LoopCount</a><span class="tsd-signature-symbol"> = 0</span></div><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L130">src/microphone.ts:130</a></li></ul></aside></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Accessors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="accessors-1">Accessors<a href="#accessors-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -93,7 +114,7 @@
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L28">src/microphone.ts:28</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L182">src/microphone.ts:182</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="filters"><span>filters</span><a href="#filters" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -110,11 +131,12 @@
 <li>
 <div class="tsd-signature" id="isplayingisplaying"><span class="tsd-signature-keyword">get</span> <span class="tsd-kind-get-signature">isPlaying</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Indicates whether the audio is currently playing.</p>
+<div class="tsd-comment tsd-typography"><p>A boolean indicating whether the sound is currently playing.</p>
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">boolean</span></h4><aside class="tsd-sources">
+<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#isplaying">isPlaying</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L43">src/microphone.ts:43</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L194">src/microphone.ts:194</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="playbackrate"><span>playback<wbr/>Rate</span><a href="#playbackrate" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -123,7 +145,7 @@
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L119">src/microphone.ts:119</a></li></ul></aside></div></li>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L253">src/microphone.ts:253</a></li></ul></aside></div></li>
 <li>
 <div class="tsd-signature" id="playbackrateplaybackrate-1"><span class="tsd-signature-keyword">set</span> <span class="tsd-kind-set-signature">playbackRate</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">rate</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span></div>
 <div class="tsd-description">
@@ -133,7 +155,7 @@
 <li><span><span class="tsd-kind-parameter">rate</span>: <span class="tsd-signature-type">number</span></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L124">src/microphone.ts:124</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L258">src/microphone.ts:258</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="position"><span>position</span><a href="#position" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -141,8 +163,9 @@
 <div class="tsd-signature" id="positionposition"><span class="tsd-signature-keyword">get</span> <span class="tsd-kind-get-signature">position</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a href="../types/Position.html" class="tsd-signature-type tsd-kind-type-alias">Position</a></div>
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <a href="../types/Position.html" class="tsd-signature-type tsd-kind-type-alias">Position</a></h4><aside class="tsd-sources">
+<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#position">position</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L102">src/microphone.ts:102</a></li></ul></aside></div></li>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L239">src/microphone.ts:239</a></li></ul></aside></div></li>
 <li>
 <div class="tsd-signature" id="positionposition-1"><span class="tsd-signature-keyword">set</span> <span class="tsd-kind-set-signature">position</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">position</span><span class="tsd-signature-symbol">:</span> <a href="../types/Position.html" class="tsd-signature-type tsd-kind-type-alias">Position</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span></div>
 <div class="tsd-description">
@@ -151,8 +174,9 @@
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">position</span>: <a href="../types/Position.html" class="tsd-signature-type tsd-kind-type-alias">Position</a></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
+<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#position">position</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L92">src/microphone.ts:92</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L244">src/microphone.ts:244</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="volume"><span>volume</span><a href="#volume" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -160,18 +184,20 @@
 <div class="tsd-signature" id="volumevolume"><span class="tsd-signature-keyword">get</span> <span class="tsd-kind-get-signature">volume</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">number</span></h4><aside class="tsd-sources">
+<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#volume">volume</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L47">src/microphone.ts:47</a></li></ul></aside></div></li>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L229">src/microphone.ts:229</a></li></ul></aside></div></li>
 <li>
-<div class="tsd-signature" id="volumevolume-1"><span class="tsd-signature-keyword">set</span> <span class="tsd-kind-set-signature">volume</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">v</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span></div>
+<div class="tsd-signature" id="volumevolume-1"><span class="tsd-signature-keyword">set</span> <span class="tsd-kind-set-signature">volume</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">volume</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span></div>
 <div class="tsd-description">
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
-<li><span><span class="tsd-kind-parameter">v</span>: <span class="tsd-signature-type">number</span></span></li></ul></div>
+<li><span><span class="tsd-kind-parameter">volume</span>: <span class="tsd-signature-type">number</span></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
+<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#volume">volume</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L54">src/microphone.ts:54</a></li></ul></aside></div></li></ul></section></section></details>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L233">src/microphone.ts:233</a></li></ul></aside></div></li></ul></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -192,9 +218,10 @@
 <div class="tsd-tag-throws">
 <h4 class="tsd-anchor-link" id="throws">Throws<a href="#throws" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>If the same filter instance is added twice.</p>
 </div></div><aside class="tsd-sources">
+<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#addfilter">addFilter</a></p>
 <p>Overrides FilterManager.addFilter</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L82">src/microphone.ts:82</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L217">src/microphone.ts:217</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="addfilters"><span>add<wbr/>Filters</span><a href="#addfilters" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -234,23 +261,38 @@
 <ul>
 <li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/filters.ts#L58">src/filters.ts:58</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="loop"><span>loop</span><a href="#loop" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="loop-1"><span class="tsd-kind-call-signature">loop</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">loopCount</span><span class="tsd-signature-symbol">?:</span> <a href="../types/LoopCount.html" class="tsd-signature-type tsd-kind-type-alias">LoopCount</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="../types/LoopCount.html" class="tsd-signature-type tsd-kind-type-alias">LoopCount</a><a href="#loop-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">loopCount</span>: <a href="../types/LoopCount.html" class="tsd-signature-type tsd-kind-type-alias">LoopCount</a></span></li></ul></div>
+<h4 class="tsd-returns-title">Returns <a href="../types/LoopCount.html" class="tsd-signature-type tsd-kind-type-alias">LoopCount</a></h4><aside class="tsd-sources">
+<ul>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L248">src/microphone.ts:248</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="pause"><span>pause</span><a href="#pause" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="pause-1"><span class="tsd-kind-call-signature">pause</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#pause-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
+<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#pause">pause</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L68">src/microphone.ts:68</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L205">src/microphone.ts:205</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="play"><span>play</span><a href="#play" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
-<div class="tsd-signature tsd-anchor-link" id="play-1"><span class="tsd-kind-call-signature">play</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a href="" class="tsd-signature-type tsd-kind-class">MicrophonePlayback</a><span class="tsd-signature-symbol">[]</span><a href="#play-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-signature tsd-anchor-link" id="play-1"><span class="tsd-kind-call-signature">play</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <a href="MicrophonePlayback.html" class="tsd-signature-type tsd-kind-class">MicrophonePlayback</a><span class="tsd-signature-symbol">[]</span><a href="#play-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">MicrophonePlayback</a><span class="tsd-signature-symbol">[]</span></h4><aside class="tsd-sources">
+<h4 class="tsd-returns-title">Returns <a href="MicrophonePlayback.html" class="tsd-signature-type tsd-kind-class">MicrophonePlayback</a><span class="tsd-signature-symbol">[]</span></h4><aside class="tsd-sources">
+<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#play">play</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L32">src/microphone.ts:32</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L160">src/microphone.ts:160</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="removefilter"><span>remove<wbr/>Filter</span><a href="#removefilter" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -268,9 +310,10 @@
 <div class="tsd-tag-throws">
 <h4 class="tsd-anchor-link" id="throws-1">Throws<a href="#throws-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>If the filter was never added to this container.</p>
 </div></div><aside class="tsd-sources">
+<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#removefilter">removeFilter</a></p>
 <p>Overrides FilterManager.removeFilter</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L87">src/microphone.ts:87</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L223">src/microphone.ts:223</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="removefilters"><span>remove<wbr/>Filters</span><a href="#removefilters" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-inherited">
@@ -293,7 +336,21 @@
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L75">src/microphone.ts:75</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L211">src/microphone.ts:211</a></li></ul></aside></div></li></ul></section>
+<section class="tsd-panel tsd-member">
+<h3 class="tsd-anchor-link" id="seek"><span>seek</span><a href="#seek" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul class="tsd-signatures">
+<li class="">
+<div class="tsd-signature tsd-anchor-link" id="seek-1"><span class="tsd-kind-call-signature">seek</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">time</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#seek-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-description">
+<div class="tsd-parameters">
+<h4 class="tsd-parameters-title">Parameters</h4>
+<ul class="tsd-parameter-list">
+<li><span><span class="tsd-kind-parameter">time</span>: <span class="tsd-signature-type">number</span></span></li></ul></div>
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
+<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#seek">seek</a></p>
+<ul>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L186">src/microphone.ts:186</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="stop"><span>stop</span><a href="#stop" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -301,8 +358,9 @@
 <div class="tsd-signature tsd-anchor-link" id="stop-1"><span class="tsd-kind-call-signature">stop</span><span class="tsd-signature-symbol">()</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#stop-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
+<p>Implementation of <a href="../interfaces/BaseSound.html">BaseSound</a>.<a href="../interfaces/BaseSound.html#stop">stop</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L61">src/microphone.ts:61</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/aa86db9ae6cff89ee177bee7abb7a5cfdd222d5d/src/microphone.ts#L198">src/microphone.ts:198</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
@@ -321,11 +379,11 @@
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Constructors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Constructors</summary>
 <div><a href="#constructor"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Constructor"><use href="../assets/icons.svg#icon-512"></use></svg><span>constructor</span></a></div></details>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Properties</summary>
-<div><a href="#_filters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>filters</span></a></div></details>
+<div><a href="#_filters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>_<wbr/>filters</span></a><a href="#context"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>context</span></a><a href="#loopcount"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>loop<wbr/>Count</span></a></div></details>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Accessors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Accessors</summary>
 <div><a href="#duration"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>duration</span></a><a href="#filters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>filters</span></a><a href="#isplaying"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>is<wbr/>Playing</span></a><a href="#playbackrate"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>playback<wbr/>Rate</span></a><a href="#position"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>position</span></a><a href="#volume"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Accessor"><use href="../assets/icons.svg#icon-262144"></use></svg><span>volume</span></a></div></details>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Methods</summary>
-<div><a href="#addfilter"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add<wbr/>Filter</span></a><a href="#addfilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add<wbr/>Filters</span></a><a href="#applyfilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>apply<wbr/>Filters</span></a><a href="#cleanup" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>cleanup</span></a><a href="#pause"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>pause</span></a><a href="#play"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>play</span></a><a href="#removefilter"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filter</span></a><a href="#removefilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filters</span></a><a href="#resume"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>resume</span></a><a href="#stop"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>stop</span></a></div></details></div></details></div>
+<div><a href="#addfilter"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add<wbr/>Filter</span></a><a href="#addfilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add<wbr/>Filters</span></a><a href="#applyfilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>apply<wbr/>Filters</span></a><a href="#cleanup" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>cleanup</span></a><a href="#loop"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>loop</span></a><a href="#pause"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>pause</span></a><a href="#play"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>play</span></a><a href="#removefilter"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filter</span></a><a href="#removefilters" class="tsd-is-inherited"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove<wbr/>Filters</span></a><a href="#resume"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>resume</span></a><a href="#seek"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>seek</span></a><a href="#stop"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>stop</span></a></div></details></div></details></div>
 <div class="site-menu">
 <nav class="tsd-navigation"><a href="../modules.html">cacophony</a>
 <ul class="tsd-small-nested-navigation" id="tsd-nav-container">
