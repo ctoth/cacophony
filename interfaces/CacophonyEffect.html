@@ -11,11 +11,10 @@
 <li><a href="" aria-current="page">CacophonyEffect</a></li></ul>
 <h1>Interface CacophonyEffect</h1></div>
 <section class="tsd-panel tsd-comment">
-<div class="tsd-comment tsd-typography"><p>Public surface every Cacophony effect implements. <code>build</code> is called by
-<code>Bus.addFilter</code> to materialize the effect's live node graph against a
-specific audio context. An effect may be built more than once (e.g. on
-multiple buses or contexts), or it may bind to a single shared node — the
-implementation is free to choose. Cacophony itself does not cache.</p>
+<div class="tsd-comment tsd-typography"><p>Public surface every Cacophony effect implements. <code>build</code> materializes the
+effect's live node graph against a specific audio context. A Bus consumes an
+effect as shared live state; a source consumes it as a recipe and calls
+<code>build</code> once for every playback. Cacophony itself does not cache.</p>
 </div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">CacophonyEffect</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-call-signature" href="#build-1">build</a><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">context</span><span class="tsd-signature-symbol">:</span> <a href="BaseContext.html" class="tsd-signature-type tsd-kind-interface">BaseContext</a><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="../types/BuiltEffect.html" class="tsd-signature-type tsd-kind-type-alias">BuiltEffect</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../types/BuiltEffect.html" class="tsd-signature-type tsd-kind-type-alias">BuiltEffect</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div>
 <section class="tsd-panel">
@@ -26,7 +25,7 @@ implementation is free to choose. Cacophony itself does not cache.</p>
 <li><a href="../classes/ImpulseResponseEffect.html" class="tsd-signature-type tsd-kind-class">ImpulseResponseEffect</a></li>
 <li><a href="../classes/ShareEffect.html" class="tsd-signature-type tsd-kind-class">ShareEffect</a></li></ul></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b6c11f21c2566f02b66b105c45ebcdcdd5888e92/src/effects.ts#L81">src/effects.ts:81</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/92d32da33308f31b16f4017be91adfc34bb39f4f/src/effects.ts#L80">src/effects.ts:80</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -51,7 +50,7 @@ implementation is free to choose. Cacophony itself does not cache.</p>
 <li><span><span class="tsd-kind-parameter">context</span>: <a href="BaseContext.html" class="tsd-signature-type tsd-kind-interface">BaseContext</a></span></li></ul></div>
 <h4 class="tsd-returns-title">Returns <a href="../types/BuiltEffect.html" class="tsd-signature-type tsd-kind-type-alias">BuiltEffect</a> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><a href="../types/BuiltEffect.html" class="tsd-signature-type tsd-kind-type-alias">BuiltEffect</a><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/b6c11f21c2566f02b66b105c45ebcdcdd5888e92/src/effects.ts#L82">src/effects.ts:82</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/92d32da33308f31b16f4017be91adfc34bb39f4f/src/effects.ts#L81">src/effects.ts:81</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
