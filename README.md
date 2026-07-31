@@ -800,8 +800,13 @@ Capture, process, and manipulate live audio input:
 const cacophony = new Cacophony();
 
 try {
-  const micStream = await cacophony.getMicrophoneStream();
-  micStream.play();
+  const micStream = await cacophony.getMicrophoneStream({
+    panType: 'stereo',
+    stereoPan: 0,
+    constraints: {
+      audio: { echoCancellation: true }
+    }
+  });
 
   // Apply filters to microphone input
   const lowPassFilter = cacophony.createBiquadFilter({ type: 'lowpass', frequency: 1000 });
@@ -809,6 +814,7 @@ try {
 
   // Control microphone volume
   micStream.volume = 0.8;
+  micStream.play();
 
   // Pause and resume
   setTimeout(() => {
@@ -817,9 +823,15 @@ try {
   }, 5000);
 
 } catch (error) {
+  // Permission and device failures reject getMicrophoneStream().
   console.error("Error accessing microphone:", error);
 }
 ```
+
+Microphone monitoring is routed through the master bus, so global volume,
+mute, master effects, and metering apply. Each playback exposes the standard
+play, pause, stop, and error event surface and is fully disconnected when the
+microphone is stopped.
 
 ## Audio Streaming
 

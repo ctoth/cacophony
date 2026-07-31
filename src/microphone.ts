@@ -1,259 +1,66 @@
-import type { BaseSound, LoopCount, Position } from "./cacophony";
-import type {
-  AudioNode,
-  BaseContext,
-  BiquadFilterNode,
-  GainNode,
-  MediaStreamAudioSourceNode,
-  PannerNode,
-} from "./context";
-import { FilterManager } from "./filters";
+import type { Cacophony, PanType } from "./cacophony";
+import type { AudioNode, BaseContext, GainNode } from "./context";
+import { MediaStreamPlayback, MediaStreamSound, type MediaStreamSoundOptions } from "./mediaStream";
+import type { HrtfPannerOptions } from "./pannerMixin";
 
-export class MicrophonePlayback extends FilterManager {
-  private context: BaseContext;
-  private source?: MediaStreamAudioSourceNode;
-  private gainNode?: GainNode;
-  private panner?: PannerNode;
-
-  constructor(source: MediaStreamAudioSourceNode, gainNode: GainNode, context: BaseContext, loopCount: LoopCount = 0) {
-    super();
-    this.source = source;
-    this.gainNode = gainNode;
-    this.context = context;
-    this.panner = context.createPanner();
-    source.connect(this.panner).connect(this.gainNode);
-    this.refreshFilters();
-  }
-
-  get duration() {
-    return 0;
-  }
-
-  play() {
-    if (!this.source) {
-      throw new Error("Cannot play a sound that has been cleaned up");
-    }
-    return [this];
-  }
-
-  /**
-   * Indicates whether the audio is currently playing.
-   */
-
-  get isPlaying() {
-    return Boolean(this.source);
-  }
-
-  get volume(): number {
-    if (!this.gainNode) {
-      throw new Error("Cannot get volume of a sound that has been cleaned up");
-    }
-    return this.gainNode.gain.value;
-  }
-
-  set volume(v: number) {
-    if (!this.gainNode) {
-      throw new Error("Cannot set volume of a sound that has been cleaned up");
-    }
-    this.gainNode.gain.value = v;
-  }
-
-  stop(): void {
-    if (!this.source) {
-      throw new Error("Cannot stop a sound that has been cleaned up");
-    }
-    this.source.mediaStream.getTracks().forEach((track) => track.stop());
-  }
-
-  pause(): void {
-    if (!this.source) {
-      throw new Error("Cannot pause a sound that has been cleaned up");
-    }
-    this.source.mediaStream.getTracks().forEach((track) => (track.enabled = false));
-  }
-
-  resume(): void {
-    if (!this.source) {
-      throw new Error("Cannot resume a sound that has been cleaned up");
-    }
-    this.source.mediaStream.getTracks().forEach((track) => (track.enabled = true));
-  }
-
-  addFilter(filter: BiquadFilterNode): void {
-    super.addFilter(filter);
-    this.refreshFilters();
-  }
-
-  removeFilter(filter: BiquadFilterNode): void {
-    super.removeFilter(filter);
-    this.refreshFilters();
-  }
-
-  set position(position: Position) {
-    if (!this.panner) {
-      throw new Error("Cannot move a sound that has been cleaned up");
-    }
-    const [x, y, z] = position;
-    this.panner.positionX.value = x;
-    this.panner.positionY.value = y;
-    this.panner.positionZ.value = z;
-  }
-
-  get position(): Position {
-    if (!this.panner) {
-      throw new Error("Cannot get position of a sound that has been cleaned up");
-    }
-    return [this.panner.positionX.value, this.panner.positionY.value, this.panner.positionZ.value];
-  }
-
-  private refreshFilters(): void {
-    if (!this.panner || !this.gainNode) {
-      throw new Error("Cannot update filters on a sound that has been cleaned up");
-    }
-    let connection: AudioNode = this.panner;
-    connection.disconnect();
-    connection = this.applyFilters(connection);
-    connection.connect(this.gainNode);
-  }
-
-  get playbackRate(): number {
-    // Playback rate is not applicable for live microphone stream
-    return 1;
-  }
-
-  set playbackRate(rate: number) {}
+/** Options for acquiring and monitoring a microphone stream. */
+export interface MicrophoneStreamOptions extends Omit<MediaStreamSoundOptions, "stopTracksOnStop"> {
+  /** Constraints forwarded to `navigator.mediaDevices.getUserMedia`. */
+  constraints?: MediaStreamConstraints;
+  /** Initial left/right pan when `panType` is `"stereo"`. */
+  stereoPan?: number;
+  /** Initial spatial options when `panType` is `"HRTF"` (the default). */
+  threeDOptions?: Partial<HrtfPannerOptions>;
 }
 
-export class MicrophoneStream extends FilterManager implements BaseSound {
-  context: BaseContext;
-  private _position: Position = [0, 0, 0];
-  loopCount: LoopCount = 0;
-  private prevVolume: number = 1;
-  private microphoneGainNode: GainNode;
-  private streamPlayback?: MicrophonePlayback;
-  private stream: MediaStream | undefined;
-  private streamSource?: MediaStreamAudioSourceNode;
+/**
+ * A microphone playback uses the same BasePlayback lifecycle, event, panning,
+ * effect, routing, and cleanup implementation as every other MediaStream.
+ */
+export { MediaStreamPlayback as MicrophonePlayback };
 
-  constructor(context: BaseContext, stream?: MediaStream, outputNode?: AudioNode) {
-    super();
-    this.context = context;
-    this.microphoneGainNode = this.context.createGain();
-    // Wire the microphone gain node into the audio graph. Without this
-    // connection the gain node is dangling and volume/mute on the chain
-    // have no audible effect. Callers should pass the shared
-    // `globalGainNode` so global volume applies; otherwise we fall back
-    // to `context.destination` so the chain is at least reachable.
-    this.microphoneGainNode.connect(outputNode ?? this.context.destination);
-    if (stream) {
-      this.stream = stream;
-      this.streamSource = this.createStreamSource(stream);
+/**
+ * A live microphone source backed by the current MediaStreamSound architecture.
+ * Use {@link MicrophoneStream.request} (or `Cacophony.getMicrophoneStream`) when
+ * the stream still needs to be acquired so permission failures remain observable.
+ */
+export class MicrophoneStream extends MediaStreamSound {
+  static async request(
+    context: BaseContext,
+    outputNode?: AudioNode,
+    options: MicrophoneStreamOptions = {},
+    cacophony?: Cacophony,
+  ): Promise<MicrophoneStream> {
+    const stream = await navigator.mediaDevices.getUserMedia(options.constraints ?? { audio: true });
+    return new MicrophoneStream(context, stream, outputNode, options, cacophony);
+  }
+
+  constructor(
+    context: BaseContext,
+    stream: MediaStream,
+    outputNode?: AudioNode,
+    options: MicrophoneStreamOptions = {},
+    cacophony?: Cacophony,
+  ) {
+    const { constraints: _constraints, stereoPan, threeDOptions, ...mediaStreamOptions } = options;
+    const panType: PanType = mediaStreamOptions.panType ?? "HRTF";
+    super(
+      stream,
+      context,
+      (outputNode ?? context.destination) as GainNode,
+      {
+        ...mediaStreamOptions,
+        panType,
+        primeWithMediaElement: mediaStreamOptions.primeWithMediaElement ?? false,
+        stopTracksOnStop: true,
+      },
+      cacophony,
+    );
+
+    if (panType === "stereo") {
+      this.stereoPan = stereoPan ?? 0;
+    } else if (threeDOptions) {
+      this.threeDOptions = threeDOptions;
     }
   }
-
-  private createStreamSource(stream: MediaStream): MediaStreamAudioSourceNode {
-    if (!this.context.createMediaStreamSource) {
-      throw new Error("Media stream sources are not supported on this audio context (e.g. OfflineAudioContext).");
-    }
-    return this.context.createMediaStreamSource(stream);
-  }
-
-  play(): MicrophonePlayback[] {
-    if (!this.stream) {
-      navigator.mediaDevices
-        .getUserMedia({ audio: true })
-        .then((stream) => {
-          this.stream = stream;
-          this.streamSource = this.createStreamSource(this.stream);
-          this.streamPlayback = new MicrophonePlayback(this.streamSource, this.microphoneGainNode, this.context);
-          this.streamPlayback.play();
-        })
-        .catch((err) => {
-          console.error("Error initializing microphone stream:", err);
-        });
-      return [];
-    }
-    if (!this.streamPlayback) {
-      this.streamSource = this.streamSource ?? this.createStreamSource(this.stream);
-      this.streamPlayback = new MicrophonePlayback(this.streamSource, this.microphoneGainNode, this.context);
-    }
-    return [this.streamPlayback];
-  }
-
-  get duration() {
-    return 0;
-  }
-
-  seek(time: number) {
-    // Seeking is not applicable for live microphone stream
-  }
-
-  /**
-   * A boolean indicating whether the sound is currently playing.
-   */
-
-  get isPlaying(): boolean {
-    return Boolean(this.streamPlayback);
-  }
-
-  stop() {
-    if (this.streamPlayback) {
-      this.streamPlayback.stop();
-      this.streamPlayback = undefined;
-    }
-  }
-
-  pause() {
-    if (this.streamPlayback) {
-      this.streamPlayback.pause();
-    }
-  }
-
-  resume() {
-    if (this.streamPlayback) {
-      this.streamPlayback.resume();
-    }
-  }
-
-  addFilter(filter: BiquadFilterNode): void {
-    if (this.streamPlayback) {
-      this.streamPlayback.addFilter(filter);
-    }
-  }
-
-  removeFilter(filter: BiquadFilterNode): void {
-    if (this.streamPlayback) {
-      this.streamPlayback.removeFilter(filter);
-    }
-  }
-
-  get volume(): number {
-    return this.streamPlayback ? this.streamPlayback.volume : 0;
-  }
-
-  set volume(volume: number) {
-    if (this.streamPlayback) {
-      this.streamPlayback.volume = volume;
-    }
-  }
-
-  get position(): Position {
-    // Position is not applicable for live microphone stream
-    return [0, 0, 0];
-  }
-
-  set position(position: Position) {
-    // Position is not applicable for live microphone stream
-  }
-
-  loop(loopCount?: LoopCount): LoopCount {
-    // Looping is not applicable for live microphone stream
-    return 0;
-  }
-
-  get playbackRate(): number {
-    // Playback rate is not applicable for live microphone stream
-    return 1;
-  }
-
-  set playbackRate(rate: number) {}
 }

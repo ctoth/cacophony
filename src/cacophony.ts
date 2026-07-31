@@ -46,7 +46,7 @@ import { HlsAdapter } from "./hlsAdapter";
 import { type CacophonyLogger, consoleLogger, noopLogger } from "./logger";
 import { MediaStreamSound, type MediaStreamSoundOptions } from "./mediaStream";
 import { LoudnessMeter } from "./meters/loudness-meter";
-import { MicrophoneStream } from "./microphone";
+import { MicrophoneStream, type MicrophoneStreamOptions } from "./microphone";
 import type { ThreeDOptions } from "./pannerMixin";
 import { PcmStreamSound, type PcmStreamSoundOptions } from "./pcmStream";
 import { GATE_DEFAULT_RATIO } from "./processors/dynamics-core";
@@ -1790,9 +1790,8 @@ export class Cacophony {
     }
   }
 
-  async getMicrophoneStream(): Promise<MicrophoneStream> {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    return new MicrophoneStream(this.context, stream);
+  async getMicrophoneStream(options: MicrophoneStreamOptions = {}): Promise<MicrophoneStream> {
+    return MicrophoneStream.request(this.context, this.globalGainNode, options, this);
   }
 
   get listenerOrientation(): Orientation {

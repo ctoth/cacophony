@@ -114,6 +114,7 @@ export {
 export type { LoudnessReading } from "./meters/loudness-meter";
 export { LoudnessMeter } from "./meters/loudness-meter";
 export { TruePeakDetector, truePeakDb } from "./meters/truepeak-core";
+export type { MicrophoneStreamOptions } from "./microphone";
 export { MicrophonePlayback, MicrophoneStream } from "./microphone";
 export type { HrtfPannerOptions, PanCloneOverrides, ThreeDOptions } from "./pannerMixin";
 export type {
