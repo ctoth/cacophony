@@ -190,6 +190,11 @@ export abstract class RoutableSource extends PlaybackContainer(FilterManager) im
       try {
         playback.outputNode.connect(sendGain);
       } catch {
+        try {
+          sendGain.disconnect();
+        } catch {
+          // The failed connection may leave the fresh node already detached.
+        }
         continue;
       }
       sendGain.connect(bus.input);

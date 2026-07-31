@@ -923,10 +923,10 @@ export class Cacophony {
     });
   }
 
-  private createHlsSound(url: string, signal?: AbortSignal): Promise<Sound> {
+  private createHlsSound(url: string, panType: PanType, signal?: AbortSignal): Promise<Sound> {
     const audio = new Audio();
     const nativeHls = audio.canPlayType("application/vnd.apple.mpegurl") || audio.canPlayType("application/x-mpegURL");
-    return this.createMediaSound(url, "streaming", "HRTF", signal, audio, !nativeHls);
+    return this.createMediaSound(url, "streaming", panType, signal, audio, !nativeHls);
   }
 
   clearMemoryCache(): void {
@@ -1144,24 +1144,32 @@ export class Cacophony {
    * PCM is fed into the same routable AudioWorklet source returned by
    * {@link createPcmStreamSound}. Browsers without WebCodecs, or without a
    * decoder for the track, fall back to the media-element streaming tier.
+   * @param url - Encoded audio stream URL.
+   * @param signal - Optional cancellation signal retained as the second
+   * parameter for backwards compatibility.
+   * @param panType - Type of panning (HRTF or stereo).
    */
-  async createStream(url: string, signal?: AbortSignal): Promise<Sound | WebCodecsStreamSound> {
+  async createStream(
+    url: string,
+    signal?: AbortSignal,
+    panType: PanType = "HRTF",
+  ): Promise<Sound | WebCodecsStreamSound> {
     if (/\.m3u8(?:$|[?#])/i.test(url)) {
-      return this.createHlsSound(url, signal);
+      return this.createHlsSound(url, panType, signal);
     }
 
     if (typeof globalThis.AudioDecoder !== "function") {
-      return this.createMediaSound(url, "streaming", "HRTF", signal);
+      return this.createMediaSound(url, "streaming", panType, signal);
     }
 
     const adapter = await WebCodecsPullAdapter.open(url, this.context.sampleRate, signal);
     if (!adapter) {
-      return this.createMediaSound(url, "streaming", "HRTF", signal);
+      return this.createMediaSound(url, "streaming", panType, signal);
     }
     try {
       const sound = await this.createPcmStreamSound({
         channelCount: adapter.channelCount,
-        panType: "HRTF",
+        panType,
         signal,
       });
       return adapter.attach(sound);

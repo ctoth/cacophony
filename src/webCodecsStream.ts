@@ -305,6 +305,13 @@ function waitForDrain(sound: PcmStreamSound, signal: AbortSignal): Promise<void>
   });
 }
 
+/**
+ * Stateful linear-interpolation resampler for decoded stream chunks.
+ *
+ * This v1 implementation has no anti-aliasing filter. Downsampling can fold
+ * source frequencies above the target Nyquist frequency into the audible band;
+ * use a band-limited resampler if that quality trade-off is unacceptable.
+ */
 class StreamingPcmResampler {
   private inputFrames = 0;
   private nextSourcePosition = 0;

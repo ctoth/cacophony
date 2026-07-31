@@ -124,6 +124,25 @@ describe("Sound.routeTo: additive send", () => {
     bus.destroy();
   });
 
+  it("disconnects a newly allocated send gain when the playback connection fails", async () => {
+    const sound = await buildSound();
+    const [playback] = sound.play();
+    const bus = cacophony.createBus("failed-send");
+    const realCreateGain = cacophony.context.createGain.bind(cacophony.context);
+    const sendGain = realCreateGain();
+    const disconnectSpy = vi.spyOn(sendGain, "disconnect");
+
+    vi.spyOn(cacophony.context, "createGain").mockReturnValueOnce(sendGain);
+    vi.spyOn(playback.outputNode, "connect").mockImplementationOnce(() => {
+      throw new Error("connection rejected");
+    });
+
+    expect(() => sound.routeTo(bus, 0.5)).not.toThrow();
+    expect(disconnectSpy).toHaveBeenCalledOnce();
+    expect(playback._sendGains.has(bus)).toBe(false);
+    bus.destroy();
+  });
+
   it("throws when adding a send to a destroyed bus", async () => {
     const sound = await buildSound();
     const bus = cacophony.createBus("dead-send");

@@ -2,6 +2,38 @@ import { describe, expect, it, vi } from "vitest";
 import { cacophony, expectPath } from "./setupTests";
 
 describe("SynthPlayback: outputNode / connect / disconnect parity with Playback", () => {
+  it("emits playback and global events across play, pause, resume, and stop", () => {
+    const synth = cacophony.createOscillator({});
+    const [playback] = synth.preplay();
+    const playbackEvents: string[] = [];
+    const globalEvents: string[] = [];
+
+    playback.on("play", () => playbackEvents.push("play"));
+    playback.on("pause", () => playbackEvents.push("pause"));
+    playback.on("resume", () => playbackEvents.push("resume"));
+    playback.on("stop", () => playbackEvents.push("stop"));
+    cacophony.on("globalPlay", ({ source }) => {
+      expect(source).toBe(synth);
+      globalEvents.push("play");
+    });
+    cacophony.on("globalPause", ({ source }) => {
+      expect(source).toBe(synth);
+      globalEvents.push("pause");
+    });
+    cacophony.on("globalStop", ({ source }) => {
+      expect(source).toBe(synth);
+      globalEvents.push("stop");
+    });
+
+    playback.play();
+    playback.pause();
+    playback.play();
+    playback.stop();
+
+    expect(playbackEvents).toEqual(["play", "pause", "play", "resume", "stop"]);
+    expect(globalEvents).toEqual(["play", "pause", "play", "stop"]);
+  });
+
   it("exposes outputNode (a GainNode) on a live synth playback", () => {
     const synth = cacophony.createOscillator({});
     const [playback] = synth.play();
