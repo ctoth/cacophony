@@ -77,6 +77,16 @@ describe("MediaStreamSound", () => {
     );
   });
 
+  it("builds source effects before the MediaStream playback panner", () => {
+    const sound = new MediaStreamSound(stream, context, globalGainNode);
+    const effect = context.createGain();
+    sound.addEffect({ build: () => effect });
+
+    const [playback] = sound.preplay();
+
+    expectPath(source, [effect, playback.panner!, playback.outputNode, globalGainNode], destination);
+  });
+
   it("applies volume and HRTF position to the live playback", () => {
     const sound = new MediaStreamSound(stream, context, globalGainNode);
     sound.volume = 0.25;

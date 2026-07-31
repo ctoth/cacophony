@@ -1,11 +1,11 @@
 /**
  * Cacophony Effects: a thin abstraction over Web Audio nodes that lets a Bus
- * carry rich, possibly worklet-backed processing in its filter chain.
+ * carry shared processing or a playback build an independent source effect.
  *
  * A {@link CacophonyEffect} is responsible for producing a live AudioNode or
  * endpoint graph when its `build` method is invoked. Single-node effects return
  * the node directly. Multi-node effects return a {@link BuiltEffectGraph} with
- * distinct `input` and `output` endpoints so Bus chains can connect into and out
+ * distinct `input` and `output` endpoints so effect chains can connect into and out
  * of the graph without pretending the head node is also the tail.
  *
  * The `build` return is async-capable so worklet-backed effects (e.g.
@@ -72,11 +72,10 @@ export interface BuiltEffectGraph {
 export type BuiltEffect = AudioNode | BuiltEffectGraph;
 
 /**
- * Public surface every Cacophony effect implements. `build` is called by
- * `Bus.addFilter` to materialize the effect's live node graph against a
- * specific audio context. An effect may be built more than once (e.g. on
- * multiple buses or contexts), or it may bind to a single shared node — the
- * implementation is free to choose. Cacophony itself does not cache.
+ * Public surface every Cacophony effect implements. `build` materializes the
+ * effect's live node graph against a specific audio context. A Bus consumes an
+ * effect as shared live state; a source consumes it as a recipe and calls
+ * `build` once for every playback. Cacophony itself does not cache.
  */
 export interface CacophonyEffect {
   build(context: BaseContext): Promise<BuiltEffect> | BuiltEffect;
@@ -149,6 +148,25 @@ export class BiquadEffect implements CacophonyEffect {
 
   build(_context: BaseContext): AudioNode {
     return this.node;
+  }
+}
+
+/**
+ * Treats a BiquadFilterNode as a per-playback recipe. Unlike BiquadEffect,
+ * which intentionally shares its node, every build creates an independent
+ * node and copies the template's public filter state.
+ */
+export class BiquadRecipeEffect implements CacophonyEffect {
+  constructor(private readonly template: BiquadFilterNode) {}
+
+  build(context: BaseContext): BiquadFilterNode {
+    const node = context.createBiquadFilter();
+    node.type = this.template.type;
+    node.frequency.value = this.template.frequency.value;
+    node.detune.value = this.template.detune.value;
+    node.Q.value = this.template.Q.value;
+    node.gain.value = this.template.gain.value;
+    return node;
   }
 }
 

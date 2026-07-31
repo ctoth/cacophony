@@ -116,17 +116,8 @@ export class Synth extends RoutableSource implements BaseSound {
     const primaryTargetNode = this._resolveRouteTargetNode();
     gainNode.connect(primaryTargetNode);
     const playback = new SynthPlayback(this, oscillator, gainNode);
-    this._wireRouteSends(playback);
+    this._preparePlayback(playback);
     playback.volume = this.volume;
-    // Clone filters from synth to playback (each playback gets independent filter instances)
-    this._filters.forEach((filter) => {
-      const clonedFilter = this.context.createBiquadFilter();
-      clonedFilter.type = filter.type;
-      clonedFilter.frequency.value = filter.frequency.value;
-      clonedFilter.Q.value = filter.Q.value;
-      clonedFilter.gain.value = filter.gain.value;
-      playback.addFilter(clonedFilter);
-    });
     if (this.panType === "HRTF") {
       playback.threeDOptions = this.threeDOptions;
       playback.position = this.position;
