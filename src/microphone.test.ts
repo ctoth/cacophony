@@ -1,14 +1,15 @@
 import { AudioContext } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Cacophony } from "./cacophony";
-import { MicrophoneStream as PublicMicrophoneStream } from "./index";
+import { MicrophonePlayback as PublicMicrophonePlayback, MicrophoneStream as PublicMicrophoneStream } from "./index";
 import { MicrophonePlayback, MicrophoneStream } from "./microphone";
-import { expectPath } from "./setupTests";
+import { expectNotReachable, expectPath, expectReachable } from "./setupTests";
 
 function createMockTrack(): MediaStreamTrack {
   return {
     stop: vi.fn(),
     enabled: true,
+    readyState: "live",
   } as unknown as MediaStreamTrack;
 }
 
@@ -20,9 +21,7 @@ function createMockStream(tracks: MediaStreamTrack[]): MediaStream {
 
 function createMockMediaStreamSource(stream: MediaStream) {
   return {
-    connect: vi.fn().mockReturnValue({
-      connect: vi.fn(),
-    }),
+    connect: vi.fn((destination) => destination),
     disconnect: vi.fn(),
     mediaStream: stream,
     numberOfInputs: 1,
@@ -30,76 +29,9 @@ function createMockMediaStreamSource(stream: MediaStream) {
   };
 }
 
-it("exports MicrophoneStream from the public package entrypoint", () => {
+it("exports the microphone classes from the public package entrypoint", () => {
   expect(PublicMicrophoneStream).toBe(MicrophoneStream);
-});
-
-describe("MicrophonePlayback", () => {
-  let context: AudioContext;
-  let mockTrack: MediaStreamTrack;
-  let mockStream: MediaStream;
-  let mockSource: ReturnType<typeof createMockMediaStreamSource>;
-  let mockGainNode: any;
-  let playback: MicrophonePlayback;
-
-  beforeEach(() => {
-    context = new AudioContext();
-    mockTrack = createMockTrack();
-    mockStream = createMockStream([mockTrack]);
-    mockSource = createMockMediaStreamSource(mockStream);
-    mockGainNode = context.createGain();
-    playback = new MicrophonePlayback(mockSource as any, mockGainNode, context);
-  });
-
-  afterEach(() => {
-    context.close();
-  });
-
-  it("play returns array containing itself", () => {
-    const result = playback.play();
-    expect(result).toEqual([playback]);
-  });
-
-  it("isPlaying is true when source exists", () => {
-    expect(playback.isPlaying).toBe(true);
-  });
-
-  it("stop calls track.stop() on all stream tracks", () => {
-    playback.stop();
-    expect(mockTrack.stop).toHaveBeenCalled();
-  });
-
-  it("pause disables all stream tracks", () => {
-    playback.pause();
-    expect(mockTrack.enabled).toBe(false);
-  });
-
-  it("resume enables all stream tracks", () => {
-    playback.pause();
-    expect(mockTrack.enabled).toBe(false);
-    playback.resume();
-    expect(mockTrack.enabled).toBe(true);
-  });
-
-  it("volume getter/setter works", () => {
-    playback.volume = 0.5;
-    expect(playback.volume).toBe(0.5);
-  });
-
-  it("position getter/setter works", () => {
-    playback.position = [1, 2, 3];
-    expect(playback.position).toEqual([1, 2, 3]);
-  });
-
-  it("playbackRate is always 1 (not applicable for mic)", () => {
-    expect(playback.playbackRate).toBe(1);
-    playback.playbackRate = 2;
-    expect(playback.playbackRate).toBe(1);
-  });
-
-  it("duration is always 0", () => {
-    expect(playback.duration).toBe(0);
-  });
+  expect(PublicMicrophonePlayback).toBe(MicrophonePlayback);
 });
 
 describe("MicrophoneStream", () => {
@@ -112,7 +44,6 @@ describe("MicrophoneStream", () => {
     mockTrack = createMockTrack();
     mockStream = createMockStream([mockTrack]);
 
-    // Mock navigator.mediaDevices.getUserMedia
     Object.defineProperty(global, "navigator", {
       value: {
         mediaDevices: {
@@ -123,8 +54,9 @@ describe("MicrophoneStream", () => {
       configurable: true,
     });
 
-    // Mock createMediaStreamSource on the context
-    vi.spyOn(context as any, "createMediaStreamSource").mockReturnValue(createMockMediaStreamSource(mockStream));
+    vi.spyOn(context as any, "createMediaStreamSource").mockImplementation((stream: MediaStream) =>
+      createMockMediaStreamSource(stream),
+    );
   });
 
   afterEach(() => {
@@ -132,142 +64,152 @@ describe("MicrophoneStream", () => {
     context.close();
   });
 
-  it("play() returns playback immediately when constructed with a stream", () => {
-    const mic = new MicrophoneStream(context, mockStream);
-    const result = mic.play();
-    expect(result).toHaveLength(1);
-    expect(result[0]).toBeInstanceOf(MicrophonePlayback);
-  });
-
-  it("play() returns empty array and calls getUserMedia when constructed without a stream", () => {
+  it("acquires audio with the default constraints", async () => {
     (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
-    const mic = new MicrophoneStream(context);
-    const result = mic.play();
-    expect(result).toEqual([]);
+
+    const microphone = await MicrophoneStream.request(context);
+
+    expect(microphone).toBeInstanceOf(MicrophoneStream);
     expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith({ audio: true });
   });
 
-  it("play() sets up streamPlayback after getUserMedia resolves (no-stream path)", async () => {
+  it("forwards custom media constraints", async () => {
     (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
-    const mic = new MicrophoneStream(context);
-    mic.play();
+    const constraints: MediaStreamConstraints = {
+      audio: { autoGainControl: false, echoCancellation: false },
+    };
 
-    // Wait for async setup
-    await vi.waitFor(() => {
-      expect(mic.isPlaying).toBe(true);
-    });
+    await MicrophoneStream.request(context, undefined, { constraints });
 
-    // Second call should return the playback
-    const result = mic.play();
-    expect(result).toHaveLength(1);
+    expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledWith(constraints);
   });
 
-  it("handles getUserMedia permission denial", async () => {
+  it("rejects microphone acquisition failures through the async factory", async () => {
     const permissionError = new DOMException("Permission denied", "NotAllowedError");
     (navigator.mediaDevices.getUserMedia as any).mockRejectedValue(permissionError);
-    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const cacophony = new Cacophony(context as any);
 
-    const mic = new MicrophoneStream(context);
-    mic.play();
-
-    await vi.waitFor(() => {
-      expect(consoleSpy).toHaveBeenCalledWith("Error initializing microphone stream:", permissionError);
-    });
-
-    expect(mic.isPlaying).toBe(false);
-    consoleSpy.mockRestore();
+    await expect(cacophony.getMicrophoneStream()).rejects.toBe(permissionError);
   });
 
-  it("does not call getUserMedia when constructed with a stream", () => {
-    const mic = new MicrophoneStream(context, mockStream);
-    mic.play();
-    mic.play();
+  it("does not reacquire a provided stream", () => {
+    const microphone = new MicrophoneStream(context, mockStream);
+
+    microphone.play();
+
     expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
   });
 
-  it("stop() delegates to streamPlayback and clears it", () => {
-    const mic = new MicrophoneStream(context, mockStream);
-    mic.play();
-    expect(mic.isPlaying).toBe(true);
+  it("uses the BasePlayback state machine and lifecycle events", () => {
+    const microphone = new MicrophoneStream(context, mockStream);
+    const [playback] = microphone.preplay();
+    const onPlay = vi.fn();
+    const onPause = vi.fn();
+    const onStop = vi.fn();
+    playback.on("play", onPlay);
+    playback.on("pause", onPause);
+    playback.on("stop", onStop);
 
-    mic.stop();
-    expect(mic.isPlaying).toBe(false);
-    expect(mockTrack.stop).toHaveBeenCalled();
-  });
-
-  it("pause() delegates to streamPlayback", () => {
-    const mic = new MicrophoneStream(context, mockStream);
-    mic.play();
-
-    mic.pause();
+    expect(playback.isPlaying).toBe(false);
+    expect(playback.play()).toEqual([playback]);
+    expect(playback).toBeInstanceOf(MicrophonePlayback);
+    expect(playback.isPlaying).toBe(true);
+    playback.pause();
+    expect(playback.isPaused).toBe(true);
     expect(mockTrack.enabled).toBe(false);
-  });
-
-  it("resume() delegates to streamPlayback", () => {
-    const mic = new MicrophoneStream(context, mockStream);
-    mic.play();
-
-    mic.pause();
-    mic.resume();
+    playback.resume();
+    expect(playback.isPlaying).toBe(true);
     expect(mockTrack.enabled).toBe(true);
+    playback.stop();
+    expect(playback.isPlaying).toBe(false);
+
+    expect(onPlay).toHaveBeenCalledTimes(2);
+    expect(onPause).toHaveBeenCalledOnce();
+    expect(onStop).toHaveBeenCalledOnce();
   });
 
-  it("stop/pause/resume are no-ops when no stream acquired", () => {
-    const mic = new MicrophoneStream(context);
-    // None of these should throw
-    mic.stop();
-    mic.pause();
-    mic.resume();
-    expect(mic.isPlaying).toBe(false);
+  it("keeps one playback for the live microphone stream", () => {
+    const microphone = new MicrophoneStream(context, mockStream);
+
+    const first = microphone.play();
+    const second = microphone.play();
+
+    expect(second[0]).toBe(first[0]);
+    expect(microphone.playbacks).toHaveLength(1);
   });
 
-  it("duration is always 0", () => {
-    const mic = new MicrophoneStream(context);
-    expect(mic.duration).toBe(0);
+  it("supports HRTF options", () => {
+    const microphone = new MicrophoneStream(context, mockStream, undefined, {
+      panType: "HRTF",
+      threeDOptions: { positionX: 4, positionY: 2, positionZ: -1 },
+    });
+
+    expect(microphone.position).toEqual([4, 2, -1]);
+    const [playback] = microphone.play();
+
+    expect(playback.panType).toBe("HRTF");
+    expect(playback.position).toEqual([4, 2, -1]);
   });
 
-  it("loop always returns 0", () => {
-    const mic = new MicrophoneStream(context);
-    expect(mic.loop()).toBe(0);
-    expect(mic.loop(5)).toBe(0);
+  it("supports configurable stereo panning", async () => {
+    (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
+    const cacophony = new Cacophony(context as any);
+
+    const microphone = await cacophony.getMicrophoneStream({
+      panType: "stereo",
+      stereoPan: -0.25,
+    });
+    const [playback] = microphone.play();
+
+    expect(playback.panType).toBe("stereo");
+    expect(playback.stereoPan).toBe(-0.25);
   });
 
-  it("playbackRate is always 1", () => {
-    const mic = new MicrophoneStream(context);
-    expect(mic.playbackRate).toBe(1);
-    mic.playbackRate = 2;
-    expect(mic.playbackRate).toBe(1);
-  });
-
-  it("connects the internal microphoneGainNode to the provided outputNode", () => {
-    // Regression test for routing bug: MicrophoneStream previously created
-    // a microphoneGainNode that was never connected to anything downstream,
-    // so volume/mute on the chain were inaudible. The fix wires the gain
-    // node through an optional outputNode in the constructor.
-    // See notes/scout-routing-graph.md ("MicrophonePlayback" / dangling
-    // gain node observation).
-    const outputNode = context.createGain();
-    const microphone = new MicrophoneStream(context, mockStream, outputNode);
-    const microphoneGainNode = (
-      microphone as unknown as {
-        microphoneGainNode: GainNode;
-      }
-    ).microphoneGainNode;
-
-    expectPath(microphoneGainNode, [], outputNode);
-  });
-
-  it.skip("routes Cacophony microphone monitoring through the master bus (#102)", async () => {
+  it("routes Cacophony microphone monitoring through the master bus (#102)", async () => {
     (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
     const cacophony = new Cacophony(context as any);
 
     const microphone = await cacophony.getMicrophoneStream();
-    const microphoneGainNode = (
-      microphone as unknown as {
-        microphoneGainNode: GainNode;
-      }
-    ).microphoneGainNode;
+    const [playback] = microphone.play();
 
-    expectPath(microphoneGainNode, [], cacophony.master.input);
+    expectPath(playback.outputNode, [], cacophony.master.input);
+    expectReachable(playback.source!, cacophony.master.input);
+    cacophony.mute();
+    expect(cacophony.master.input.gain.value).toBe(0);
+  });
+
+  it("routes a directly constructed microphone to its provided output", () => {
+    const outputNode = context.createGain();
+    const microphone = new MicrophoneStream(context, mockStream, outputNode);
+
+    const [playback] = microphone.play();
+
+    expectPath(playback.outputNode, [], outputNode);
+  });
+
+  it("stop tears down the graph, tracks, and playback state", async () => {
+    (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
+    const cacophony = new Cacophony(context as any);
+    const microphone = await cacophony.getMicrophoneStream();
+    const [playback] = microphone.play();
+    const source = playback.source!;
+
+    expectReachable(source, cacophony.master.input);
+    microphone.stop();
+
+    expectNotReachable(source, cacophony.master.input);
+    expect(microphone.playbacks).toEqual([]);
+    expect(mockTrack.stop).toHaveBeenCalledOnce();
+  });
+
+  it("retains live-stream duration, loop, and playback-rate contracts", () => {
+    const microphone = new MicrophoneStream(context, mockStream);
+    const [playback] = microphone.play();
+
+    expect(playback.duration).toBe(0);
+    expect(microphone.loop(4)).toBe(0);
+    expect(microphone.playbackRate).toBe(1);
+    microphone.playbackRate = 2;
+    expect(microphone.playbackRate).toBe(1);
   });
 });
