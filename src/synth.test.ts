@@ -125,6 +125,10 @@ describe("Synth class", () => {
     expect(synth.detune).toBe(100);
   });
 
+  it("defaults detune to zero when it has not been set", () => {
+    expect(synth.detune).toBe(0);
+  });
+
   it("can set and get oscillator type", () => {
     synth.type = "square";
     expect(synth.type).toBe("square");

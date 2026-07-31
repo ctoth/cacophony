@@ -1,6 +1,7 @@
 import { AudioContext } from "standardized-audio-context-mock";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Cacophony } from "./cacophony";
+import { MicrophoneStream as PublicMicrophoneStream } from "./index";
 import { MicrophonePlayback, MicrophoneStream } from "./microphone";
 import { expectPath } from "./setupTests";
 
@@ -28,6 +29,10 @@ function createMockMediaStreamSource(stream: MediaStream) {
     numberOfOutputs: 1,
   };
 }
+
+it("exports MicrophoneStream from the public package entrypoint", () => {
+  expect(PublicMicrophoneStream).toBe(MicrophoneStream);
+});
 
 describe("MicrophonePlayback", () => {
   let context: AudioContext;

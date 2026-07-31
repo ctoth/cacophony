@@ -263,6 +263,12 @@ describe("Cacophony advanced features", () => {
     expect(streamSound.soundType).toBe("streaming");
   });
 
+  it("threads stereo panning through the media-element stream tier", async () => {
+    const streamSound = await cacophony.createStream("https://example.com/audio.mp3", undefined, "stereo");
+    expect(streamSound).toBeInstanceOf(Sound);
+    expect(streamSound).toMatchObject({ panType: "stereo" });
+  });
+
   it("createGroupFromUrls creates a Group with Sound instances", async () => {
     const urls = ["url1", "url2", "url3"];
     const mockBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
@@ -492,13 +498,14 @@ describe("Cacophony advanced features", () => {
         return streamingAudio.audio as any;
       });
 
-      const streamPromise = cacophony.createStream(url);
+      const streamPromise = cacophony.createStream(url, undefined, "stereo");
 
       expect(canPlayType).toHaveBeenCalledWith("application/vnd.apple.mpegurl");
       streamingAudio.dispatch("loadedmetadata");
 
       const sound = await streamPromise;
       expect(sound.soundType).toBe("streaming");
+      expect(sound).toMatchObject({ panType: "stereo" });
       expect(streamingAudio.audio.src).toBe(url);
     });
 

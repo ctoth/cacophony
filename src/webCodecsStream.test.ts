@@ -172,6 +172,15 @@ describe("WebCodecs URL streaming", () => {
     expect(media.sourceUrl).toBe("https://example.com/music.ogg");
   });
 
+  it("threads stereo panning through the WebCodecs stream tier", async () => {
+    const stream = await cacophony.createStream("https://example.com/music.ogg", undefined, "stereo");
+    expect(stream).toBeInstanceOf(PcmStreamSound);
+
+    const [playback] = stream.play();
+
+    expect(playback.panType).toBe("stereo");
+  });
+
   it("seeks by reopening the range-backed decoder at the requested timestamp", async () => {
     const stream = await cacophony.createStream("https://example.com/music.mp3");
 

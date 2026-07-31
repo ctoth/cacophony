@@ -829,9 +829,14 @@ resampled to the active audio context and written into the same AudioWorklet
 ring buffer used by `createPcmStreamSound()`. The returned stream is therefore
 sample-accurately scheduled, pannable, filterable, bus-routable, and meterable.
 
+The current streaming resampler uses linear interpolation without an
+anti-aliasing filter. When downsampling, source frequencies above the target
+Nyquist frequency can alias into the audible band; this is an accepted v1
+quality trade-off pending a future band-limited resampler.
+
 ```typescript
 const controller = new AbortController();
-const stream = await cacophony.createStream('/music.ogg', controller.signal);
+const stream = await cacophony.createStream('/music.ogg', controller.signal, 'stereo');
 
 console.log(stream.streamCapabilities);
 // {

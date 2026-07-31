@@ -131,26 +131,22 @@ export class Synth extends RoutableSource implements BaseSound {
   play(): ReturnType<this["preplay"]> {
     const playbacks = super.play() as ReturnType<this["preplay"]>;
     this.emit("play", playbacks[0]);
-    this.cacophony?.emit("globalPlay", { source: this, timestamp: Date.now() });
     return playbacks;
   }
 
   stop(): void {
     super.stop();
     this.emit("stop", undefined);
-    this.cacophony?.emit("globalStop", { source: this, timestamp: Date.now() });
   }
 
   pause(): void {
     super.pause();
     this.emit("pause", undefined);
-    this.cacophony?.emit("globalPause", { source: this, timestamp: Date.now() });
   }
 
   resume(): void {
     this.playbacks.filter((playback) => playback.isPaused).forEach((playback) => playback.play());
     this.emit("resume", undefined);
-    this.cacophony?.emit("globalPlay", { source: this, timestamp: Date.now() });
   }
 
   get volume(): number {
@@ -188,7 +184,7 @@ export class Synth extends RoutableSource implements BaseSound {
   }
 
   get detune(): number {
-    return this.oscillatorOptions.detune as number;
+    return this.oscillatorOptions.detune ?? 0;
   }
 
   set detune(detune: number) {
