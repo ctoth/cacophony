@@ -3,7 +3,8 @@
  * `--fx` surface. Stage 2 filled FOUR effects: distortion, reverb (FDN),
  * compressor, biquad. Stage 3 completes the suite: dattorro, waveshaper,
  * limiter, gate, the modulated-delay family (chorus/flanger/vibrato/doubling/
- * delay), phaser, tremolo, autopan.
+ * delay), phaser, tremolo, autopan, and the advanced paper-backed suite:
+ * frequencyShifter, barberpole, harmonizer, spectralFreeze, stereoWidener.
  */
 import type { Cacophony } from "../cacophony";
 
@@ -165,6 +166,26 @@ export const EFFECT_REGISTRY: Record<string, EffectDef> = {
     // createAutoPan shares TremoloOptions (a stereoPhase=180 tremolo preset).
     factory: (c, o) => c.createAutoPan(o),
     schema: { rate: "num", depth: "num", shape: "str", stereoPhase: "num" },
+  },
+  frequencyShifter: {
+    factory: (c, o) => c.createFrequencyShifter(o),
+    schema: { frequency: "num", mix: "num" },
+  },
+  barberpole: {
+    factory: (c, o) => c.createBarberpole(o),
+    schema: { rate: "num", stages: "num", coefficient: "num", mix: "num" },
+  },
+  harmonizer: {
+    factory: (c, o) => c.createHarmonizer(o),
+    schema: { semitonesA: "num", semitonesB: "num", gainA: "num", gainB: "num", dry: "num" },
+  },
+  spectralFreeze: {
+    factory: (c, o) => c.createSpectralFreeze(o),
+    schema: { freeze: "num", smear: "num", mix: "num" },
+  },
+  stereoWidener: {
+    factory: (c, o) => c.createStereoWidener(o),
+    schema: { width: "num", decorrelation: "num", transientProtection: "num" },
   },
 };
 

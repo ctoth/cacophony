@@ -338,6 +338,49 @@ take.rampEffectParam(liveTremolo, 'depth', 0.8, { duration: 250 });
 guitar.removeEffect(distortion); // future playbacks no longer build it
 ```
 
+### Advanced paper-backed effects
+
+The advanced suite adds five non-neural effects derived from published DSP
+algorithms. They work as per-source recipes or shared bus effects and expose
+their live controls through `rampEffectParam`.
+
+```typescript
+// Equal-Hz SSB translation: harmonic material becomes bell-like/inharmonic.
+guitar.addEffect(cacophony.createFrequencyShifter({ frequency: 180 }));
+
+// Endlessly descending notches (use a positive rate to reverse direction).
+drums.addEffect(cacophony.createBarberpole({ rate: -0.1, stages: 32 }));
+
+// Dry voice plus a fifth and octave, all produced in one STFT analysis pass.
+vocals.addEffect(cacophony.createHarmonizer({
+  semitonesA: 7,
+  semitonesB: 12,
+  gainA: 0.6,
+  gainB: 0.45,
+}));
+
+// Capture/release a phase-continuing spectral texture at runtime.
+const freeze = await playback.addEffect(cacophony.createSpectralFreeze());
+playback.rampEffectParam(freeze, 'freeze', 1); // capture
+playback.rampEffectParam(freeze, 'freeze', 0); // return to live input
+
+// Convert mono or stereo material to transient-preserving decorrelated stereo.
+ambience.addEffect(cacophony.createStereoWidener({
+  width: 0.75,
+  decorrelation: 1,
+  transientProtection: 0.8,
+}));
+```
+
+`createFrequencyShifter` implements Wardle's Hilbert-transform single-sideband
+modulator (DAFx-98). `createBarberpole` implements the warped spectral-delay SSB
+structure of Esqueda, Valimaki and Parker (DAFx-15). `createHarmonizer` extends
+the Laroche-Dolson identity-phase-locked peak shifter to two simultaneous
+voices. `createSpectralFreeze` preserves measured inter-frame phase advance
+instead of looping one static FFT frame. `createStereoWidener` uses sparse
+velvet-noise decorrelation and temporarily retreats to the direct path for
+transients.
+
 Keep shared space effects such as reverb on a bus and feed them with a wet
 send. This leaves the playback's dry character chain intact while every source
 sent to the bus shares one live reverb instance.

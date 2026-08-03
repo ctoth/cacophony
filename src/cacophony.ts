@@ -15,6 +15,8 @@ import type {
   PannerNode,
 } from "./context";
 import {
+  BarberpoleEffect,
+  type BarberpoleOptions,
   type CacophonyEffect,
   DynamicsEffect,
   type DynamicsOptions,
@@ -23,6 +25,10 @@ import {
   FoaDecoder,
   FoaDecoderEffect,
   type FoaDecoderOptions,
+  FrequencyShifterEffect,
+  type FrequencyShifterOptions,
+  HarmonizerEffect,
+  type HarmonizerOptions,
   ImpulseResponseEffect,
   type ImpulseResponseOptions,
   type ImpulseResponseSource,
@@ -34,6 +40,10 @@ import {
   ReverbEffect,
   type ReverbOptions,
   ShareEffect,
+  SpectralFreezeEffect,
+  type SpectralFreezeOptions,
+  StereoWidenerEffect,
+  type StereoWidenerOptions,
   TremoloEffect,
   type TremoloOptions,
   WaveshaperEffect,
@@ -545,9 +555,16 @@ export class Cacophony {
     worklet: WorkletModule,
     parameterData: Record<string, number>,
     context?: BaseContext,
+    nodeOptions?: AudioWorkletNodeOptions,
   ): Promise<AudioWorkletNode> {
     await this.loadAudioWorkletModule(worklet.name, worklet.url, undefined, context);
-    return this.createWorkletNode(worklet.name, worklet.url, undefined, { parameterData }, context);
+    return this.createWorkletNode(
+      worklet.name,
+      worklet.url,
+      undefined,
+      { ...nodeOptions, parameterData: { ...(nodeOptions?.parameterData ?? {}), ...parameterData } },
+      context,
+    );
   }
 
   /**
@@ -1490,6 +1507,42 @@ export class Cacophony {
    */
   createAutoPan(options: TremoloOptions = {}): TremoloEffect {
     return new TremoloEffect(this, { stereoPhase: 180, ...options });
+  }
+
+  /**
+   * Creates a Hilbert-transform single-sideband frequency shifter (Wardle,
+   * DAFx-98). Unlike pitch shifting, every partial moves by the same signed
+   * number of hertz, deliberately breaking harmonic ratios.
+   */
+  createFrequencyShifter(options: FrequencyShifterOptions = {}): FrequencyShifterEffect {
+    return new FrequencyShifterEffect(this, options);
+  }
+
+  /**
+   * Creates the spectral-delay SSB barberpole effect from Esqueda, Valimaki &
+   * Parker (DAFx-15, Fig. 12): notches travel indefinitely in the direction
+   * selected by the sign of `rate`, rather than reversing like a normal phaser.
+   */
+  createBarberpole(options: BarberpoleOptions = {}): BarberpoleEffect {
+    return new BarberpoleEffect(this, options);
+  }
+
+  /** Adds two identity-phase-locked pitch voices in one Laroche-Dolson STFT pass. */
+  createHarmonizer(options: HarmonizerOptions = {}): HarmonizerEffect {
+    return new HarmonizerEffect(this, options);
+  }
+
+  /**
+   * Captures and sustains a spectrum while continuing each bin's measured
+   * phase advance. Automate the `freeze` AudioParam to capture/release.
+   */
+  createSpectralFreeze(options: SpectralFreezeOptions = {}): SpectralFreezeEffect {
+    return new SpectralFreezeEffect(this, options);
+  }
+
+  /** Creates an explicit-stereo sparse decorrelator with transient protection. */
+  createStereoWidener(options: StereoWidenerOptions = {}): StereoWidenerEffect {
+    return new StereoWidenerEffect(this, options);
   }
 
   /** The default audio context for this Cacophony instance (used by
