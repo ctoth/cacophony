@@ -1,4 +1,4 @@
-import type { AudioNode, BiquadFilterNode } from "./context";
+import type { BiquadFilterNode } from "./context";
 
 export type FilterCloneOverrides = {
   filters?: BiquadFilterNode[];
@@ -35,24 +35,12 @@ export abstract class FilterManager {
     }
   }
 
-  applyFilters(connection: AudioNode): AudioNode {
-    return this._filters.reduce<AudioNode>((prevConnection, filter) => {
-      prevConnection.connect(filter);
-      return filter;
-    }, connection);
-  }
-
   get filters() {
     return this._filters;
   }
 
   addFilters(filters: BiquadFilterNode[]) {
-    // todo: be more efficient
     filters.forEach((filter) => this.addFilter(filter));
-  }
-
-  removeFilters(filters: BiquadFilterNode[]) {
-    filters.forEach((filter) => this.removeFilter(filter));
   }
 
   cleanup(): void {

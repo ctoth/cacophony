@@ -414,6 +414,11 @@ describe("Sound class", () => {
     expect(sound.filters.length).toBe(0);
   });
 
+  it("does not expose obsolete bulk filter helpers", () => {
+    expect("applyFilters" in sound).toBe(false);
+    expect("removeFilters" in sound).toBe(false);
+  });
+
   it("removeFilter uses object identity, not property comparison", () => {
     // This test catches the original bug where filters were compared by properties
     // Create two filters with identical properties but different object identities
@@ -1469,7 +1474,7 @@ describe("Sound preplay failure rollback", () => {
     vi.mocked(audioContextMock.createGain).mockImplementation(realCreateGain);
   });
 
-  it("unsubscribes Sound-side listeners when a playback ends naturally", async () => {
+  it("unsubscribes Sound-side listeners synchronously when a playback ends naturally", () => {
     const playback = sound.play()[0];
     // White-box read of the emitter's listener map — Sound-side wiring
     // attached two `playback.on(...)` listeners plus assigned the field
@@ -1481,13 +1486,10 @@ describe("Sound preplay failure rollback", () => {
     expect(errorBefore).toBeGreaterThan(0);
     expect(playback._loopEndCallback).toBeDefined();
 
-    // Natural end: loopEnded with no loops left fires "ended". Sound's
-    // "ended" listener schedules a microtask that tears down its own
-    // subscriptions via the captured unsubscribe functions (deferred so the
-    // emitter's post-iteration listener re-assignment doesn't overwrite the
-    // off()).
+    // Natural end: loopEnded with no loops left fires "ended". Sound tears
+    // down its subscriptions during the event because TypedEventEmitter
+    // preserves listener removals made inside a listener.
     playback.loopEnded();
-    await Promise.resolve();
 
     // One ended-listener and one error-listener removed (the ones Sound
     // registered); the loopEnd callback field was cleared.
