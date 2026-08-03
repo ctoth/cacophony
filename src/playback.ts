@@ -455,6 +455,17 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Invalid time value for seek");
     }
 
+    if (
+      this.origin.soundType === "streaming" &&
+      "mediaElement" in this.source &&
+      (this.source.mediaElement.seekable?.length ?? 0) === 0
+    ) {
+      if (this.source.mediaElement.duration === Number.POSITIVE_INFINITY) {
+        throw new Error("Live media-element streams do not expose a seekable range");
+      }
+      throw new Error("Media-element stream does not currently expose a seekable range");
+    }
+
     const wasPlaying = this._state === "playing";
     if (wasPlaying) {
       this.pause();
@@ -544,10 +555,17 @@ export class Playback extends BasePlayback implements BaseSound {
       return; // Already cleaned up
     }
     if ("mediaElement" in this.source && this.source.mediaElement) {
-      this.source.mediaElement.pause();
-      this.source.mediaElement.currentTime = 0;
-      this.source.mediaElement.loop = false;
-      this.source.mediaElement.onended = null;
+      const mediaElement = this.source.mediaElement;
+      mediaElement.pause();
+      try {
+        mediaElement.currentTime = 0;
+      } catch {
+        // Live media without a seekable range can reject currentTime writes.
+      }
+      mediaElement.loop = false;
+      mediaElement.onended = null;
+      mediaElement.src = "";
+      mediaElement.load();
     } else if ("onended" in this.source) {
       this.source.onended = null;
     }

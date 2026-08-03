@@ -242,6 +242,7 @@ export class Sound extends RoutableSource implements BaseSound {
       playback.setGainNode(gainNode);
       playback.volume = this.volume;
       playback.playbackRate = this.playbackRate;
+      playback.loop(this.loopCount);
       // Carry the Sound's pitch-shift factor onto the new playback. Building the
       // phase-vocoder worklet node is async; preplay is sync, so this is a
       // fire-and-forget that splices the node in once the worklet resolves
