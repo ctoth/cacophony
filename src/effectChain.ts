@@ -59,6 +59,7 @@ export class EffectChain {
     }
     const entry = this.normalize(built);
     if (this.has(entry.handle)) {
+      entry.dispose?.();
       throw new Error("Cannot add the same effect node to a chain twice");
     }
     this.entries.splice(index, 0, entry);
