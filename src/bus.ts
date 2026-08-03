@@ -164,6 +164,9 @@ export class Bus {
     }
     const handle = isBuiltEffectGraph(built) ? (built.handle ?? built.input) : built;
     if (this._effectChain.has(handle)) {
+      if (isBuiltEffectGraph(built)) {
+        built.dispose?.();
+      }
       throw new Error("Cannot add the same filter node to a bus twice");
     }
     return this._effectChain.add(built);

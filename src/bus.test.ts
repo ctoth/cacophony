@@ -94,6 +94,32 @@ describe("Bus: addFilter discrimination", () => {
     await expect(bus.addFilter(effect)).rejects.toThrow(/same filter/);
   });
 
+  it("disposes a built graph rejected for a duplicate handle", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const handle = cacophony.context.createGain();
+    const firstGraph = {
+      input: cacophony.context.createGain(),
+      output: cacophony.context.createGain(),
+      handle,
+    };
+    const disposeDuplicate = vi.fn();
+    const duplicateGraph = {
+      input: cacophony.context.createGain(),
+      output: cacophony.context.createGain(),
+      handle,
+      dispose: disposeDuplicate,
+    };
+    const effect = {
+      build: vi.fn().mockReturnValueOnce(firstGraph).mockReturnValueOnce(duplicateGraph),
+    };
+
+    await bus.addFilter(effect);
+
+    await expect(bus.addFilter(effect)).rejects.toThrow(/same filter/);
+    expect(disposeDuplicate).toHaveBeenCalledOnce();
+    expect(bus.filters).toEqual([handle]);
+  });
+
   it("rejects a raw AudioNode (e.g. context.createGain())", async () => {
     const bus = new Bus(cacophony.context, null);
     const raw = cacophony.context.createGain();

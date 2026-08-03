@@ -56,4 +56,24 @@ describe("EffectChain", () => {
     expectPath(input, [], output);
     expect(dispose).toHaveBeenCalledOnce();
   });
+
+  it("disposes a built graph rejected for a duplicate handle", () => {
+    const input = cacophony.context.createGain();
+    const output = cacophony.context.createGain();
+    const handle = cacophony.context.createGain();
+    const firstInput = cacophony.context.createGain();
+    const firstOutput = cacophony.context.createGain();
+    const duplicateInput = cacophony.context.createGain();
+    const duplicateOutput = cacophony.context.createGain();
+    const disposeDuplicate = vi.fn();
+    const chain = new EffectChain(input, output);
+
+    chain.add({ input: firstInput, output: firstOutput, handle });
+
+    expect(() =>
+      chain.add({ input: duplicateInput, output: duplicateOutput, handle, dispose: disposeDuplicate }),
+    ).toThrow(/same effect/);
+    expect(disposeDuplicate).toHaveBeenCalledOnce();
+    expect(chain.nodes).toEqual([handle]);
+  });
 });
