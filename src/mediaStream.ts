@@ -34,6 +34,8 @@ export class MediaStreamPlayback extends BasePlayback {
   public declare origin: MediaStreamSound;
   public declare source?: MediaStreamAudioSourceNode;
   private stopTracksOnStop: boolean;
+  private tracksStopped = false;
+  private pausedTrackStates?: Map<MediaStreamTrack, boolean>;
   /**
    * Muted media element that keeps Chromium's decode pipeline alive for the
    * stream so the Web Audio tap receives real audio. See
@@ -108,7 +110,15 @@ export class MediaStreamPlayback extends BasePlayback {
     if (tracks.length > 0 && tracks.every((track) => track.readyState === "ended")) {
       throw new Error("Cannot play a media stream whose tracks have ended");
     }
-    tracks.forEach((track) => (track.enabled = true));
+    if (this.isPaused && this.pausedTrackStates) {
+      tracks.forEach((track) => {
+        const enabled = this.pausedTrackStates?.get(track);
+        if (enabled !== undefined) {
+          track.enabled = enabled;
+        }
+      });
+    }
+    this.pausedTrackStates = undefined;
     // Muted autoplay is always permitted, so this needs no user gesture; the
     // returned promise is ignored because failure only loses Chromium priming.
     this.primeElement?.play().catch(() => {});
@@ -125,7 +135,9 @@ export class MediaStreamPlayback extends BasePlayback {
     if (!this.source || !this.isPlaying) {
       return;
     }
-    this.source.mediaStream.getTracks().forEach((track) => (track.enabled = false));
+    const tracks = this.source.mediaStream.getTracks();
+    this.pausedTrackStates = new Map(tracks.map((track) => [track, track.enabled]));
+    tracks.forEach((track) => (track.enabled = false));
     this.primeElement?.pause();
     this.markPaused();
     this.emit("pause", undefined);
@@ -144,9 +156,8 @@ export class MediaStreamPlayback extends BasePlayback {
       throw new Error("Cannot stop a media stream that has been cleaned up");
     }
     const shouldEmitStop = this._state === "playing" || this._state === "paused";
-    if (this.stopTracksOnStop) {
-      this.source.mediaStream.getTracks().forEach((track) => track.stop());
-    }
+    this.stopOwnedTracks();
+    this.pausedTrackStates = undefined;
     this.teardownPrimeElement();
     this.markStopped();
     if (shouldEmitStop) {
@@ -197,10 +208,20 @@ export class MediaStreamPlayback extends BasePlayback {
     }
   }
 
+  private stopOwnedTracks(): void {
+    if (!this.stopTracksOnStop || this.tracksStopped || !this.source) {
+      return;
+    }
+    this.source.mediaStream.getTracks().forEach((track) => track.stop());
+    this.tracksStopped = true;
+  }
+
   cleanup(): void {
     if (!this.source) {
       return;
     }
+    this.stopOwnedTracks();
+    this.pausedTrackStates = undefined;
     this.markStopped();
     this.teardownPrimeElement();
     this.source.disconnect();
