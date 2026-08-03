@@ -585,6 +585,102 @@ describe("AudioCache", () => {
     expect(mockFetch).toHaveBeenCalledTimes(1); // Should only fetch once
   });
 
+  it("keeps a shared pending request when one caller aborts", async () => {
+    const url = "https://example.com/audio.mp3";
+    const mockArrayBuffer = new ArrayBuffer(8);
+    const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    const firstController = new AbortController();
+    const secondController = new AbortController();
+    const mockCache = {
+      match: vi.fn().mockResolvedValue(null),
+      put: vi.fn().mockResolvedValue(undefined),
+      delete: vi.fn().mockResolvedValue(undefined),
+    };
+    let resolveFetch!: (response: Response) => void;
+    const fetchResponse = new Promise<Response>((resolve) => {
+      resolveFetch = resolve;
+    });
+
+    mockCaches.open.mockResolvedValue(mockCache);
+    mockFetch.mockReturnValue(fetchResponse);
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValue(mockAudioBuffer);
+
+    const firstRequest = cache.getAudioBuffer(audioContextMock, url, firstController.signal);
+    const firstOutcome = firstRequest.then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    const secondRequest = cache.getAudioBuffer(audioContextMock, url, secondController.signal);
+
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
+    firstController.abort();
+
+    const thirdRequest = cache.getAudioBuffer(audioContextMock, url);
+    await vi.waitFor(() => expect(mockCache.match).toHaveBeenCalledTimes(3));
+    await Promise.resolve();
+
+    const sharedSignal = mockFetch.mock.calls[0]?.[1]?.signal;
+    expect(sharedSignal).not.toBe(firstController.signal);
+    expect(sharedSignal?.aborted).toBe(false);
+
+    resolveFetch(
+      new Response(mockArrayBuffer, {
+        status: 200,
+        headers: { "content-type": "audio/mpeg" },
+      }),
+    );
+
+    await expect(firstOutcome).resolves.toMatchObject({ name: "AbortError" });
+    await expect(secondRequest).resolves.toBe(mockAudioBuffer);
+    await expect(thirdRequest).resolves.toBe(mockAudioBuffer);
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("aborts and replaces a shared request after every caller aborts", async () => {
+    const url = "https://example.com/audio.mp3";
+    const mockArrayBuffer = new ArrayBuffer(8);
+    const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+    const firstController = new AbortController();
+    const secondController = new AbortController();
+    const mockCache = {
+      match: vi.fn().mockResolvedValue(null),
+      put: vi.fn().mockResolvedValue(undefined),
+      delete: vi.fn().mockResolvedValue(undefined),
+    };
+    let sharedSignal: AbortSignal | null | undefined;
+
+    mockCaches.open.mockResolvedValue(mockCache);
+    mockFetch
+      .mockImplementationOnce(
+        (_input, init) =>
+          new Promise<Response>((_resolve, reject) => {
+            sharedSignal = init?.signal;
+            sharedSignal?.addEventListener(
+              "abort",
+              () => reject(new DOMException("Operation was aborted", "AbortError")),
+              { once: true },
+            );
+          }),
+      )
+      .mockResolvedValueOnce(new Response(mockArrayBuffer, { status: 200 }));
+    vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValue(mockAudioBuffer);
+
+    const firstOutcome = cache.getAudioBuffer(audioContextMock, url, firstController.signal).catch((error) => error);
+    const secondOutcome = cache.getAudioBuffer(audioContextMock, url, secondController.signal).catch((error) => error);
+    await vi.waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(1));
+
+    firstController.abort();
+    expect(sharedSignal?.aborted).toBe(false);
+    secondController.abort();
+
+    await expect(firstOutcome).resolves.toMatchObject({ name: "AbortError" });
+    await expect(secondOutcome).resolves.toMatchObject({ name: "AbortError" });
+    expect(sharedSignal?.aborted).toBe(true);
+
+    await expect(cache.getAudioBuffer(audioContextMock, url)).resolves.toBe(mockAudioBuffer);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
   it("clears memory cache correctly", async () => {
     const url = "https://example.com/audio.mp3";
     const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
@@ -1375,7 +1471,7 @@ describe("AudioCache", () => {
 
       expect(result).toBe(mockAudioBuffer);
       expect(mockFetch).toHaveBeenCalledTimes(1);
-      expect(mockFetch).toHaveBeenCalledWith(url, expect.objectContaining({ signal: undefined }));
+      expect(mockFetch).toHaveBeenCalledWith(url, expect.objectContaining({ signal: expect.any(AbortSignal) }));
       expect(consoleErrorSpy).not.toHaveBeenCalled();
       consoleErrorSpy.mockRestore();
     });
@@ -1465,7 +1561,7 @@ describe("AudioCache", () => {
   });
 
   describe("AbortSignal support", () => {
-    it("passes AbortSignal to fetch requests", async () => {
+    it("passes a shared AbortSignal to fetch requests", async () => {
       const url = "https://example.com/audio.mp3";
       const mockArrayBuffer = new ArrayBuffer(8);
       const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
@@ -1497,12 +1593,10 @@ describe("AudioCache", () => {
 
       await cache.getAudioBuffer(audioContextMock, url, controller.signal);
 
-      expect(mockFetch).toHaveBeenCalledWith(
-        url,
-        expect.objectContaining({
-          signal: controller.signal,
-        }),
-      );
+      const sharedSignal = mockFetch.mock.calls[0]?.[1]?.signal;
+      expect(sharedSignal).toBeInstanceOf(AbortSignal);
+      expect(sharedSignal).not.toBe(controller.signal);
+      expect(sharedSignal?.aborted).toBe(false);
     });
 
     it("throws AbortError when signal is already aborted", async () => {
@@ -1646,20 +1740,11 @@ describe("AudioCache", () => {
       await cache.getAudioBuffer(audioContextMock, url, controller.signal);
 
       expect(mockFetch).toHaveBeenCalledTimes(2);
-      expect(mockFetch).toHaveBeenNthCalledWith(
-        1,
-        url,
-        expect.objectContaining({
-          signal: controller.signal,
-        }),
-      );
-      expect(mockFetch).toHaveBeenNthCalledWith(
-        2,
-        url,
-        expect.objectContaining({
-          signal: controller.signal,
-        }),
-      );
+      const initialSignal = mockFetch.mock.calls[0]?.[1]?.signal;
+      const recoverySignal = mockFetch.mock.calls[1]?.[1]?.signal;
+      expect(initialSignal).toBeInstanceOf(AbortSignal);
+      expect(initialSignal).not.toBe(controller.signal);
+      expect(recoverySignal).toBe(initialSignal);
       expect(consoleWarnSpy).toHaveBeenCalledWith(
         `Cache inconsistency detected for ${url}: 304 response but no cached body. Re-fetching.`,
       );
@@ -1696,12 +1781,7 @@ describe("AudioCache", () => {
       const result = await cache.getAudioBuffer(audioContextMock, url);
 
       expect(result).toBe(mockAudioBuffer);
-      expect(mockFetch).toHaveBeenCalledWith(
-        url,
-        expect.objectContaining({
-          signal: undefined,
-        }),
-      );
+      expect(mockFetch).toHaveBeenCalledWith(url, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     });
 
     describe("memory optimization", () => {

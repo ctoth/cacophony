@@ -189,6 +189,14 @@ export interface ICache {
   clearMemoryCache(): void;
 }
 
+type PendingProgressCallbacks = Pick<CacheCallbacks, "onLoadingProgress">;
+
+interface PendingAudioRequest {
+  promise: Promise<AudioBuffer>;
+  controller: AbortController;
+  callers: number;
+}
+
 /**
  * AudioCache provides efficient caching of audio resources using HTTP caching standards.
  *
@@ -212,8 +220,8 @@ export interface ICache {
  * ```
  */
 export class AudioCache implements ICache {
-  private pendingRequests = new WeakMap<BaseContext, Map<string, Promise<AudioBuffer>>>();
-  private pendingCallbacks = new WeakMap<BaseContext, Map<string, Array<Pick<CacheCallbacks, "onLoadingProgress">>>>();
+  private pendingRequests = new WeakMap<BaseContext, Map<string, PendingAudioRequest>>();
+  private pendingCallbacks = new WeakMap<BaseContext, Map<string, PendingProgressCallbacks[]>>();
   private decodedBuffers = new WeakMap<BaseContext, ByteBoundedLRUCache<string, AudioBuffer>>();
   private static cacheExpirationTime: number = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
@@ -247,7 +255,7 @@ export class AudioCache implements ICache {
    * the canonical {@link CacheCallbacks} shape rather than `any`.
    */
   private static callAllCallbacks<K extends keyof CacheCallbacks>(
-    pendingCallbacks: Map<string, Array<Pick<CacheCallbacks, "onLoadingProgress">>> | undefined,
+    pendingCallbacks: Map<string, PendingProgressCallbacks[]> | undefined,
     url: string,
     callbackName: K,
     eventData: Parameters<NonNullable<CacheCallbacks[K]>>[0],
@@ -272,9 +280,9 @@ export class AudioCache implements ICache {
   private async getOrCreatePendingRequest(
     context: BaseContext,
     url: string,
-    createRequest: () => Promise<AudioBuffer | undefined>,
+    createRequest: (signal: AbortSignal) => Promise<AudioBuffer | undefined>,
     signal?: AbortSignal,
-    callbacks?: Pick<CacheCallbacks, "onLoadingProgress">,
+    callbacks?: PendingProgressCallbacks,
   ): Promise<AudioBuffer> {
     if (signal?.aborted) {
       throw new DOMException("Operation was aborted", "AbortError");
@@ -298,37 +306,70 @@ export class AudioCache implements ICache {
       pendingCallbacks.set(url, existingCallbacks);
     }
 
-    const pendingRequest = pendingRequests.get(url);
+    let pendingRequest = pendingRequests.get(url);
     if (!pendingRequest) {
+      const controller = new AbortController();
       const requestPromise = (async () => {
         try {
-          const result = await createRequest();
+          const result = await createRequest(controller.signal);
           if (result === undefined) {
             throw new Error("Failed to create audio buffer.");
           }
           return result;
         } finally {
-          pendingRequests.delete(url);
-          pendingCallbacks.delete(url); // Clean up callbacks too
+          if (pendingRequests.get(url) === pendingRequest) {
+            pendingRequests.delete(url);
+            pendingCallbacks.delete(url);
+          }
         }
       })();
 
-      // Clean up on abort
-      signal?.addEventListener(
-        "abort",
-        () => {
-          if (signal.aborted) {
-            pendingRequests.delete(url);
-            pendingCallbacks.delete(url); // Clean up callbacks too
-          }
-        },
-        { once: true },
-      );
-
-      pendingRequests.set(url, requestPromise);
-      return requestPromise;
+      pendingRequest = { promise: requestPromise, controller, callers: 0 };
+      pendingRequests.set(url, pendingRequest);
     }
-    return pendingRequest;
+
+    pendingRequest.callers++;
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const release = (aborted: boolean) => {
+        if (settled) return;
+        settled = true;
+        signal?.removeEventListener("abort", handleAbort);
+        pendingRequest.callers--;
+
+        if (aborted && callbacks) {
+          const registeredCallbacks = pendingCallbacks.get(url);
+          const callbackIndex = registeredCallbacks?.indexOf(callbacks) ?? -1;
+          if (callbackIndex >= 0) {
+            registeredCallbacks?.splice(callbackIndex, 1);
+          }
+        }
+
+        if (aborted && pendingRequest.callers === 0 && pendingRequests.get(url) === pendingRequest) {
+          pendingRequests.delete(url);
+          pendingCallbacks.delete(url);
+          pendingRequest.controller.abort();
+        }
+      };
+      const handleAbort = () => {
+        release(true);
+        reject(new DOMException("Operation was aborted", "AbortError"));
+      };
+
+      signal?.addEventListener("abort", handleAbort, { once: true });
+      pendingRequest.promise.then(
+        (buffer) => {
+          if (settled) return;
+          release(false);
+          resolve(buffer);
+        },
+        (error: unknown) => {
+          if (settled) return;
+          release(false);
+          reject(error);
+        },
+      );
+    });
   }
 
   private static async updateMetadata(cache: Cache, url: string, data: Partial<CacheMetadata>): Promise<void> {
@@ -836,7 +877,7 @@ export class AudioCache implements ICache {
       return this.getOrCreatePendingRequest(
         context,
         url,
-        async () => {
+        async (requestSignal) => {
           // No persistent cache, so this is always a miss.
           if (callbacks?.onCacheMiss) {
             callbacks.onCacheMiss({
@@ -850,7 +891,7 @@ export class AudioCache implements ICache {
             context,
             url,
             decodedBuffers,
-            () => this.fetchAndDecodeWithoutCache(context, url, signal),
+            () => this.fetchAndDecodeWithoutCache(context, url, requestSignal),
             callbacks,
           );
         },
@@ -900,7 +941,7 @@ export class AudioCache implements ICache {
     return this.getOrCreatePendingRequest(
       context,
       url,
-      async () => {
+      async (requestSignal) => {
         if (shouldFetch) {
           // Cache miss - need to fetch from network
           if (callbacks?.onCacheMiss) {
@@ -921,7 +962,7 @@ export class AudioCache implements ICache {
                 url,
                 cache,
                 { etag: metadata?.etag, lastModified: metadata?.lastModified },
-                signal,
+                requestSignal,
                 { onCacheHit: callbacks?.onCacheHit },
               ),
             callbacks,
@@ -965,7 +1006,7 @@ export class AudioCache implements ICache {
                   url,
                   cache,
                   { etag: metadata?.etag, lastModified: metadata?.lastModified },
-                  signal,
+                  requestSignal,
                   { onCacheHit: callbacks?.onCacheHit },
                 ),
               callbacks,
