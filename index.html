@@ -331,6 +331,35 @@ than inventing a duration.</p>
 decoded by WebCodecs, <code>createStream()</code> returns the compatibility
 media-element tier. Its <code>streamCapabilities.transport</code> is <code>'media-element'</code>;
 the browser owns buffering, seeking, and live-stream behavior in that tier.</p>
+<h3 id="media-element-streaming-contract" class="tsd-anchor-link">Media-element streaming contract<a href="#media-element-streaming-contract" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<p><code>createSound(url, 'streaming')</code> selects the media-element tier directly.
+<code>createStream(url)</code> returns the same tier when WebCodecs is unavailable or
+cannot decode the primary track, and always uses it for HLS. After metadata
+loads, <code>streamCapabilities</code> reports the browser's duration and whether it
+currently exposes a seekable range. A live source has <code>live: true</code> and
+<code>duration: Infinity</code>; an ordinary finite resource reports its real duration.
+The <code>Sound</code> itself has <code>duration === NaN</code> while unplayed because it has no
+playback yet. After <code>preplay()</code> or <code>play()</code>, <code>sound.duration</code> and
+<code>playback.duration</code> read the loaded media element and return the finite value
+or <code>Infinity</code> for a live source.</p>
+<p>Media playback moves from unplayed to playing only after the element's
+<code>play()</code> promise resolves. <code>pause()</code> moves it to paused, <code>resume()</code> calls
+<code>play()</code> again and returns it to playing, and <code>stop()</code> moves it to stopped and
+resets it. Playback events follow those accepted transitions: <code>play</code>, <code>pause</code>,
+then both <code>play</code> and <code>resume</code> on a resume, followed by <code>stop</code>. The owning
+<code>Sound</code> emits <code>play</code> after the initial accepted play, plus its collective
+<code>pause</code>, <code>resume</code>, and <code>stop</code> events.</p>
+<p><code>seek(time)</code> writes the media element's <code>currentTime</code> only when the browser
+exposes a seekable range. A live or finite media source without such a range
+throws a descriptive error and remains at its current position. Infinite
+looping uses the media element's native <code>loop</code>; finite loop counts are managed
+by Cacophony and emit <code>loopEnd</code> between iterations before the final <code>ended</code>.</p>
+<p>Every <code>preplay()</code> creates an independent media element, so a media-backed
+<code>Sound</code> supports concurrent playback instances. <code>cleanup()</code> pauses each
+element, clears its <code>src</code>, calls <code>load()</code> to release the resource, disconnects
+its Web Audio nodes, and removes the playback. Offline <code>timeStretch()</code> requires
+a decoded <code>AudioBuffer</code>, so calling <code>timeStretch()</code> on this tier throws a
+predictable buffer-required error.</p>
 <p>For audio that arrives as decoded samples instead of a URL, use the
 AudioWorklet-backed push source:</p>
 <pre><code class="typescript"><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">pcm</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">cacophony</span><span class="hl-1">.</span><span class="hl-0">createPcmStreamSound</span><span class="hl-1">({</span><br/><span class="hl-1">  </span><span class="hl-4">channelCount:</span><span class="hl-1"> </span><span class="hl-8">1</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">bufferDuration:</span><span class="hl-1"> </span><span class="hl-8">1</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">latency:</span><span class="hl-1"> </span><span class="hl-8">0.05</span><span class="hl-1">,</span><br/><span class="hl-1">  </span><span class="hl-4">signal:</span><span class="hl-1"> </span><span class="hl-4">abortController</span><span class="hl-1">.</span><span class="hl-4">signal</span><span class="hl-1">,</span><br/><span class="hl-1">});</span><br/><br/><span class="hl-4">pcm</span><span class="hl-1">.</span><span class="hl-0">on</span><span class="hl-1">(</span><span class="hl-2">&#39;underrun&#39;</span><span class="hl-1">, () </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">warn</span><span class="hl-1">(</span><span class="hl-2">&#39;PCM producer fell behind&#39;</span><span class="hl-1">));</span><br/><span class="hl-4">pcm</span><span class="hl-1">.</span><span class="hl-0">on</span><span class="hl-1">(</span><span class="hl-2">&#39;drain&#39;</span><span class="hl-1">, () </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-0">writeNextChunk</span><span class="hl-1">());</span><br/><span class="hl-4">pcm</span><span class="hl-1">.</span><span class="hl-0">on</span><span class="hl-1">(</span><span class="hl-2">&#39;ended&#39;</span><span class="hl-1">, () </span><span class="hl-5">=&gt;</span><span class="hl-1"> </span><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-2">&#39;PCM playback finished&#39;</span><span class="hl-1">));</span><br/><br/><span class="hl-4">pcm</span><span class="hl-1">.</span><span class="hl-0">play</span><span class="hl-1">();</span><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">hasCapacity</span><span class="hl-1"> = </span><span class="hl-4">pcm</span><span class="hl-1">.</span><span class="hl-0">write</span><span class="hl-1">(</span><span class="hl-4">samples</span><span class="hl-1">); </span><span class="hl-7">// interleaved Float32Array at context.sampleRate</span><br/><span class="hl-3">if</span><span class="hl-1"> (!</span><span class="hl-4">hasCapacity</span><span class="hl-1">) {</span><br/><span class="hl-1">  </span><span class="hl-7">// The accepted write filled the ring buffer, or the chunk was rejected</span><br/><span class="hl-1">  </span><span class="hl-7">// because it would exceed capacity. Wait for drain before writing again.</span><br/><span class="hl-1">}</span><br/><span class="hl-4">console</span><span class="hl-1">.</span><span class="hl-0">log</span><span class="hl-1">(</span><span class="hl-4">pcm</span><span class="hl-1">.</span><span class="hl-4">bufferedDuration</span><span class="hl-1">);</span><br/><span class="hl-4">pcm</span><span class="hl-1">.</span><span class="hl-0">end</span><span class="hl-1">(); </span><span class="hl-7">// no more writes; &quot;ended&quot; fires after buffered PCM is consumed</span>
@@ -730,6 +759,9 @@ remain outside this integration.</p>
 <li><a href="#3d-audio-positioning"><span>3<wbr/>D <wbr/>Audio <wbr/>Positioning</span></a></li>
 <li><a href="#microphone-input"><span>Microphone <wbr/>Input</span></a></li>
 <li><a href="#audio-streaming"><span>Audio <wbr/>Streaming</span></a></li>
+<li>
+<ul>
+<li><a href="#media-element-streaming-contract"><span>Media-<wbr/>element streaming contract</span></a></li></ul></li>
 <li><a href="#event-system"><span>Event <wbr/>System</span></a></li>
 <li>
 <ul>
