@@ -1,4 +1,4 @@
-import type { BaseSound, Cacophony, PanType, SoundType } from "./cacophony";
+import type { BaseSound, Cacophony, PanType, Position, SoundType } from "./cacophony";
 import type { BaseContext, GainNode, OscillatorNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { SynthEvents } from "./events";
@@ -70,9 +70,9 @@ export class Synth extends RoutableSource implements BaseSound {
     const panType = overrides.panType ?? this.panType;
     const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
     const volume = overrides.volume !== undefined ? overrides.volume : this.volume;
-    const position = overrides.position?.length ? overrides.position : this.position;
-    const filters = overrides.filters?.length ? overrides.filters : this._filters;
-    const oscillatorOptions = overrides.oscillatorOptions ?? this._oscillatorOptions;
+    const position = overrides.position !== undefined ? overrides.position : this.position;
+    const filters = overrides.filters !== undefined ? overrides.filters : this._filters;
+    const oscillatorOptions = { ...(overrides.oscillatorOptions ?? this._oscillatorOptions) };
 
     const clone = new Synth(
       this.context,
@@ -83,7 +83,7 @@ export class Synth extends RoutableSource implements BaseSound {
       this._cacophony,
     );
     clone._volume = volume;
-    clone._position = position;
+    clone._position = [...position] as Position;
     clone._stereoPan = stereoPan;
     // Apply HRTF override (if provided) through the canonical setter so the
     // discriminated `_threeDOptions` invariant is preserved. Without an override
@@ -92,6 +92,9 @@ export class Synth extends RoutableSource implements BaseSound {
       clone.threeDOptions = overrides.threeDOptions;
     } else if (this.panType === "HRTF") {
       clone.threeDOptions = this.threeDOptions;
+    }
+    if (panType === "HRTF") {
+      clone.position = [...position] as Position;
     }
     clone.addFilters(filters);
     return clone;

@@ -151,6 +151,31 @@ describe("Synth class", () => {
     expect(clone.type).toBe("triangle");
   });
 
+  it("clones oscillator options independently", () => {
+    synth.oscillatorOptions = { frequency: 440, detune: 12, type: "triangle" };
+
+    const clone = synth.clone();
+    clone.frequency = 880;
+    synth.detune = 24;
+
+    expect(synth.frequency).toBe(440);
+    expect(clone.detune).toBe(12);
+    expect(clone.oscillatorOptions).not.toBe(synth.oscillatorOptions);
+  });
+
+  it("honors empty filter and independent position overrides", () => {
+    synth.position = [1, 2, 3];
+    synth.addFilter(audioContextMock.createBiquadFilter());
+    const position: [number, number, number] = [4, 5, 6];
+
+    const clone = synth.clone({ filters: [], position });
+    position[0] = 99;
+
+    expect(clone.filters).toEqual([]);
+    expect(clone.position).toEqual([4, 5, 6]);
+    expect(synth.position).toEqual([1, 2, 3]);
+  });
+
   it("can add and remove filters", () => {
     const filter = audioContextMock.createBiquadFilter();
     synth.addFilter(filter);
