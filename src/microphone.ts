@@ -4,9 +4,14 @@ import { MediaStreamPlayback, MediaStreamSound, type MediaStreamSoundOptions } f
 import type { HrtfPannerOptions } from "./pannerMixin";
 
 /** Options for acquiring and monitoring a microphone stream. */
-export interface MicrophoneStreamOptions extends Omit<MediaStreamSoundOptions, "stopTracksOnStop"> {
+export interface MicrophoneStreamOptions extends MediaStreamSoundOptions {
   /** Constraints forwarded to `navigator.mediaDevices.getUserMedia`. */
   constraints?: MediaStreamConstraints;
+  /**
+   * Stop the microphone tracks when playback stops or is cleaned up.
+   * Defaults to `true`. Set to `false` to keep the stream reusable.
+   */
+  stopTracksOnStop?: boolean;
   /** Initial left/right pan when `panType` is `"stereo"`. */
   stereoPan?: number;
   /** Initial spatial options when `panType` is `"HRTF"` (the default). */
@@ -52,7 +57,7 @@ export class MicrophoneStream extends MediaStreamSound {
         ...mediaStreamOptions,
         panType,
         primeWithMediaElement: mediaStreamOptions.primeWithMediaElement ?? false,
-        stopTracksOnStop: true,
+        stopTracksOnStop: mediaStreamOptions.stopTracksOnStop ?? true,
       },
       cacophony,
     );

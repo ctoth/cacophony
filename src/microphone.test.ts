@@ -202,6 +202,21 @@ describe("MicrophoneStream", () => {
     expect(mockTrack.stop).toHaveBeenCalledOnce();
   });
 
+  it("can keep microphone tracks live across stop when configured", async () => {
+    (navigator.mediaDevices.getUserMedia as any).mockResolvedValue(mockStream);
+    const cacophony = new Cacophony(context as any);
+    const microphone = await cacophony.getMicrophoneStream({
+      stopTracksOnStop: false,
+    });
+
+    microphone.play();
+    microphone.stop();
+    const [restartedPlayback] = microphone.play();
+
+    expect(mockTrack.stop).not.toHaveBeenCalled();
+    expect(restartedPlayback.isPlaying).toBe(true);
+  });
+
   it("retains live-stream duration, loop, and playback-rate contracts", () => {
     const microphone = new MicrophoneStream(context, mockStream);
     const [playback] = microphone.play();

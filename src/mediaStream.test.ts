@@ -120,6 +120,27 @@ describe("MediaStreamSound", () => {
     expect(track.stop).toHaveBeenCalledOnce();
   });
 
+  it("stops owned tracks when a playback is cleaned up directly", () => {
+    const sound = new MediaStreamSound(stream, context, globalGainNode);
+    const [playback] = sound.play();
+
+    playback.cleanup();
+
+    expect(track.stop).toHaveBeenCalledOnce();
+    expect(source.disconnect).toHaveBeenCalled();
+  });
+
+  it("preserves a deliberately disabled track when playback starts", () => {
+    track.enabled = false;
+    const sound = new MediaStreamSound(stream, context, globalGainNode, {
+      stopTracksOnStop: false,
+    });
+
+    sound.play();
+
+    expect(track.enabled).toBe(false);
+  });
+
   it("throws when replaying after the default stop ends every track", () => {
     const cacophony = new Cacophony(context as any);
     vi.spyOn(context as any, "createMediaStreamSource").mockReturnValue(source);
