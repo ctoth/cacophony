@@ -8,15 +8,20 @@
 // browser smoke test exists). This module has NO logic and NO dependency on
 // `cacophony.ts` or `effects.ts`, so all three can import it without a cycle.
 
+import barberpoleBundleUrl from "./bundles/barberpole-bundle.js?url";
 import dattorroReverbBundleUrl from "./bundles/dattorro-reverb-bundle.js?url";
 import dynamicsBundleUrl from "./bundles/dynamics-bundle.js?url";
 import fdnReverbBundleUrl from "./bundles/fdn-reverb-bundle.js?url";
+import frequencyShifterBundleUrl from "./bundles/frequency-shifter-bundle.js?url";
+import harmonizerBundleUrl from "./bundles/harmonizer-bundle.js?url";
 import loudnessMeterBundleUrl from "./bundles/loudness-meter-bundle.js?url";
 import modulatedDelayBundleUrl from "./bundles/modulated-delay-bundle.js?url";
 import pcmStreamBundleUrl from "./bundles/pcm-stream-bundle.js?url";
 import phaseVocoderBundleUrl from "./bundles/phase-vocoder-bundle.js?url";
 import phaserBundleUrl from "./bundles/phaser-bundle.js?url";
+import spectralFreezeBundleUrl from "./bundles/spectral-freeze-bundle.js?url";
 import stereoToBFormatBundleUrl from "./bundles/stereo-to-bformat-bundle.js?url";
+import stereoWidenerBundleUrl from "./bundles/stereo-widener-bundle.js?url";
 import tremoloBundleUrl from "./bundles/tremolo-bundle.js?url";
 import waveshaperBundleUrl from "./bundles/waveshaper-bundle.js?url";
 
@@ -37,6 +42,11 @@ export interface WorkletModule {
  */
 export const WORKLETS = {
   phaseVocoder: { name: "phase-vocoder", url: phaseVocoderBundleUrl },
+  harmonizer: { name: "harmonizer", url: harmonizerBundleUrl },
+  spectralFreeze: { name: "spectral-freeze", url: spectralFreezeBundleUrl },
+  frequencyShifter: { name: "frequency-shifter", url: frequencyShifterBundleUrl },
+  barberpole: { name: "barberpole", url: barberpoleBundleUrl },
+  stereoWidener: { name: "stereo-widener", url: stereoWidenerBundleUrl },
   stereoToBFormat: { name: "stereo-to-bformat", url: stereoToBFormatBundleUrl },
   dattorroReverb: { name: "dattorro-reverb", url: dattorroReverbBundleUrl },
   dynamics: { name: "dynamics", url: dynamicsBundleUrl },

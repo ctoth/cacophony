@@ -31,6 +31,7 @@ export interface WorkletEffectHost {
     worklet: WorkletModule,
     parameterData: Record<string, number>,
     context?: BaseContext,
+    nodeOptions?: AudioWorkletNodeOptions,
   ): Promise<AudioWorkletNode>;
 }
 
@@ -644,6 +645,104 @@ export class TremoloEffect extends WorkletEffect<TremoloOptions> {
       parameterData.shape = shapeIndex;
     }
     return parameterData;
+  }
+}
+
+/** Options for Wardle's Hilbert-transform single-sideband frequency shifter. */
+export interface FrequencyShifterOptions {
+  /** Signed frequency translation in Hz. Positive shifts up; negative shifts down. Default 100. */
+  frequency?: number;
+  /** Wet amount (0 = latency-aligned dry, 1 = shifted). Default 1. */
+  mix?: number;
+}
+
+/** Equal-Hz frequency translation that deliberately breaks harmonic ratios. */
+export class FrequencyShifterEffect extends WorkletEffect<FrequencyShifterOptions> {
+  constructor(host: WorkletEffectHost, options: FrequencyShifterOptions = {}) {
+    super(host, WORKLETS.frequencyShifter, options);
+  }
+}
+
+/** Options for the SSB spectral-delay barberpole phaser (DAFx-15 Fig. 12). */
+export interface BarberpoleOptions {
+  /** Signed notch travel rate and direction in Hz. Default 0.1. */
+  rate?: number;
+  /** Cascaded allpass count; two stages produce one notch. Default 32. */
+  stages?: number;
+  /** Spectral-delay allpass coefficient. -0.5 approximates octave spacing. Default -0.5. */
+  coefficient?: number;
+  /** Effect mix (0 = aligned dry, 1 = barberpole sum). Default 1. */
+  mix?: number;
+}
+
+/** Endlessly rising/falling, warped-notch SSB barberpole phaser. */
+export class BarberpoleEffect extends WorkletEffect<BarberpoleOptions> {
+  constructor(host: WorkletEffectHost, options: BarberpoleOptions = {}) {
+    super(host, WORKLETS.barberpole, options);
+  }
+}
+
+/** Two-voice Laroche-Dolson identity-phase-locked harmonizer options. */
+export interface HarmonizerOptions {
+  semitonesA?: number;
+  semitonesB?: number;
+  gainA?: number;
+  gainB?: number;
+  dry?: number;
+}
+
+/** Adds two independently shifted voices in one shared STFT analysis pass. */
+export class HarmonizerEffect extends WorkletEffect<HarmonizerOptions> {
+  constructor(host: WorkletEffectHost, options: HarmonizerOptions = {}) {
+    super(host, WORKLETS.harmonizer, options);
+  }
+}
+
+/** Spectral-frame capture and indefinite phase-coherent sustain options. */
+export interface SpectralFreezeOptions {
+  /** >=0.5 captures/holds; automate through rampEffectParam. Default 0. */
+  freeze?: number;
+  /** Blend captured magnitude with the preceding three frames. Default 0.5. */
+  smear?: number;
+  /** Frozen wet mix. Default 1. */
+  mix?: number;
+}
+
+/** Phase-continuing spectral freeze that avoids looping one static FFT frame. */
+export class SpectralFreezeEffect extends WorkletEffect<SpectralFreezeOptions> {
+  constructor(host: WorkletEffectHost, options: SpectralFreezeOptions = {}) {
+    super(host, WORKLETS.spectralFreeze, options);
+  }
+}
+
+/** Sparse velvet-noise stereo-width options. */
+export interface StereoWidenerOptions {
+  width?: number;
+  decorrelation?: number;
+  transientProtection?: number;
+}
+
+/** Mono/stereo to explicit stereo decorrelator with transient protection. */
+export class StereoWidenerEffect implements CacophonyEffect {
+  constructor(
+    private readonly host: WorkletEffectHost,
+    private readonly options: StereoWidenerOptions = {},
+  ) {}
+
+  build(context: BaseContext): Promise<AudioWorkletNode> {
+    return this.host.buildWorkletEffect(
+      WORKLETS.stereoWidener,
+      { ...this.options } as Record<string, number>,
+      context,
+      {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [2],
+        channelCount: 2,
+        channelCountMode: "explicit",
+        channelInterpretation: "speakers",
+      },
+    );
   }
 }
 
