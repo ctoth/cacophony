@@ -878,6 +878,40 @@ decoded by WebCodecs, `createStream()` returns the compatibility
 media-element tier. Its `streamCapabilities.transport` is `'media-element'`;
 the browser owns buffering, seeking, and live-stream behavior in that tier.
 
+### Media-element streaming contract
+
+`createSound(url, 'streaming')` selects the media-element tier directly.
+`createStream(url)` returns the same tier when WebCodecs is unavailable or
+cannot decode the primary track, and always uses it for HLS. After metadata
+loads, `streamCapabilities` reports the browser's duration and whether it
+currently exposes a seekable range. A live source has `live: true` and
+`duration: Infinity`; an ordinary finite resource reports its real duration.
+The `Sound` itself has `duration === NaN` while unplayed because it has no
+playback yet. After `preplay()` or `play()`, `sound.duration` and
+`playback.duration` read the loaded media element and return the finite value
+or `Infinity` for a live source.
+
+Media playback moves from unplayed to playing only after the element's
+`play()` promise resolves. `pause()` moves it to paused, `resume()` calls
+`play()` again and returns it to playing, and `stop()` moves it to stopped and
+resets it. Playback events follow those accepted transitions: `play`, `pause`,
+then both `play` and `resume` on a resume, followed by `stop`. The owning
+`Sound` emits `play` after the initial accepted play, plus its collective
+`pause`, `resume`, and `stop` events.
+
+`seek(time)` writes the media element's `currentTime` only when the browser
+exposes a seekable range. A live or finite media source without such a range
+throws a descriptive error and remains at its current position. Infinite
+looping uses the media element's native `loop`; finite loop counts are managed
+by Cacophony and emit `loopEnd` between iterations before the final `ended`.
+
+Every `preplay()` creates an independent media element, so a media-backed
+`Sound` supports concurrent playback instances. `cleanup()` pauses each
+element, clears its `src`, calls `load()` to release the resource, disconnects
+its Web Audio nodes, and removes the playback. Offline `timeStretch()` requires
+a decoded `AudioBuffer`, so calling `timeStretch()` on this tier throws a
+predictable buffer-required error.
+
 For audio that arrives as decoded samples instead of a URL, use the
 AudioWorklet-backed push source:
 

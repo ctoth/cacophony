@@ -353,6 +353,7 @@ describe("Playback cloning for media-element-backed playback", () => {
   let originalPlayback: Playback;
   let originalMediaElement: {
     cloneNode: ReturnType<typeof vi.fn>;
+    load: ReturnType<typeof vi.fn>;
     play: ReturnType<typeof vi.fn>;
     pause: ReturnType<typeof vi.fn>;
     onended: null | (() => void);
@@ -360,8 +361,10 @@ describe("Playback cloning for media-element-backed playback", () => {
     currentTime: number;
     duration: number;
     playbackRate: number;
+    src: string;
   };
   let clonedMediaElement: {
+    load: ReturnType<typeof vi.fn>;
     play: ReturnType<typeof vi.fn>;
     pause: ReturnType<typeof vi.fn>;
     onended: null | (() => void);
@@ -369,6 +372,7 @@ describe("Playback cloning for media-element-backed playback", () => {
     currentTime: number;
     duration: number;
     playbackRate: number;
+    src: string;
   };
   let gainNode: GainNode;
   let sound: Sound;
@@ -376,6 +380,7 @@ describe("Playback cloning for media-element-backed playback", () => {
 
   beforeEach(() => {
     clonedMediaElement = {
+      load: vi.fn(),
       play: vi.fn(() => Promise.resolve()),
       pause: vi.fn(),
       onended: null,
@@ -383,9 +388,11 @@ describe("Playback cloning for media-element-backed playback", () => {
       currentTime: 0,
       duration: 10,
       playbackRate: 1,
+      src: "test-url",
     };
     originalMediaElement = {
       cloneNode: vi.fn(() => clonedMediaElement),
+      load: vi.fn(),
       play: vi.fn(() => Promise.resolve()),
       pause: vi.fn(),
       onended: null,
@@ -393,6 +400,7 @@ describe("Playback cloning for media-element-backed playback", () => {
       currentTime: 0,
       duration: 10,
       playbackRate: 1,
+      src: "test-url",
     };
 
     // Mock createMediaElementSource to return a source wrapping whichever

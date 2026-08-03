@@ -239,6 +239,8 @@ describe("Media element play() rejection", () => {
 
   it("cleanup() tears down active HTML playback", async () => {
     const mediaElement = {
+      src: "https://example.com/html-audio.mp3",
+      load: vi.fn(),
       play: vi.fn().mockResolvedValue(undefined),
       pause: vi.fn(),
       currentTime: 0,
@@ -266,6 +268,8 @@ describe("Media element play() rejection", () => {
     htmlSound.cleanup();
 
     expect(mediaElement.pause).toHaveBeenCalledTimes(1);
+    expect(mediaElement.src).toBe("");
+    expect(mediaElement.load).toHaveBeenCalledOnce();
     expect(mediaElement.currentTime).toBe(0);
     expect(mediaElement.loop).toBe(false);
     expect(mediaElement.onended).toBeNull();
