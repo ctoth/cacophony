@@ -23,7 +23,7 @@ group delay (first-order ADAA, eq.17).</p>
 </div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">WaveshaperOptions</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#drive">drive</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#mix">mix</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#output">output</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#shape">shape</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;hardclip&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;tanh&quot;</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/548b9401bede665790150b006f7b484f460b804c/src/effects.ts#L456">src/effects.ts:456</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/9fbc74d782b9b0073a0249d03ff136342999eb62/src/effects.ts#L456">src/effects.ts:456</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -45,21 +45,21 @@ group delay (first-order ADAA, eq.17).</p>
 <div class="tsd-comment tsd-typography"><p>Pre-gain (drive) into the nonlinearity. Default 1. Range 0..100; &gt;1 = harder saturation.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/548b9401bede665790150b006f7b484f460b804c/src/effects.ts#L458">src/effects.ts:458</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/9fbc74d782b9b0073a0249d03ff136342999eb62/src/effects.ts#L458">src/effects.ts:458</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="mix"><code class="tsd-tag">Optional</code><span>mix</span><a href="#mix" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">mix</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Wet/dry mix (0..1); 0 = dry bypass, 1 = fully shaped. Default 1.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/548b9401bede665790150b006f7b484f460b804c/src/effects.ts#L467">src/effects.ts:467</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/9fbc74d782b9b0073a0249d03ff136342999eb62/src/effects.ts#L467">src/effects.ts:467</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="output"><code class="tsd-tag">Optional</code><span>output</span><a href="#output" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">output</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Post-nonlinearity output gain (linear). Default 1. Range 0..4.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/548b9401bede665790150b006f7b484f460b804c/src/effects.ts#L469">src/effects.ts:469</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/9fbc74d782b9b0073a0249d03ff136342999eb62/src/effects.ts#L469">src/effects.ts:469</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="shape"><code class="tsd-tag">Optional</code><span>shape</span><a href="#shape" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">shape</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;hardclip&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;tanh&quot;</span></div>
@@ -69,7 +69,7 @@ matching string alias (<code>&quot;hardclip&quot;</code> = 0, <code>&quot;tanh&q
 index in <code>build()</code>.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/548b9401bede665790150b006f7b484f460b804c/src/effects.ts#L465">src/effects.ts:465</a></li></ul></aside></section></section></details></div>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/9fbc74d782b9b0073a0249d03ff136342999eb62/src/effects.ts#L465">src/effects.ts:465</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
