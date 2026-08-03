@@ -23,11 +23,11 @@ function createOfflineContextMock(): BaseContext & { startRendering(): Promise<C
 /**
  * Tests for autoplay unlock on first user gesture.
  *
- * The Cacophony constructor installs one-time touchend/click/keydown listeners
- * on document.body when the audio context starts in 'suspended' state. The
- * first fired gesture resumes the context, plays a silent primer buffer
- * (required for iOS Safari to truly unlock), removes the listeners, and emits
- * an `unlock` event.
+ * The Cacophony constructor watches the audio context and installs
+ * touchend/click/keydown listeners on document.body whenever it is suspended.
+ * A gesture resumes the context, plays a silent primer buffer (required for
+ * iOS Safari to truly unlock), removes the listeners, and emits an `unlock`
+ * event. Failed resume attempts re-arm the gesture listeners.
  *
  * Vitest runs in node environment by default — `document` is undefined — so
  * each test that exercises the listener-install path mocks a minimal document
@@ -137,15 +137,39 @@ describe("Autoplay unlock", () => {
       expect(doc.addEventListenerSpy).toHaveBeenCalled();
     });
 
-    it("does NOT install listeners when context.state is 'running'", async () => {
+    it("arms gesture listeners if a context that starts running later suspends", async () => {
       const doc = installMockDocument();
       const ctx = new AudioContext();
       await ctx.resume(); // state -> 'running'
       expect(ctx.state).toBe("running");
 
+      let state: string = "running";
+      Object.defineProperty(ctx, "state", { configurable: true, get: () => state });
+
       new Cacophony(ctx as any, mockCache);
 
       expect(doc.addEventListenerSpy).not.toHaveBeenCalled();
+
+      state = "suspended";
+      ctx.dispatchEvent(new Event("statechange"));
+
+      expect(doc.listenersFor("touchend")).toHaveLength(1);
+      expect(doc.listenersFor("click")).toHaveLength(1);
+      expect(doc.listenersFor("keydown")).toHaveLength(1);
+    });
+
+    it("uses capture and passive gesture listeners", () => {
+      const doc = installMockDocument();
+      const ctx = new AudioContext();
+
+      new Cacophony(ctx as any, mockCache);
+
+      for (const eventName of UNLOCK_EVENTS) {
+        expect(doc.addEventListenerSpy).toHaveBeenCalledWith(eventName, expect.any(Function), {
+          capture: true,
+          passive: true,
+        });
+      }
     });
 
     it("does NOT install listeners when autoUnlock is false", () => {
@@ -301,6 +325,31 @@ describe("Autoplay unlock", () => {
       warnSpy.mockRestore();
     });
 
+    it("re-arms listeners after context.resume() rejects so a later gesture can retry", async () => {
+      const doc = installMockDocument();
+      const ctx = new AudioContext();
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const resumeSpy = vi.spyOn(ctx, "resume").mockRejectedValueOnce(new Error("transient failure"));
+      const onUnlock = vi.fn();
+
+      installAutoplayUnlock({ context: ctx as any, onUnlock });
+
+      doc.fire("click");
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(onUnlock).not.toHaveBeenCalled();
+      expect(doc.listenersFor("click")).toHaveLength(1);
+
+      doc.fire("click");
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(resumeSpy).toHaveBeenCalledTimes(2);
+      expect(onUnlock).toHaveBeenCalledTimes(1);
+      warnSpy.mockRestore();
+    });
+
     it("emits unlock asynchronously, only after resume() fulfills", async () => {
       const doc = installMockDocument();
       const ctx = new AudioContext();
@@ -352,6 +401,32 @@ describe("Autoplay unlock", () => {
       expect(stopSpy).toHaveBeenCalledWith(0);
       // start must precede stop
       expect(startSpy.mock.invocationCallOrder[0]).toBeLessThan(stopSpy.mock.invocationCallOrder[0]);
+    });
+
+    it("cleanup suppresses an in-flight unlock callback and removes the state watcher", async () => {
+      const doc = installMockDocument();
+      const ctx = new AudioContext();
+      const removeContextListenerSpy = vi.spyOn(ctx, "removeEventListener");
+      let resolveResume!: () => void;
+      vi.spyOn(ctx, "resume").mockReturnValue(
+        new Promise<void>((resolve) => {
+          resolveResume = resolve;
+        }),
+      );
+      const onUnlock = vi.fn();
+      const cleanup = installAutoplayUnlock({ context: ctx as any, onUnlock });
+
+      doc.fire("click");
+      cleanup();
+      resolveResume();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(onUnlock).not.toHaveBeenCalled();
+      expect(removeContextListenerSpy).toHaveBeenCalledWith("statechange", expect.any(Function));
+      for (const eventName of UNLOCK_EVENTS) {
+        expect(doc.listenersFor(eventName)).toHaveLength(0);
+      }
     });
   });
 

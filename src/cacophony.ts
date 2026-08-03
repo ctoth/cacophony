@@ -307,9 +307,8 @@ export class Cacophony {
   // duplicate wrapper-driven suspend calls, but resume() still delegates because
   // the underlying AudioContext can be suspended externally.
   private suspendState: "unknown" | "running" | "suspended" = "unknown";
-  // Cleanup function for the autoplay-unlock listeners. No-op when listeners
-  // were not installed (autoUnlock disabled, offline context, non-browser,
-  // or context not in 'suspended' state at construction time).
+  // Cleanup function for the autoplay-unlock state watcher and gesture
+  // listeners. No-op when autoUnlock is disabled or unsupported.
   private autoplayUnlockCleanup: () => void = () => {};
 
   /**
@@ -367,10 +366,10 @@ export class Cacophony {
       }
     });
 
-    // Install autoplay unlock — guarded against offline contexts, non-browser
-    // environments, and non-suspended contexts inside installAutoplayUnlock
-    // itself. Offline contexts are filtered out here because they cannot
-    // suspend in the same way and an unlock makes no sense for them.
+    // Install autoplay unlock — guarded against offline contexts here and
+    // unsupported/non-browser environments inside installAutoplayUnlock.
+    // Offline contexts cannot suspend in the same way, so unlock makes no
+    // sense for them.
     const autoUnlock = runtimeOptions.autoUnlock !== false;
     if (autoUnlock && !this.isOffline) {
       this.autoplayUnlockCleanup = installAutoplayUnlock({
