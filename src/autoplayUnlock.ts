@@ -13,15 +13,17 @@ import type { BaseContext } from "./context";
  *      gesture's call stack (the iOS "primer").
  *
  * Many callers do (1) but not (2), and hear silence with no obvious cause.
- * This module installs one-time `touchend` / `click` / `keydown` listeners
- * on `document.body` (or `document` as fallback). The first one to fire
- * resumes the context, plays a 1-sample silent primer inside the gesture
- * call stack, removes all three listeners, and calls the `onUnlock` callback.
+ * This module watches the context for suspension and arms `touchend` / `click`
+ * / `keydown` listeners on `document.body` (or `document` as fallback). A
+ * gesture resumes the context, plays a 1-sample silent primer inside the
+ * gesture call stack, removes all three listeners, and calls the `onUnlock`
+ * callback. If the context suspends again, the listeners are re-armed.
  *
  * Design adapted (not copied) from Howler.js `_unlockAudio` — MIT licensed.
  */
 
 const UNLOCK_EVENT_TYPES: ReadonlyArray<"touchend" | "click" | "keydown"> = ["touchend", "click", "keydown"];
+const GESTURE_LISTENER_OPTIONS = { capture: true, passive: true } as const;
 
 /**
  * A `Document`-like type with the methods we need. Avoids a hard dependency
@@ -57,12 +59,12 @@ export interface AutoplayUnlockOptions {
 }
 
 /**
- * Install one-time unlock listeners. Returns a cleanup function that removes
- * the listeners if they have not already fired (e.g. when a `Cacophony`
- * instance is torn down before the user interacts).
+ * Watch for context suspension and install unlock listeners while needed.
+ * Returns a cleanup function that removes both the context watcher and any
+ * armed gesture listeners (e.g. when a `Cacophony` instance is torn down).
  *
- * If the environment is non-browser (`document` is undefined) or the context
- * is not in `suspended` state, this is a no-op and returns a no-op cleanup.
+ * If the environment is non-browser (`document` is undefined), this is a
+ * no-op and returns a no-op cleanup.
  *
  * @internal
  */
@@ -71,12 +73,6 @@ export function installAutoplayUnlock(opts: AutoplayUnlockOptions): () => void {
 
   // Server-side / non-browser: nothing to do.
   if (typeof document === "undefined") {
-    return () => {};
-  }
-
-  // Already running: nothing to unlock.
-  const state = (context as unknown as { state?: string }).state;
-  if (state !== "suspended") {
     return () => {};
   }
 
@@ -93,18 +89,27 @@ export function installAutoplayUnlock(opts: AutoplayUnlockOptions): () => void {
 
   const doc = document as unknown as DocumentLike;
   const target: EventTargetLike = (doc.body as EventTargetLike | null | undefined) ?? doc;
+  const observableContext = context as unknown as {
+    state?: string;
+    addEventListener?: (type: string, listener: () => void) => void;
+    removeEventListener?: (type: string, listener: () => void) => void;
+  };
 
-  let fired = false;
+  let armed = false;
+  let resumeInFlight = false;
+  let disposed = false;
 
   const removeAll = () => {
+    if (!armed) return;
     for (const type of UNLOCK_EVENT_TYPES) {
-      target.removeEventListener(type, handler);
+      target.removeEventListener(type, handler, GESTURE_LISTENER_OPTIONS);
     }
+    armed = false;
   };
 
   const handler = () => {
-    if (fired) return;
-    fired = true;
+    if (disposed || resumeInFlight) return;
+    resumeInFlight = true;
 
     // Remove listeners FIRST so a re-entrant gesture cannot re-trigger us
     // while resume() is in flight.
@@ -147,6 +152,8 @@ export function installAutoplayUnlock(opts: AutoplayUnlockOptions): () => void {
     // be a function here (guarded at install time above).
     resume.call(context).then(
       () => {
+        resumeInFlight = false;
+        if (disposed) return;
         try {
           onUnlock();
         } catch (err) {
@@ -154,14 +161,41 @@ export function installAutoplayUnlock(opts: AutoplayUnlockOptions): () => void {
         }
       },
       (err: unknown) => {
+        resumeInFlight = false;
+        if (disposed) return;
         console.warn("[cacophony/autoplayUnlock] resume failed:", err);
+        syncGestureListeners();
       },
     );
   };
 
-  for (const type of UNLOCK_EVENT_TYPES) {
-    target.addEventListener(type, handler);
+  const armAll = () => {
+    if (disposed || armed || resumeInFlight) return;
+    for (const type of UNLOCK_EVENT_TYPES) {
+      target.addEventListener(type, handler, GESTURE_LISTENER_OPTIONS);
+    }
+    armed = true;
+  };
+
+  function syncGestureListeners(): void {
+    if (observableContext.state === "suspended") {
+      armAll();
+    } else {
+      removeAll();
+    }
   }
 
-  return removeAll;
+  const handleStateChange = () => {
+    if (!disposed) syncGestureListeners();
+  };
+
+  observableContext.addEventListener?.("statechange", handleStateChange);
+  syncGestureListeners();
+
+  return () => {
+    if (disposed) return;
+    disposed = true;
+    removeAll();
+    observableContext.removeEventListener?.("statechange", handleStateChange);
+  };
 }
