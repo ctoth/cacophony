@@ -185,6 +185,61 @@ describe("AudioCache", () => {
     consoleErrorSpy.mockRestore();
   });
 
+  it("routes every network-backed branch through one fetch/decode/cache helper", async () => {
+    const urls = [
+      "https://example.com/no-cache-api.mp3",
+      "https://example.com/cache-miss.mp3",
+      "https://example.com/inconsistent-cache.mp3",
+    ];
+    const encodedAudio = new ArrayBuffer(8);
+    const decodedAudio = urls.map((_, index) => audioBufferShape(index + 1));
+    const fetchDecodeAndCacheSpy = vi.spyOn(
+      cache as unknown as AudioCache & {
+        fetchDecodeAndCache: (...args: unknown[]) => Promise<AudioBuffer>;
+      },
+      "fetchDecodeAndCache",
+    );
+
+    mockFetch.mockImplementation(() => Promise.resolve(new Response(encodedAudio, { status: 200 })));
+    vi.spyOn(audioContextMock, "decodeAudioData")
+      .mockResolvedValueOnce(decodedAudio[0])
+      .mockResolvedValueOnce(decodedAudio[1])
+      .mockResolvedValueOnce(decodedAudio[2]);
+
+    global.caches = undefined as unknown as CacheStorage;
+    await expect(cache.getAudioBuffer(audioContextMock, urls[0])).resolves.toBe(decodedAudio[0]);
+
+    const cacheMiss = {
+      match: vi.fn().mockResolvedValue(null),
+      put: vi.fn().mockResolvedValue(undefined),
+      delete: vi.fn().mockResolvedValue(true),
+    };
+    const inconsistentCache = {
+      match: vi.fn().mockImplementation((key: string) =>
+        Promise.resolve(
+          key.endsWith(":meta")
+            ? new Response(
+                JSON.stringify({
+                  url: urls[2],
+                  cacheControl: "max-age=3600",
+                  timestamp: Date.now(),
+                }),
+              )
+            : null,
+        ),
+      ),
+      put: vi.fn().mockResolvedValue(undefined),
+      delete: vi.fn().mockResolvedValue(true),
+    };
+    mockCaches.open = vi.fn().mockResolvedValueOnce(cacheMiss).mockResolvedValueOnce(inconsistentCache);
+    global.caches = mockCaches;
+
+    await expect(cache.getAudioBuffer(audioContextMock, urls[1])).resolves.toBe(decodedAudio[1]);
+    await expect(cache.getAudioBuffer(audioContextMock, urls[2])).resolves.toBe(decodedAudio[2]);
+
+    expect(fetchDecodeAndCacheSpy).toHaveBeenCalledTimes(3);
+  });
+
   it("handles 304 Not Modified responses correctly when cache expires", async () => {
     const url = "https://example.com/audio.mp3";
     const mockAudioBuffer = new AudioBuffer({ length: 100, sampleRate: 44100 });

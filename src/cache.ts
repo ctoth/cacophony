@@ -675,6 +675,62 @@ export class AudioCache implements ICache {
     return await fetchResponse.arrayBuffer();
   }
 
+  /**
+   * Run the shared network-result pipeline: fetch bytes, decode them, emit
+   * loading callbacks, and retain the decoded buffer in the in-memory LRU.
+   * The caller supplies the fetch strategy so persistent-cache and degraded
+   * runtimes share this plumbing without changing their network behavior.
+   */
+  private async fetchDecodeAndCache(
+    context: BaseContext,
+    url: string,
+    decodedBuffers: ByteBoundedLRUCache<string, AudioBuffer>,
+    fetchBuffer: () => Promise<ArrayBuffer>,
+    callbacks?: Pick<CacheCallbacks, "onLoadingComplete" | "onLoadingError" | "onCacheError">,
+    reportCacheError = false,
+  ): Promise<AudioBuffer> {
+    try {
+      const arrayBuffer = await fetchBuffer();
+      let audioBuffer: AudioBuffer;
+      try {
+        audioBuffer = await AudioCache.decodeAudioData(context, arrayBuffer);
+      } catch (error) {
+        callbacks?.onLoadingError?.({
+          url,
+          error: toError(error),
+          errorType: "decode",
+          timestamp: Date.now(),
+        });
+        throw error;
+      }
+
+      callbacks?.onLoadingComplete?.({
+        url,
+        duration: audioBuffer.duration,
+        size: arrayBuffer.byteLength,
+        timestamp: Date.now(),
+      });
+      decodedBuffers.set(url, audioBuffer);
+      return audioBuffer;
+    } catch (error) {
+      callbacks?.onLoadingError?.({
+        url,
+        error: toError(error),
+        errorType: getNetworkErrorType(error),
+        timestamp: Date.now(),
+      });
+      if (reportCacheError) {
+        callbacks?.onCacheError?.({
+          url,
+          error: toError(error),
+          operation: "get",
+          timestamp: Date.now(),
+        });
+      }
+      throw error;
+    }
+  }
+
   private static async decodeAudioData(context: BaseContext, arrayBuffer: ArrayBuffer): Promise<AudioBuffer> {
     try {
       return await context.decodeAudioData(arrayBuffer);
@@ -790,43 +846,13 @@ export class AudioCache implements ICache {
             });
           }
 
-          try {
-            const arrayBuffer = await this.fetchAndDecodeWithoutCache(context, url, signal);
-            let audioBuffer: AudioBuffer;
-            try {
-              audioBuffer = await AudioCache.decodeAudioData(context, arrayBuffer);
-            } catch (error) {
-              if (callbacks?.onLoadingError) {
-                callbacks.onLoadingError({
-                  url,
-                  error: toError(error),
-                  errorType: "decode",
-                  timestamp: Date.now(),
-                });
-              }
-              throw error;
-            }
-            if (callbacks?.onLoadingComplete) {
-              callbacks.onLoadingComplete({
-                url,
-                duration: audioBuffer.duration,
-                size: arrayBuffer.byteLength,
-                timestamp: Date.now(),
-              });
-            }
-            decodedBuffers.set(url, audioBuffer);
-            return audioBuffer;
-          } catch (error) {
-            if (callbacks?.onLoadingError) {
-              callbacks.onLoadingError({
-                url,
-                error: toError(error),
-                errorType: getNetworkErrorType(error),
-                timestamp: Date.now(),
-              });
-            }
-            throw error;
-          }
+          return await this.fetchDecodeAndCache(
+            context,
+            url,
+            decodedBuffers,
+            () => this.fetchAndDecodeWithoutCache(context, url, signal),
+            callbacks,
+          );
         },
         signal,
         { onLoadingProgress: callbacks?.onLoadingProgress },
@@ -885,58 +911,22 @@ export class AudioCache implements ICache {
             });
           }
 
-          try {
-            const arrayBuffer = await this.fetchAndCacheBuffer(
-              context,
-              url,
-              cache,
-              { etag: metadata?.etag, lastModified: metadata?.lastModified },
-              signal,
-              { onCacheHit: callbacks?.onCacheHit },
-            );
-            let audioBuffer: AudioBuffer;
-            try {
-              audioBuffer = await AudioCache.decodeAudioData(context, arrayBuffer);
-            } catch (error) {
-              if (callbacks?.onLoadingError) {
-                callbacks.onLoadingError({
-                  url,
-                  error: toError(error),
-                  errorType: "decode",
-                  timestamp: Date.now(),
-                });
-              }
-              throw error;
-            }
-            if (callbacks?.onLoadingComplete) {
-              callbacks.onLoadingComplete({
+          return await this.fetchDecodeAndCache(
+            context,
+            url,
+            decodedBuffers,
+            () =>
+              this.fetchAndCacheBuffer(
+                context,
                 url,
-                duration: audioBuffer.duration,
-                size: arrayBuffer.byteLength,
-                timestamp: Date.now(),
-              });
-            }
-            decodedBuffers.set(url, audioBuffer);
-            return audioBuffer;
-          } catch (error) {
-            if (callbacks?.onLoadingError) {
-              callbacks.onLoadingError({
-                url,
-                error: toError(error),
-                errorType: getNetworkErrorType(error),
-                timestamp: Date.now(),
-              });
-            }
-            if (callbacks?.onCacheError) {
-              callbacks.onCacheError({
-                url,
-                error: toError(error),
-                operation: "get",
-                timestamp: Date.now(),
-              });
-            }
-            throw error;
-          }
+                cache,
+                { etag: metadata?.etag, lastModified: metadata?.lastModified },
+                signal,
+                { onCacheHit: callbacks?.onCacheHit },
+              ),
+            callbacks,
+            true,
+          );
         } else {
           // Content should be fresh in cache
           const cachedBuffer = await AudioCache.getBufferFromCache(url, cache);
@@ -965,50 +955,21 @@ export class AudioCache implements ICache {
             }
 
             // Fallback to network if body missing but metadata is fresh
-            try {
-              const arrayBuffer = await this.fetchAndCacheBuffer(
-                context,
-                url,
-                cache,
-                { etag: metadata?.etag, lastModified: metadata?.lastModified },
-                signal,
-                { onCacheHit: callbacks?.onCacheHit },
-              );
-              let audioBuffer: AudioBuffer;
-              try {
-                audioBuffer = await AudioCache.decodeAudioData(context, arrayBuffer);
-              } catch (error) {
-                if (callbacks?.onLoadingError) {
-                  callbacks.onLoadingError({
-                    url,
-                    error: toError(error),
-                    errorType: "decode",
-                    timestamp: Date.now(),
-                  });
-                }
-                throw error;
-              }
-              if (callbacks?.onLoadingComplete) {
-                callbacks.onLoadingComplete({
+            return await this.fetchDecodeAndCache(
+              context,
+              url,
+              decodedBuffers,
+              () =>
+                this.fetchAndCacheBuffer(
+                  context,
                   url,
-                  duration: audioBuffer.duration,
-                  size: arrayBuffer.byteLength,
-                  timestamp: Date.now(),
-                });
-              }
-              decodedBuffers.set(url, audioBuffer);
-              return audioBuffer;
-            } catch (error) {
-              if (callbacks?.onLoadingError) {
-                callbacks.onLoadingError({
-                  url,
-                  error: toError(error),
-                  errorType: getNetworkErrorType(error),
-                  timestamp: Date.now(),
-                });
-              }
-              throw error;
-            }
+                  cache,
+                  { etag: metadata?.etag, lastModified: metadata?.lastModified },
+                  signal,
+                  { onCacheHit: callbacks?.onCacheHit },
+                ),
+              callbacks,
+            );
           }
         }
       },
