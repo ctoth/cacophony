@@ -105,11 +105,6 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
     }
     if (this.panner && this.gainNode) {
       try {
-        this.source.disconnect(this.panner);
-      } catch {
-        // Tolerate already-disconnected source.
-      }
-      try {
         this.panner.disconnect();
       } catch {}
     }

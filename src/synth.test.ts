@@ -1,5 +1,5 @@
 import { AudioContext } from "standardized-audio-context-mock";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { expectPath } from "./setupTests";
 import { Synth } from "./synth";
 import { SynthPlayback } from "./synthPlayback";
@@ -193,6 +193,21 @@ describe("Synth class", () => {
     const [playback] = synth.preplay();
 
     expectPath(playback.source!, [effect, playback.panner!, playback.outputNode, masterInput], destination);
+  });
+
+  it("lets the effect chain own source disconnection during cleanup", () => {
+    const effect = audioContextMock.createGain();
+    synth.addEffect({ build: () => effect });
+    const [playback] = synth.preplay();
+    const source = playback.source!;
+    const panner = playback.panner!;
+    const disconnectSpy = vi.spyOn(source, "disconnect");
+
+    expectPath(source, [effect, panner, playback.outputNode, masterInput], destination);
+    playback.cleanup();
+
+    expect(disconnectSpy).toHaveBeenCalledWith(effect);
+    expect(disconnectSpy).not.toHaveBeenCalledWith(panner);
   });
 
   it("prevents adding same filter instance twice", () => {

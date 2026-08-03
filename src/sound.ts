@@ -267,12 +267,7 @@ export class Sound extends RoutableSource implements BaseSound {
         this.emit("ended", undefined);
         // Natural end: the playback has fired its terminal event; tear down
         // our subscriptions so it can be GC'd without waiting for cleanup().
-        // Deferred to a microtask because the emitter re-assigns its listener
-        // array AFTER the synchronous forEach iteration completes — calling
-        // off() inside the listener would have its removal overwritten by
-        // that re-assignment (see TypedEventEmitter.emit). The microtask
-        // defers the off() until after the emit cycle settles.
-        queueMicrotask(() => this._unsubscribeFromPlayback(playback));
+        this._unsubscribeFromPlayback(playback);
       });
       playback._loopEndCallback = () => {
         this.emit("loopEnd", undefined);
