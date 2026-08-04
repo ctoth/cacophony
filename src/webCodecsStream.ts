@@ -99,8 +99,14 @@ export class WebCodecsPullAdapter implements PcmStreamPullSource {
     if (!Number.isFinite(time) || time < 0) {
       throw new RangeError("Stream seek time must be a finite non-negative number");
     }
-    if (!this.session || !this.sound || this.disposed) {
+    if (this.disposed) {
       throw new Error("Cannot seek a WebCodecs stream that has been cleaned up");
+    }
+    if (!this.sound) {
+      throw new Error("Cannot seek a WebCodecs stream before it has been attached");
+    }
+    if (!this.session) {
+      throw new Error("Cannot seek while another WebCodecs seek is pending");
     }
     if (this.session.live) {
       throw new Error("Live streams do not support seeking");
@@ -143,7 +149,8 @@ export class WebCodecsPullAdapter implements PcmStreamPullSource {
       if (!result.session) {
         return;
       }
-      if (result.session.channelCount !== this.channelCountForSound()) {
+      const soundChannelCount = this.channelCountForSound();
+      if (soundChannelCount !== undefined && result.session.channelCount !== soundChannelCount) {
         result.session.input.dispose();
         throw new Error("The audio channel count changed while seeking");
       }
@@ -156,8 +163,8 @@ export class WebCodecsPullAdapter implements PcmStreamPullSource {
     }
   }
 
-  private channelCountForSound(): number {
-    return this.sound?.inputChannelCount ?? 0;
+  private channelCountForSound(): number | undefined {
+    return this.sound?.inputChannelCount;
   }
 
   private startPump(session: DecoderSession, startTime: number): void {
