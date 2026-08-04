@@ -1,5 +1,7 @@
+import { AudioContext } from "standardized-audio-context-mock";
 import { describe, expect, it, vi } from "vitest";
 import { Bus } from "./bus";
+import type { CacophonyEffect } from "./effects";
 import { cacophony, expectPath } from "./setupTests";
 
 describe("Bus: construction", () => {
@@ -49,6 +51,14 @@ describe("Bus: addFilter discrimination", () => {
     expect(bus.filters).toContain(filter);
   });
 
+  it("rejects a Cacophony-built biquad from a different audio context", () => {
+    const otherContext = new AudioContext();
+    const bus = new Bus(otherContext, null);
+    const foreignFilter = cacophony.createBiquadFilter({ frequency: 1000 });
+
+    expect(() => bus.addFilter(foreignFilter)).toThrow(/raw AudioNode/);
+  });
+
   it("accepts a CacophonyEffect by awaiting build()", async () => {
     const bus = new Bus(cacophony.context, null);
     const node = cacophony.context.createGain();
@@ -82,6 +92,15 @@ describe("Bus: addFilter discrimination", () => {
     expect(bus.filters).toEqual([handle]);
     expect(busInputConnect).toHaveBeenCalledWith(graphInput);
     expect(graphOutputConnect).toHaveBeenCalledWith(bus.output);
+  });
+
+  it("rejects a malformed CacophonyEffect build result at the chain boundary", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const effect = { build: () => ({}) } as unknown as CacophonyEffect;
+
+    await expect(bus.addFilter(effect)).rejects.toThrow(
+      "Bus: effect build must return an AudioNode or BuiltEffectGraph",
+    );
   });
 
   it("rejects adding the same graph handle twice", async () => {
