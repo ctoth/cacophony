@@ -193,6 +193,36 @@ export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager
     this._state = "stopped";
   }
 
+  protected emitPlayStarted(isResume: boolean): void {
+    this.markPlaying();
+    this.emit("play", this);
+    if (isResume) {
+      this.emit("resume", undefined);
+    }
+    this.origin.cacophony?.emit("globalPlay", {
+      source: this.origin,
+      timestamp: Date.now(),
+    });
+  }
+
+  protected emitPaused(): void {
+    this.markPaused();
+    this.emit("pause", undefined);
+    this.origin.cacophony?.emit("globalPause", {
+      source: this.origin,
+      timestamp: Date.now(),
+    });
+  }
+
+  protected emitStopped(): void {
+    this.markStopped();
+    this.emit("stop", undefined);
+    this.origin.cacophony?.emit("globalStop", {
+      source: this.origin,
+      timestamp: Date.now(),
+    });
+  }
+
   /**
    * Register event listener.
    * @returns Cleanup function

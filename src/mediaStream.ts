@@ -110,7 +110,8 @@ export class MediaStreamPlayback extends BasePlayback {
     if (tracks.length > 0 && tracks.every((track) => track.readyState === "ended")) {
       throw new Error("Cannot play a media stream whose tracks have ended");
     }
-    if (this.isPaused && this.pausedTrackStates) {
+    const isResume = this.isPaused;
+    if (isResume && this.pausedTrackStates) {
       tracks.forEach((track) => {
         const enabled = this.pausedTrackStates?.get(track);
         if (enabled !== undefined) {
@@ -122,12 +123,7 @@ export class MediaStreamPlayback extends BasePlayback {
     // Muted autoplay is always permitted, so this needs no user gesture; the
     // returned promise is ignored because failure only loses Chromium priming.
     this.primeElement?.play().catch(() => {});
-    this.markPlaying();
-    this.emit("play", this);
-    this.origin.cacophony?.emit("globalPlay", {
-      source: this.origin,
-      timestamp: Date.now(),
-    });
+    this.emitPlayStarted(isResume);
     return [this];
   }
 
@@ -139,12 +135,7 @@ export class MediaStreamPlayback extends BasePlayback {
     this.pausedTrackStates = new Map(tracks.map((track) => [track, track.enabled]));
     tracks.forEach((track) => (track.enabled = false));
     this.primeElement?.pause();
-    this.markPaused();
-    this.emit("pause", undefined);
-    this.origin.cacophony?.emit("globalPause", {
-      source: this.origin,
-      timestamp: Date.now(),
-    });
+    this.emitPaused();
   }
 
   resume(): void {
@@ -159,13 +150,10 @@ export class MediaStreamPlayback extends BasePlayback {
     this.stopOwnedTracks();
     this.pausedTrackStates = undefined;
     this.teardownPrimeElement();
-    this.markStopped();
     if (shouldEmitStop) {
-      this.emit("stop", undefined);
-      this.origin.cacophony?.emit("globalStop", {
-        source: this.origin,
-        timestamp: Date.now(),
-      });
+      this.emitStopped();
+    } else {
+      this.markStopped();
     }
   }
 

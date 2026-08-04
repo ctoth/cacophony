@@ -173,18 +173,26 @@ describe("MediaStreamSound", () => {
     const sound = cacophony.createMediaStreamSound(stream, {
       stopTracksOnStop: false,
     });
+    const [playback] = sound.preplay();
+    const playbackEvents: string[] = [];
     const events: string[] = [];
 
+    playback.on("play", () => playbackEvents.push("play"));
+    playback.on("pause", () => playbackEvents.push("pause"));
+    playback.on("resume", () => playbackEvents.push("resume"));
+    playback.on("stop", () => playbackEvents.push("stop"));
     cacophony.on("globalPlay", () => events.push("play"));
     cacophony.on("globalPause", () => events.push("pause"));
     cacophony.on("globalStop", () => events.push("stop"));
 
     sound.play();
     sound.pause();
+    sound.resume();
     sound.stop();
 
     expect(sound).toBeInstanceOf(MediaStreamSound);
-    expect(events).toEqual(["play", "pause", "stop"]);
+    expect(playbackEvents).toEqual(["play", "pause", "play", "resume", "stop"]);
+    expect(events).toEqual(["play", "pause", "play", "stop"]);
   });
 
   it("routes a live stream through a bus via the public Cacophony API", () => {

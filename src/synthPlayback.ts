@@ -55,15 +55,7 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
     if (this.oscillatorOptions.type) this.source.type = this.oscillatorOptions.type;
 
     this.source.start();
-    this.markPlaying();
-    this.emit("play", this);
-    if (isResume) {
-      this.emit("resume", undefined);
-    }
-    this.origin.cacophony?.emit("globalPlay", {
-      source: this.origin,
-      timestamp: Date.now(),
-    });
+    this.emitPlayStarted(isResume);
     return [this];
   }
 
@@ -73,12 +65,7 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
     }
 
     this.source.stop();
-    this.markPaused();
-    this.emit("pause", undefined);
-    this.origin.cacophony?.emit("globalPause", {
-      source: this.origin,
-      timestamp: Date.now(),
-    });
+    this.emitPaused();
   }
 
   stop(): void {
@@ -90,12 +77,7 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
       this.source.stop();
     }
 
-    this.markStopped();
-    this.emit("stop", undefined);
-    this.origin.cacophony?.emit("globalStop", {
-      source: this.origin,
-      timestamp: Date.now(),
-    });
+    this.emitStopped();
   }
 
   cleanup(): void {

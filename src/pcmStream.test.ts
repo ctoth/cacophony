@@ -130,6 +130,23 @@ describe("PcmStreamSound", () => {
     expect(() => sound.play()).toThrow("Cannot play a PCM stream after it has ended");
   });
 
+  it("emits the playback event contract across play, pause, resume, and stop", async () => {
+    const sound = await cacophony.createPcmStreamSound({ latency: 0 });
+    const [playback] = sound.preplay();
+    const events: string[] = [];
+    playback.on("play", () => events.push("play"));
+    playback.on("pause", () => events.push("pause"));
+    playback.on("resume", () => events.push("resume"));
+    playback.on("stop", () => events.push("stop"));
+
+    sound.play();
+    sound.pause();
+    sound.resume();
+    sound.stop();
+
+    expect(events).toEqual(["play", "pause", "play", "resume", "stop"]);
+  });
+
   it("documents unsupported seek and loop operations with explicit errors", async () => {
     const sound = await cacophony.createPcmStreamSound();
 

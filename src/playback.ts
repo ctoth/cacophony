@@ -291,15 +291,7 @@ export class Playback extends BasePlayback implements BaseSound {
           .then(
             () => {
               this._startTime = this.context.currentTime;
-              this.markPlaying();
-              this.emit("play", this);
-              if (isResume) {
-                this.emit("resume", undefined);
-              }
-              this.origin.cacophony?.emit("globalPlay", {
-                source: this.origin,
-                timestamp: Date.now(),
-              });
+              this.emitPlayStarted(isResume);
             },
             (error: Error) => {
               void this.emitAsync("error", {
@@ -319,15 +311,7 @@ export class Playback extends BasePlayback implements BaseSound {
       } else {
         // For buffer sources, state transition is immediate (start() is synchronous)
         this._startTime = this.context.currentTime;
-        this.markPlaying();
-        this.emit("play", this);
-        if (isResume) {
-          this.emit("resume", undefined);
-        }
-        this.origin.cacophony?.emit("globalPlay", {
-          source: this.origin,
-          timestamp: Date.now(),
-        });
+        this.emitPlayStarted(isResume);
       }
 
       return [this];
@@ -358,14 +342,7 @@ export class Playback extends BasePlayback implements BaseSound {
       this.source.stop();
     }
 
-    this.markPaused();
-    this.emit("pause", undefined);
-
-    // Emit globalPause for all playback
-    this.origin.cacophony?.emit("globalPause", {
-      source: this.origin,
-      timestamp: Date.now(),
-    });
+    this.emitPaused();
   }
 
   stop(): void {
@@ -388,14 +365,7 @@ export class Playback extends BasePlayback implements BaseSound {
 
     this._offset = 0;
     this._startTime = 0;
-    this.markStopped();
-    this.emit("stop", undefined);
-
-    // Emit globalStop for all playback
-    this.origin.cacophony?.emit("globalStop", {
-      source: this.origin,
-      timestamp: Date.now(),
-    });
+    this.emitStopped();
   }
 
   /**
