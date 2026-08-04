@@ -576,7 +576,7 @@ describe("Cacophony advanced features", () => {
       );
     });
 
-    it("createStream gives install guidance when neither native HLS nor hls.js can play HLS", async () => {
+    it("createStream explains missing Media Source Extensions when neither native HLS nor hls.js can play HLS", async () => {
       const streamingAudio = createControllableAudioElement();
       Object.assign(streamingAudio.audio, { canPlayType: vi.fn().mockReturnValue("") });
       hlsMock.isSupported.mockReturnValue(false);
@@ -585,9 +585,9 @@ describe("Cacophony advanced features", () => {
         return streamingAudio.audio as any;
       });
 
-      await expect(cacophony.createStream("https://example.com/live.m3u8")).rejects.toThrow(
-        "install hls.js or use a direct stream URL",
-      );
+      const creation = cacophony.createStream("https://example.com/live.m3u8");
+      await expect(creation).rejects.toThrow("Media Source Extensions are not supported");
+      await expect(creation).rejects.not.toThrow("install hls.js");
     });
 
     it("createGroupFromUrls passes AbortSignal to all createSound calls", async () => {
