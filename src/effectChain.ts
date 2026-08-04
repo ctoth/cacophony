@@ -1,7 +1,7 @@
 import type { FadeType } from "./cacophony";
 import type { AudioNode, AudioParam, AudioWorkletNode } from "./context";
 import type { BuiltEffect } from "./effects";
-import { isBuiltEffectGraph } from "./effects";
+import { isBuiltEffect, isBuiltEffectGraph } from "./effects";
 
 interface EffectChainEntry {
   handle: AudioNode;
@@ -248,6 +248,9 @@ export class EffectChain {
   }
 
   private normalize(built: BuiltEffect): EffectChainEntry {
+    if (!isBuiltEffect(built)) {
+      throw this.guardError("effect build must return an AudioNode or BuiltEffectGraph");
+    }
     if (isBuiltEffectGraph(built)) {
       return {
         handle: built.handle ?? built.input,

@@ -151,7 +151,7 @@ export class Bus {
    *   AudioNode that is not a Cacophony-built biquad.
    */
   addFilter(arg: BiquadFilterNode | CacophonyEffect | AudioNode): Promise<AudioNode> {
-    if (!isCacophonyBuiltBiquad(arg) && !isCacophonyEffect(arg)) {
+    if (!isCacophonyBuiltBiquad(arg, this._context) && !isCacophonyEffect(arg)) {
       throw new Error(
         "Bus.addFilter rejects raw AudioNodes. Wrap with cacophony.shareEffect(node) or a CacophonyEffect to make the shared-state intent explicit.",
       );
@@ -167,7 +167,7 @@ export class Bus {
 
     let built: BuiltEffect | Promise<BuiltEffect>;
     try {
-      built = isCacophonyBuiltBiquad(arg) ? arg : arg.build(this._context);
+      built = isCacophonyBuiltBiquad(arg, this._context) ? arg : arg.build(this._context);
     } catch (error) {
       this._effectChain.cancel(reservation);
       return Promise.reject(error);

@@ -132,10 +132,16 @@ export function markAsCacophonyBiquad(node: BiquadFilterNode): void {
 
 /**
  * Test whether a node was produced by {@link Cacophony.createBiquadFilter}.
- * Used by {@link Bus.addFilter} to admit Biquads directly without wrapping.
+ * When a context is supplied, the node must also belong to that context so a
+ * factory-built biquad cannot be admitted to a foreign audio graph.
  */
-export function isCacophonyBuiltBiquad(node: unknown): node is BiquadFilterNode {
-  return typeof node === "object" && node !== null && cacophonyBuiltBiquads.has(node as BiquadFilterNode);
+export function isCacophonyBuiltBiquad(node: unknown, context?: BaseContext): node is BiquadFilterNode {
+  return (
+    typeof node === "object" &&
+    node !== null &&
+    cacophonyBuiltBiquads.has(node as BiquadFilterNode) &&
+    (context === undefined || (node as BiquadFilterNode).context === context)
+  );
 }
 
 /**
@@ -1004,6 +1010,13 @@ export function isBuiltEffectGraph(value: unknown): value is BuiltEffectGraph {
     isAudioNodeLike((value as { input: unknown }).input) &&
     isAudioNodeLike((value as { output: unknown }).output)
   );
+}
+
+/**
+ * Type guard for values returned by {@link CacophonyEffect.build}.
+ */
+export function isBuiltEffect(value: unknown): value is BuiltEffect {
+  return isAudioNodeLike(value) || isBuiltEffectGraph(value);
 }
 
 /**
