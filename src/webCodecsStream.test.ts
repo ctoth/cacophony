@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PcmStreamSound } from "./pcmStream";
 import { audioContextMock, cacophony, expectReachable } from "./setupTests";
 import { Sound } from "./sound";
+import { WebCodecsPullAdapter } from "./webCodecsStream";
 
 const media = vi.hoisted(() => ({
   formats: {
@@ -191,6 +192,52 @@ describe("WebCodecs URL streaming", () => {
     expect(media.disposeCount).toBe(1);
     expect(media.fetchInits).toHaveLength(2);
     expect(new Headers(media.fetchInits[1]?.headers).get("Range")).toBe("bytes=0-65535");
+  });
+
+  it("reports a pending seek while the decoder is reopening", async () => {
+    let resolveReopen: ((response: Response) => void) | undefined;
+    global.fetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(new Uint8Array([0]), {
+          headers: { "Accept-Ranges": "bytes" },
+          status: 206,
+        }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise<Response>((resolve) => {
+            resolveReopen = resolve;
+          }),
+      );
+    const stream = await cacophony.createStream("https://example.com/music.mp3");
+
+    stream.seek(4.5);
+
+    expect(() => stream.seek(6)).toThrow("Cannot seek while another WebCodecs seek is pending");
+    resolveReopen?.(
+      new Response(new Uint8Array([0]), {
+        headers: { "Accept-Ranges": "bytes" },
+        status: 206,
+      }),
+    );
+    await vi.waitFor(() => expect(media.sampleStarts).toEqual([0, 4.5]));
+  });
+
+  it("does not invent a channel-count mismatch without an attached sound", async () => {
+    const adapter = await WebCodecsPullAdapter.open("https://example.com/music.mp3", audioContextMock.sampleRate);
+    expect(adapter).not.toBeNull();
+    const adapterState = adapter as unknown as {
+      reopenAndPump(time: number): Promise<void>;
+      session?: { input: { dispose(): void } };
+    };
+    adapterState.session?.input.dispose();
+    adapterState.session = undefined;
+
+    await adapterState.reopenAndPump(4.5);
+
+    expect(media.disposeCount).toBe(1);
+    expect(adapter?.channelCount).toBe(2);
   });
 
   it("reports live sources as unseekable with infinite duration", async () => {
