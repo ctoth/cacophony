@@ -55,12 +55,12 @@ export class EffectChain {
 
   add(built: BuiltEffect, index = this.entries.length): AudioNode {
     if (this.destroyed) {
-      throw new Error("Cannot add an effect to a destroyed chain");
+      throw this.guardError("cannot add an effect to a destroyed chain");
     }
     const entry = this.normalize(built);
     if (this.has(entry.handle)) {
       entry.dispose?.();
-      throw new Error("Cannot add the same effect node to a chain twice");
+      throw this.guardError("cannot add the same effect node twice");
     }
     this.entries.splice(index, 0, entry);
     this.refresh();
@@ -70,7 +70,7 @@ export class EffectChain {
   /** Reserve a declaration-order position for an asynchronously built effect. */
   reserve(): symbol {
     if (this.destroyed) {
-      throw new Error("Cannot reserve an effect on a destroyed chain");
+      throw this.guardError("cannot reserve an effect on a destroyed chain");
     }
     const reservation = Symbol("effect-chain-reservation");
     this.entries.push({ reservation });
@@ -89,11 +89,12 @@ export class EffectChain {
     );
     if (index === -1) {
       entry.dispose?.();
-      throw new Error("Cannot resolve an unknown effect-chain reservation");
+      throw this.guardError("cannot resolve an unknown effect-chain reservation");
     }
     if (this.has(entry.handle)) {
+      this.entries.splice(index, 1);
       entry.dispose?.();
-      throw new Error("Cannot add the same effect node to a chain twice");
+      throw this.guardError("cannot add the same effect node twice");
     }
     this.entries[index] = entry;
     this.refresh();
@@ -112,7 +113,7 @@ export class EffectChain {
   remove(node: AudioNode): void {
     const index = this.entries.findIndex((entry) => this.isEntry(entry) && entry.handle === node);
     if (index === -1) {
-      throw new Error("Cannot remove an effect that was never added to this chain");
+      throw this.guardError("cannot remove an effect that was never added");
     }
     const [entry] = this.entries.splice(index, 1);
     this.bypassed.delete(node);
@@ -128,7 +129,7 @@ export class EffectChain {
       new Set(nodes).size === nodes.length &&
       nodes.every((node) => this.has(node));
     if (!isPermutation) {
-      throw new Error("Effect chain order must be a permutation of the current nodes");
+      throw this.guardError("effect order must be a permutation of the current nodes");
     }
     const ordered = nodes.map((node) => this.entries.find((entry) => this.isEntry(entry) && entry.handle === node)!);
     let orderedIndex = 0;
@@ -142,7 +143,7 @@ export class EffectChain {
 
   setBypassed(node: AudioNode, bypassed: boolean): void {
     if (!this.has(node)) {
-      throw new Error("Cannot bypass an effect that was never added to this chain");
+      throw this.guardError("cannot bypass an effect that was never added");
     }
     const alreadyBypassed = this.bypassed.has(node);
     if (bypassed === alreadyBypassed) {
@@ -265,6 +266,10 @@ export class EffectChain {
 
   private isEntry(slot: EffectChainSlot): slot is EffectChainEntry {
     return "handle" in slot;
+  }
+
+  private guardError(message: string): Error {
+    return new Error(`${this.diagnosticScope}: ${message}`);
   }
 
   private resolveAudioParam(node: AudioNode, paramName: string): AudioParam | undefined {

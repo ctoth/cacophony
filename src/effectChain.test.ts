@@ -72,7 +72,7 @@ describe("EffectChain", () => {
 
     expect(() =>
       chain.add({ input: duplicateInput, output: duplicateOutput, handle, dispose: disposeDuplicate }),
-    ).toThrow(/same effect/);
+    ).toThrow("EffectChain: cannot add the same effect node twice");
     expect(disposeDuplicate).toHaveBeenCalledOnce();
     expect(chain.nodes).toEqual([handle]);
   });
