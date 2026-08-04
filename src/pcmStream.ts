@@ -74,13 +74,9 @@ export class PcmStreamPlayback extends BasePlayback {
     if (this.isPlaying) {
       return [this];
     }
+    const isResume = this.isPaused;
     this.source.port.postMessage({ type: "play" });
-    this.markPlaying();
-    this.emit("play", this);
-    this.origin.cacophony?.emit("globalPlay", {
-      source: this.origin,
-      timestamp: Date.now(),
-    });
+    this.emitPlayStarted(isResume);
     return [this];
   }
 
@@ -89,12 +85,7 @@ export class PcmStreamPlayback extends BasePlayback {
       return;
     }
     this.source.port.postMessage({ type: "pause" });
-    this.markPaused();
-    this.emit("pause", undefined);
-    this.origin.cacophony?.emit("globalPause", {
-      source: this.origin,
-      timestamp: Date.now(),
-    });
+    this.emitPaused();
   }
 
   stop(): void {
@@ -103,13 +94,10 @@ export class PcmStreamPlayback extends BasePlayback {
     }
     const shouldEmitStop = this.isPlaying || this.isPaused;
     this.source.port.postMessage({ type: "stop" });
-    this.markStopped();
     if (shouldEmitStop) {
-      this.emit("stop", undefined);
-      this.origin.cacophony?.emit("globalStop", {
-        source: this.origin,
-        timestamp: Date.now(),
-      });
+      this.emitStopped();
+    } else {
+      this.markStopped();
     }
   }
 

@@ -1,5 +1,5 @@
 import type { BasePlayback } from "./basePlayback";
-import type { FadeType, Position } from "./cacophony";
+import type { Cacophony, FadeType, Position } from "./cacophony";
 import type { BiquadFilterNode } from "./context";
 import type { FilterManager } from "./filters";
 import type { HrtfPannerOptions, ThreeDOptions } from "./pannerMixin";
@@ -41,6 +41,7 @@ const defaultHrtfThreeDOptions: ThreeDOptions = {
  * carry a number, so the public read shape matches.
  */
 export interface PlaybackContainer {
+  cacophony?: Cacophony;
   playbacks: BasePlayback[];
   preplay(): BasePlayback[];
   play(): BasePlayback[];
