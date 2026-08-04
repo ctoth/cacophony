@@ -114,28 +114,21 @@ export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager
     if (!this._effectChain) {
       throw new Error("Cannot add a filter before the playback effect chain is initialized");
     }
-    super.addFilter(filter);
-    this._effectChain.add(filter, this._filters.length - 1);
+    this._effectChain.add(filter, this._filters.length);
+    this._filters.push(filter);
   }
 
   removeFilter(filter: BiquadFilterNode): void {
     if (!this._effectChain) {
       throw new Error("Cannot remove a filter before the playback effect chain is initialized");
     }
-    super.removeFilter(filter);
     this._effectChain.remove(filter);
+    this._filters = this._filters.filter((candidate) => candidate !== filter);
   }
 
   setFilterOrder(filters: readonly BiquadFilterNode[]): void {
     if (!this._effectChain) {
       throw new Error("Cannot reorder filters before the playback effect chain is initialized");
-    }
-    const isPermutation =
-      filters.length === this._filters.length &&
-      new Set(filters).size === filters.length &&
-      filters.every((filter) => this._filters.includes(filter));
-    if (!isPermutation) {
-      throw new Error("setFilterOrder requires a permutation of the current filters");
     }
     const nonFilters = this._effectChain.nodes.filter((node) => !this._filters.includes(node as BiquadFilterNode));
     this._effectChain.setOrder([...filters, ...nonFilters]);

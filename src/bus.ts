@@ -23,7 +23,7 @@ import type { FadeType } from "./cacophony";
 import type { AudioNode, BaseContext, BiquadFilterNode, GainNode } from "./context";
 import { EffectChain } from "./effectChain";
 import type { BuiltEffect, CacophonyEffect } from "./effects";
-import { isBuiltEffectGraph, isCacophonyBuiltBiquad, isCacophonyEffect } from "./effects";
+import { isCacophonyBuiltBiquad, isCacophonyEffect } from "./effects";
 
 /**
  * Connection target for {@link Bus.connect} / {@link Bus.disconnect}. Either
@@ -150,26 +150,45 @@ export class Bus {
    * @throws if the bus has been destroyed, or if the argument is a raw
    *   AudioNode that is not a Cacophony-built biquad.
    */
-  async addFilter(arg: BiquadFilterNode | CacophonyEffect | AudioNode): Promise<AudioNode> {
-    this._throwIfDestroyed();
-    let built: BuiltEffect;
-    if (isCacophonyBuiltBiquad(arg)) {
-      built = arg;
-    } else if (isCacophonyEffect(arg)) {
-      built = await arg.build(this._context);
-    } else {
+  addFilter(arg: BiquadFilterNode | CacophonyEffect | AudioNode): Promise<AudioNode> {
+    if (!isCacophonyBuiltBiquad(arg) && !isCacophonyEffect(arg)) {
       throw new Error(
         "Bus.addFilter rejects raw AudioNodes. Wrap with cacophony.shareEffect(node) or a CacophonyEffect to make the shared-state intent explicit.",
       );
     }
-    const handle = isBuiltEffectGraph(built) ? (built.handle ?? built.input) : built;
-    if (this._effectChain.has(handle)) {
-      if (isBuiltEffectGraph(built)) {
-        built.dispose?.();
-      }
-      throw new Error("Cannot add the same filter node to a bus twice");
+
+    let reservation: symbol;
+    try {
+      this._throwIfDestroyed();
+      reservation = this._effectChain.reserve();
+    } catch (error) {
+      return Promise.reject(error);
     }
-    return this._effectChain.add(built);
+
+    let built: BuiltEffect | Promise<BuiltEffect>;
+    try {
+      built = isCacophonyBuiltBiquad(arg) ? arg : arg.build(this._context);
+    } catch (error) {
+      this._effectChain.cancel(reservation);
+      return Promise.reject(error);
+    }
+
+    if (built instanceof Promise || (typeof built === "object" && built !== null && "then" in built)) {
+      return Promise.resolve(built).then(
+        (resolved) => this._effectChain.resolve(reservation, resolved),
+        (error) => {
+          this._effectChain.cancel(reservation);
+          throw error;
+        },
+      );
+    }
+
+    try {
+      return Promise.resolve(this._effectChain.resolve(reservation, built));
+    } catch (error) {
+      this._effectChain.cancel(reservation);
+      return Promise.reject(error);
+    }
   }
 
   /**
@@ -180,9 +199,6 @@ export class Bus {
    */
   removeFilter(node: AudioNode): void {
     this._throwIfDestroyed();
-    if (!this._effectChain.has(node)) {
-      throw new Error("Cannot remove filter that was never added to this bus");
-    }
     this._effectChain.remove(node);
   }
 
@@ -198,13 +214,6 @@ export class Bus {
    */
   setFilterOrder(nodes: readonly AudioNode[]): void {
     this._throwIfDestroyed();
-    const isPermutation =
-      nodes.length === this._effectChain.nodes.length &&
-      new Set(nodes).size === nodes.length &&
-      nodes.every((node) => this._effectChain.has(node));
-    if (!isPermutation) {
-      throw new Error("setFilterOrder requires a permutation of the current filters");
-    }
     this._effectChain.setOrder(nodes);
   }
 
@@ -227,9 +236,6 @@ export class Bus {
    */
   setFilterBypassed(node: AudioNode, bypassed: boolean): void {
     this._throwIfDestroyed();
-    if (!this._effectChain.has(node)) {
-      throw new Error("Cannot bypass a filter that was never added to this bus");
-    }
     this._effectChain.setBypassed(node, bypassed);
   }
 

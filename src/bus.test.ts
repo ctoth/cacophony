@@ -91,7 +91,7 @@ describe("Bus: addFilter discrimination", () => {
     const effect = { build: () => ({ input: graphInput, output: graphOutput, handle: graphInput }) };
 
     await bus.addFilter(effect);
-    await expect(bus.addFilter(effect)).rejects.toThrow(/same filter/);
+    await expect(bus.addFilter(effect)).rejects.toThrow("Bus: cannot add the same effect node twice");
   });
 
   it("disposes a built graph rejected for a duplicate handle", async () => {
@@ -115,15 +115,40 @@ describe("Bus: addFilter discrimination", () => {
 
     await bus.addFilter(effect);
 
-    await expect(bus.addFilter(effect)).rejects.toThrow(/same filter/);
+    await expect(bus.addFilter(effect)).rejects.toThrow("Bus: cannot add the same effect node twice");
     expect(disposeDuplicate).toHaveBeenCalledOnce();
     expect(bus.filters).toEqual([handle]);
   });
 
-  it("rejects a raw AudioNode (e.g. context.createGain())", async () => {
+  it("rejects a raw AudioNode synchronously (e.g. context.createGain())", () => {
     const bus = new Bus(cacophony.context, null);
     const raw = cacophony.context.createGain();
-    await expect(bus.addFilter(raw)).rejects.toThrow(/raw AudioNode/);
+    expect(() => bus.addFilter(raw)).toThrow(/raw AudioNode/);
+  });
+
+  it("preserves declaration order when async effect builds resolve out of order", async () => {
+    const bus = new Bus(cacophony.context, null);
+    const first = cacophony.context.createGain();
+    const second = cacophony.context.createGain();
+    let resolveFirst!: (node: AudioNode) => void;
+    let resolveSecond!: (node: AudioNode) => void;
+
+    const firstAdded = bus.addFilter({
+      build: () => new Promise<AudioNode>((resolve) => (resolveFirst = resolve)),
+    });
+    const secondAdded = bus.addFilter({
+      build: () => new Promise<AudioNode>((resolve) => (resolveSecond = resolve)),
+    });
+
+    resolveSecond(second);
+    await secondAdded;
+    expect(bus.filters).toEqual([second]);
+    expectPath(bus.input, [second], bus.output);
+
+    resolveFirst(first);
+    await firstAdded;
+    expect(bus.filters).toEqual([first, second]);
+    expectPath(bus.input, [first, second], bus.output);
   });
 
   it("accepts a ShareEffect-wrapped raw AudioNode", async () => {
@@ -138,7 +163,7 @@ describe("Bus: addFilter discrimination", () => {
     const bus = new Bus(cacophony.context, null);
     const filter = cacophony.createBiquadFilter({ frequency: 500 });
     await bus.addFilter(filter);
-    await expect(bus.addFilter(filter)).rejects.toThrow(/same filter/);
+    await expect(bus.addFilter(filter)).rejects.toThrow("Bus: cannot add the same effect node twice");
   });
 });
 
@@ -409,7 +434,7 @@ describe("Bus: filter chain refresh", () => {
   it("removeFilter throws if the node was never added", () => {
     const bus = new Bus(cacophony.context, null);
     const filter = cacophony.createBiquadFilter({ frequency: 100 });
-    expect(() => bus.removeFilter(filter)).toThrow(/never added/);
+    expect(() => bus.removeFilter(filter)).toThrow("Bus: cannot remove an effect that was never added");
   });
 
   it("adding a filter only touches the changed tail edge, not the unchanged head", async () => {
@@ -521,11 +546,15 @@ describe("Bus: filter chain refresh", () => {
     await bus.addFilter(f3);
 
     // Wrong length (subset).
-    expect(() => bus.setFilterOrder([f1, f2])).toThrow(/permutation/);
+    expect(() => bus.setFilterOrder([f1, f2])).toThrow("Bus: effect order must be a permutation of the current nodes");
     // Right length but contains a foreign node.
-    expect(() => bus.setFilterOrder([f1, f2, foreign])).toThrow(/permutation/);
+    expect(() => bus.setFilterOrder([f1, f2, foreign])).toThrow(
+      "Bus: effect order must be a permutation of the current nodes",
+    );
     // Right length but contains a duplicate.
-    expect(() => bus.setFilterOrder([f1, f2, f2])).toThrow(/permutation/);
+    expect(() => bus.setFilterOrder([f1, f2, f2])).toThrow(
+      "Bus: effect order must be a permutation of the current nodes",
+    );
   });
 });
 
@@ -855,7 +884,7 @@ describe("Bus: per-filter bypass", () => {
     await bus.addFilter(onBus);
     const foreign = cacophony.createBiquadFilter({ frequency: 999 });
 
-    expect(() => bus.setFilterBypassed(foreign, true)).toThrow(/never added/);
+    expect(() => bus.setFilterBypassed(foreign, true)).toThrow("Bus: cannot bypass an effect that was never added");
   });
 
   it("setFilterBypassed throws after the bus is destroyed", async () => {

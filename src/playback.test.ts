@@ -665,7 +665,7 @@ describe("Playback error cases", () => {
     playback.addFilter(filter as unknown as BiquadFilterNode);
 
     expect(() => playback.addFilter(filter as unknown as BiquadFilterNode)).toThrow(
-      "Cannot add the same filter instance twice",
+      "Playback: cannot add the same effect node twice",
     );
   });
 
@@ -676,7 +676,7 @@ describe("Playback error cases", () => {
     playback.addFilter(filter1 as unknown as BiquadFilterNode);
 
     expect(() => playback.removeFilter(filter2 as unknown as BiquadFilterNode)).toThrow(
-      "Cannot remove filter that was never added to this container",
+      "Playback: cannot remove an effect that was never added",
     );
   });
 });
