@@ -869,12 +869,17 @@ export class FoaDecoder {
     context?: BaseContext,
   ): Promise<FoaDecoder> {
     const ctx = context ?? host.defaultContext();
-    if (!ctx.createChannelSplitter || !ctx.createChannelMerger || !ctx.createConvolver) {
-      throw new Error("FoaDecoder requires createChannelSplitter, createChannelMerger and createConvolver");
+    if (!ctx.createChannelSplitter || !ctx.createChannelMerger || !ctx.createConvolver || !ctx.createBuffer) {
+      throw new Error(
+        "FoaDecoder requires createChannelSplitter, createChannelMerger, createConvolver and createBuffer",
+      );
     }
 
     // SN3D SH-HRIR (4 rows: ACN W,Y,Z,X). Caller override or bundled Omnitone.
     const hrir = options.hrir ?? (await host.loadFoaHrir(ctx));
+    if (hrir.numberOfChannels < 4) {
+      throw new Error(`FoaDecoder requires an HRIR with at least 4 channels; received ${hrir.numberOfChannels}`);
+    }
 
     // Input: 4-channel FOA [W, Y, Z, X] (ACN). Externally-visible input node.
     const input = ctx.createChannelSplitter(4);
@@ -947,15 +952,9 @@ export class FoaDecoder {
   /**
    * Builds a 2-channel `AudioBuffer` from rows `rowA`/`rowB` of the 4-row
    * SH-HRIR — the stereo buffer a WY or ZX `ConvolverNode` convolves against.
-   * Falls back to the source buffer unchanged when the runtime cannot allocate
-   * a buffer or the source lacks the rows (e.g. a stubbed mock buffer in tests
-   * with fewer channels): the graph wiring is unaffected.
    */
   private static sliceHrirRows(context: BaseContext, hrir: AudioBuffer, rowA: number, rowB: number): AudioBuffer {
-    if (!context.createBuffer || hrir.numberOfChannels < rowB + 1) {
-      return hrir;
-    }
-    const stereo = context.createBuffer(2, hrir.length, hrir.sampleRate);
+    const stereo = context.createBuffer!(2, hrir.length, hrir.sampleRate);
     stereo.copyToChannel(hrir.getChannelData(rowA), 0);
     stereo.copyToChannel(hrir.getChannelData(rowB), 1);
     return stereo;

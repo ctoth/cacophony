@@ -64,8 +64,8 @@ function instrumentGraphFactories(): { created: CapturedNode[] } {
   return { created };
 }
 
-/** A 4-channel stub HRIR so create() never touches decodeAudioData/fetch. */
-const stubHrir = () => new AudioContext().createBuffer(4, 256, 48000);
+/** An in-memory HRIR fixture so create() never touches decodeAudioData/fetch. */
+const stubHrir = (numberOfChannels = 4) => new AudioContext().createBuffer(numberOfChannels, 256, 48000);
 
 /**
  * Identify the canonical decoder nodes from the captured-node list, by the
@@ -326,6 +326,14 @@ describe("FoaDecoder — standalone FOA->binaural format converter (Ahrens 2022 
   it("throws if the context lacks channel split/merge/convolve support", async () => {
     const bare = { createGain: vi.fn() } as never;
     await expect(cacophony.createFoaDecoder({ hrir: stubHrir() }, bare)).rejects.toThrow(/createChannelSplitter/);
+  });
+
+  it("rejects an HRIR that cannot supply all four ACN rows", async () => {
+    instrumentGraphFactories();
+
+    await expect(cacophony.createFoaDecoder({ hrir: stubHrir(3) })).rejects.toThrow(
+      "FoaDecoder requires an HRIR with at least 4 channels; received 3",
+    );
   });
 
   it("falls back to loadFoaHrir when no hrir option is supplied", async () => {
