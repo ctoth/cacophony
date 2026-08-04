@@ -338,39 +338,44 @@ class StreamingPcmResampler {
     const frameCount = input.length / this.channelCount;
     const firstFrame = this.inputFrames;
     const lastFrame = firstFrame + frameCount - 1;
-    const output: number[] = [];
+    const sourceFramesPerOutput = this.sourceRate / this.targetRate;
+    const outputFrameCount =
+      this.nextSourcePosition > lastFrame
+        ? 0
+        : Math.floor((lastFrame - this.nextSourcePosition) / sourceFramesPerOutput) + 1;
+    const output = new Float32Array(outputFrameCount * this.channelCount);
+    let outputOffset = 0;
 
-    while (this.nextSourcePosition <= lastFrame) {
+    for (let outputFrame = 0; outputFrame < outputFrameCount; outputFrame += 1) {
       const leftFrame = Math.floor(this.nextSourcePosition);
       const fraction = this.nextSourcePosition - leftFrame;
-      if (fraction > 0 && leftFrame + 1 > lastFrame) {
-        break;
-      }
       for (let channel = 0; channel < this.channelCount; channel += 1) {
         const left = this.sampleAt(input, firstFrame, leftFrame, channel);
         const right = this.sampleAt(input, firstFrame, Math.min(leftFrame + 1, lastFrame), channel);
-        output.push(left + (right - left) * fraction);
+        output[outputOffset] = left + (right - left) * fraction;
+        outputOffset += 1;
       }
-      this.nextSourcePosition += this.sourceRate / this.targetRate;
+      this.nextSourcePosition += sourceFramesPerOutput;
     }
 
     this.inputFrames += frameCount;
     this.previousFrame = input.slice(input.length - this.channelCount);
-    return Float32Array.from(output);
+    return output;
   }
 
   finalize(): Float32Array {
     if (this.sourceRate === this.targetRate || !this.previousFrame) {
       return new Float32Array();
     }
-    const output: number[] = [];
-    while (this.nextSourcePosition < this.inputFrames) {
-      for (const sample of this.previousFrame) {
-        output.push(sample);
-      }
-      this.nextSourcePosition += this.sourceRate / this.targetRate;
+    const sourceFramesPerOutput = this.sourceRate / this.targetRate;
+    const remainingSourceFrames = this.inputFrames - this.nextSourcePosition;
+    const outputFrameCount = remainingSourceFrames > 0 ? Math.ceil(remainingSourceFrames / sourceFramesPerOutput) : 0;
+    const output = new Float32Array(outputFrameCount * this.channelCount);
+    for (let outputFrame = 0; outputFrame < outputFrameCount; outputFrame += 1) {
+      output.set(this.previousFrame, outputFrame * this.channelCount);
+      this.nextSourcePosition += sourceFramesPerOutput;
     }
-    return Float32Array.from(output);
+    return output;
   }
 
   private sampleAt(input: Float32Array, firstFrame: number, frame: number, channel: number): number {

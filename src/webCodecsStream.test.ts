@@ -173,6 +173,19 @@ describe("WebCodecs URL streaming", () => {
     expect(media.sourceUrl).toBe("https://example.com/music.ogg");
   });
 
+  it("writes resampled PCM directly into typed storage", async () => {
+    media.sample.sampleRate = audioContextMock.sampleRate / 2;
+    const boxedArrayConversion = vi.spyOn(Float32Array, "from");
+    const stream = await cacophony.createStream("https://example.com/music.ogg");
+
+    stream.play();
+    await vi.waitFor(() => expect(media.sample.close).toHaveBeenCalledOnce());
+
+    const boxedConversionCount = boxedArrayConversion.mock.calls.length;
+    boxedArrayConversion.mockRestore();
+    expect(boxedConversionCount).toBe(0);
+  });
+
   it("threads stereo panning through the WebCodecs stream tier", async () => {
     const stream = await cacophony.createStream("https://example.com/music.ogg", undefined, "stereo");
     expect(stream).toBeInstanceOf(PcmStreamSound);
