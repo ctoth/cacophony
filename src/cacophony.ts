@@ -6,6 +6,7 @@ import type {
   AudioBuffer,
   AudioListener,
   AudioNode,
+  AudioParam,
   AudioWorkletNode,
   BaseContext,
   BiquadFilterNode,
@@ -254,6 +255,71 @@ function mimeTypeForUrl(url: string): string | null {
   return EXTENSION_MIME_MAP[ext] ?? null;
 }
 
+/** Web Audio default listener pose when AudioParams are absent. */
+const DEFAULT_LISTENER_POSITION: Position = [0, 0, 0];
+const DEFAULT_LISTENER_FORWARD: Position = [0, 0, -1];
+const DEFAULT_LISTENER_UP: Position = [0, 1, 0];
+
+function isAudioParam(param: AudioParam | undefined): param is AudioParam {
+  return param != null;
+}
+
+function readListenerVector(
+  x: AudioParam | undefined,
+  y: AudioParam | undefined,
+  z: AudioParam | undefined,
+  fallback: Position,
+): Position {
+  return [
+    isAudioParam(x) ? x.value : fallback[0],
+    isAudioParam(y) ? y.value : fallback[1],
+    isAudioParam(z) ? z.value : fallback[2],
+  ];
+}
+
+/**
+ * Write listener orientation through AudioParams, or `setOrientation` when
+ * those params are missing.
+ */
+function writeListenerOrientation(listener: AudioListener, forward: Position, up: Position): void {
+  const [forwardX, forwardY, forwardZ] = forward;
+  const [upX, upY, upZ] = up;
+  const { forwardX: forwardXParam, forwardY: forwardYParam, forwardZ: forwardZParam } = listener;
+  const { upX: upXParam, upY: upYParam, upZ: upZParam } = listener;
+  const hasForwardParams = isAudioParam(forwardXParam) && isAudioParam(forwardYParam) && isAudioParam(forwardZParam);
+  const hasUpParams = isAudioParam(upXParam) && isAudioParam(upYParam) && isAudioParam(upZParam);
+
+  if (hasForwardParams) {
+    forwardXParam.value = forwardX;
+    forwardYParam.value = forwardY;
+    forwardZParam.value = forwardZ;
+  }
+  if (hasUpParams) {
+    upXParam.value = upX;
+    upYParam.value = upY;
+    upZParam.value = upZ;
+  }
+  if ((!hasForwardParams || !hasUpParams) && typeof listener.setOrientation === "function") {
+    listener.setOrientation(forwardX, forwardY, forwardZ, upX, upY, upZ);
+  }
+}
+
+/**
+ * Write listener position through AudioParams, or `setPosition` when those
+ * params are missing.
+ */
+function writeListenerPosition(listener: AudioListener, position: Position, currentTime: number): void {
+  const [x, y, z] = position;
+  const { positionX, positionY, positionZ } = listener;
+  if (isAudioParam(positionX) && isAudioParam(positionY) && isAudioParam(positionZ)) {
+    positionX.setValueAtTime(x, currentTime);
+    positionY.setValueAtTime(y, currentTime);
+    positionZ.setValueAtTime(z, currentTime);
+    return;
+  }
+  listener.setPosition?.(x, y, z);
+}
+
 export class Cacophony {
   context: BaseContext;
   globalGainNode: GainNode;
@@ -265,6 +331,13 @@ export class Cacophony {
    */
   master: Bus;
   listener: AudioListener;
+  /**
+   * Last-known listener pose. Used by getters when AudioParams are unreadable
+   * (seeded from params or Web Audio defaults in the constructor).
+   */
+  private cachedListenerPosition: Position = [...DEFAULT_LISTENER_POSITION];
+  private cachedListenerForward: Position = [...DEFAULT_LISTENER_FORWARD];
+  private cachedListenerUp: Position = [...DEFAULT_LISTENER_UP];
   private prevVolume: number = 1;
   private isMuted: boolean = false;
   /**
@@ -332,6 +405,24 @@ export class Cacophony {
   constructor(context?: BaseContext, cache?: ICache, runtimeOptions: RuntimeOptions = {}) {
     this.context = context ?? new AudioContext();
     this.listener = this.context.listener;
+    this.cachedListenerPosition = readListenerVector(
+      this.listener.positionX,
+      this.listener.positionY,
+      this.listener.positionZ,
+      DEFAULT_LISTENER_POSITION,
+    );
+    this.cachedListenerForward = readListenerVector(
+      this.listener.forwardX,
+      this.listener.forwardY,
+      this.listener.forwardZ,
+      DEFAULT_LISTENER_FORWARD,
+    );
+    this.cachedListenerUp = readListenerVector(
+      this.listener.upX,
+      this.listener.upY,
+      this.listener.upZ,
+      DEFAULT_LISTENER_UP,
+    );
     this.globalGainNode = this.context.createGain();
     // master bus wraps globalGainNode as its input — same node, two accessors.
     // master is exempt from the named-bus registry (its name 'master' is
@@ -1848,54 +1939,56 @@ export class Cacophony {
 
   get listenerOrientation(): Orientation {
     return {
-      forward: [this.listener.forwardX.value, this.listener.forwardY.value, this.listener.forwardZ.value],
-      up: [this.listener.upX.value, this.listener.upY.value, this.listener.upZ.value],
+      forward: this.listenerForwardOrientation,
+      up: this.listenerUpOrientation,
     };
   }
 
   set listenerOrientation(orientation: Orientation) {
-    const { forward, up } = orientation;
-    const [forwardX, forwardY, forwardZ] = forward;
-    const [upX, upY, upZ] = up;
-    this.listener.forwardX.value = forwardX;
-    this.listener.forwardY.value = forwardY;
-    this.listener.forwardZ.value = forwardZ;
-    this.listener.upX.value = upX;
-    this.listener.upY.value = upY;
-    this.listener.upZ.value = upZ;
+    const forward: Position = [orientation.forward[0], orientation.forward[1], orientation.forward[2]];
+    const up: Position = [orientation.up[0], orientation.up[1], orientation.up[2]];
+    this.cachedListenerForward = forward;
+    this.cachedListenerUp = up;
+    writeListenerOrientation(this.listener, forward, up);
   }
 
   get listenerUpOrientation(): Position {
-    return [this.listener.upX.value, this.listener.upY.value, this.listener.upZ.value];
+    return readListenerVector(this.listener.upX, this.listener.upY, this.listener.upZ, this.cachedListenerUp);
   }
 
   set listenerUpOrientation(up: Position) {
-    const [x, y, z] = up;
-    this.listener.upX.value = x;
-    this.listener.upY.value = y;
-    this.listener.upZ.value = z;
+    const nextUp: Position = [up[0], up[1], up[2]];
+    this.cachedListenerUp = nextUp;
+    writeListenerOrientation(this.listener, this.listenerForwardOrientation, nextUp);
   }
 
   get listenerForwardOrientation(): Position {
-    return [this.listener.forwardX.value, this.listener.forwardY.value, this.listener.forwardZ.value];
+    return readListenerVector(
+      this.listener.forwardX,
+      this.listener.forwardY,
+      this.listener.forwardZ,
+      this.cachedListenerForward,
+    );
   }
 
   set listenerForwardOrientation(forward: Position) {
-    const [x, y, z] = forward;
-    this.listener.forwardX.value = x;
-    this.listener.forwardY.value = y;
-    this.listener.forwardZ.value = z;
+    const nextForward: Position = [forward[0], forward[1], forward[2]];
+    this.cachedListenerForward = nextForward;
+    writeListenerOrientation(this.listener, nextForward, this.listenerUpOrientation);
   }
 
   get listenerPosition(): Position {
-    return [this.listener.positionX.value, this.listener.positionY.value, this.listener.positionZ.value];
+    return readListenerVector(
+      this.listener.positionX,
+      this.listener.positionY,
+      this.listener.positionZ,
+      this.cachedListenerPosition,
+    );
   }
 
   set listenerPosition(position: Position) {
-    const [x, y, z] = position;
-    const currentTime = this.context.currentTime;
-    this.listener.positionX.setValueAtTime(x, currentTime);
-    this.listener.positionY.setValueAtTime(y, currentTime);
-    this.listener.positionZ.setValueAtTime(z, currentTime);
+    const nextPosition: Position = [position[0], position[1], position[2]];
+    this.cachedListenerPosition = nextPosition;
+    writeListenerPosition(this.listener, nextPosition, this.context.currentTime);
   }
 }

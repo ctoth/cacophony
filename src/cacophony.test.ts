@@ -1,7 +1,8 @@
-import { AudioBuffer } from "standardized-audio-context-mock";
+import { AudioBuffer, AudioContext } from "standardized-audio-context-mock";
 
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, test, vi } from "vitest";
 
+import type { ICache } from "./cache";
 import { Cacophony } from "./cacophony";
 import { Group } from "./group";
 import { audioContextMock, cacophony, mockCache } from "./setupTests";
@@ -300,6 +301,89 @@ describe("Cacophony advanced features", () => {
     } as any;
     cacophony.listenerOrientation = orientation;
     expect(cacophony.listenerOrientation).toEqual(orientation);
+  });
+
+  it("sets and gets listener position via AudioParams", () => {
+    const setValueAtTime = vi.fn(function (this: { value: number }, value: number) {
+      this.value = value;
+      return this;
+    });
+    const param = (value: number) => ({ value, setValueAtTime });
+    cacophony.listener = {
+      positionX: param(0),
+      positionY: param(0),
+      positionZ: param(0),
+    } as any;
+
+    cacophony.listenerPosition = [1, 2, 3];
+
+    expect(cacophony.listenerPosition).toEqual([1, 2, 3]);
+    expect(setValueAtTime).toHaveBeenCalledTimes(3);
+    expect(setValueAtTime).toHaveBeenNthCalledWith(1, 1, cacophony.context.currentTime);
+    expect(setValueAtTime).toHaveBeenNthCalledWith(2, 2, cacophony.context.currentTime);
+    expect(setValueAtTime).toHaveBeenNthCalledWith(3, 3, cacophony.context.currentTime);
+  });
+
+  describe("Firefox AudioListener fallback (issue #189)", () => {
+    const createFirefoxContext = () => {
+      const ctx = new AudioContext();
+      const listener = {
+        setOrientation: vi.fn(),
+        setPosition: vi.fn(),
+      };
+      Object.defineProperty(ctx, "listener", { value: listener, configurable: true });
+      return { ctx, listener };
+    };
+
+    it("does not throw when AudioParams are missing", () => {
+      const { ctx } = createFirefoxContext();
+      const instance = new Cacophony(ctx, mockCache as ICache);
+
+      expect(() => {
+        instance.listenerForwardOrientation = [0, 0, -1];
+        instance.listenerUpOrientation = [0, 1, 0];
+        instance.listenerOrientation = { forward: [1, 0, 0], up: [0, 0, 1] };
+        instance.listenerPosition = [4, 5, 6];
+      }).not.toThrow();
+
+      ctx.close();
+    });
+
+    it("writes orientation through setOrientation and returns last-known values", () => {
+      const { ctx, listener } = createFirefoxContext();
+      const instance = new Cacophony(ctx, mockCache as ICache);
+
+      expect(instance.listenerForwardOrientation).toEqual([0, 0, -1]);
+      expect(instance.listenerUpOrientation).toEqual([0, 1, 0]);
+
+      instance.listenerForwardOrientation = [1, 0, 0];
+      expect(listener.setOrientation).toHaveBeenCalledWith(1, 0, 0, 0, 1, 0);
+      expect(instance.listenerForwardOrientation).toEqual([1, 0, 0]);
+      expect(instance.listenerUpOrientation).toEqual([0, 1, 0]);
+
+      instance.listenerUpOrientation = [0, 0, 1];
+      expect(listener.setOrientation).toHaveBeenCalledWith(1, 0, 0, 0, 0, 1);
+      expect(instance.listenerUpOrientation).toEqual([0, 0, 1]);
+
+      instance.listenerOrientation = { forward: [0, 1, 0], up: [0, 0, -1] };
+      expect(listener.setOrientation).toHaveBeenLastCalledWith(0, 1, 0, 0, 0, -1);
+      expect(instance.listenerOrientation).toEqual({ forward: [0, 1, 0], up: [0, 0, -1] });
+
+      ctx.close();
+    });
+
+    it("writes position through setPosition and returns last-known values", () => {
+      const { ctx, listener } = createFirefoxContext();
+      const instance = new Cacophony(ctx, mockCache as ICache);
+
+      expect(instance.listenerPosition).toEqual([0, 0, 0]);
+
+      instance.listenerPosition = [3, 4, 5];
+      expect(listener.setPosition).toHaveBeenCalledWith(3, 4, 5);
+      expect(instance.listenerPosition).toEqual([3, 4, 5]);
+
+      ctx.close();
+    });
   });
 
   it("throws an error when creating a sound with an invalid URL", async () => {
