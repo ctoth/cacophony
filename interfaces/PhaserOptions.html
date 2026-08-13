@@ -24,7 +24,7 @@ the dry signal to sweep notches through the spectrum (Smith STAN-M-21; PASP
 </div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">PhaserOptions</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#depth">depth</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#feedback">feedback</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#frequency">frequency</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#mix">mix</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#rate">rate</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#stages">stages</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/bd67c18cd9951313b6af6ad71db9b2a072bfde76/src/effects.ts#L575">src/effects.ts:575</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/7d194f1015cd82514c6690f48864f38feee85ac7/src/effects.ts#L575">src/effects.ts:575</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -48,42 +48,42 @@ the dry signal to sweep notches through the spectrum (Smith STAN-M-21; PASP
 <div class="tsd-comment tsd-typography"><p>Log sweep depth in octaves (break freq <em>= 2^(depth</em>lfo)). Default 1.5. Range 0..4.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/bd67c18cd9951313b6af6ad71db9b2a072bfde76/src/effects.ts#L581">src/effects.ts:581</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/7d194f1015cd82514c6690f48864f38feee85ac7/src/effects.ts#L581">src/effects.ts:581</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="feedback"><code class="tsd-tag">Optional</code><span>feedback</span><a href="#feedback" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">feedback</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Feedback (regeneration/resonance). Default 0. Range -0.95..0.95.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/bd67c18cd9951313b6af6ad71db9b2a072bfde76/src/effects.ts#L585">src/effects.ts:585</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/7d194f1015cd82514c6690f48864f38feee85ac7/src/effects.ts#L585">src/effects.ts:585</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="frequency"><code class="tsd-tag">Optional</code><span>frequency</span><a href="#frequency" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">frequency</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Center break frequency of the allpass sections, in Hz. Default 500. Range 20..10000.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/bd67c18cd9951313b6af6ad71db9b2a072bfde76/src/effects.ts#L577">src/effects.ts:577</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/7d194f1015cd82514c6690f48864f38feee85ac7/src/effects.ts#L577">src/effects.ts:577</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="mix"><code class="tsd-tag">Optional</code><span>mix</span><a href="#mix" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">mix</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Additive wet gain (notch depth); y = x + mix*cascade. Default 0.5. Range 0..1.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/bd67c18cd9951313b6af6ad71db9b2a072bfde76/src/effects.ts#L587">src/effects.ts:587</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/7d194f1015cd82514c6690f48864f38feee85ac7/src/effects.ts#L587">src/effects.ts:587</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="rate"><code class="tsd-tag">Optional</code><span>rate</span><a href="#rate" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">rate</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>LFO rate in Hz. Default 0.5. Range 0..20.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/bd67c18cd9951313b6af6ad71db9b2a072bfde76/src/effects.ts#L579">src/effects.ts:579</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/7d194f1015cd82514c6690f48864f38feee85ac7/src/effects.ts#L579">src/effects.ts:579</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="stages"><code class="tsd-tag">Optional</code><span>stages</span><a href="#stages" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">stages</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Number of first-order allpass sections (2 per notch). Default 4. Range 2..12.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/bd67c18cd9951313b6af6ad71db9b2a072bfde76/src/effects.ts#L583">src/effects.ts:583</a></li></ul></aside></section></section></details></div>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/7d194f1015cd82514c6690f48864f38feee85ac7/src/effects.ts#L583">src/effects.ts:583</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
