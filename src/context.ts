@@ -141,16 +141,26 @@ export interface AudioBuffer {
 // AudioListener
 // ---------------------------------------------------------------------------
 
+/**
+ * Minimal listener surface used by Cacophony.
+ *
+ * Chrome/Safari and standardized-audio-context expose AudioParam properties.
+ * Native Firefox AudioListener omits those params and only implements the
+ * deprecated `setOrientation` / `setPosition` methods. Both shapes are valid
+ * here; Cacophony's listener accessors fall back accordingly.
+ */
 export interface AudioListener {
-  readonly positionX: AudioParam;
-  readonly positionY: AudioParam;
-  readonly positionZ: AudioParam;
-  readonly forwardX: AudioParam;
-  readonly forwardY: AudioParam;
-  readonly forwardZ: AudioParam;
-  readonly upX: AudioParam;
-  readonly upY: AudioParam;
-  readonly upZ: AudioParam;
+  readonly positionX?: AudioParam;
+  readonly positionY?: AudioParam;
+  readonly positionZ?: AudioParam;
+  readonly forwardX?: AudioParam;
+  readonly forwardY?: AudioParam;
+  readonly forwardZ?: AudioParam;
+  readonly upX?: AudioParam;
+  readonly upY?: AudioParam;
+  readonly upZ?: AudioParam;
+  setPosition?(x: number, y: number, z: number): void;
+  setOrientation?(x: number, y: number, z: number, xUp: number, yUp: number, zUp: number): void;
 }
 
 // ---------------------------------------------------------------------------

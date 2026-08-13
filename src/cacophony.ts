@@ -6,6 +6,7 @@ import type {
   AudioBuffer,
   AudioListener,
   AudioNode,
+  AudioParam,
   AudioWorkletNode,
   BaseContext,
   BiquadFilterNode,
@@ -254,6 +255,94 @@ function mimeTypeForUrl(url: string): string | null {
   return EXTENSION_MIME_MAP[ext] ?? null;
 }
 
+/** Web Audio default listener pose when AudioParams are absent. */
+const DEFAULT_LISTENER_POSITION: Position = [0, 0, 0];
+const DEFAULT_LISTENER_FORWARD: Position = [0, 0, -1];
+const DEFAULT_LISTENER_UP: Position = [0, 1, 0];
+
+type ListenerOrientationParams = {
+  readonly forwardX: AudioParam;
+  readonly forwardY: AudioParam;
+  readonly forwardZ: AudioParam;
+  readonly upX: AudioParam;
+  readonly upY: AudioParam;
+  readonly upZ: AudioParam;
+};
+
+type ListenerPositionParams = {
+  readonly positionX: AudioParam;
+  readonly positionY: AudioParam;
+  readonly positionZ: AudioParam;
+};
+
+function isAudioParam(param: AudioParam | undefined): param is AudioParam {
+  return param != null;
+}
+
+/**
+ * Real hosts are all-or-nothing: Chrome/Safari/SAC expose the full orientation
+ * param set, Firefox exposes none. One predicate covers that split.
+ */
+function hasListenerOrientationParams(listener: AudioListener): listener is AudioListener & ListenerOrientationParams {
+  return (
+    isAudioParam(listener.forwardX) &&
+    isAudioParam(listener.forwardY) &&
+    isAudioParam(listener.forwardZ) &&
+    isAudioParam(listener.upX) &&
+    isAudioParam(listener.upY) &&
+    isAudioParam(listener.upZ)
+  );
+}
+
+function hasListenerPositionParams(listener: AudioListener): listener is AudioListener & ListenerPositionParams {
+  return isAudioParam(listener.positionX) && isAudioParam(listener.positionY) && isAudioParam(listener.positionZ);
+}
+
+function readListenerOrientation(listener: ListenerOrientationParams): { forward: Position; up: Position } {
+  return {
+    forward: [listener.forwardX.value, listener.forwardY.value, listener.forwardZ.value],
+    up: [listener.upX.value, listener.upY.value, listener.upZ.value],
+  };
+}
+
+function readListenerPosition(listener: ListenerPositionParams): Position {
+  return [listener.positionX.value, listener.positionY.value, listener.positionZ.value];
+}
+
+/**
+ * Write listener orientation through AudioParams, or `setOrientation` when
+ * those params are missing.
+ */
+function writeListenerOrientation(listener: AudioListener, forward: Position, up: Position): void {
+  const [forwardX, forwardY, forwardZ] = forward;
+  const [upX, upY, upZ] = up;
+  if (hasListenerOrientationParams(listener)) {
+    listener.forwardX.value = forwardX;
+    listener.forwardY.value = forwardY;
+    listener.forwardZ.value = forwardZ;
+    listener.upX.value = upX;
+    listener.upY.value = upY;
+    listener.upZ.value = upZ;
+    return;
+  }
+  listener.setOrientation?.(forwardX, forwardY, forwardZ, upX, upY, upZ);
+}
+
+/**
+ * Write listener position through AudioParams, or `setPosition` when those
+ * params are missing.
+ */
+function writeListenerPosition(listener: AudioListener, position: Position, currentTime: number): void {
+  const [x, y, z] = position;
+  if (hasListenerPositionParams(listener)) {
+    listener.positionX.setValueAtTime(x, currentTime);
+    listener.positionY.setValueAtTime(y, currentTime);
+    listener.positionZ.setValueAtTime(z, currentTime);
+    return;
+  }
+  listener.setPosition?.(x, y, z);
+}
+
 export class Cacophony {
   context: BaseContext;
   globalGainNode: GainNode;
@@ -265,6 +354,13 @@ export class Cacophony {
    */
   master: Bus;
   listener: AudioListener;
+  /**
+   * Last-known listener pose. Used by getters when AudioParams are unreadable
+   * (seeded from params or Web Audio defaults in the constructor).
+   */
+  private cachedListenerPosition: Position = [...DEFAULT_LISTENER_POSITION];
+  private cachedListenerForward: Position = [...DEFAULT_LISTENER_FORWARD];
+  private cachedListenerUp: Position = [...DEFAULT_LISTENER_UP];
   private prevVolume: number = 1;
   private isMuted: boolean = false;
   /**
@@ -332,6 +428,14 @@ export class Cacophony {
   constructor(context?: BaseContext, cache?: ICache, runtimeOptions: RuntimeOptions = {}) {
     this.context = context ?? new AudioContext();
     this.listener = this.context.listener;
+    if (hasListenerPositionParams(this.listener)) {
+      this.cachedListenerPosition = readListenerPosition(this.listener);
+    }
+    if (hasListenerOrientationParams(this.listener)) {
+      const orientation = readListenerOrientation(this.listener);
+      this.cachedListenerForward = orientation.forward;
+      this.cachedListenerUp = orientation.up;
+    }
     this.globalGainNode = this.context.createGain();
     // master bus wraps globalGainNode as its input — same node, two accessors.
     // master is exempt from the named-bus registry (its name 'master' is
@@ -1848,54 +1952,55 @@ export class Cacophony {
 
   get listenerOrientation(): Orientation {
     return {
-      forward: [this.listener.forwardX.value, this.listener.forwardY.value, this.listener.forwardZ.value],
-      up: [this.listener.upX.value, this.listener.upY.value, this.listener.upZ.value],
+      forward: this.listenerForwardOrientation,
+      up: this.listenerUpOrientation,
     };
   }
 
   set listenerOrientation(orientation: Orientation) {
-    const { forward, up } = orientation;
-    const [forwardX, forwardY, forwardZ] = forward;
-    const [upX, upY, upZ] = up;
-    this.listener.forwardX.value = forwardX;
-    this.listener.forwardY.value = forwardY;
-    this.listener.forwardZ.value = forwardZ;
-    this.listener.upX.value = upX;
-    this.listener.upY.value = upY;
-    this.listener.upZ.value = upZ;
+    const forward: Position = [orientation.forward[0], orientation.forward[1], orientation.forward[2]];
+    const up: Position = [orientation.up[0], orientation.up[1], orientation.up[2]];
+    this.cachedListenerForward = forward;
+    this.cachedListenerUp = up;
+    writeListenerOrientation(this.listener, forward, up);
   }
 
   get listenerUpOrientation(): Position {
-    return [this.listener.upX.value, this.listener.upY.value, this.listener.upZ.value];
+    if (hasListenerOrientationParams(this.listener)) {
+      return readListenerOrientation(this.listener).up;
+    }
+    return [this.cachedListenerUp[0], this.cachedListenerUp[1], this.cachedListenerUp[2]];
   }
 
   set listenerUpOrientation(up: Position) {
-    const [x, y, z] = up;
-    this.listener.upX.value = x;
-    this.listener.upY.value = y;
-    this.listener.upZ.value = z;
+    const nextUp: Position = [up[0], up[1], up[2]];
+    this.cachedListenerUp = nextUp;
+    writeListenerOrientation(this.listener, this.listenerForwardOrientation, nextUp);
   }
 
   get listenerForwardOrientation(): Position {
-    return [this.listener.forwardX.value, this.listener.forwardY.value, this.listener.forwardZ.value];
+    if (hasListenerOrientationParams(this.listener)) {
+      return readListenerOrientation(this.listener).forward;
+    }
+    return [this.cachedListenerForward[0], this.cachedListenerForward[1], this.cachedListenerForward[2]];
   }
 
   set listenerForwardOrientation(forward: Position) {
-    const [x, y, z] = forward;
-    this.listener.forwardX.value = x;
-    this.listener.forwardY.value = y;
-    this.listener.forwardZ.value = z;
+    const nextForward: Position = [forward[0], forward[1], forward[2]];
+    this.cachedListenerForward = nextForward;
+    writeListenerOrientation(this.listener, nextForward, this.listenerUpOrientation);
   }
 
   get listenerPosition(): Position {
-    return [this.listener.positionX.value, this.listener.positionY.value, this.listener.positionZ.value];
+    if (hasListenerPositionParams(this.listener)) {
+      return readListenerPosition(this.listener);
+    }
+    return [this.cachedListenerPosition[0], this.cachedListenerPosition[1], this.cachedListenerPosition[2]];
   }
 
   set listenerPosition(position: Position) {
-    const [x, y, z] = position;
-    const currentTime = this.context.currentTime;
-    this.listener.positionX.setValueAtTime(x, currentTime);
-    this.listener.positionY.setValueAtTime(y, currentTime);
-    this.listener.positionZ.setValueAtTime(z, currentTime);
+    const nextPosition: Position = [position[0], position[1], position[2]];
+    this.cachedListenerPosition = nextPosition;
+    writeListenerPosition(this.listener, nextPosition, this.context.currentTime);
   }
 }
