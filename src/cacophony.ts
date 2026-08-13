@@ -275,8 +275,12 @@ type ListenerPositionParams = {
   readonly positionZ: AudioParam;
 };
 
-function isAudioParam(param: AudioParam | undefined): param is AudioParam {
-  return param != null;
+function isAudioParam(param: unknown): param is AudioParam {
+  return typeof param === "object" && param !== null && "value" in param && typeof param.value === "number";
+}
+
+function isSchedulableAudioParam(param: unknown): param is AudioParam {
+  return isAudioParam(param) && "setValueAtTime" in param && typeof param.setValueAtTime === "function";
 }
 
 /**
@@ -295,7 +299,11 @@ function hasListenerOrientationParams(listener: AudioListener): listener is Audi
 }
 
 function hasListenerPositionParams(listener: AudioListener): listener is AudioListener & ListenerPositionParams {
-  return isAudioParam(listener.positionX) && isAudioParam(listener.positionY) && isAudioParam(listener.positionZ);
+  return (
+    isSchedulableAudioParam(listener.positionX) &&
+    isSchedulableAudioParam(listener.positionY) &&
+    isSchedulableAudioParam(listener.positionZ)
+  );
 }
 
 function readListenerOrientation(listener: ListenerOrientationParams): { forward: Position; up: Position } {
@@ -325,7 +333,11 @@ function writeListenerOrientation(listener: AudioListener, forward: Position, up
     listener.upZ.value = upZ;
     return;
   }
-  listener.setOrientation?.(forwardX, forwardY, forwardZ, upX, upY, upZ);
+  if (typeof listener.setOrientation === "function") {
+    listener.setOrientation(forwardX, forwardY, forwardZ, upX, upY, upZ);
+    return;
+  }
+  throw new Error("AudioListener does not support orientation updates");
 }
 
 /**
@@ -340,7 +352,11 @@ function writeListenerPosition(listener: AudioListener, position: Position, curr
     listener.positionZ.setValueAtTime(z, currentTime);
     return;
   }
-  listener.setPosition?.(x, y, z);
+  if (typeof listener.setPosition === "function") {
+    listener.setPosition(x, y, z);
+    return;
+  }
+  throw new Error("AudioListener does not support position updates");
 }
 
 export class Cacophony {
@@ -1952,55 +1968,46 @@ export class Cacophony {
 
   get listenerOrientation(): Orientation {
     return {
-      forward: this.listenerForwardOrientation,
-      up: this.listenerUpOrientation,
+      forward: [...this.cachedListenerForward],
+      up: [...this.cachedListenerUp],
     };
   }
 
   set listenerOrientation(orientation: Orientation) {
     const forward: Position = [orientation.forward[0], orientation.forward[1], orientation.forward[2]];
     const up: Position = [orientation.up[0], orientation.up[1], orientation.up[2]];
+    writeListenerOrientation(this.listener, forward, up);
     this.cachedListenerForward = forward;
     this.cachedListenerUp = up;
-    writeListenerOrientation(this.listener, forward, up);
   }
 
   get listenerUpOrientation(): Position {
-    if (hasListenerOrientationParams(this.listener)) {
-      return readListenerOrientation(this.listener).up;
-    }
-    return [this.cachedListenerUp[0], this.cachedListenerUp[1], this.cachedListenerUp[2]];
+    return [...this.cachedListenerUp];
   }
 
   set listenerUpOrientation(up: Position) {
     const nextUp: Position = [up[0], up[1], up[2]];
+    writeListenerOrientation(this.listener, this.cachedListenerForward, nextUp);
     this.cachedListenerUp = nextUp;
-    writeListenerOrientation(this.listener, this.listenerForwardOrientation, nextUp);
   }
 
   get listenerForwardOrientation(): Position {
-    if (hasListenerOrientationParams(this.listener)) {
-      return readListenerOrientation(this.listener).forward;
-    }
-    return [this.cachedListenerForward[0], this.cachedListenerForward[1], this.cachedListenerForward[2]];
+    return [...this.cachedListenerForward];
   }
 
   set listenerForwardOrientation(forward: Position) {
     const nextForward: Position = [forward[0], forward[1], forward[2]];
+    writeListenerOrientation(this.listener, nextForward, this.cachedListenerUp);
     this.cachedListenerForward = nextForward;
-    writeListenerOrientation(this.listener, nextForward, this.listenerUpOrientation);
   }
 
   get listenerPosition(): Position {
-    if (hasListenerPositionParams(this.listener)) {
-      return readListenerPosition(this.listener);
-    }
-    return [this.cachedListenerPosition[0], this.cachedListenerPosition[1], this.cachedListenerPosition[2]];
+    return [...this.cachedListenerPosition];
   }
 
   set listenerPosition(position: Position) {
     const nextPosition: Position = [position[0], position[1], position[2]];
-    this.cachedListenerPosition = nextPosition;
     writeListenerPosition(this.listener, nextPosition, this.context.currentTime);
+    this.cachedListenerPosition = nextPosition;
   }
 }
