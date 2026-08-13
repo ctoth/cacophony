@@ -285,22 +285,68 @@ describe("Cacophony advanced features", () => {
     expect(mockCache.clearMemoryCache).toHaveBeenCalled();
   });
 
-  it("sets and gets listener orientation correctly", () => {
+  it("sets and gets listener orientation with modern AudioParams", () => {
     const orientation = {
       forward: [1, 0, 0],
       up: [0, 1, 0],
-    };
-    // Mock the listener properties
-    cacophony.listener = {
+    } as const;
+    const positionX = { setValueAtTime: vi.fn(), value: 0 };
+    const positionY = { setValueAtTime: vi.fn(), value: 0 };
+    const positionZ = { setValueAtTime: vi.fn(), value: 0 };
+    const listener = {
       forwardX: { value: 0 },
       forwardY: { value: 0 },
       forwardZ: { value: 0 },
+      positionX,
+      positionY,
+      positionZ,
+      setOrientation: vi.fn(),
+      setPosition: vi.fn(),
       upX: { value: 0 },
       upY: { value: 0 },
       upZ: { value: 0 },
-    } as any;
+    };
+    Object.defineProperty(cacophony, "listener", { configurable: true, value: listener, writable: true });
+
     cacophony.listenerOrientation = orientation;
     expect(cacophony.listenerOrientation).toEqual(orientation);
+    expect(listener.setOrientation).not.toHaveBeenCalled();
+
+    cacophony.listenerPosition = [4, 5, 6];
+    expect(positionX.setValueAtTime).toHaveBeenCalledWith(4, audioContextMock.currentTime);
+    expect(positionY.setValueAtTime).toHaveBeenCalledWith(5, audioContextMock.currentTime);
+    expect(positionZ.setValueAtTime).toHaveBeenCalledWith(6, audioContextMock.currentTime);
+    expect(listener.setPosition).not.toHaveBeenCalled();
+    expect(cacophony.listenerPosition).toEqual([4, 5, 6]);
+  });
+
+  it("uses legacy methods for Firefox-shaped and partially modern listeners", () => {
+    const partialPositionX = { setValueAtTime: vi.fn(), value: 0 };
+    const listener = {
+      forwardX: { value: 0 },
+      positionX: partialPositionX,
+      setOrientation: vi.fn(),
+      setPosition: vi.fn(),
+    };
+    Object.defineProperty(cacophony, "listener", { configurable: true, value: listener, writable: true });
+
+    cacophony.listenerForwardOrientation = [1, 0, 0];
+    expect(listener.setOrientation).toHaveBeenLastCalledWith(1, 0, 0, 0, 1, 0);
+    expect(cacophony.listenerForwardOrientation).toEqual([1, 0, 0]);
+
+    cacophony.listenerUpOrientation = [0, 0, 1];
+    expect(listener.setOrientation).toHaveBeenLastCalledWith(1, 0, 0, 0, 0, 1);
+    expect(cacophony.listenerUpOrientation).toEqual([0, 0, 1]);
+
+    const orientation = { forward: [0, 1, 0], up: [0, 0, 1] } as const;
+    cacophony.listenerOrientation = orientation;
+    expect(listener.setOrientation).toHaveBeenLastCalledWith(0, 1, 0, 0, 0, 1);
+    expect(cacophony.listenerOrientation).toEqual(orientation);
+
+    cacophony.listenerPosition = [4, 5, 6];
+    expect(listener.setPosition).toHaveBeenLastCalledWith(4, 5, 6);
+    expect(partialPositionX.setValueAtTime).not.toHaveBeenCalled();
+    expect(cacophony.listenerPosition).toEqual([4, 5, 6]);
   });
 
   it("sets and gets listener position via AudioParams", () => {

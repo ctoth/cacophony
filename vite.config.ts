@@ -7,7 +7,7 @@ export default defineConfig({
   test: {
     // Stale agent worktrees under .claude/ (gitignored) hold old copies of the
     // test suite; without this, vitest discovers and runs them too.
-    exclude: [...configDefaults.exclude, "**/.claude/**"],
+    exclude: [...configDefaults.exclude, "**/.claude/**", "browser-tests/**"],
   },
   build: {
     sourcemap: true,
