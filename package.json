@@ -38,6 +38,7 @@
     "pretest": "npm run build:worklets",
     "prepublishOnly": "npm run build",
     "preci:test": "npm run build:worklets",
+    "pretest:browser": "npm run build:worklets",
     "test": "vitest run",
     "test:browser": "playwright test",
     "ci:test": "vitest run --no-color --run --typecheck",
