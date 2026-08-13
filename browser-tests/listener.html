@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cacophony browser compatibility</title>
+  </head>
+  <body>
+    <script type="module">
+      import { Cacophony } from "/src/cacophony.ts";
+
+      window.runListenerCompatibilityCheck = async () => {
+        if (typeof AudioContext === "undefined") {
+          return { supported: false };
+        }
+
+        const cacophony = new Cacophony(undefined, undefined, { autoUnlock: false, quiet: true });
+        const capability = "forwardX" in cacophony.listener ? "modern" : "legacy";
+
+        try {
+          const coreNodes = [
+            cacophony.context.createBiquadFilter(),
+            cacophony.context.createBufferSource(),
+            cacophony.context.createGain(),
+            cacophony.context.createOscillator(),
+            cacophony.context.createPanner(),
+            cacophony.context.createStereoPanner(),
+            cacophony.createMerger(),
+            cacophony.createSplitter(),
+          ];
+          cacophony.listenerForwardOrientation = [1, 0, 0];
+          cacophony.listenerUpOrientation = [0, 0, 1];
+          cacophony.listenerOrientation = {
+            forward: [0, 1, 0],
+            up: [0, 0, 1],
+          };
+          cacophony.listenerPosition = [4, 5, 6];
+          coreNodes.forEach((node) => node.disconnect());
+
+          return {
+            capability,
+            coreFactoryCount: coreNodes.length,
+            forward: cacophony.listenerForwardOrientation,
+            orientation: cacophony.listenerOrientation,
+            position: cacophony.listenerPosition,
+            supported: true,
+            up: cacophony.listenerUpOrientation,
+          };
+        } finally {
+          await cacophony.context.close?.();
+        }
+      };
+    </script>
+  </body>
+</html>

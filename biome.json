@@ -41,6 +41,6 @@
     "lineWidth": 120
   },
   "files": {
-    "includes": ["src/**/*.ts", "bin/**/*.mjs", "*.json"]
+    "includes": ["src/**/*.ts", "browser-tests/**/*.ts", "bin/**/*.mjs", "playwright.config.ts", "*.json"]
   }
 }

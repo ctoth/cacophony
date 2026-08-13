@@ -53,10 +53,26 @@ jobs:
         if: matrix.node-version != 20
       - run: npm test
 
+  browser:
+    name: Browser Compatibility (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - run: npm run test:browser -- --project ${{ matrix.browser }}
+
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs: [lint, typecheck, test]
+    needs: [lint, typecheck, test, browser]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
