@@ -14,14 +14,14 @@
 <div class="tsd-comment tsd-typography"><p>Options for acquiring and monitoring a microphone stream.</p>
 </div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">MicrophoneStreamOptions</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#constraints">constraints</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">MediaStreamConstraints</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#pantype">panType</a><span class="tsd-signature-symbol">?:</span> <a href="../types/PanType.html" class="tsd-signature-type tsd-kind-type-alias">PanType</a><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#primewithmediaelement">primeWithMediaElement</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#stereopan">stereoPan</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#stoptracksonstop">stopTracksOnStop</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#threedoptions">threeDOptions</a><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Partial</span><span class="tsd-signature-symbol">&lt;</span><a href="../types/HrtfPannerOptions.html" class="tsd-signature-type tsd-kind-type-alias">HrtfPannerOptions</a><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div>
-<section class="tsd-panel tsd-hierarchy" data-refl="2245">
+<section class="tsd-panel tsd-hierarchy" data-refl="2261">
 <h4>Hierarchy (<a href="../hierarchy.html#MicrophoneStreamOptions">View Summary</a>)</h4>
 <ul class="tsd-hierarchy">
 <li class="tsd-hierarchy-item"><a href="MediaStreamSoundOptions.html" class="tsd-signature-type tsd-kind-interface">MediaStreamSoundOptions</a>
 <ul class="tsd-hierarchy">
 <li class="tsd-hierarchy-item"><span class="tsd-hierarchy-target">MicrophoneStreamOptions</span></li></ul></li></ul></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cd43fe669c2373554142fa8a545e5a4fc263c54b/src/microphone.ts#L7">src/microphone.ts:7</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/bd67c18cd9951313b6af6ad71db9b2a072bfde76/src/microphone.ts#L7">src/microphone.ts:7</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -45,13 +45,13 @@
 <div class="tsd-comment tsd-typography"><p>Constraints forwarded to <code>navigator.mediaDevices.getUserMedia</code>.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cd43fe669c2373554142fa8a545e5a4fc263c54b/src/microphone.ts#L9">src/microphone.ts:9</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/bd67c18cd9951313b6af6ad71db9b2a072bfde76/src/microphone.ts#L9">src/microphone.ts:9</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="pantype"><code class="tsd-tag">Optional</code><span>pan<wbr/>Type</span><a href="#pantype" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">panType</span><span class="tsd-signature-symbol">?:</span> <a href="../types/PanType.html" class="tsd-signature-type tsd-kind-type-alias">PanType</a></div><aside class="tsd-sources">
 <p>Inherited from <a href="MediaStreamSoundOptions.html">MediaStreamSoundOptions</a>.<a href="MediaStreamSoundOptions.html#pantype">panType</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cd43fe669c2373554142fa8a545e5a4fc263c54b/src/mediaStream.ts#L14">src/mediaStream.ts:14</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/bd67c18cd9951313b6af6ad71db9b2a072bfde76/src/mediaStream.ts#L14">src/mediaStream.ts:14</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member tsd-is-inherited">
 <h3 class="tsd-anchor-link" id="primewithmediaelement"><code class="tsd-tag">Optional</code><span>prime<wbr/>With<wbr/>Media<wbr/>Element</span><a href="#primewithmediaelement" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">primeWithMediaElement</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div>
@@ -68,14 +68,14 @@ Web Audio graph, or in environments without <code>HTMLAudioElement</code>.</p>
 </div><aside class="tsd-sources">
 <p>Inherited from <a href="MediaStreamSoundOptions.html">MediaStreamSoundOptions</a>.<a href="MediaStreamSoundOptions.html#primewithmediaelement">primeWithMediaElement</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cd43fe669c2373554142fa8a545e5a4fc263c54b/src/mediaStream.ts#L30">src/mediaStream.ts:30</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/bd67c18cd9951313b6af6ad71db9b2a072bfde76/src/mediaStream.ts#L30">src/mediaStream.ts:30</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="stereopan"><code class="tsd-tag">Optional</code><span>stereo<wbr/>Pan</span><a href="#stereopan" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">stereoPan</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">number</span></div>
 <div class="tsd-comment tsd-typography"><p>Initial left/right pan when <code>panType</code> is <code>&quot;stereo&quot;</code>.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cd43fe669c2373554142fa8a545e5a4fc263c54b/src/microphone.ts#L16">src/microphone.ts:16</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/bd67c18cd9951313b6af6ad71db9b2a072bfde76/src/microphone.ts#L16">src/microphone.ts:16</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="stoptracksonstop"><code class="tsd-tag">Optional</code><span>stop<wbr/>Tracks<wbr/>On<wbr/>Stop</span><a href="#stoptracksonstop" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">stopTracksOnStop</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">boolean</span></div>
@@ -84,14 +84,14 @@ Defaults to <code>true</code>. Set to <code>false</code> to keep the stream reus
 </div><aside class="tsd-sources">
 <p>Overrides <a href="MediaStreamSoundOptions.html">MediaStreamSoundOptions</a>.<a href="MediaStreamSoundOptions.html#stoptracksonstop">stopTracksOnStop</a></p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cd43fe669c2373554142fa8a545e5a4fc263c54b/src/microphone.ts#L14">src/microphone.ts:14</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/bd67c18cd9951313b6af6ad71db9b2a072bfde76/src/microphone.ts#L14">src/microphone.ts:14</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="threedoptions"><code class="tsd-tag">Optional</code><span>three<wbr/>D<wbr/>Options</span><a href="#threedoptions" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">threeDOptions</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">Partial</span><span class="tsd-signature-symbol">&lt;</span><a href="../types/HrtfPannerOptions.html" class="tsd-signature-type tsd-kind-type-alias">HrtfPannerOptions</a><span class="tsd-signature-symbol">&gt;</span></div>
 <div class="tsd-comment tsd-typography"><p>Initial spatial options when <code>panType</code> is <code>&quot;HRTF&quot;</code> (the default).</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/cd43fe669c2373554142fa8a545e5a4fc263c54b/src/microphone.ts#L18">src/microphone.ts:18</a></li></ul></aside></section></section></details></div>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/bd67c18cd9951313b6af6ad71db9b2a072bfde76/src/microphone.ts#L18">src/microphone.ts:18</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
