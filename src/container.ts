@@ -43,23 +43,37 @@ const defaultHrtfThreeDOptions: ThreeDOptions = {
 export interface PlaybackContainer {
   cacophony?: Cacophony;
   playbacks: BasePlayback[];
+  _position: Position;
+  _stereoPan: number;
+  _threeDOptions: ThreeDOptions;
+  _volume: number;
   preplay(): BasePlayback[];
   play(): BasePlayback[];
   stop(): void;
   pause(): void;
   addFilter(filter: BiquadFilterNode): void;
   removeFilter(filter: BiquadFilterNode): void;
-  isPlaying: boolean;
-  position: Position;
-  threeDOptions: ThreeDOptions;
-  stereoPan: number;
-  volume: number;
+  get isPlaying(): boolean;
+  get position(): Position;
+  set position(position: Position);
+  get threeDOptions(): ThreeDOptions;
+  set threeDOptions(options: ThreeDOptions | Partial<HrtfPannerOptions>);
+  get stereoPan(): number;
+  set stereoPan(value: number);
+  get volume(): number;
+  set volume(volume: number);
   fadeTo(value: number, duration: number, type?: FadeType): Promise<void>;
   fadeIn(duration: number, type?: FadeType): Promise<void>;
   fadeOut(duration: number, type?: FadeType): Promise<void>;
   stopWithFade(duration: number, type?: FadeType): Promise<void>;
 }
 
+type PlaybackContainerConstructor<TBase extends Constructor> = TBase &
+  (abstract new (
+    ...args: any[]
+  ) => PlaybackContainer);
+
+export function PlaybackContainer<TBase extends Constructor>(Base: TBase): PlaybackContainerConstructor<TBase>;
 export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
   abstract class PlaybackContainer extends Base {
     playbacks: BasePlayback[] = [];
