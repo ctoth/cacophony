@@ -42,5 +42,18 @@ export default defineConfig({
     },
     target: "esnext",
   },
-  plugins: [dts()],
+  plugins: [
+    dts({
+      // Worklet processor sources are not declaration inputs, but every public
+      // module exported from src/index.ts must be emitted into the package.
+      include: [
+        "src/*.ts",
+        "src/cli/**/*.ts",
+        "src/meters/**/*.ts",
+        "src/spatial/**/*.ts",
+        "src/processors/timestretch-core.ts",
+      ],
+      exclude: ["src/**/*.test.ts", "src/setupTests.ts"],
+    }),
+  ],
 });

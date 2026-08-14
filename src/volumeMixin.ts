@@ -8,6 +8,22 @@ export type VolumeCloneOverrides = {
 
 type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
 
+export interface VolumeControls {
+  gainNode?: GainNode;
+  _isFading: boolean;
+  setGainNode(gainNode: GainNode): void;
+  cleanup(): void;
+  get volume(): number;
+  set volume(value: number);
+  get isFading(): boolean;
+  fadeTo(value: number, duration: number, type?: FadeType): Promise<void>;
+  cancelFade(): void;
+  fadeIn(duration: number, type?: FadeType): Promise<void>;
+  fadeOut(duration: number, type?: FadeType): Promise<void>;
+}
+
+type VolumeMixinConstructor<TBase extends Constructor> = TBase & (abstract new (...args: any[]) => VolumeControls);
+
 type ActiveFade = {
   timeout: ReturnType<typeof setTimeout>;
   resolve: () => void;
@@ -16,6 +32,7 @@ type ActiveFade = {
   type: FadeType;
 };
 
+export function VolumeMixin<TBase extends Constructor>(Base: TBase): VolumeMixinConstructor<TBase>;
 export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
   abstract class VolumeMixin extends Base {
     gainNode?: GainNode;
