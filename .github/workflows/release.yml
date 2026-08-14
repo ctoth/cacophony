@@ -21,10 +21,10 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - name: Install dependencies
         run: npm ci
-      - name: Run tests
-        run: npm run ci:test
       - name: Build
         run: npm run build
+      - name: Run tests
+        run: npm run ci:test
       - name: Create Release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
