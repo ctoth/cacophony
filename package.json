@@ -28,7 +28,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "npm run typecheck && npm run clean&&npm run build:worklets&&vite build&&npm run docs",
+    "build": "npm run typecheck && npm run clean && npm run build:worklets && vite build && npm run check:package-types && npm run docs",
     "dev": "vite",
     "serve": "vite preview",
     "typecheck": "tsc --noEmit",
@@ -42,6 +42,7 @@
     "test": "vitest run",
     "test:browser": "playwright test",
     "ci:test": "vitest run --no-color --run --typecheck",
+    "check:package-types": "node scripts/check-published-types.mjs",
     "lint": "biome check --error-on-warnings .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
