@@ -123,7 +123,9 @@ export class Bus {
   }
 
   set gain(v: number) {
-    this.output.gain.value = v;
+    const param = this.output.gain;
+    param.cancelScheduledValues(this._context.currentTime);
+    param.value = v;
   }
 
   /** Live filter chain (read-only view). */

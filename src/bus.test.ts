@@ -43,6 +43,38 @@ describe("Bus: construction", () => {
   });
 });
 
+describe("Bus: gain automation", () => {
+  it("cancels an in-flight ramp before applying a direct gain assignment", () => {
+    const bus = new Bus(cacophony.context, null);
+    const param = bus.output.gain;
+    const now = cacophony.context.currentTime;
+    const cancelSpy = vi.spyOn(param, "cancelScheduledValues");
+    const rampSpy = vi.spyOn(param, "linearRampToValueAtTime");
+
+    param.linearRampToValueAtTime(0.25, now + 1);
+    bus.gain = 0.5;
+
+    expect(cancelSpy).toHaveBeenCalledWith(now);
+    expect(rampSpy.mock.invocationCallOrder[0]).toBeLessThan(cancelSpy.mock.invocationCallOrder[0]);
+    expect(bus.gain).toBe(0.5);
+  });
+
+  it("leaves a later ramp as the last-issued gain change", () => {
+    const bus = new Bus(cacophony.context, null);
+    const param = bus.output.gain;
+    const now = cacophony.context.currentTime;
+    const cancelSpy = vi.spyOn(param, "cancelScheduledValues");
+    const rampSpy = vi.spyOn(param, "linearRampToValueAtTime");
+
+    bus.gain = 0.5;
+    param.linearRampToValueAtTime(0.25, now + 1);
+
+    expect(cancelSpy).toHaveBeenCalledWith(now);
+    expect(cancelSpy.mock.invocationCallOrder[0]).toBeLessThan(rampSpy.mock.invocationCallOrder[0]);
+    expect(rampSpy).toHaveBeenCalledWith(0.25, now + 1);
+  });
+});
+
 describe("Bus: addFilter discrimination", () => {
   it("accepts a Cacophony-built BiquadFilterNode directly", async () => {
     const bus = new Bus(cacophony.context, null);
