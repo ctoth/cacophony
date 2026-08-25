@@ -178,7 +178,7 @@ export function installAutoplayUnlock(opts: AutoplayUnlockOptions): () => void {
   };
 
   function syncGestureListeners(): void {
-    if (observableContext.state === "suspended") {
+    if (observableContext.state === "suspended" || observableContext.state === "interrupted") {
       armAll();
     } else {
       removeAll();

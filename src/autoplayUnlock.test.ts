@@ -137,25 +137,38 @@ describe("Autoplay unlock", () => {
       expect(doc.addEventListenerSpy).toHaveBeenCalled();
     });
 
-    it("arms gesture listeners if a context that starts running later suspends", async () => {
+    it.each([
+      "suspended",
+      "interrupted",
+    ] as const)("arms gesture listeners if a running context becomes %s and unlocks on the next gesture", async (nextState) => {
       const doc = installMockDocument();
       const ctx = new AudioContext();
       await ctx.resume(); // state -> 'running'
       expect(ctx.state).toBe("running");
+      const resumeSpy = vi.spyOn(ctx, "resume");
 
       let state: string = "running";
       Object.defineProperty(ctx, "state", { configurable: true, get: () => state });
 
-      new Cacophony(ctx as any, mockCache);
+      const c = new Cacophony(ctx as any, mockCache);
+      const unlockListener = vi.fn();
+      c.on("unlock", unlockListener);
 
       expect(doc.addEventListenerSpy).not.toHaveBeenCalled();
 
-      state = "suspended";
+      state = nextState;
       ctx.dispatchEvent(new Event("statechange"));
 
       expect(doc.listenersFor("touchend")).toHaveLength(1);
       expect(doc.listenersFor("click")).toHaveLength(1);
       expect(doc.listenersFor("keydown")).toHaveLength(1);
+
+      doc.fire("click");
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(resumeSpy).toHaveBeenCalledOnce();
+      expect(unlockListener).toHaveBeenCalledOnce();
     });
 
     it("uses capture and passive gesture listeners", () => {
