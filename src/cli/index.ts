@@ -245,8 +245,6 @@ async function runPlay(argv: readonly string[]): Promise<number> {
       loop: { type: "string" },
       volume: { type: "string" },
       duration: { type: "string" },
-      // Accepted-and-deferred to Stage 5 (spatial / pitch). Parsed so the flags
-      // don't error, but not yet applied.
       pan: { type: "string" },
       pos: { type: "string" },
       pitch: { type: "string" },
