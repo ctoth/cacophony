@@ -9,6 +9,7 @@
 // `cacophony.ts` or `effects.ts`, so all three can import it without a cycle.
 
 import barberpoleBundleUrl from "./bundles/barberpole-bundle.js?url";
+import bccEncoderBundleUrl from "./bundles/bcc-encoder-bundle.js?url";
 import dattorroReverbBundleUrl from "./bundles/dattorro-reverb-bundle.js?url";
 import dynamicsBundleUrl from "./bundles/dynamics-bundle.js?url";
 import fdnReverbBundleUrl from "./bundles/fdn-reverb-bundle.js?url";
@@ -46,6 +47,7 @@ export const WORKLETS = {
   spectralFreeze: { name: "spectral-freeze", url: spectralFreezeBundleUrl },
   frequencyShifter: { name: "frequency-shifter", url: frequencyShifterBundleUrl },
   barberpole: { name: "barberpole", url: barberpoleBundleUrl },
+  bccEncoder: { name: "bcc-encoder", url: bccEncoderBundleUrl },
   stereoWidener: { name: "stereo-widener", url: stereoWidenerBundleUrl },
   stereoToBFormat: { name: "stereo-to-bformat", url: stereoToBFormatBundleUrl },
   dattorroReverb: { name: "dattorro-reverb", url: dattorroReverbBundleUrl },

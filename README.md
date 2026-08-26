@@ -552,6 +552,27 @@ FOA binaural decoding is available in both forms. Use
 dedicated 4-channel ACN/SN3D FOA bus, typically as the first and only filter
 that converts that bus to stereo binaural output.
 
+For physically correct mono positioning, use `encodeMonoToFoaSN3D()` and feed
+its ACN/SN3D `[W, Y, Z, X]` output to the decoder. Stereo recordings can instead
+be perceptually upmixed with `createStereoToBFormatNode()`. The default
+`algorithm: 'perceptual'` path preserves the existing three-band front cue;
+`algorithm: 'bcc'` uses frequency-domain coherence and pan analysis:
+
+```typescript
+const upmixer = await cacophony.createStereoToBFormatNode({ algorithm: 'bcc' });
+const decoder = await cacophony.createFoaDecoder();
+stereoSource.connect(upmixer);
+upmixer.connect(decoder.input);
+decoder.output.connect(cacophony.context.destination);
+
+// BCC analysis is stateful. Reset it after a seek or other discontinuity.
+upmixer.port.postMessage({ type: 'reset' });
+```
+
+Both stereo upmix algorithms emit ACN `[W, Y, Z, X]` but are perceptual
+approximations, neither N3D nor SN3D. The BCC path produces W/Y only and keeps
+Z/X at zero, trading the default path's front cue for per-band spatial analysis.
+
 ### Cleaning up
 
 ```typescript

@@ -112,6 +112,12 @@ export type FadeType = "linear" | "exponential";
  */
 export type PanType = "HRTF" | "stereo";
 
+/** Stereo-to-FOA worklet algorithm selection. */
+export interface StereoToBFormatOptions {
+  /** Perceptual three-band upmix (default) or frequency-domain BCC analysis. */
+  algorithm?: "perceptual" | "bcc";
+}
+
 /**
  * Options for configuring fade behavior when starting playback via Sound.play().
  * @interface PlayOptions
@@ -819,8 +825,12 @@ export class Cacophony {
     }
   }
 
-  async createStereoToBFormatNode(signal?: AbortSignal): Promise<AudioWorkletNode> {
-    return this.createWorkletNode(WORKLETS.stereoToBFormat.name, WORKLETS.stereoToBFormat.url, signal, {
+  async createStereoToBFormatNode(
+    options: StereoToBFormatOptions = {},
+    signal?: AbortSignal,
+  ): Promise<AudioWorkletNode> {
+    const worklet = options.algorithm === "bcc" ? WORKLETS.bccEncoder : WORKLETS.stereoToBFormat;
+    return this.createWorkletNode(worklet.name, worklet.url, signal, {
       numberOfInputs: 1,
       numberOfOutputs: 1,
       outputChannelCount: [4],

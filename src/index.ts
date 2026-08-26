@@ -17,6 +17,7 @@ export type {
   RuntimeOptions,
   SoundCleanupHoldings,
   SoundType,
+  StereoToBFormatOptions,
   StreamCapabilities,
 } from "./cacophony";
 export { Cacophony } from "./cacophony";

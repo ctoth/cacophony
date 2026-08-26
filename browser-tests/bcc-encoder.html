@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cacophony BCC encoder render</title>
+  </head>
+  <body>
+    <script type="module">
+      import { Cacophony } from "/src/cacophony.ts";
+
+      const peak = (buffer, channel) => {
+        const samples = buffer.getChannelData(channel);
+        let result = 0;
+        for (let frame = 0; frame < samples.length; frame++) {
+          result = Math.max(result, Math.abs(samples[frame]));
+        }
+        return result;
+      };
+
+      window.runBccEncoderRenderCheck = async () => {
+        if (typeof OfflineAudioContext === "undefined") {
+          return { supported: false, reason: "OfflineAudioContext unavailable" };
+        }
+
+        const sampleRate = 48_000;
+        const length = 8_192;
+        const context = new OfflineAudioContext(6, length, sampleRate);
+        if (!context.audioWorklet) {
+          return { supported: false, reason: "OfflineAudioContext.audioWorklet unavailable" };
+        }
+
+        const cacophony = Cacophony.createOffline(
+          { numberOfChannels: 6, length, sampleRate, context },
+          undefined,
+          { autoUnlock: false, quiet: true },
+        );
+        const source = context.createBufferSource();
+        const input = context.createBuffer(2, length, sampleRate);
+        const left = input.getChannelData(0);
+        for (let frame = 0; frame < length; frame++) {
+          left[frame] = 0.5 * Math.sin((2 * Math.PI * 6_000 * frame) / sampleRate);
+        }
+        source.buffer = input;
+
+        const encoder = await cacophony.createStereoToBFormatNode({ algorithm: "bcc" });
+        const decoder = await cacophony.createFoaDecoder();
+        const foaSplitter = context.createChannelSplitter(4);
+        const binauralSplitter = context.createChannelSplitter(2);
+        const capture = context.createChannelMerger(6);
+
+        source.connect(encoder);
+        encoder.connect(foaSplitter);
+        for (let channel = 0; channel < 4; channel++) {
+          foaSplitter.connect(capture, channel, channel);
+        }
+
+        encoder.connect(decoder.input);
+        decoder.output.connect(binauralSplitter);
+        binauralSplitter.connect(capture, 0, 4);
+        binauralSplitter.connect(capture, 1, 5);
+        capture.connect(context.destination);
+
+        source.start();
+        const rendered = await cacophony.startRendering();
+        decoder.dispose();
+
+        return {
+          supported: true,
+          peaks: {
+            w: peak(rendered, 0),
+            y: peak(rendered, 1),
+            z: peak(rendered, 2),
+            x: peak(rendered, 3),
+            binauralLeft: peak(rendered, 4),
+            binauralRight: peak(rendered, 5),
+          },
+        };
+      };
+    </script>
+  </body>
+</html>

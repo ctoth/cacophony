@@ -139,7 +139,7 @@ export class BccEncoderState {
 
   // Per-partition gains computed from smoothed statistics; reused per frame.
   private readonly wGain: Float64Array;
-  private readonly yGainSigned: Float64Array;
+  private readonly yGain: Float64Array;
 
   // Per-partition emphasis scale derived from low/high boundaries. The
   // partition holding the first bin above LOW_BOUNDARY_HZ uses
@@ -167,7 +167,7 @@ export class BccEncoderState {
     this.frameCrossIm = new Float64Array(this.numPartitions);
 
     this.wGain = new Float64Array(this.numPartitions);
-    this.yGainSigned = new Float64Array(this.numPartitions);
+    this.yGain = new Float64Array(this.numPartitions);
 
     this.partitionEmphasis = new Float64Array(this.numPartitions);
     this.populateEmphasis();
@@ -290,8 +290,10 @@ export class BccEncoderState {
       // Diffuse content has both ICC and |pan| near zero and so falls
       // out of Y entirely, leaving only W.
       const directionCertainty = Math.max(icc, Math.abs(pan));
-      const ySign = pan >= 0 ? 1 : -1;
-      this.yGainSigned[p] = ySign * directionCertainty * this.partitionEmphasis[p];
+      // The side spectrum S=(L-R)/sqrt(2) already carries the horizontal
+      // direction sign. Applying sign(pan) again would make both hard-left and
+      // hard-right sources positive in Y.
+      this.yGain[p] = directionCertainty * this.partitionEmphasis[p];
 
       // W passes the omnidirectional sum unchanged. We do not drop W when
       // ICC is high; the directional information is conveyed by Y, not by
@@ -313,7 +315,7 @@ export class BccEncoderState {
       const sIm = (li - ri) * SQRT1_2;
 
       const wG = this.wGain[partition];
-      const yG = this.yGainSigned[partition];
+      const yG = this.yGain[partition];
 
       wRe[bin] = wG * mRe;
       wIm[bin] = wG * mIm;
