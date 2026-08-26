@@ -1036,6 +1036,26 @@ describe("Cacophony advanced features", () => {
       );
     });
 
+    it("createStereoToBFormatNode selects the BCC worklet", async () => {
+      const createWorkletSpy = vi.spyOn(cacophony, "createWorkletNode").mockResolvedValue({} as any);
+
+      await cacophony.createStereoToBFormatNode({ algorithm: "bcc" });
+
+      expect(createWorkletSpy).toHaveBeenCalledWith(
+        "bcc-encoder",
+        expect.any(String),
+        undefined,
+        expect.objectContaining({
+          numberOfInputs: 1,
+          numberOfOutputs: 1,
+          outputChannelCount: [4],
+          channelCount: 2,
+          channelCountMode: "explicit",
+          channelInterpretation: "speakers",
+        }),
+      );
+    });
+
     it("loadStereoToBFormatWorklet loads the module without constructing a node first", async () => {
       const createAudioWorkletNode = vi.fn(() => {
         throw new Error("should not construct node while preloading");
