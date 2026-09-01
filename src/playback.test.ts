@@ -74,6 +74,21 @@ describe("Playback class", () => {
     expect(playback.currentTime).toBe(0.25);
   });
 
+  it("preserves a future start anchor when playback rate changes before the start", () => {
+    let currentTime = 2;
+    vi.spyOn(audioContextMock, "currentTime", "get").mockImplementation(() => currentTime);
+    playback.seek(0.25);
+    playback.play({ at: 5 });
+
+    currentTime = 3;
+    playback.playbackRate = 2;
+
+    currentTime = 5;
+    expect(playback.currentTime).toBe(0.25);
+    currentTime = 6;
+    expect(playback.currentTime).toBe(2.25);
+  });
+
   it("anchors elapsed time to now when the requested start is already in the past", () => {
     let currentTime = 5;
     vi.spyOn(audioContextMock, "currentTime", "get").mockImplementation(() => currentTime);

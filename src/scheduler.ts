@@ -33,6 +33,7 @@ export class Scheduler {
     this.entries.push(entry);
     this.entries.sort((left, right) => left.contextTime - right.contextTime || left.id - right.id);
     this.startTimer();
+    this.tick();
 
     return {
       cancel: () => {
@@ -59,8 +60,20 @@ export class Scheduler {
       due.push(this.entries.shift()!);
     }
     this.stopTimerWhenIdle();
+    let firstError: unknown;
+    let callbackFailed = false;
     for (const entry of due) {
-      entry.callback(entry.contextTime);
+      try {
+        entry.callback(entry.contextTime);
+      } catch (error) {
+        if (!callbackFailed) {
+          firstError = error;
+          callbackFailed = true;
+        }
+      }
+    }
+    if (callbackFailed) {
+      throw firstError;
     }
   }
 

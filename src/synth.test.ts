@@ -1,5 +1,6 @@
 import { AudioContext } from "standardized-audio-context-mock";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { BaseSound } from "./cacophony";
 import { expectPath } from "./setupTests";
 import { Synth } from "./synth";
 import { SynthPlayback } from "./synthPlayback";
@@ -38,6 +39,17 @@ describe("Synth class", () => {
     expect(playbacks[0].isPlaying).toBe(true);
     synth.stop();
     expect(playbacks[0].isPlaying).toBe(false);
+  });
+
+  it("explicitly rejects scheduled starts through generic synth contracts", () => {
+    const genericSynth: BaseSound = synth;
+    expect(() => genericSynth.play({ at: 1 })).toThrow("Scheduled playback is not supported for synths");
+    expect(synth.playbacks).toHaveLength(0);
+
+    const [playback] = synth.preplay();
+    const genericPlayback: BaseSound = playback;
+    expect(() => genericPlayback.play({ at: 1 })).toThrow("Scheduled playback is not supported for synths");
+    expect(playback.isPlaying).toBe(false);
   });
 
   it("can pause and resume a synth without replacing the playback object", () => {

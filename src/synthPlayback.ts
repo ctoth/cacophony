@@ -1,4 +1,4 @@
-import type { BaseSound } from "./cacophony";
+import type { BaseSound, PlayOptions } from "./cacophony";
 import type { AudioNode, AudioParam, BaseContext, GainNode, OscillatorNode } from "./context";
 import { OscillatorMixin } from "./oscillatorMixin";
 import type { Synth } from "./synth";
@@ -36,7 +36,10 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
     };
   }
 
-  play(): [this] {
+  play(options?: PlayOptions): [this] {
+    if (options?.at !== undefined) {
+      throw new Error("Scheduled playback is not supported for synths");
+    }
     if (!this.source || !this.panner) {
       throw new Error("Cannot play a synth that has been cleaned up");
     }

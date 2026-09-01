@@ -156,9 +156,11 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Playback rate must be greater than 0");
     }
     if (this._state === "playing") {
-      const elapsed = (this.context.currentTime - this._startTime) * this._playbackRate;
+      const elapsed = Math.max(0, (this.context.currentTime - this._startTime) * this._playbackRate);
       this._offset += elapsed;
-      this._startTime = this.context.currentTime;
+      if (this.context.currentTime >= this._startTime) {
+        this._startTime = this.context.currentTime;
+      }
     }
     this._playbackRate = rate;
     if (!this.source) {

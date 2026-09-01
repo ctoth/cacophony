@@ -41,6 +41,17 @@ describe("Scheduler", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("dispatches entries already inside the lookahead window immediately", () => {
+    const scheduler = new Scheduler(context);
+    const callback = vi.fn();
+
+    scheduler.schedule(callback, 0.05);
+
+    expect(callback).toHaveBeenCalledOnce();
+    expect(callback).toHaveBeenCalledWith(0.05);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("returns a handle that cancels pending callbacks", () => {
     const scheduler = new Scheduler(context);
     const callback = vi.fn();
@@ -57,11 +68,29 @@ describe("Scheduler", () => {
   it("dispatches multiple callbacks in context-time order", () => {
     const scheduler = new Scheduler(context);
     const calls: number[] = [];
-    scheduler.schedule((at) => calls.push(at), 0.08);
-    scheduler.schedule((at) => calls.push(at), 0.04);
+    scheduler.schedule((at) => calls.push(at), 0.18);
+    scheduler.schedule((at) => calls.push(at), 0.14);
 
+    currentTime = 0.08;
     vi.advanceTimersByTime(25);
 
-    expect(calls).toEqual([0.04, 0.08]);
+    expect(calls).toEqual([0.14, 0.18]);
+  });
+
+  it("dispatches every due entry when one callback throws", () => {
+    const scheduler = new Scheduler(context);
+    const error = new Error("callback failed");
+    const second = vi.fn();
+    scheduler.schedule(() => {
+      throw error;
+    }, 0.2);
+    scheduler.schedule(second, 0.21);
+
+    currentTime = 0.11;
+
+    expect(() => vi.advanceTimersByTime(25)).toThrow(error);
+    expect(second).toHaveBeenCalledOnce();
+    expect(second).toHaveBeenCalledWith(0.21);
+    expect(vi.getTimerCount()).toBe(0);
   });
 });
