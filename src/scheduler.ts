@@ -1,0 +1,74 @@
+import type { BaseContext } from "./context";
+
+const DEFAULT_INTERVAL_MS = 25;
+const DEFAULT_LOOKAHEAD_SECONDS = 0.1;
+
+export interface ScheduledCallbackHandle {
+  cancel(): void;
+}
+
+type ScheduledEntry = {
+  callback: (contextTime: number) => void;
+  contextTime: number;
+  id: number;
+};
+
+/**
+ * A lightweight lookahead scheduler that uses a JavaScript timer only to
+ * enqueue work before its sample-accurate AudioContext time arrives.
+ */
+export class Scheduler {
+  private entries: ScheduledEntry[] = [];
+  private nextId = 0;
+  private timer?: ReturnType<typeof setInterval>;
+
+  constructor(
+    private readonly context: BaseContext,
+    private readonly intervalMs = DEFAULT_INTERVAL_MS,
+    private readonly lookaheadSeconds = DEFAULT_LOOKAHEAD_SECONDS,
+  ) {}
+
+  schedule(callback: (contextTime: number) => void, contextTime: number): ScheduledCallbackHandle {
+    const entry = { callback, contextTime, id: this.nextId++ };
+    this.entries.push(entry);
+    this.entries.sort((left, right) => left.contextTime - right.contextTime || left.id - right.id);
+    this.startTimer();
+
+    return {
+      cancel: () => {
+        const index = this.entries.indexOf(entry);
+        if (index !== -1) {
+          this.entries.splice(index, 1);
+          this.stopTimerWhenIdle();
+        }
+      },
+    };
+  }
+
+  private startTimer(): void {
+    if (this.timer !== undefined) {
+      return;
+    }
+    this.timer = setInterval(() => this.tick(), this.intervalMs);
+  }
+
+  private tick(): void {
+    const horizon = this.context.currentTime + this.lookaheadSeconds;
+    const due: ScheduledEntry[] = [];
+    while (this.entries[0]?.contextTime <= horizon) {
+      due.push(this.entries.shift()!);
+    }
+    this.stopTimerWhenIdle();
+    for (const entry of due) {
+      entry.callback(entry.contextTime);
+    }
+  }
+
+  private stopTimerWhenIdle(): void {
+    if (this.entries.length !== 0 || this.timer === undefined) {
+      return;
+    }
+    clearInterval(this.timer);
+    this.timer = undefined;
+  }
+}

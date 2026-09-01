@@ -39,6 +39,21 @@ describe("Sound playback and state management", () => {
     expect(playbacks2[0]).not.toBe(playbacks1[0]); // New playback instance
   });
 
+  it("forwards an absolute start time and anchors fade-in automation to it", () => {
+    vi.spyOn(audioContextMock, "currentTime", "get").mockReturnValue(1);
+    const [preparedPlayback] = sound.preplay();
+    const play = vi.spyOn(preparedPlayback, "play");
+    vi.spyOn(sound, "preplay").mockReturnValue([preparedPlayback]);
+    const options = { at: 5, fadeIn: 1_000 };
+
+    const [playback] = sound.play(options);
+    const gain = playback.gainNode!.gain;
+
+    expect(play).toHaveBeenCalledWith(options);
+    expect(gain.setValueAtTime.calledWith(0.0001, 5)).toBe(true);
+    expect(gain.linearRampToValueAtTime.calledWith(1, 6)).toBe(true);
+  });
+
   it("keeps the primary path while adding a send edge", () => {
     const bus = cacophony.createBus("sound-test-send");
     const [playback] = sound.play();

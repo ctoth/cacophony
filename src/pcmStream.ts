@@ -1,5 +1,5 @@
 import { BasePlayback } from "./basePlayback";
-import type { BaseSound, Cacophony, LoopCount, PanType, SoundType, StreamCapabilities } from "./cacophony";
+import type { BaseSound, Cacophony, LoopCount, PanType, PlayOptions, SoundType, StreamCapabilities } from "./cacophony";
 import type { AudioNode, AudioParam, AudioWorkletNode, BaseContext, BiquadFilterNode, GainNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
 import { RoutableSource } from "./routableSource";
@@ -67,9 +67,12 @@ export class PcmStreamPlayback extends BasePlayback {
     return Number.POSITIVE_INFINITY;
   }
 
-  play(): [this] {
+  play(options?: PlayOptions): [this] {
     if (!this.source) {
       throw new Error("Cannot play a PCM stream that has been cleaned up");
+    }
+    if (options?.at !== undefined) {
+      throw new Error("Scheduled playback is only supported for buffer sounds");
     }
     if (this.isPlaying) {
       return [this];
@@ -353,7 +356,10 @@ export class PcmStreamSound extends RoutableSource implements BaseSound {
     return [playback];
   }
 
-  play(): PcmStreamPlayback[] {
+  play(options?: PlayOptions): PcmStreamPlayback[] {
+    if (options?.at !== undefined) {
+      throw new Error("Scheduled playback is only supported for buffer sounds");
+    }
     if (this.state === "ended") {
       throw new Error("Cannot play a PCM stream after it has ended");
     }
