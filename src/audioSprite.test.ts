@@ -83,6 +83,46 @@ describe("audio sprites", () => {
     sprite.cleanup();
   });
 
+  it("wraps a paused infinite loop to a region-relative offset", async () => {
+    instrumentBufferSourceStarts();
+    let currentTime = 0;
+    vi.spyOn(audioContextMock, "currentTime", "get").mockImplementation(() => currentTime);
+    const buffer = new AudioBuffer({ length: 100, numberOfChannels: 1, sampleRate: 10 });
+    const sprite = await cacophony.createSprite(buffer, {
+      engine: { start: 2, duration: 4, loopCount: "infinite" },
+    });
+    const [playback] = sprite.sounds.engine.play();
+
+    currentTime = 9;
+    playback.pause();
+    expect(playback.currentTime).toBe(1);
+
+    playback.play();
+    expect(playback.source && "start" in playback.source ? playback.source.start : undefined).toHaveBeenCalledWith(
+      0,
+      3,
+    );
+    sprite.cleanup();
+  });
+
+  it("recreates active region sources when switching between finite and infinite loops", async () => {
+    instrumentBufferSourceStarts();
+    const buffer = new AudioBuffer({ length: 100, numberOfChannels: 1, sampleRate: 10 });
+    const sprite = await cacophony.createSprite(buffer, { clip: { start: 2, duration: 4 } });
+    const [playback] = sprite.sounds.clip.play();
+
+    playback.loop("infinite");
+    const infiniteSource = playback.source!;
+    expect("loop" in infiniteSource && infiniteSource.loop).toBe(true);
+    expect("start" in infiniteSource ? infiniteSource.start : undefined).toHaveBeenCalledWith(0, 2);
+
+    playback.loop(0);
+    const finiteSource = playback.source!;
+    expect("loop" in finiteSource && finiteSource.loop).toBe(false);
+    expect("start" in finiteSource ? finiteSource.start : undefined).toHaveBeenCalledWith(0, 2, 4);
+    sprite.cleanup();
+  });
+
   it("restarts finite loops at the region start", async () => {
     instrumentBufferSourceStarts();
     const buffer = new AudioBuffer({ length: 100, numberOfChannels: 1, sampleRate: 10 });
@@ -136,6 +176,21 @@ describe("audio sprites", () => {
     await expect(cacophony.createSprite(buffer, { bad: { start: 1, duration: 1, loopCount: 1.5 } })).rejects.toThrow(
       "loopCount",
     );
+    sprite.cleanup();
+  });
+
+  it("accepts frame-exact regions despite floating-point division without relaxing bounds", async () => {
+    const sampleRate = 44_100;
+    const buffer = new AudioBuffer({ length: 15, numberOfChannels: 1, sampleRate });
+
+    const sprite = await cacophony.createSprite(buffer, {
+      last: { start: 2 / sampleRate, duration: 13 / sampleRate },
+    });
+
+    expect(sprite.sounds.last.duration).toBe(13 / sampleRate);
+    await expect(
+      cacophony.createSprite(buffer, { bad: { start: 2 / sampleRate, duration: 14 / sampleRate } }),
+    ).rejects.toThrow("exceeds");
     sprite.cleanup();
   });
 

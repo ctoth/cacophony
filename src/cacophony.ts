@@ -1177,7 +1177,19 @@ export class Cacophony {
         throw new Error(`Invalid audio sprite region '${name}': duration must be a finite number > 0`);
       }
       if (region.start + region.duration > buffer.duration) {
-        throw new Error(`Invalid audio sprite region '${name}': region exceeds the buffer duration`);
+        const startFrames = region.start * buffer.sampleRate;
+        const durationFrames = region.duration * buffer.sampleRate;
+        const startFrame = Math.round(startFrames);
+        const durationFrameCount = Math.round(durationFrames);
+        const isFrameExact = (frames: number, rounded: number) =>
+          Math.abs(frames - rounded) <= Number.EPSILON * Math.max(1, Math.abs(frames)) * 4;
+        const frameExactEndFits =
+          isFrameExact(startFrames, startFrame) &&
+          isFrameExact(durationFrames, durationFrameCount) &&
+          startFrame + durationFrameCount <= buffer.length;
+        if (!frameExactEndFits) {
+          throw new Error(`Invalid audio sprite region '${name}': region exceeds the buffer duration`);
+        }
       }
       if (
         region.loopCount !== undefined &&

@@ -160,7 +160,7 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     if (this._state === "playing") {
       const elapsed = Math.max(0, (this.context.currentTime - this._startTime) * this._playbackRate);
-      this._offset = this.origin.region ? Math.min(this.duration, this._offset + elapsed) : this._offset + elapsed;
+      this._offset = this.regionRelativeOffset(this._offset + elapsed);
       if (this.context.currentTime >= this._startTime) {
         this._startTime = this.context.currentTime;
       }
@@ -345,7 +345,7 @@ export class Playback extends BasePlayback implements BaseSound {
     }
 
     const elapsed = Math.max(0, (this.context.currentTime - this._startTime) * this._playbackRate);
-    this._offset = this.origin.region ? Math.min(this.duration, this._offset + elapsed) : this._offset + elapsed;
+    this._offset = this.regionRelativeOffset(this._offset + elapsed);
 
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this.source.mediaElement.pause();
@@ -470,7 +470,7 @@ export class Playback extends BasePlayback implements BaseSound {
     if (this._state === "playing") {
       const elapsed = Math.max(0, (this.context.currentTime - this._startTime) * this._playbackRate);
       const time = this._offset + elapsed;
-      return this.origin.region ? Math.min(this.duration, time) : time;
+      return this.regionRelativeOffset(time);
     } else {
       return this._offset;
     }
@@ -591,7 +591,34 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Cannot loop a sound that has been cleaned up");
     }
     if (loopCount !== undefined) {
-      this.loopCount = loopCount === "infinite" ? "infinite" : Math.max(0, loopCount);
+      const previousLoopCount = this.loopCount;
+      const nextLoopCount = loopCount === "infinite" ? "infinite" : Math.max(0, loopCount);
+      const changesInfiniteMode = (previousLoopCount === "infinite") !== (nextLoopCount === "infinite");
+      if (
+        changesInfiniteMode &&
+        this.origin.region &&
+        this._state === "playing" &&
+        "loop" in this.source &&
+        "stop" in this.source
+      ) {
+        const restartAt = Math.max(this._startTime, this.context.currentTime);
+        const elapsed = Math.max(0, (this.context.currentTime - this._startTime) * this._playbackRate);
+        this._offset = this.regionRelativeOffset(
+          this.regionRelativeOffset(this._offset + elapsed, previousLoopCount),
+          nextLoopCount,
+        );
+        if ("onended" in this.source) {
+          this.source.onended = null;
+        }
+        this.source.stop();
+        this.loopCount = nextLoopCount;
+        this.currentLoop = 0;
+        this._startTime = restartAt;
+        this.recreateSource();
+        this.startBufferSource(restartAt);
+        return this.loopCount;
+      }
+      this.loopCount = nextLoopCount;
       this.currentLoop = 0;
     }
     if ("mediaElement" in this.source && this.source.mediaElement) {
@@ -615,6 +642,15 @@ export class Playback extends BasePlayback implements BaseSound {
         : this.source.buffer.duration;
       this.source.loopStart = this.origin.region?.start ?? 0;
     }
+  }
+
+  /** Clamp finite regions and wrap infinite regions while keeping offsets region-relative. */
+  private regionRelativeOffset(offset: number, loopCount: LoopCount = this.loopCount): number {
+    const region = this.origin.region;
+    if (!region) {
+      return offset;
+    }
+    return loopCount === "infinite" ? offset % region.duration : Math.min(region.duration, offset);
   }
 
   /** Start a buffer source, translating the region-relative offset once. */
