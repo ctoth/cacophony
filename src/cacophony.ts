@@ -1,4 +1,5 @@
 import foaHrirUrl from "./assets/sh_hrir_order_1.wav?url";
+import { AudioSprite, type CreateSpriteOptions, type SpriteMap, type SpriteRegion } from "./audioSprite";
 import { installAutoplayUnlock } from "./autoplayUnlock";
 import { Bus } from "./bus";
 import { AudioCache, type ICache } from "./cache";
@@ -1153,13 +1154,76 @@ export class Cacophony {
     return this.loadBufferSound(url, soundType, panType, signal);
   }
 
-  private async loadBufferSound(
-    url: string,
-    soundType: SoundType,
-    panType: PanType,
-    signal?: AbortSignal,
-  ): Promise<Sound> {
-    const buffer = await this.cache.getAudioBuffer(this.context, url, signal, {
+  /** Create ordinary, independently configurable Sounds over named regions of one shared buffer. */
+  async createSprite<M extends SpriteMap>(
+    source: string | AudioBuffer,
+    map: M,
+    options: CreateSpriteOptions = {},
+  ): Promise<AudioSprite<Extract<keyof M, string>>> {
+    type Key = Extract<keyof M, string>;
+    const buffer = typeof source === "string" ? await this.loadAudioBuffer(source, options.signal) : source;
+    const names = Object.keys(map) as Key[];
+    if (names.length === 0) {
+      throw new Error("Audio sprite map must contain at least one region");
+    }
+
+    const normalized = new Map<Key, Readonly<SpriteRegion>>();
+    for (const name of names) {
+      const region = map[name];
+      if (!region || !Number.isFinite(region.start) || region.start < 0) {
+        throw new Error(`Invalid audio sprite region '${name}': start must be a finite number >= 0`);
+      }
+      if (!Number.isFinite(region.duration) || region.duration <= 0) {
+        throw new Error(`Invalid audio sprite region '${name}': duration must be a finite number > 0`);
+      }
+      if (region.start + region.duration > buffer.duration) {
+        throw new Error(`Invalid audio sprite region '${name}': region exceeds the buffer duration`);
+      }
+      if (
+        region.loopCount !== undefined &&
+        region.loopCount !== "infinite" &&
+        (!Number.isInteger(region.loopCount) || region.loopCount < 0)
+      ) {
+        throw new Error(
+          `Invalid audio sprite region '${name}': loopCount must be a non-negative integer or 'infinite'`,
+        );
+      }
+      normalized.set(name, Object.freeze({ ...region }));
+    }
+
+    const sounds = Object.create(null) as Record<Key, Sound>;
+    const created: Sound[] = [];
+    try {
+      for (const name of names) {
+        const region = normalized.get(name)!;
+        const sound = new Sound(
+          typeof source === "string" ? source : "",
+          buffer,
+          this.context,
+          this.globalGainNode,
+          "buffer",
+          options.panType ?? "HRTF",
+          this,
+          undefined,
+          undefined,
+          region,
+          name,
+        );
+        if (region.loopCount !== undefined) {
+          sound.loop(region.loopCount);
+        }
+        sounds[name] = sound;
+        created.push(sound);
+      }
+      return new AudioSprite(sounds, names);
+    } catch (error) {
+      for (const sound of created) sound.cleanup();
+      throw error;
+    }
+  }
+
+  private loadAudioBuffer(url: string, signal?: AbortSignal): Promise<AudioBuffer> {
+    return this.cache.getAudioBuffer(this.context, url, signal, {
       onLoadingStart: (event) => this.emitAsync("loadingStart", event),
       onLoadingProgress: (event) => this.emitAsync("loadingProgress", event),
       onLoadingComplete: (event) => this.emitAsync("loadingComplete", event),
@@ -1168,6 +1232,15 @@ export class Cacophony {
       onCacheMiss: (event) => this.emitAsync("cacheMiss", event),
       onCacheError: (event) => this.emitAsync("cacheError", event),
     });
+  }
+
+  private async loadBufferSound(
+    url: string,
+    soundType: SoundType,
+    panType: PanType,
+    signal?: AbortSignal,
+  ): Promise<Sound> {
+    const buffer = await this.loadAudioBuffer(url, signal);
     return new Sound(url, buffer, this.context, this.globalGainNode, soundType, panType, this);
   }
 

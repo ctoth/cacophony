@@ -17,4 +17,13 @@ describe("CLI dispatch", () => {
 
     expect(write).toHaveBeenCalledWith(`${pkg.version}\n`);
   });
+
+  it("lists the sprite command and required outputs in help", async () => {
+    const write = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+
+    await expect(run(["--help"])).resolves.toBe(0);
+
+    expect(write).toHaveBeenCalledWith(expect.stringContaining("cacophony sprite <file...>"));
+    expect(write).toHaveBeenCalledWith(expect.stringContaining("--map <path.json>"));
+  });
 });
