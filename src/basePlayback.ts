@@ -1,5 +1,5 @@
 import type { Bus } from "./bus";
-import type { FadeType } from "./cacophony";
+import type { FadeType, PlayOptions } from "./cacophony";
 import type { PlaybackContainer } from "./container";
 import type { AudioNode, BaseContext, BiquadFilterNode, GainNode } from "./context";
 import { EffectChain } from "./effectChain";
@@ -158,7 +158,7 @@ export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager
     this._effectChain.rampParam(filter, paramName, value, options);
   }
 
-  abstract play(): [this];
+  abstract play(options?: PlayOptions): [this];
   abstract pause(): void;
   abstract stop(): void;
 
@@ -242,9 +242,14 @@ export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager
   /**
    * Fades the volume to a target value, emitting fadeStart and fadeEnd events.
    */
-  fadeTo(value: number, duration: number, type: FadeType = "linear"): Promise<void> {
+  fadeTo(
+    value: number,
+    duration: number,
+    type: FadeType = "linear",
+    options?: { startTime?: number; startValue?: number },
+  ): Promise<void> {
     this.emit("fadeStart", { target: value, duration, type });
-    return super.fadeTo(value, duration, type).then(() => {
+    return super.fadeTo(value, duration, type, options).then(() => {
       this.emit("fadeEnd", undefined);
     });
   }

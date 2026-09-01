@@ -123,6 +123,8 @@ export interface StereoToBFormatOptions {
  * @interface PlayOptions
  */
 export interface PlayOptions {
+  /** Absolute AudioContext time, in seconds, for a buffer source's first start. */
+  at?: number;
   fadeIn?: number; // duration in ms
   fadeOut?: number; // duration in ms
   fadeType?: FadeType; // applies to both fadeIn and fadeOut
@@ -136,7 +138,7 @@ export interface PlayOptions {
 export interface BaseSound {
   isPlaying: boolean;
   streamCapabilities?: StreamCapabilities;
-  play(): BaseSound[];
+  play(options?: PlayOptions): BaseSound[];
   seek?(time: number): void;
   stop(): void;
   pause(): void;

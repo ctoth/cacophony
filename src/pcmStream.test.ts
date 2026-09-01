@@ -154,6 +154,13 @@ describe("PcmStreamSound", () => {
     expect(() => sound.loop()).toThrow("PCM streams do not support looping");
   });
 
+  it("rejects scheduled starts before creating PCM playback state", async () => {
+    const sound = await cacophony.createPcmStreamSound();
+
+    expect(() => sound.play({ at: 1 })).toThrow("Scheduled playback is only supported for buffer sounds");
+    expect(sound.playbacks).toEqual([]);
+  });
+
   it("tears down the worklet when its AbortSignal aborts", async () => {
     const controller = new AbortController();
     const sound = await cacophony.createPcmStreamSound({

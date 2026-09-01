@@ -57,6 +57,49 @@ describe("Playback class", () => {
     expect(playback.isPlaying).toBe(false);
   });
 
+  it("schedules buffer starts at an absolute context time and pins elapsed time until then", () => {
+    let currentTime = 2;
+    vi.spyOn(audioContextMock, "currentTime", "get").mockImplementation(() => currentTime);
+    playback.seek(0.25);
+
+    playback.play({ at: 5 });
+    const scheduledSource = playback.source as ReturnType<typeof audioContextMock.createBufferSource>;
+
+    expect(scheduledSource.start).toHaveBeenCalledWith(5, 0.25);
+    expect(playback.isPlaying).toBe(true);
+    expect(playback.currentTime).toBe(0.25);
+
+    currentTime = 4;
+    playback.pause();
+    expect(playback.currentTime).toBe(0.25);
+  });
+
+  it("preserves a future start anchor when playback rate changes before the start", () => {
+    let currentTime = 2;
+    vi.spyOn(audioContextMock, "currentTime", "get").mockImplementation(() => currentTime);
+    playback.seek(0.25);
+    playback.play({ at: 5 });
+
+    currentTime = 3;
+    playback.playbackRate = 2;
+
+    currentTime = 5;
+    expect(playback.currentTime).toBe(0.25);
+    currentTime = 6;
+    expect(playback.currentTime).toBe(2.25);
+  });
+
+  it("anchors elapsed time to now when the requested start is already in the past", () => {
+    let currentTime = 5;
+    vi.spyOn(audioContextMock, "currentTime", "get").mockImplementation(() => currentTime);
+
+    playback.play({ at: 2 });
+    expect(playback.currentTime).toBe(0);
+
+    currentTime = 6;
+    expect(playback.currentTime).toBe(1);
+  });
+
   it("wires the source through its panner and gain node to the destination", () => {
     expectPath(source, [playback.panner!, gainNode], destination);
   });
@@ -457,6 +500,11 @@ describe("Playback cloning for media-element-backed playback", () => {
     originalPlayback.addFilter(filter);
 
     expectPath(originalPlayback.source!, [filter, originalPlayback.panner!], gainNode);
+  });
+
+  it("rejects scheduled starts for media-element playback", () => {
+    expect(() => originalPlayback.play({ at: 1 })).toThrow("Scheduled playback is only supported for buffer sounds");
+    expect(originalMediaElement.play).not.toHaveBeenCalled();
   });
 });
 

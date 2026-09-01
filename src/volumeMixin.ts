@@ -16,9 +16,14 @@ export interface VolumeControls {
   get volume(): number;
   set volume(value: number);
   get isFading(): boolean;
-  fadeTo(value: number, duration: number, type?: FadeType): Promise<void>;
+  fadeTo(
+    value: number,
+    duration: number,
+    type?: FadeType,
+    options?: { startTime?: number; startValue?: number },
+  ): Promise<void>;
   cancelFade(): void;
-  fadeIn(duration: number, type?: FadeType): Promise<void>;
+  fadeIn(duration: number, type?: FadeType, options?: { startTime?: number }): Promise<void>;
   fadeOut(duration: number, type?: FadeType): Promise<void>;
 }
 
@@ -95,7 +100,12 @@ export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
      * @returns {Promise<void>} Resolves when the fade completes on a live context, or when its automation has been
      * scheduled on an offline context.
      */
-    fadeTo(value: number, duration: number, type: FadeType = "linear"): Promise<void> {
+    fadeTo(
+      value: number,
+      duration: number,
+      type: FadeType = "linear",
+      options?: { startTime?: number; startValue?: number },
+    ): Promise<void> {
       if (!this.gainNode) {
         throw new Error("Cannot fade a sound that has been cleaned up");
       }
@@ -106,9 +116,10 @@ export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
       // this.gainNode happens to point at when the timer fires.
       const node = this.gainNode;
       const now = node.context.currentTime;
-      const endTime = now + duration / 1000;
+      const startTime = Math.max(options?.startTime ?? now, now);
+      const endTime = startTime + duration / 1000;
 
-      node.gain.setValueAtTime(node.gain.value, now);
+      node.gain.setValueAtTime(options?.startValue ?? node.gain.value, startTime);
 
       if (type === "exponential") {
         node.gain.exponentialRampToValueAtTime(value === 0 ? 0.0001 : value, endTime);
@@ -127,23 +138,26 @@ export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
       this._isFading = true;
 
       return new Promise<void>((resolve) => {
-        const timeout = setTimeout(() => {
-          // If this fade was superseded (cancelled / re-fired) the active-fade
-          // slot has already been cleared by cancelFade. Bail without resolving
-          // a second time.
-          if (this._activeFade?.timeout !== timeout) {
-            return;
-          }
-          this._activeFade = undefined;
-          this._fadeTimeout = undefined;
-          this._isFading = false;
-          // Web Audio's exponentialRampToValueAtTime requires a strict-positive
-          // target, so the ramp went to 0.0001. Snap to 0 at completion.
-          if (value === 0 && type === "exponential") {
-            node.gain.value = 0;
-          }
-          resolve();
-        }, duration);
+        const timeout = setTimeout(
+          () => {
+            // If this fade was superseded (cancelled / re-fired) the active-fade
+            // slot has already been cleared by cancelFade. Bail without resolving
+            // a second time.
+            if (this._activeFade?.timeout !== timeout) {
+              return;
+            }
+            this._activeFade = undefined;
+            this._fadeTimeout = undefined;
+            this._isFading = false;
+            // Web Audio's exponentialRampToValueAtTime requires a strict-positive
+            // target, so the ramp went to 0.0001. Snap to 0 at completion.
+            if (value === 0 && type === "exponential") {
+              node.gain.value = 0;
+            }
+            resolve();
+          },
+          Math.max(0, (endTime - node.context.currentTime) * 1000),
+        );
         this._activeFade = { timeout, resolve, node, target: value, type };
         this._fadeTimeout = timeout;
       });
@@ -190,13 +204,16 @@ export function VolumeMixin<TBase extends Constructor>(Base: TBase) {
      * @param {FadeType} type - The fade curve type. Defaults to "linear".
      * @returns {Promise<void>} Resolves when the fade completes.
      */
-    fadeIn(duration: number, type?: FadeType): Promise<void> {
+    fadeIn(duration: number, type?: FadeType, options?: { startTime?: number }): Promise<void> {
       if (!this.gainNode) {
         throw new Error("Cannot fade a sound that has been cleaned up");
       }
       const target = this.gainNode.gain.value;
-      this.gainNode.gain.setValueAtTime(0.0001, this.gainNode.context.currentTime);
-      return this.fadeTo(target, duration, type);
+      const startTime = Math.max(
+        options?.startTime ?? this.gainNode.context.currentTime,
+        this.gainNode.context.currentTime,
+      );
+      return this.fadeTo(target, duration, type, { startTime, startValue: 0.0001 });
     }
 
     /**

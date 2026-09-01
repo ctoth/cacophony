@@ -1,5 +1,5 @@
 import { BasePlayback } from "./basePlayback";
-import type { BaseSound, Cacophony, LoopCount, PanType } from "./cacophony";
+import type { BaseSound, Cacophony, LoopCount, PanType, PlayOptions } from "./cacophony";
 import type {
   AudioNode,
   AudioParam,
@@ -99,9 +99,12 @@ export class MediaStreamPlayback extends BasePlayback {
     return 0;
   }
 
-  play(): [this] {
+  play(options?: PlayOptions): [this] {
     if (!this.source) {
       throw new Error("Cannot play a media stream that has been cleaned up");
+    }
+    if (options?.at !== undefined) {
+      throw new Error("Scheduled playback is only supported for buffer sounds");
     }
     if (this.isPlaying) {
       return [this];
@@ -281,6 +284,13 @@ export class MediaStreamSound extends RoutableSource implements BaseSound {
     }
     this.playbacks.push(playback);
     return [playback];
+  }
+
+  play(options?: PlayOptions): MediaStreamPlayback[] {
+    if (options?.at !== undefined) {
+      throw new Error("Scheduled playback is only supported for buffer sounds");
+    }
+    return super.play(options) as MediaStreamPlayback[];
   }
 
   seek(_time: number): void {}

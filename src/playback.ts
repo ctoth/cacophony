@@ -19,7 +19,7 @@
  */
 
 import { BasePlayback } from "./basePlayback";
-import type { BaseSound, FadeType, LoopCount, PanType } from "./cacophony";
+import type { BaseSound, FadeType, LoopCount, PanType, PlayOptions } from "./cacophony";
 import type {
   AudioBuffer,
   AudioNode,
@@ -156,9 +156,11 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Playback rate must be greater than 0");
     }
     if (this._state === "playing") {
-      const elapsed = (this.context.currentTime - this._startTime) * this._playbackRate;
+      const elapsed = Math.max(0, (this.context.currentTime - this._startTime) * this._playbackRate);
       this._offset += elapsed;
-      this._startTime = this.context.currentTime;
+      if (this.context.currentTime >= this._startTime) {
+        this._startTime = this.context.currentTime;
+      }
     }
     this._playbackRate = rate;
     if (!this.source) {
@@ -245,9 +247,13 @@ export class Playback extends BasePlayback implements BaseSound {
    * @throws {Error} Throws an error if the sound has been cleaned up.
    */
 
-  play(): [this] {
+  play(options?: PlayOptions): [this] {
     if (!this.source) {
       throw new Error("Cannot play a sound that has been cleaned up");
+    }
+
+    if (options?.at !== undefined && "mediaElement" in this.source) {
+      throw new Error("Scheduled playback is only supported for buffer sounds");
     }
 
     if (this._state === "playing") {
@@ -267,7 +273,7 @@ export class Playback extends BasePlayback implements BaseSound {
           // For non-mediaElement sources, we need to recreate and start the source
           this.recreateSource();
           if ("start" in this.source && this.source.start) {
-            this.source.start(0, this._offset);
+            this.source.start(options?.at ?? 0, this._offset);
           }
         }
       } else {
@@ -278,7 +284,7 @@ export class Playback extends BasePlayback implements BaseSound {
           mediaPlayPromise = this.source.mediaElement.play();
         } else if ("start" in this.source && this.source.start) {
           this.recreateSource();
-          this.source.start(0, this._offset);
+          this.source.start(options?.at ?? 0, this._offset);
         }
       }
 
@@ -310,7 +316,7 @@ export class Playback extends BasePlayback implements BaseSound {
         this._mediaPlayPromise = tracked;
       } else {
         // For buffer sources, state transition is immediate (start() is synchronous)
-        this._startTime = this.context.currentTime;
+        this._startTime = Math.max(options?.at ?? this.context.currentTime, this.context.currentTime);
         this.emitPlayStarted(isResume);
       }
 
@@ -331,7 +337,7 @@ export class Playback extends BasePlayback implements BaseSound {
       return;
     }
 
-    const elapsed = (this.context.currentTime - this._startTime) * this._playbackRate;
+    const elapsed = Math.max(0, (this.context.currentTime - this._startTime) * this._playbackRate);
     this._offset += elapsed;
 
     if ("mediaElement" in this.source && this.source.mediaElement) {
@@ -376,7 +382,7 @@ export class Playback extends BasePlayback implements BaseSound {
    * @param {object} options - Optional. Set perLoop: true to re-trigger fadeIn on each loop.
    * @returns {Promise<void>} Resolves when the fade completes.
    */
-  fadeIn(duration: number, type?: FadeType, options?: { perLoop?: boolean }): Promise<void> {
+  fadeIn(duration: number, type?: FadeType, options?: { perLoop?: boolean; startTime?: number }): Promise<void> {
     if (options?.perLoop) {
       this._fadeInConfig = {
         duration,
@@ -385,7 +391,7 @@ export class Playback extends BasePlayback implements BaseSound {
         targetVolume: this.gainNode!.gain.value,
       };
     }
-    return super.fadeIn(duration, type);
+    return super.fadeIn(duration, type, { startTime: options?.startTime });
   }
 
   /**
@@ -455,7 +461,7 @@ export class Playback extends BasePlayback implements BaseSound {
 
   get currentTime(): number {
     if (this._state === "playing") {
-      const elapsed = (this.context.currentTime - this._startTime) * this._playbackRate;
+      const elapsed = Math.max(0, (this.context.currentTime - this._startTime) * this._playbackRate);
       return this._offset + elapsed;
     } else {
       return this._offset;

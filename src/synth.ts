@@ -1,4 +1,4 @@
-import type { BaseSound, Cacophony, PanType, Position, SoundType } from "./cacophony";
+import type { BaseSound, Cacophony, PanType, PlayOptions, Position, SoundType } from "./cacophony";
 import type { BaseContext, GainNode, OscillatorNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
 import type { SynthEvents } from "./events";
@@ -131,8 +131,11 @@ export class Synth extends RoutableSource implements BaseSound {
     return [playback];
   }
 
-  play(): ReturnType<this["preplay"]> {
-    const playbacks = super.play() as ReturnType<this["preplay"]>;
+  play(options?: PlayOptions): ReturnType<this["preplay"]> {
+    if (options?.at !== undefined) {
+      throw new Error("Scheduled playback is not supported for synths");
+    }
+    const playbacks = super.play(options) as ReturnType<this["preplay"]>;
     this.emit("play", playbacks[0]);
     return playbacks;
   }

@@ -346,6 +346,10 @@ export class Sound extends RoutableSource implements BaseSound {
   }
 
   play(options?: PlayOptions): ReturnType<this["preplay"]> {
+    if (options?.at !== undefined && !this.buffer) {
+      throw new Error("Scheduled playback is only supported for buffer sounds");
+    }
+
     const playbacks = this.preplay() as ReturnType<this["preplay"]>;
 
     for (const playback of playbacks) {
@@ -362,7 +366,7 @@ export class Sound extends RoutableSource implements BaseSound {
       playback.on("error", cleanupPlayListeners);
 
       try {
-        playback.play();
+        playback.play(options);
       } catch (error) {
         cleanupPlayListeners();
         // preplay() already committed `playback` to `this.playbacks` and the
@@ -381,7 +385,10 @@ export class Sound extends RoutableSource implements BaseSound {
     if (options) {
       for (const playback of playbacks) {
         if (options.fadeIn !== undefined) {
-          playback.fadeIn(options.fadeIn, options.fadeType, { perLoop: options.fadeInPerLoop });
+          playback.fadeIn(options.fadeIn, options.fadeType, {
+            perLoop: options.fadeInPerLoop,
+            startTime: options.at,
+          });
         }
         if (options.fadeOut !== undefined) {
           playback.configureFadeOut(options.fadeOut, options.fadeType);

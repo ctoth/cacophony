@@ -138,6 +138,13 @@ describe("MicrophoneStream", () => {
     expect(microphone.playbacks).toHaveLength(1);
   });
 
+  it("rejects scheduled starts before creating microphone playback state", () => {
+    const microphone = new MicrophoneStream(context, mockStream);
+
+    expect(() => microphone.play({ at: 1 })).toThrow("Scheduled playback is only supported for buffer sounds");
+    expect(microphone.playbacks).toEqual([]);
+  });
+
   it("supports HRTF options", () => {
     const microphone = new MicrophoneStream(context, mockStream, undefined, {
       panType: "HRTF",

@@ -1,5 +1,5 @@
 import type { BasePlayback } from "./basePlayback";
-import type { Cacophony, FadeType, Position } from "./cacophony";
+import type { Cacophony, FadeType, PlayOptions, Position } from "./cacophony";
 import type { BiquadFilterNode } from "./context";
 import type { FilterManager } from "./filters";
 import type { HrtfPannerOptions, ThreeDOptions } from "./pannerMixin";
@@ -48,7 +48,7 @@ export interface PlaybackContainer {
   _threeDOptions: ThreeDOptions;
   _volume: number;
   preplay(): BasePlayback[];
-  play(): BasePlayback[];
+  play(options?: PlayOptions): BasePlayback[];
   stop(): void;
   pause(): void;
   addFilter(filter: BiquadFilterNode): void;
@@ -96,9 +96,9 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
      * allowing for the same sound to be played concurrently with different settings.
      */
 
-    play(): BasePlayback[] {
+    play(options?: PlayOptions): BasePlayback[] {
       const playback = this.preplay();
-      playback.forEach((p) => p.play());
+      playback.forEach((p) => p.play(options));
       return playback;
     }
 

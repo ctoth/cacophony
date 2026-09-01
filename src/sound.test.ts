@@ -39,6 +39,21 @@ describe("Sound playback and state management", () => {
     expect(playbacks2[0]).not.toBe(playbacks1[0]); // New playback instance
   });
 
+  it("forwards an absolute start time and anchors fade-in automation to it", () => {
+    vi.spyOn(audioContextMock, "currentTime", "get").mockReturnValue(1);
+    const [preparedPlayback] = sound.preplay();
+    const play = vi.spyOn(preparedPlayback, "play");
+    vi.spyOn(sound, "preplay").mockReturnValue([preparedPlayback]);
+    const options = { at: 5, fadeIn: 1_000 };
+
+    const [playback] = sound.play(options);
+    const gain = playback.gainNode!.gain;
+
+    expect(play).toHaveBeenCalledWith(options);
+    expect(gain.setValueAtTime.calledWith(0.0001, 5)).toBe(true);
+    expect(gain.linearRampToValueAtTime.calledWith(1, 6)).toBe(true);
+  });
+
   it("keeps the primary path while adding a send edge", () => {
     const bus = cacophony.createBus("sound-test-send");
     const [playback] = sound.play();
@@ -1364,6 +1379,53 @@ describe("Sound FinalizationRegistry wire-up", () => {
     expect(holdings.sources.length).toBe(0);
     expect(holdings.gainNodes.length).toBe(0);
     expect(holdings.mediaElements.length).toBe(0);
+  });
+});
+
+describe("Sound scheduled media playback rejection", () => {
+  afterEach(() => {
+    cacophony.clearMemoryCache();
+    vi.restoreAllMocks();
+  });
+
+  it("rejects before allocating or retaining media playback resources", () => {
+    const mediaElement = {
+      load: vi.fn(),
+      play: vi.fn(() => Promise.resolve()),
+      pause: vi.fn(),
+      onended: null,
+      loop: false,
+      currentTime: 0,
+      duration: 10,
+      playbackRate: 1,
+      src: "test-url",
+    } as unknown as HTMLAudioElement;
+    const source = {
+      mediaElement,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    const createMediaElementSource = vi.fn(() => source);
+    const context = Object.create(audioContextMock) as typeof audioContextMock;
+    context.createMediaElementSource = createMediaElementSource as typeof context.createMediaElementSource;
+    const registerSpy = vi.spyOn(cacophony, "registerSoundForCleanup");
+    const sound = new Sound(
+      "test-url",
+      undefined,
+      context,
+      audioContextMock.createGain(),
+      "streaming",
+      "HRTF",
+      cacophony,
+      mediaElement,
+    );
+    const [, holdings] = registerSpy.mock.calls[0];
+
+    expect(() => sound.play({ at: 1 })).toThrow("Scheduled playback is only supported for buffer sounds");
+
+    expect(createMediaElementSource).not.toHaveBeenCalled();
+    expect(holdings).toEqual({ sources: [], gainNodes: [], mediaElements: [] });
+    expect(sound.playbacks).toEqual([]);
   });
 });
 
