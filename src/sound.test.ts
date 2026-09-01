@@ -1382,6 +1382,53 @@ describe("Sound FinalizationRegistry wire-up", () => {
   });
 });
 
+describe("Sound scheduled media playback rejection", () => {
+  afterEach(() => {
+    cacophony.clearMemoryCache();
+    vi.restoreAllMocks();
+  });
+
+  it("rejects before allocating or retaining media playback resources", () => {
+    const mediaElement = {
+      load: vi.fn(),
+      play: vi.fn(() => Promise.resolve()),
+      pause: vi.fn(),
+      onended: null,
+      loop: false,
+      currentTime: 0,
+      duration: 10,
+      playbackRate: 1,
+      src: "test-url",
+    } as unknown as HTMLAudioElement;
+    const source = {
+      mediaElement,
+      connect: vi.fn(),
+      disconnect: vi.fn(),
+    };
+    const createMediaElementSource = vi.fn(() => source);
+    const context = Object.create(audioContextMock) as typeof audioContextMock;
+    context.createMediaElementSource = createMediaElementSource as typeof context.createMediaElementSource;
+    const registerSpy = vi.spyOn(cacophony, "registerSoundForCleanup");
+    const sound = new Sound(
+      "test-url",
+      undefined,
+      context,
+      audioContextMock.createGain(),
+      "streaming",
+      "HRTF",
+      cacophony,
+      mediaElement,
+    );
+    const [, holdings] = registerSpy.mock.calls[0];
+
+    expect(() => sound.play({ at: 1 })).toThrow("Scheduled playback is only supported for buffer sounds");
+
+    expect(createMediaElementSource).not.toHaveBeenCalled();
+    expect(holdings).toEqual({ sources: [], gainNodes: [], mediaElements: [] });
+    expect(sound.playbacks).toEqual([]);
+  });
+});
+
 describe("Sound preplay failure rollback", () => {
   let sound: Sound;
   let buffer: AudioBuffer;

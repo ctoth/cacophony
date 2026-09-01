@@ -55,14 +55,10 @@ export class Scheduler {
 
   private tick(): void {
     const horizon = this.context.currentTime + this.lookaheadSeconds;
-    const due: ScheduledEntry[] = [];
-    while (this.entries[0]?.contextTime <= horizon) {
-      due.push(this.entries.shift()!);
-    }
-    this.stopTimerWhenIdle();
     let firstError: unknown;
     let callbackFailed = false;
-    for (const entry of due) {
+    while (this.entries[0]?.contextTime <= horizon) {
+      const entry = this.entries.shift()!;
       try {
         entry.callback(entry.contextTime);
       } catch (error) {
@@ -72,6 +68,7 @@ export class Scheduler {
         }
       }
     }
+    this.stopTimerWhenIdle();
     if (callbackFailed) {
       throw firstError;
     }

@@ -93,4 +93,18 @@ describe("Scheduler", () => {
     expect(second).toHaveBeenCalledWith(0.21);
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it("lets a due callback cancel another due callback before it is invoked", () => {
+    const scheduler = new Scheduler(context);
+    const second = vi.fn();
+    let secondHandle: ReturnType<Scheduler["schedule"]>;
+    scheduler.schedule(() => secondHandle.cancel(), 0.2);
+    secondHandle = scheduler.schedule(second, 0.21);
+
+    currentTime = 0.11;
+    vi.advanceTimersByTime(25);
+
+    expect(second).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });

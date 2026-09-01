@@ -346,6 +346,10 @@ export class Sound extends RoutableSource implements BaseSound {
   }
 
   play(options?: PlayOptions): ReturnType<this["preplay"]> {
+    if (options?.at !== undefined && !this.buffer) {
+      throw new Error("Scheduled playback is only supported for buffer sounds");
+    }
+
     const playbacks = this.preplay() as ReturnType<this["preplay"]>;
 
     for (const playback of playbacks) {
