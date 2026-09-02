@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { AudioContext } from "standardized-audio-context-mock";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { SpriteMap } from "../audioSprite";
 import { nodeBackendAvailable } from "../backend-available";
 import { createNodeCacophony, decodeAudioFile } from "../node";
@@ -74,6 +74,17 @@ describe("sprite CLI atlas construction", () => {
         { name: "second", buffer: otherRate },
       ]),
     ).toThrow("same sample rate");
+  });
+
+  it("uses a null output sink so sprite generation does not require an audio device", async () => {
+    const expected = new Error("context factory sentinel");
+    const contextFactory = vi.fn(async (options: Parameters<typeof createNodeCacophony>[0]) => {
+      expect(options).toEqual({ quiet: true, sinkId: { type: "none" } });
+      throw expected;
+    });
+
+    await expect(generateSprite([], "atlas.wav", "atlas.json", 0, contextFactory)).rejects.toBe(expected);
+    expect(contextFactory).toHaveBeenCalledOnce();
   });
 
   it.skipIf(!nodeBackendAvailable)("writes a WAV and map that createSprite can consume", async () => {

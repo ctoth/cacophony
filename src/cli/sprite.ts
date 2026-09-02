@@ -68,8 +68,9 @@ export async function generateSprite(
   outPath: string,
   mapPath: string,
   gapMs = 0,
+  contextFactory: typeof createNodeCacophony = createNodeCacophony,
 ): Promise<SpriteAtlasResult> {
-  const { context } = await createNodeCacophony({ quiet: true });
+  const { context } = await contextFactory({ quiet: true, sinkId: { type: "none" } });
   try {
     const decoded = [];
     for (const input of inputs) {
