@@ -21,6 +21,7 @@
  * instances of a sound with different settings, without requiring the user to manually manage each playback instance.
  */
 
+import type { SpriteRegion } from "./audioSprite";
 import type {
   BaseSound,
   Cacophony,
@@ -84,6 +85,10 @@ export class Sound extends RoutableSource implements BaseSound {
     private _cacophony?: Cacophony,
     preparedMediaElement?: HTMLAudioElement,
     private _preparedMediaElementCleanup?: () => void,
+    /** Immutable atlas bounds for a region-backed Sound. */
+    public readonly region?: Readonly<SpriteRegion>,
+    /** Original sprite key, retained by clones for attribution. */
+    public readonly spriteName?: string,
   ) {
     super();
     this.buffer = buffer;
@@ -166,6 +171,10 @@ export class Sound extends RoutableSource implements BaseSound {
       this.soundType,
       panType,
       this.cacophony,
+      undefined,
+      undefined,
+      this.region,
+      this.spriteName,
     );
     clone.loop(loopCount);
     clone.playbackRate = playbackRate;
@@ -435,6 +444,9 @@ export class Sound extends RoutableSource implements BaseSound {
    */
 
   get duration() {
+    if (this.region) {
+      return this.region.duration;
+    }
     if (this.playbacks.length > 0) {
       return this.playbacks[0].duration;
     }
@@ -464,7 +476,20 @@ export class Sound extends RoutableSource implements BaseSound {
     if (!this._cacophony) {
       throw new Error("Sound.timeStretch requires the owning Cacophony instance.");
     }
-    const stretched = this._cacophony.timeStretchBuffer(this.buffer, factor, options);
+    let input = this.buffer;
+    if (this.region) {
+      if (typeof this.context.createBuffer !== "function") {
+        throw new Error("Sound.timeStretch requires an audio context that supports createBuffer().");
+      }
+      const startFrame = Math.round(this.region.start * this.buffer.sampleRate);
+      const endFrame = Math.round((this.region.start + this.region.duration) * this.buffer.sampleRate);
+      const length = Math.max(1, endFrame - startFrame);
+      input = this.context.createBuffer(this.buffer.numberOfChannels, length, this.buffer.sampleRate);
+      for (let channel = 0; channel < this.buffer.numberOfChannels; channel++) {
+        input.getChannelData(channel).set(this.buffer.getChannelData(channel).subarray(startFrame, endFrame));
+      }
+    }
+    const stretched = this._cacophony.timeStretchBuffer(input, factor, options);
     return new Sound(this.url, stretched, this.context, this.globalGainNode, "buffer", this.panType, this._cacophony);
   }
 

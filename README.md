@@ -127,6 +127,45 @@ setTimeout(() => playback2.stop(), 2000);
 sound.stop();  // Stops all three playbacks
 ```
 
+### Audio Sprites for Games
+
+Pack many short effects into one decoded WAV atlas while keeping each named
+region as an ordinary, independently configurable `Sound`:
+
+```bash
+cacophony sprite sfx/laser.wav sfx/engine.wav \
+  --out public/sfx-atlas.wav --map public/sfx-atlas.json --gap 10
+```
+
+```typescript
+import { Cacophony, type SpriteMap } from 'cacophony';
+
+const map = {
+  laser: { start: 0, duration: 0.35 },
+  engine: { start: 0.36, duration: 1.2, loopCount: 'infinite' },
+} as const satisfies SpriteMap;
+
+const cacophony = new Cacophony();
+const sprite = await cacophony.createSprite('/sfx-atlas.wav', map);
+
+// Literal keys stay typed. Each child uses the normal Sound API.
+sprite.sounds.laser.volume = 0.7;
+sprite.sounds.laser.play();
+
+// Dynamic names use the checked lookup.
+const selected: string = chooseEffectName();
+if (sprite.has(selected)) sprite.get(selected).play();
+
+// Child configuration is independent; the atlas has no shared play controls.
+sprite.sounds.engine.loop('infinite');
+sprite.sounds.engine.play();
+
+sprite.cleanup();
+```
+
+All child Sounds share the atlas `AudioBuffer`. `cleanup()` owns those children
+but not clones created with `sound.clone()`, which remain independently usable.
+
 ## Sound Types
 
 Cacophony supports three URL-backed sound labels:

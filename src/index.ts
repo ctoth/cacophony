@@ -2,6 +2,8 @@
 // supported surface. Do NOT add `export *` — every value/type must be listed
 // explicitly so additions to internal modules cannot leak out without review.
 
+export type { CreateSpriteOptions, SpriteMap, SpriteRegion } from "./audioSprite";
+export { AudioSprite } from "./audioSprite";
 export type { BusConnectionTarget } from "./bus";
 export { Bus } from "./bus";
 export { AudioCache } from "./cache";

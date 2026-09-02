@@ -14,6 +14,7 @@ import { runLive } from "./live";
 import { meterFile } from "./meter";
 import { type FoaRenderSpec, renderToFile } from "./render";
 import { runRepl } from "./repl";
+import { runSprite } from "./sprite";
 import type { WavBitDepth } from "./wav";
 
 const packageJsonPath = resolve(dirname(fileURLToPath(import.meta.url)), "../../package.json");
@@ -26,6 +27,7 @@ Usage:
   cacophony synth <freq> [wave] [options]    play an oscillator live
   cacophony render <source> --out <path.wav> [options]   offline render to WAV
   cacophony meter <file> [--duration <sec>]  print integrated loudness (LUFS)
+  cacophony sprite <file...> --out <atlas.wav> --map <atlas.json> [--gap <ms>]
   cacophony repl                             interactive live graph
 
 Source (render):
@@ -58,6 +60,11 @@ render options:
   --pan stereo|hrtf       pan type; --pos x,y,z   spatial position
   --pitch <factor>        pitch shift (file sources only)
   --stretch <factor>      time-stretch (changes length, preserves pitch; file sources)
+
+sprite options:
+  --out <path.wav>        output WAV atlas path (required)
+  --map <path.json>       output SpriteMap JSON path (required)
+  --gap <ms>              silence between inputs in milliseconds (default 0)
 
   --help                  show this help
   --version               print version
@@ -354,6 +361,9 @@ export async function run(argv: readonly string[]): Promise<number> {
   }
   if (command === "meter") {
     return runMeter(rest);
+  }
+  if (command === "sprite") {
+    return runSprite(rest);
   }
   if (command === "play") {
     return runPlay(rest);

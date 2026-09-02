@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cacophony audio sprite rendering</title>
+  </head>
+  <body>
+    <script type="module">
+      import { Cacophony } from "/src/cacophony.ts";
+
+      window.runAudioSpriteRenderCheck = async () => {
+        if (typeof OfflineAudioContext === "undefined") return { supported: false };
+
+        const sampleRate = 8_000;
+        const regionFrames = 32;
+        const startFrame = 16;
+        const length = 128;
+        const context = new OfflineAudioContext(1, length, sampleRate);
+        const cacophony = Cacophony.createOffline(
+          { context, length, numberOfChannels: 1, sampleRate },
+          undefined,
+          { autoUnlock: false, quiet: true },
+        );
+        const atlas = context.createBuffer(1, regionFrames * 2, sampleRate);
+        atlas.getChannelData(0).fill(0.4, 0, regionFrames);
+        atlas.getChannelData(0).fill(-0.4, regionFrames);
+        const sprite = await cacophony.createSprite(
+          atlas,
+          { clip: { start: 0, duration: regionFrames / sampleRate } },
+          { panType: "stereo" },
+        );
+        sprite.sounds.clip.play({ at: startFrame / sampleRate });
+
+        const rendered = await context.startRendering();
+        const samples = rendered.getChannelData(0);
+        return {
+          afterSilent: Math.abs(samples[startFrame + regionFrames + 1]) < 1e-6,
+          beforeSilent: Math.abs(samples[startFrame - 2]) < 1e-6,
+          positiveOnly: samples.slice(startFrame + 1, startFrame + regionFrames - 1).every((sample) => sample > 0),
+          supported: true,
+        };
+      };
+    </script>
+  </body>
+</html>
