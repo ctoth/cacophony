@@ -2,29 +2,13 @@
 //
 // Each entry pairs the `registerProcessor` name (the string passed to
 // `AudioWorkletNode` construction and to `audioWorklet.addModule`) with the
-// bundle URL. The URLs are imported with Vite's `?url` suffix; in the library
-// build Vite currently inlines each bundle as a base64 `data:` URI (see the
-// audit notes — splitting them into sibling files is deferred until a real
-// browser smoke test exists). This module has NO logic and NO dependency on
+// lazy bundle URL. Each dynamic `?url` import keeps its base64 payload in a
+// separate chunk until that processor is needed. The data URL still works with
+// the browser and the Node adapter's URL resolver. This module has no dependency on
 // `cacophony.ts` or `effects.ts`, so all three can import it without a cycle.
 
-import barberpoleBundleUrl from "./bundles/barberpole-bundle.js?url";
-import bccEncoderBundleUrl from "./bundles/bcc-encoder-bundle.js?url";
-import dattorroReverbBundleUrl from "./bundles/dattorro-reverb-bundle.js?url";
-import dynamicsBundleUrl from "./bundles/dynamics-bundle.js?url";
-import fdnReverbBundleUrl from "./bundles/fdn-reverb-bundle.js?url";
-import frequencyShifterBundleUrl from "./bundles/frequency-shifter-bundle.js?url";
-import harmonizerBundleUrl from "./bundles/harmonizer-bundle.js?url";
-import loudnessMeterBundleUrl from "./bundles/loudness-meter-bundle.js?url";
-import modulatedDelayBundleUrl from "./bundles/modulated-delay-bundle.js?url";
-import pcmStreamBundleUrl from "./bundles/pcm-stream-bundle.js?url";
-import phaseVocoderBundleUrl from "./bundles/phase-vocoder-bundle.js?url";
-import phaserBundleUrl from "./bundles/phaser-bundle.js?url";
-import spectralFreezeBundleUrl from "./bundles/spectral-freeze-bundle.js?url";
-import stereoToBFormatBundleUrl from "./bundles/stereo-to-bformat-bundle.js?url";
-import stereoWidenerBundleUrl from "./bundles/stereo-widener-bundle.js?url";
-import tremoloBundleUrl from "./bundles/tremolo-bundle.js?url";
-import waveshaperBundleUrl from "./bundles/waveshaper-bundle.js?url";
+/** A URL supplied directly or loaded on demand before registration. */
+export type WorkletUrl = string | (() => Promise<string>);
 
 /**
  * A registrable AudioWorklet module: the processor `name` and the `url` of the
@@ -33,8 +17,8 @@ import waveshaperBundleUrl from "./bundles/waveshaper-bundle.js?url";
 export interface WorkletModule {
   /** The `registerProcessor` name — also the per-context load-dedup key. */
   readonly name: string;
-  /** The worklet bundle URL passed to `audioWorklet.addModule`. */
-  readonly url: string;
+  /** Resolved before passing the bundle URL to `audioWorklet.addModule`. */
+  readonly url: WorkletUrl;
 }
 
 /**
@@ -42,24 +26,69 @@ export interface WorkletModule {
  * pitch-shift path reference these instead of repeating name/url literals.
  */
 export const WORKLETS = {
-  phaseVocoder: { name: "phase-vocoder", url: phaseVocoderBundleUrl },
-  harmonizer: { name: "harmonizer", url: harmonizerBundleUrl },
-  spectralFreeze: { name: "spectral-freeze", url: spectralFreezeBundleUrl },
-  frequencyShifter: { name: "frequency-shifter", url: frequencyShifterBundleUrl },
-  barberpole: { name: "barberpole", url: barberpoleBundleUrl },
-  bccEncoder: { name: "bcc-encoder", url: bccEncoderBundleUrl },
-  stereoWidener: { name: "stereo-widener", url: stereoWidenerBundleUrl },
-  stereoToBFormat: { name: "stereo-to-bformat", url: stereoToBFormatBundleUrl },
-  dattorroReverb: { name: "dattorro-reverb", url: dattorroReverbBundleUrl },
-  dynamics: { name: "dynamics", url: dynamicsBundleUrl },
-  fdnReverb: { name: "fdn-reverb", url: fdnReverbBundleUrl },
-  waveshaper: { name: "waveshaper", url: waveshaperBundleUrl },
-  modulatedDelay: { name: "modulated-delay", url: modulatedDelayBundleUrl },
-  pcmStream: { name: "pcm-stream", url: pcmStreamBundleUrl },
-  phaser: { name: "phaser", url: phaserBundleUrl },
-  tremolo: { name: "tremolo", url: tremoloBundleUrl },
-  loudnessMeter: { name: "loudness-meter", url: loudnessMeterBundleUrl },
+  phaseVocoder: {
+    name: "phase-vocoder",
+    url: () => import("./bundles/phase-vocoder-bundle.js?url").then((module) => module.default),
+  },
+  harmonizer: {
+    name: "harmonizer",
+    url: () => import("./bundles/harmonizer-bundle.js?url").then((module) => module.default),
+  },
+  spectralFreeze: {
+    name: "spectral-freeze",
+    url: () => import("./bundles/spectral-freeze-bundle.js?url").then((module) => module.default),
+  },
+  frequencyShifter: {
+    name: "frequency-shifter",
+    url: () => import("./bundles/frequency-shifter-bundle.js?url").then((module) => module.default),
+  },
+  barberpole: {
+    name: "barberpole",
+    url: () => import("./bundles/barberpole-bundle.js?url").then((module) => module.default),
+  },
+  bccEncoder: {
+    name: "bcc-encoder",
+    url: () => import("./bundles/bcc-encoder-bundle.js?url").then((module) => module.default),
+  },
+  stereoWidener: {
+    name: "stereo-widener",
+    url: () => import("./bundles/stereo-widener-bundle.js?url").then((module) => module.default),
+  },
+  stereoToBFormat: {
+    name: "stereo-to-bformat",
+    url: () => import("./bundles/stereo-to-bformat-bundle.js?url").then((module) => module.default),
+  },
+  dattorroReverb: {
+    name: "dattorro-reverb",
+    url: () => import("./bundles/dattorro-reverb-bundle.js?url").then((module) => module.default),
+  },
+  dynamics: {
+    name: "dynamics",
+    url: () => import("./bundles/dynamics-bundle.js?url").then((module) => module.default),
+  },
+  fdnReverb: {
+    name: "fdn-reverb",
+    url: () => import("./bundles/fdn-reverb-bundle.js?url").then((module) => module.default),
+  },
+  waveshaper: {
+    name: "waveshaper",
+    url: () => import("./bundles/waveshaper-bundle.js?url").then((module) => module.default),
+  },
+  modulatedDelay: {
+    name: "modulated-delay",
+    url: () => import("./bundles/modulated-delay-bundle.js?url").then((module) => module.default),
+  },
+  pcmStream: {
+    name: "pcm-stream",
+    url: () => import("./bundles/pcm-stream-bundle.js?url").then((module) => module.default),
+  },
+  phaser: { name: "phaser", url: () => import("./bundles/phaser-bundle.js?url").then((module) => module.default) },
+  tremolo: { name: "tremolo", url: () => import("./bundles/tremolo-bundle.js?url").then((module) => module.default) },
+  loudnessMeter: {
+    name: "loudness-meter",
+    url: () => import("./bundles/loudness-meter-bundle.js?url").then((module) => module.default),
+  },
 } satisfies Record<string, WorkletModule>;
 
 /** Every worklet module, for eager preload (see `Cacophony.loadWorklets`). */
-export const ALL_WORKLETS: readonly WorkletModule[] = Object.values(WORKLETS);
+export const ALL_WORKLETS: readonly WorkletModule[] = /* @__PURE__ */ Object.values(WORKLETS);

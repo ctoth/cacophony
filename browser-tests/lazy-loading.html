@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><title>Published lazy worklet smoke test</title></head>
+  <body>
+    <script type="module">
+      import { Cacophony } from "/dist/index.mjs";
+
+      window.createLazyReverb = async () => {
+        const context = new AudioContext();
+        const audio = new Cacophony(context, undefined, { autoUnlock: false, quiet: true });
+        try {
+          const node = await audio.createReverb().build(context);
+          const registered = node instanceof AudioWorkletNode;
+          node.disconnect();
+          return registered;
+        } finally {
+          await context.close();
+        }
+      };
+    </script>
+  </body>
+</html>
