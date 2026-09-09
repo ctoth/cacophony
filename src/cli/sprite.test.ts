@@ -102,7 +102,8 @@ describe("sprite CLI atlas construction", () => {
 
       await generateSprite([laserPath, enginePath], atlasPath, mapPath, 1);
 
-      const { cacophony, context: nodeContext } = await createNodeCacophony({ quiet: true });
+      // This round-trip only decodes and slices buffers; CI has no audio device.
+      const { cacophony, context: nodeContext } = await createNodeCacophony({ quiet: true, sinkId: { type: "none" } });
       try {
         const atlas = await decodeAudioFile(nodeContext, atlasPath);
         const map = JSON.parse(readFileSync(mapPath, "utf8")) as SpriteMap;
