@@ -815,7 +815,7 @@ describe("Cacophony advanced features", () => {
       await cacophony.loadWorklets(controller.signal);
 
       // loadWorklets threads the AbortSignal through to the generic per-worklet load path.
-      expect(loadModuleSpy).toHaveBeenCalledWith(expect.any(String), expect.any(String), controller.signal);
+      expect(loadModuleSpy).toHaveBeenCalledWith(expect.any(String), expect.any(Function), controller.signal);
       expect(createWorkletSpy).not.toHaveBeenCalledWith("phase-vocoder", expect.any(String), controller.signal);
       // the phase-vocoder module is registered via addModule with the signal
       expect(mockAudioWorklet.addModule).toHaveBeenCalledWith(expect.any(String), {
@@ -920,8 +920,6 @@ describe("Cacophony advanced features", () => {
       // Mock addModule to throw AbortError
       mockAudioWorklet.addModule.mockRejectedValue(new DOMException("Operation was aborted", "AbortError"));
 
-      controller.abort();
-
       await expect(
         cacophony.createWorkletNode("test-worklet", "https://example.com/worklet.js", controller.signal),
       ).rejects.toMatchObject({
@@ -1023,7 +1021,7 @@ describe("Cacophony advanced features", () => {
 
       expect(createWorkletSpy).toHaveBeenCalledWith(
         "stereo-to-bformat",
-        expect.any(String),
+        expect.any(Function),
         undefined,
         expect.objectContaining({
           numberOfInputs: 1,
@@ -1043,7 +1041,7 @@ describe("Cacophony advanced features", () => {
 
       expect(createWorkletSpy).toHaveBeenCalledWith(
         "bcc-encoder",
-        expect.any(String),
+        expect.any(Function),
         undefined,
         expect.objectContaining({
           numberOfInputs: 1,
@@ -1130,7 +1128,7 @@ describe("Cacophony advanced features", () => {
       await cacophony.loadWorklets();
 
       // Without a signal, loadWorklets still forwards `undefined` to the generic load path.
-      expect(loadModuleSpy).toHaveBeenCalledWith(expect.any(String), expect.any(String), undefined);
+      expect(loadModuleSpy).toHaveBeenCalledWith(expect.any(String), expect.any(Function), undefined);
       expect(createWorkletSpy).not.toHaveBeenCalledWith("phase-vocoder", expect.any(String), undefined);
       expect(mockAudioWorklet.addModule).toHaveBeenCalledWith(expect.any(String), {
         credentials: "same-origin",

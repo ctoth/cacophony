@@ -66,8 +66,8 @@ import { DATTORRO_INV_SQRT2 } from "./processors/modulated-delay-core";
 import { type TimeStretchOptions, timeStretch } from "./processors/timestretch-core";
 import { Sound } from "./sound";
 import { Synth } from "./synth";
-import { WebCodecsPullAdapter, type WebCodecsStreamSound } from "./webCodecsStream";
-import { ALL_WORKLETS, WORKLETS, type WorkletModule } from "./worklets";
+import type { WebCodecsStreamSound } from "./webCodecsStream";
+import { ALL_WORKLETS, WORKLETS, type WorkletModule, type WorkletUrl } from "./worklets";
 
 export type SoundType = "html" | "streaming" | "buffer" | "oscillator";
 
@@ -169,7 +169,7 @@ export interface RuntimeOptions {
   /**
    * Optional hook to remap a worklet module URL just before it is handed to
    * `audioWorklet.addModule`. Receives the worklet's {@link WorkletModule.name}
-   * and its default {@link WorkletModule.url}; return the URL to load (return
+   * and its resolved default URL; return the URL to load (return
    * `url` unchanged to keep the default).
    *
    * The library build inlines every worklet bundle as a base64 `data:` URL,
@@ -777,7 +777,7 @@ export class Cacophony {
 
   async createWorkletNode(
     name: string,
-    url: string,
+    url: WorkletUrl,
     signal?: AbortSignal,
     options?: AudioWorkletNodeOptions,
     context?: BaseContext,
@@ -787,6 +787,7 @@ export class Cacophony {
     // own). Default to this host's `context` for the common single-context
     // case so all existing callers keep working without a change.
     const ctx = context ?? this.context;
+    signal?.throwIfAborted();
     // ensure audioWorklet has been loaded
     if (!ctx.audioWorklet) {
       throw new Error("AudioWorklet not supported");
@@ -865,11 +866,12 @@ export class Cacophony {
 
   private async loadAudioWorkletModule(
     name: string,
-    url: string,
+    url: WorkletUrl,
     signal?: AbortSignal,
     context?: BaseContext,
   ): Promise<void> {
     const ctx = context ?? this.context;
+    signal?.throwIfAborted();
     if (!ctx.audioWorklet) {
       throw new Error("AudioWorklet not supported");
     }
@@ -883,7 +885,10 @@ export class Cacophony {
     }
     // Host seam: the browser loads the inlined `data:` bundle directly, but the
     // Node backend remaps to the on-disk bundle file (see RuntimeOptions.resolveWorkletUrl).
-    const resolvedUrl = this.resolveWorkletUrl ? await this.resolveWorkletUrl(name, url) : url;
+    const defaultUrl = typeof url === "function" ? await url() : url;
+    signal?.throwIfAborted();
+    const resolvedUrl = this.resolveWorkletUrl ? await this.resolveWorkletUrl(name, defaultUrl) : defaultUrl;
+    signal?.throwIfAborted();
     this.logger.info(`${WORKLET_LOG_PREFIX} addModule start`, {
       name,
       url: resolvedUrl,
@@ -1395,6 +1400,9 @@ export class Cacophony {
       return this.createMediaSound(url, "streaming", panType, signal);
     }
 
+    signal?.throwIfAborted();
+    const { WebCodecsPullAdapter } = await import("./webCodecsStream");
+    signal?.throwIfAborted();
     const adapter = await WebCodecsPullAdapter.open(url, this.context.sampleRate, signal);
     if (!adapter) {
       return this.createMediaSound(url, "streaming", panType, signal);

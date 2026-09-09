@@ -12,7 +12,7 @@ import { VolumeMixin } from "./volumeMixin";
 
 export type PlaybackState = "unplayed" | "playing" | "paused" | "stopped";
 
-export abstract class BasePlayback extends PannerMixin(VolumeMixin(FilterManager)) {
+export abstract class BasePlayback extends /* @__PURE__ */ PannerMixin(/* @__PURE__ */ VolumeMixin(FilterManager)) {
   public source?: AudioNode;
   protected _effectChain?: EffectChain;
   private _effectContext?: BaseContext;

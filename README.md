@@ -22,6 +22,32 @@ Cacophony is a powerful and intuitive audio library designed for modern web appl
 npm install cacophony
 ```
 
+## Bundling and lazy loading
+
+Use named ESM imports so your bundler can discard unused modules:
+
+```typescript
+import { AudioCache } from 'cacophony';
+```
+
+The package preserves its module boundaries and declares import side effects.
+Importing `AudioCache` or an individual effect does not pull in the full
+`Cacophony` class or the offline FFT implementation. The `Cacophony` class keeps
+its complete factory API, so importing that class still includes the code its
+methods reference.
+
+`createStream()` loads MediaBunny on demand when using the WebCodecs transport.
+HLS streams and browsers without `AudioDecoder` take their existing fallback
+paths without loading it. Each AudioWorklet payload loads when its processor is
+first needed. Call `await audio.loadWorklets()` to preload all processors.
+
+Consumer bundlers must support code splitting to keep these imports in separate
+downloadable chunks. Deploy all generated chunks with the application. MediaBunny
+remains an installed dependency; lazy loading defers its runtime load.
+
+Run `npm run build` followed by `npm run check:bundles -- --report` to inspect
+initial bundle sizes for cache-only, full-factory, and single-effect consumers.
+
 ## Quick Start
 
 ```typescript

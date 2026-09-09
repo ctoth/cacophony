@@ -20,17 +20,26 @@ export default defineConfig({
       name: "cacophony",
       formats: ["es", "cjs"],
       fileName: (format, entryName) => {
+        // Preserved Vite asset modules include ?url in their names. A literal
+        // question mark cannot be used in a published filename on Windows.
+        const moduleName = entryName.replaceAll("?", "_");
         switch (format) {
           case "es":
-            return `${entryName}.mjs`;
+            return `${moduleName}.mjs`;
           case "cjs":
-            return `${entryName}.cjs`;
+            return `${moduleName}.cjs`;
           default:
-            return `${entryName}.${format}.js`;
+            return `${moduleName}.${format}.js`;
         }
       },
     },
     rollupOptions: {
+      // Keep feature boundaries intact so a consumer can discard a module and
+      // its dependency imports together (notably offline time stretching/FFT).
+      output: {
+        preserveModules: true,
+        preserveModulesRoot: resolve(__dirname, "src"),
+      },
       // Never bundle runtime deps. Optional dependencies and peers are loaded
       // only by the feature paths that need them, so externalize those keys too.
       external: [
