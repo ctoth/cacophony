@@ -673,7 +673,7 @@ remain outside this integration.</p>
 <tr>
 <td><code>seek</code></td>
 <td><code>number</code></td>
-<td>Fired when playback position changes. Receives new time in seconds.</td>
+<td>Fired once after a successful <code>Playback.seek(time)</code>, with the requested time in seconds. Rejected seeks do not emit.</td>
 </tr>
 <tr>
 <td><code>volumeChange</code></td>
@@ -687,6 +687,12 @@ remain outside this integration.</p>
 </tr>
 </tbody>
 </table>
+<p><code>seek</code> is specific to <code>Playback</code> (buffer and media-element sources). Subscribe on
+each playback to observe seeks, including those requested through <code>Sound.seek()</code>.
+<code>Sound</code> does not relay a collective <code>seek</code>: its concurrent voices can have
+different positions, and a collective seek can fail after some voices have moved.
+For media elements, the event reports acceptance of the <code>currentTime</code> write;
+it does not wait for the browser's asynchronous <code>seeked</code> event or playback resumption.</p>
 <h4 id="synth-events-1" class="tsd-anchor-link">Synth Events<a href="#synth-events-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h4>
 <table>
 <thead>
