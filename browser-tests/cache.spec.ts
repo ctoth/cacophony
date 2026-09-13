@@ -22,10 +22,11 @@ test.beforeAll(async () => {
       const context = { decodeAudioData: async bytes => ({
         length: bytes.byteLength, numberOfChannels: 1, duration: 1, sampleRate: 48000, id: ++decodes
       }) };
-      const url = (mode === 'cors' ? ${JSON.stringify(corsOrigin)} : location.origin) + '/audio/' + mode;
+      const url = (mode.startsWith('cors') ? ${JSON.stringify(corsOrigin)} : location.origin) + '/audio/' + mode;
       const first = await cache.getAudioBuffer(context, url);
       const second = await cache.getAudioBuffer(context, url);
-      if (mode === 'validate' || mode === 'private') {
+      if (mode === 'cors-browser') await caches.delete('audio-cache-v2');
+      if (mode === 'validate' || mode === 'private' || mode === 'cors' || mode === 'cors-validate' || mode === 'cors-browser' || mode === 'cors-age') {
         cache.clearMemoryCache();
         await cache.getAudioBuffer(context, url);
       }
@@ -43,13 +44,16 @@ test.beforeAll(async () => {
       }
       const count = (requests.get(path) ?? 0) + 1;
       requests.set(path, count);
-      const mode = path.split("/").at(-1);
+      const mode = path
+        .split("/")
+        .at(-1)
+        ?.replace(/^control-/, "");
       const headers: Record<string, string> = {
         "content-type": "audio/wav",
         "access-control-allow-origin": "*",
-        "cache-control": mode === "no-store" ? "no-store" : "private, max-age=60",
+        "cache-control": mode?.endsWith("no-store") ? "no-store" : "private, max-age=60",
       };
-      if (mode === "validate") {
+      if (mode === "validate" || mode === "cors-validate") {
         headers.etag = '"one"';
         headers["cache-control"] = count === 1 ? "no-cache" : "max-age=60";
       }
@@ -58,7 +62,25 @@ test.beforeAll(async () => {
         headers.vary = "Accept-Language";
         headers.age = "59";
       }
-      const validated = mode === "validate" && request.headers["if-none-match"] === '"one"';
+      if (mode === "cors-validate") {
+        // Last-Modified is visible without Expose-Headers. Manually adding
+        // If-Modified-Since would trigger OPTIONS, which this server rejects.
+        headers["last-modified"] = "Mon, 01 Sep 2025 00:00:00 GMT";
+      }
+      if (mode === "cors-age") {
+        headers["access-control-expose-headers"] = "Age";
+        headers.age = count === 1 ? "60" : "0";
+      }
+      if (mode === "cors-vary") {
+        headers["access-control-expose-headers"] = "Vary";
+        headers.vary = "Cookie";
+      }
+      if (request.method === "OPTIONS") {
+        response.writeHead(403);
+        response.end();
+        return;
+      }
+      const validated = mode?.endsWith("validate") && request.headers["if-none-match"] === '"one"';
       response.writeHead(validated ? 304 : 200, headers);
       response.end(validated ? undefined : new Uint8Array([1, 2, 3, 4]));
     });
@@ -82,18 +104,47 @@ test.afterAll(async () => {
   );
 });
 
-for (const mode of ["no-store", "validate", "private", "cors"]) {
+for (const mode of [
+  "no-store",
+  "validate",
+  "private",
+  "cors",
+  "cors-no-store",
+  "cors-validate",
+  "cors-browser",
+  "cors-age",
+  "cors-vary",
+]) {
   test(`HTTP cache: ${mode}`, async ({ page }) => {
     requests.delete(`/audio/${mode}`);
     await page.goto(origin);
     await page.waitForFunction(() => typeof window.checkAudioCache === "function");
     const result = await page.evaluate((selected) => window.checkAudioCache(selected), mode);
-    if (mode === "no-store" || mode === "cors") {
+    // WebKit's ephemeral contexts may not reuse their HTTP cache. Compare to
+    // ordinary Fetch in the same context rather than assuming disk caching.
+    let browserRequests = 1;
+    if (mode === "cors-browser" || mode === "cors-vary") {
+      const path = `/audio/control-${mode}`;
+      requests.delete(path);
+      await page.evaluate(async (url) => {
+        await (await fetch(url)).arrayBuffer();
+        await (await fetch(url)).arrayBuffer();
+      }, corsOrigin + path);
+      browserRequests = requests.get(path) ?? 0;
+      expect(browserRequests).toBeGreaterThan(0);
+    }
+    if (mode.endsWith("no-store")) {
       expect(result).toEqual({ same: false, decodes: 2, stored: 0 });
       expect(requests.get(`/audio/${mode}`)).toBe(2);
+    } else if (mode === "cors-validate" || mode === "cors-age") {
+      expect(result).toEqual({ same: false, decodes: 3, stored: 1 });
+      expect(requests.get(`/audio/${mode}`)).toBe(2);
+    } else if (mode === "cors-vary") {
+      expect(result).toEqual({ same: false, decodes: 2, stored: 0 });
+      expect(requests.get(`/audio/${mode}`)).toBe(browserRequests);
     } else {
       expect(result).toEqual({ same: true, decodes: 2, stored: 1 });
-      expect(requests.get(`/audio/${mode}`)).toBe(mode === "validate" ? 2 : 1);
+      expect(requests.get(`/audio/${mode}`)).toBe(mode === "validate" ? 2 : browserRequests);
     }
   });
 }

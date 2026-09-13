@@ -73,6 +73,7 @@ class ByteBoundedLRUCache<K, V> {
 
 interface HttpEntry {
   policy: CachePolicy;
+  cors: boolean;
   /** Origin headers before the explicitly configured fallback TTL is applied. */
   headers: Record<string, string>;
   /** Identical envelope attached to stored bytes and their decoded buffer. */
@@ -125,7 +126,7 @@ export class AudioCache implements ICache {
     AudioCache.cacheExpirationTime = time;
   }
 
-  private static createEntry(request: Request, headers: Record<string, string>): HttpEntry {
+  private static createEntry(request: Request, headers: Record<string, string>, cors = false): HttpEntry {
     const effectiveHeaders = { ...headers };
     // Application default only: explicit directives, Expires and validators win.
     // All parsing and reuse decisions still belong to upstream CachePolicy.
@@ -140,13 +141,14 @@ export class AudioCache implements ICache {
     );
     const metadata = JSON.stringify({
       version: 2,
+      cors,
       url: request.url,
       time: policy.toObject().t,
       requestHeaders,
       policyHeaders: effectiveHeaders,
       headers,
     });
-    return { policy, headers, metadata };
+    return { policy, headers, metadata, cors };
   }
 
   private static readEntry(response: Response, request: Request): HttpEntry | undefined {
@@ -174,7 +176,12 @@ export class AudioCache implements ICache {
         { shared: false, cacheHeuristic: 0, immutableMinTimeToLive: 0 },
       ).toObject();
       serialized.t = value.time;
-      return { policy: CachePolicy.fromObject(serialized), headers: value.headers, metadata };
+      return {
+        policy: CachePolicy.fromObject(serialized),
+        headers: value.headers,
+        metadata,
+        cors: value.cors === true,
+      };
     } catch {
       return undefined;
     }
@@ -426,10 +433,11 @@ export class AudioCache implements ICache {
       notify((callbacks) =>
         callbacks.onCacheMiss?.({ url, reason: entry ? "expired" : "not-found", timestamp: Date.now() }),
       );
-      const headers = entry ? policyHeaders(entry.policy.revalidationHeaders(policyRequest)) : request.headers;
-      // One policy owner: don't let an independent browser HTTP cache supply a
-      // representation under different reuse rules before we see the response.
-      let response = await fetch(url, { headers, signal, cache: "no-store" });
+      const cors = entry?.cors || (typeof location !== "undefined" && new URL(request.url).origin !== location.origin);
+      // Browser-generated conditional headers do not require CORS preflight.
+      // Let Fetch validate cross-origin entries, including hidden validators.
+      const headers = entry && !cors ? policyHeaders(entry.policy.revalidationHeaders(policyRequest)) : request.headers;
+      let response = await fetch(url, { headers, signal, cache: entry ? "no-cache" : "default" });
       checkAbort(signal);
       let bytes: ArrayBuffer | undefined;
       let buffer: AudioBuffer | undefined;
@@ -448,14 +456,14 @@ export class AudioCache implements ICache {
           });
           merged.date = response.headers.get("date") ?? new Date().toUTCString();
           merged.age = response.headers.get("age") ?? "0";
-          entry = AudioCache.createEntry(request, merged);
+          entry = AudioCache.createEntry(request, merged, entry.cors);
           buffer = cached?.buffer;
           bytes = stored ? await stored.arrayBuffer() : undefined;
           conditional = true;
         }
       }
       if (response.status === 304 && !conditional) {
-        response = await fetch(url, { headers: request.headers, signal, cache: "no-store" });
+        response = await fetch(url, { headers: request.headers, signal, cache: "reload" });
         checkAbort(signal);
       }
       if (!conditional) {
@@ -463,14 +471,12 @@ export class AudioCache implements ICache {
           throw new Error(`Failed to fetch resource: ${response.status} ${response.statusText}`);
         const originHeaders = Object.fromEntries(response.headers);
         delete originHeaders[POLICY_HEADER];
-        entry = AudioCache.createEntry(request, originHeaders);
+        entry = AudioCache.createEntry(request, originHeaders, response.type === "cors");
         bytes = await AudioCache.readBytes(response, signal, notify, url);
       }
       checkAbort(signal);
       if (!entry) throw new Error("Missing response policy");
-      // CORS can hide Vary and Age. This URL-only API cannot prove they are
-      // absent, so filtered responses are delivered but not retained.
-      const retain = response.type !== "cors" && AudioCache.canRetain(entry);
+      const retain = AudioCache.canRetain(entry);
       memory.delete(url);
       if (!retain) await AudioCache.deleteResponse(persistent, request, notify, url);
       if (!buffer) {

@@ -1310,7 +1310,9 @@ HTTP reuse decisions are made by `http-cache-semantics` for both decoded memory 
 
 The 24-hour default TTL applies only when the response supplies no Cache-Control, Expires, Pragma, or validators. Explicit expiry never falls back to that TTL. Custom TTL values use milliseconds and are rounded down to whole seconds. Persistence uses a versioned response containing both bytes and policy; older cache entries are ignored and fetched again.
 
-This URL-only API explicitly controls the request's `Accept` header. Responses varying on other, host-managed headers are delivered without application-cache retention. CORS-filtered responses are also not retained because JavaScript cannot establish whether headers such as Vary or Age were hidden. Such loads may therefore make more network requests. Network fetches bypass the browser's separate HTTP cache so the application does not combine independent freshness decisions. These rules do not change data-URL decoding or caching.
+Cross-origin audio uses both decoded memory and persistent caching. CORS exposes Cache-Control, Expires, and Last-Modified without extra server configuration. For cross-origin entries requiring validation, Cacophony asks Fetch to revalidate through the browser HTTP cache, avoiding application-added conditional headers and their CORS preflight requirements. Browser HTTP caching remains enabled. A browser-validated response is decoded again because Fetch delivers the resulting representation rather than its internal 304 exchange.
+
+Application policy uses the headers JavaScript can see. Servers should expose Age, Date, ETag, and Vary through Access-Control-Expose-Headers when those headers affect application caching; hidden Age or Vary cannot be accounted for by the application cache. This URL-only API explicitly controls Accept; a visible Vary on other, host-managed headers prevents application-cache retention. Data-URL decoding and caching are unchanged.
 
 ```typescript
 const cacophony = new Cacophony();
