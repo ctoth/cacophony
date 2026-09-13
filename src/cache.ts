@@ -1,11 +1,7 @@
+import CachePolicy from "http-cache-semantics";
 import type { BaseContext } from "./context";
-import type { AudioEventCallbacks, CacheHitEvent, LoadingProgressEvent } from "./events";
+import type { AudioEventCallbacks } from "./events";
 
-/**
- * Subset of {@link AudioEventCallbacks} relevant to {@link AudioCache} public API.
- * Lets callers opt in to any combination of loading/cache events without
- * having to import the full union.
- */
 export type CacheCallbacks = Pick<
   AudioEventCallbacks,
   | "onLoadingStart"
@@ -17,168 +13,6 @@ export type CacheCallbacks = Pick<
   | "onCacheError"
 >;
 
-/**
- * Coerce an unknown caught value into an `Error`. Use at the boundary
- * of `catch (error: unknown)` blocks where downstream typing requires a real
- * `Error` (e.g. `LoadingErrorEvent.error`, `CacheErrorEvent.error`).
- */
-function toError(value: unknown): Error {
-  return value instanceof Error ? value : new Error(String(value));
-}
-
-/**
- * Build the metadata cache key for a given URL. Centralised so the
- * ":meta" suffix never drifts across writers/readers/cleanup paths.
- */
-function metaKey(url: string): string {
-  return `${url}:meta`;
-}
-
-class ByteBoundedLRUCache<K, V> {
-  private maxBytes: number;
-  private cachedBytes = 0;
-  private cache: Map<K, { value: V; bytes: number }>;
-  private estimateBytes: (value: V) => number;
-
-  constructor(maxBytes: number, estimateBytes: (value: V) => number) {
-    this.maxBytes = maxBytes;
-    this.estimateBytes = estimateBytes;
-    this.cache = new Map();
-  }
-
-  get(key: K): V | undefined {
-    const entry = this.cache.get(key);
-    if (entry === undefined) return undefined;
-    this.cache.delete(key);
-    this.cache.set(key, entry);
-    return entry.value;
-  }
-
-  set(key: K, value: V): void {
-    const bytes = this.estimateBytes(value);
-
-    if (this.cache.has(key)) {
-      this.cachedBytes -= this.cache.get(key)?.bytes ?? 0;
-      this.cache.delete(key);
-    }
-
-    if (bytes > this.maxBytes) {
-      return;
-    }
-
-    while (this.cachedBytes + bytes > this.maxBytes) {
-      const first = this.cache.keys().next();
-      if (first.done) {
-        break;
-      }
-      const firstKey = first.value;
-      const oldest = this.cache.get(firstKey);
-      this.cachedBytes -= oldest?.bytes ?? 0;
-      this.cache.delete(firstKey);
-    }
-
-    this.cache.set(key, { value, bytes });
-    this.cachedBytes += bytes;
-  }
-}
-
-interface CacheMetadata {
-  url: string;
-  etag?: string;
-  lastModified?: string;
-  cacheControl?: string;
-  timestamp: number;
-}
-
-/**
- * Validator tokens carried in cache metadata, used to build conditional
- * requests (`If-None-Match`, `If-Modified-Since`).
- */
-type CacheValidators = Pick<CacheMetadata, "etag" | "lastModified">;
-
-const DEFAULT_DECODED_BUFFER_CACHE_BYTES = 64 * 1024 * 1024;
-const BYTES_PER_FLOAT32_SAMPLE = 4;
-
-function estimateAudioBufferBytes(audioBuffer: AudioBuffer): number {
-  return audioBuffer.length * audioBuffer.numberOfChannels * BYTES_PER_FLOAT32_SAMPLE;
-}
-
-/**
- * Parse the max-age value from a Cache-Control header.
- *
- * Accepts unquoted (`max-age=3600`) and properly-quoted (`max-age="3600"`)
- * forms only; rejects malformed half-quoted variants like `max-age="3600`
- * or `max-age=3600"`.
- *
- * @returns max-age in seconds, or null if not found / malformed
- */
-function parseMaxAge(cacheControlHeader: string | undefined): number | null {
-  if (!cacheControlHeader) {
-    return null;
-  }
-  // Either both quotes or neither; (?:...) groups the alternatives.
-  const match = cacheControlHeader.match(/max-age\s*=\s*(?:"(\d+)"|(\d+))/i);
-  if (!match) return null;
-  const captured = match[1] ?? match[2];
-  if (captured === undefined) return null;
-  const parsed = Number.parseInt(captured, 10);
-  return Number.isNaN(parsed) ? null : parsed;
-}
-
-/**
- * Check if Cache-Control header contains directives that require revalidation
- * @param cacheControlHeader - The Cache-Control header value
- * @returns true if revalidation is required regardless of age
- */
-function requiresRevalidation(cacheControlHeader: string | undefined): boolean {
-  if (!cacheControlHeader) {
-    return false;
-  }
-  return /(?:^|,)\s*(no-cache|no-store|must-revalidate)\s*(?:,|$)/i.test(cacheControlHeader);
-}
-
-function getNetworkErrorType(error: unknown): "network" | "abort" | "unknown" {
-  if (error instanceof DOMException && error.name === "AbortError") {
-    return "abort";
-  }
-  if (error instanceof Error) {
-    return "network";
-  }
-  return "unknown";
-}
-
-/**
- * Parse a `data:` URL into its mime type and decoded bytes.
- * Returns `null` if the URL is malformed (no comma, undecodable base64, etc.)
- * so callers can fire a typed `onLoadingError` instead of crashing.
- */
-function parseDataUrl(url: string): { mime: string; bytes: Uint8Array } | null {
-  const commaIndex = url.indexOf(",");
-  if (commaIndex < 0) return null;
-  const header = url.slice(5, commaIndex); // strip "data:"
-  const payload = url.slice(commaIndex + 1);
-  const isBase64 = /;base64$/i.test(header);
-  const mime = (isBase64 ? header.replace(/;base64$/i, "") : header) || "text/plain";
-  try {
-    if (isBase64) {
-      const binary = atob(payload);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
-      }
-      return { mime, bytes };
-    }
-    const decoded = decodeURIComponent(payload);
-    const bytes = new Uint8Array(decoded.length);
-    for (let i = 0; i < decoded.length; i++) {
-      bytes[i] = decoded.charCodeAt(i);
-    }
-    return { mime, bytes };
-  } catch {
-    return null;
-  }
-}
-
 export interface ICache {
   getAudioBuffer(
     context: BaseContext,
@@ -189,839 +23,528 @@ export interface ICache {
   clearMemoryCache(): void;
 }
 
-type PendingProgressCallbacks = Pick<CacheCallbacks, "onLoadingProgress">;
+const CACHE_NAME = "audio-cache-v2";
+const POLICY_HEADER = "x-cacophony-cache-policy";
+const MEMORY_BYTES = 64 * 1024 * 1024;
+const REQUEST_HEADERS = { accept: "*/*" };
 
-interface PendingAudioRequest {
-  promise: Promise<AudioBuffer>;
+function toError(error: unknown): Error {
+  return error instanceof Error ? error : new Error(String(error));
+}
+
+function checkAbort(signal?: AbortSignal): void {
+  if (signal?.aborted) throw new DOMException("Operation was aborted", "AbortError");
+}
+
+class ByteBoundedLRUCache<K, V> {
+  private cachedBytes = 0;
+  private readonly cache = new Map<K, { value: V; bytes: number }>();
+  constructor(
+    private readonly maxBytes: number,
+    private readonly estimateBytes: (value: V) => number,
+  ) {}
+
+  get(key: K): V | undefined {
+    const entry = this.cache.get(key);
+    if (!entry) return undefined;
+    this.cache.delete(key);
+    this.cache.set(key, entry);
+    return entry.value;
+  }
+
+  delete(key: K): void {
+    this.cachedBytes -= this.cache.get(key)?.bytes ?? 0;
+    this.cache.delete(key);
+  }
+
+  set(key: K, value: V): void {
+    this.delete(key);
+    const bytes = this.estimateBytes(value);
+    if (bytes > this.maxBytes) return;
+    while (this.cachedBytes + bytes > this.maxBytes) {
+      const first = this.cache.keys().next();
+      if (first.done) break;
+      this.delete(first.value);
+    }
+    this.cache.set(key, { value, bytes });
+    this.cachedBytes += bytes;
+  }
+}
+
+interface HttpEntry {
+  policy: CachePolicy;
+  /** Origin headers before the explicitly configured fallback TTL is applied. */
+  headers: Record<string, string>;
+  /** Identical envelope attached to stored bytes and their decoded buffer. */
+  metadata: string;
+}
+
+interface MemoryEntry {
+  buffer: AudioBuffer;
+  http?: HttpEntry;
+}
+interface Subscriber {
+  callbacks?: CacheCallbacks;
+}
+interface PendingRequest {
   controller: AbortController;
-  callers: number;
+  subscribers: Set<Subscriber>;
+  promise: Promise<AudioBuffer>;
+}
+type Notify = (deliver: (callbacks: CacheCallbacks) => void) => void;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isHeaders(value: unknown): value is Record<string, string> {
+  return isRecord(value) && Object.values(value).every((item) => typeof item === "string");
+}
+
+function policyHeaders(headers: CachePolicy.Headers): Headers {
+  const result = new Headers();
+  for (const [key, value] of Object.entries(headers)) {
+    if (value !== undefined) result.set(key, Array.isArray(value) ? value.join(", ") : value);
+  }
+  return result;
 }
 
 /**
- * AudioCache provides efficient caching of audio resources using HTTP caching standards.
- *
- * Features:
- * - Three-layer caching: Memory (LRU) → Browser Cache API → Network
- * - HTTP conditional requests with ETag and Last-Modified support
- * - Robust error handling with cache inconsistency recovery
- *
- * Caching Strategy:
- * - Always makes conditional requests when validation tokens (ETag/Last-Modified) are available
- * - Uses TTL as fallback only when no validation tokens exist
- * - Conditional requests are lightweight (304 responses have no body)
- *
- * @example
- * ```typescript
- * const cache = new AudioCache();
- * const audioBuffer = await cache.getAudioBuffer(audioContext, 'audio.mp3');
- *
- * // Optional: Configure TTL for when no validation tokens exist
- * AudioCache.setCacheExpirationTime(60 * 60 * 1000); // 1 hour
- * ```
+ * HTTP policy governs decoded memory entries and persistent response bytes.
+ * Bytes and versioned policy share ONE Cache API response, preventing split
+ * writes. Legacy v1 entries are not read. Memory is bounded per decoding context.
  */
 export class AudioCache implements ICache {
-  private pendingRequests = new WeakMap<BaseContext, Map<string, PendingAudioRequest>>();
-  private pendingCallbacks = new WeakMap<BaseContext, Map<string, PendingProgressCallbacks[]>>();
-  private decodedBuffers = new WeakMap<BaseContext, ByteBoundedLRUCache<string, AudioBuffer>>();
-  private static cacheExpirationTime: number = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+  private static cacheExpirationTime = 24 * 60 * 60 * 1000;
+  private decodedBuffers = new WeakMap<BaseContext, ByteBoundedLRUCache<string, MemoryEntry>>();
+  private pendingRequests = new WeakMap<BaseContext, Map<string, PendingRequest>>();
 
-  public static setCacheExpirationTime(time: number): void {
+  /** Fallback for responses with no cache directives, expiry, or validators. */
+  static setCacheExpirationTime(time: number): void {
+    if (!Number.isFinite(time) || time < 0) throw new RangeError("Cache expiration must be finite and non-negative");
     AudioCache.cacheExpirationTime = time;
   }
 
-  /**
-   * Whether the browser Cache API (`caches`) global is available in the
-   * current runtime. Uses `typeof` so it never throws when the global is
-   * entirely absent (e.g. Node). When this returns `false`, the URL path
-   * degrades to fetch + decode (still using the in-memory LRU) instead of
-   * touching the persistent Cache API.
-   */
-  private static isCacheApiAvailable(): boolean {
-    return typeof caches !== "undefined" && caches != null;
+  private static createEntry(request: Request, headers: Record<string, string>): HttpEntry {
+    const effectiveHeaders = { ...headers };
+    // Application default only: explicit directives, Expires and validators win.
+    // All parsing and reuse decisions still belong to upstream CachePolicy.
+    if (!["cache-control", "expires", "pragma", "etag", "last-modified"].some((key) => key in headers)) {
+      effectiveHeaders["cache-control"] = `max-age=${Math.floor(AudioCache.cacheExpirationTime / 1000)}`;
+    }
+    const requestHeaders = Object.fromEntries(request.headers);
+    const policy = new CachePolicy(
+      { url: request.url, method: "GET", headers: requestHeaders },
+      { status: 200, headers: effectiveHeaders },
+      { shared: false, cacheHeuristic: 0, immutableMinTimeToLive: 0 },
+    );
+    const metadata = JSON.stringify({
+      version: 2,
+      url: request.url,
+      time: policy.toObject().t,
+      requestHeaders,
+      policyHeaders: effectiveHeaders,
+      headers,
+    });
+    return { policy, headers, metadata };
   }
 
-  private static async openCache(): Promise<Cache> {
+  private static readEntry(response: Response, request: Request): HttpEntry | undefined {
+    const metadata = response.headers.get(POLICY_HEADER);
+    if (!metadata) return undefined;
     try {
-      return await caches.open("audio-cache");
-    } catch (error) {
-      console.error("Failed to open cache:", error);
-      throw error;
+      const value: unknown = JSON.parse(metadata);
+      if (
+        !isRecord(value) ||
+        value.version !== 2 ||
+        value.url !== request.url ||
+        typeof value.time !== "number" ||
+        !Number.isFinite(value.time) ||
+        value.time > Date.now() ||
+        !isHeaders(value.requestHeaders) ||
+        !isHeaders(value.policyHeaders) ||
+        !isHeaders(value.headers)
+      )
+        return undefined;
+      // Reparse directives upstream, rather than trusting internal parsed fields
+      // from persistent JSON. Restore time with the public serialization API.
+      const serialized = new CachePolicy(
+        { url: request.url, method: "GET", headers: value.requestHeaders },
+        { status: 200, headers: value.policyHeaders },
+        { shared: false, cacheHeuristic: 0, immutableMinTimeToLive: 0 },
+      ).toObject();
+      serialized.t = value.time;
+      return { policy: CachePolicy.fromObject(serialized), headers: value.headers, metadata };
+    } catch {
+      return undefined;
     }
   }
 
-  /**
-   * Calls all registered callbacks for a specific event type on a URL.
-   * Generic over the callback name so the payload type is checked against
-   * the canonical {@link CacheCallbacks} shape rather than `any`.
-   */
-  private static callAllCallbacks<K extends keyof CacheCallbacks>(
-    pendingCallbacks: Map<string, PendingProgressCallbacks[]> | undefined,
-    url: string,
-    callbackName: K,
-    eventData: Parameters<NonNullable<CacheCallbacks[K]>>[0],
-  ): void {
-    const callbacks = pendingCallbacks?.get(url);
-    if (callbacks) {
-      callbacks.forEach((callbackSet) => {
-        const callback = callbackSet[callbackName as "onLoadingProgress"];
-        if (callback) {
-          try {
-            // Cast eventData here: the surrounding generic guarantees the
-            // payload type matches the chosen callback name.
-            (callback as (e: typeof eventData) => void)(eventData);
-          } catch (error) {
-            console.error(`Error in ${String(callbackName)} callback:`, error);
-          }
-        }
-      });
-    }
+  private static canRetain(entry: HttpEntry): boolean {
+    // Only Accept is explicitly controlled by this URL-only API. Cookie,
+    // Accept-Language, etc. may be added or changed invisibly by the host.
+    const vary =
+      entry.headers.vary
+        ?.split(",")
+        .map((name) => name.trim().toLowerCase())
+        .filter(Boolean) ?? [];
+    return entry.policy.storable() && vary.every((name) => name === "accept");
   }
 
-  private async getOrCreatePendingRequest(
+  private getMemory(context: BaseContext): ByteBoundedLRUCache<string, MemoryEntry> {
+    let memory = this.decodedBuffers.get(context);
+    if (!memory) {
+      memory = new ByteBoundedLRUCache(MEMORY_BYTES, ({ buffer }) => buffer.length * buffer.numberOfChannels * 4);
+      this.decodedBuffers.set(context, memory);
+    }
+    return memory;
+  }
+
+  private join(
     context: BaseContext,
     url: string,
-    createRequest: (signal: AbortSignal) => Promise<AudioBuffer | undefined>,
-    signal?: AbortSignal,
-    callbacks?: PendingProgressCallbacks,
+    signal: AbortSignal | undefined,
+    callbacks: CacheCallbacks | undefined,
+    load: (signal: AbortSignal, notify: Notify) => Promise<AudioBuffer>,
   ): Promise<AudioBuffer> {
-    if (signal?.aborted) {
-      throw new DOMException("Operation was aborted", "AbortError");
+    checkAbort(signal);
+    let requests = this.pendingRequests.get(context);
+    if (!requests) {
+      requests = new Map();
+      this.pendingRequests.set(context, requests);
     }
-
-    let pendingRequests = this.pendingRequests.get(context);
-    if (pendingRequests === undefined) {
-      pendingRequests = new Map();
-      this.pendingRequests.set(context, pendingRequests);
-    }
-    let pendingCallbacks = this.pendingCallbacks.get(context);
-    if (pendingCallbacks === undefined) {
-      pendingCallbacks = new Map();
-      this.pendingCallbacks.set(context, pendingCallbacks);
-    }
-
-    // Add callbacks to aggregation if provided
-    if (callbacks) {
-      const existingCallbacks = pendingCallbacks.get(url) || [];
-      existingCallbacks.push(callbacks);
-      pendingCallbacks.set(url, existingCallbacks);
-    }
-
-    let pendingRequest = pendingRequests.get(url);
-    if (!pendingRequest) {
+    const subscriber = { callbacks };
+    let pending = requests.get(url);
+    if (!pending) {
       const controller = new AbortController();
-      const requestPromise = (async () => {
-        try {
-          const result = await createRequest(controller.signal);
-          if (result === undefined) {
-            throw new Error("Failed to create audio buffer.");
-          }
-          return result;
-        } finally {
-          if (pendingRequests.get(url) === pendingRequest) {
-            pendingRequests.delete(url);
-            pendingCallbacks.delete(url);
-          }
-        }
-      })();
-
-      pendingRequest = { promise: requestPromise, controller, callers: 0 };
-      pendingRequests.set(url, pendingRequest);
+      const subscribers = new Set<Subscriber>();
+      const notify: Notify = (deliver) => {
+        for (const current of subscribers) if (current.callbacks) deliver(current.callbacks);
+      };
+      const promise = Promise.resolve().then(() => load(controller.signal, notify));
+      pending = { controller, subscribers, promise };
+      requests.set(url, pending);
     }
-
-    pendingRequest.callers++;
+    const active = pending;
+    const requestMap = requests;
+    active.subscribers.add(subscriber);
     return new Promise((resolve, reject) => {
       let settled = false;
-      const release = (aborted: boolean) => {
-        if (settled) return;
+      const release = () => {
         settled = true;
-        signal?.removeEventListener("abort", handleAbort);
-        pendingRequest.callers--;
-
-        if (aborted && callbacks) {
-          const registeredCallbacks = pendingCallbacks.get(url);
-          const callbackIndex = registeredCallbacks?.indexOf(callbacks) ?? -1;
-          if (callbackIndex >= 0) {
-            registeredCallbacks?.splice(callbackIndex, 1);
-          }
-        }
-
-        if (aborted && pendingRequest.callers === 0 && pendingRequests.get(url) === pendingRequest) {
-          pendingRequests.delete(url);
-          pendingCallbacks.delete(url);
-          pendingRequest.controller.abort();
-        }
+        signal?.removeEventListener("abort", abort);
+        active.subscribers.delete(subscriber);
+        if (active.subscribers.size === 0 && requestMap.get(url) === active) requestMap.delete(url);
       };
-      const handleAbort = () => {
-        release(true);
+      const abort = () => {
+        if (settled) return;
+        release();
+        if (active.subscribers.size === 0) active.controller.abort();
         reject(new DOMException("Operation was aborted", "AbortError"));
       };
-
-      signal?.addEventListener("abort", handleAbort, { once: true });
-      pendingRequest.promise.then(
+      signal?.addEventListener("abort", abort, { once: true });
+      active.promise.then(
         (buffer) => {
-          if (settled) return;
-          release(false);
-          resolve(buffer);
+          if (!settled) {
+            release();
+            resolve(buffer);
+          }
         },
         (error: unknown) => {
-          if (settled) return;
-          release(false);
-          reject(error);
+          if (!settled) {
+            release();
+            reject(error);
+          }
         },
       );
     });
   }
 
-  private static async updateMetadata(cache: Cache, url: string, data: Partial<CacheMetadata>): Promise<void> {
-    const metadata: CacheMetadata = {
-      url,
-      timestamp: Date.now(),
-      ...data,
-    };
-
-    await cache.put(
-      metaKey(url),
-      new Response(JSON.stringify(metadata), {
-        headers: { "Content-Type": "application/json" },
-      }),
-    );
+  private static cacheError(notify: Notify, url: string, error: unknown, operation: "get" | "set" | "delete"): void {
+    notify((callbacks) => callbacks.onCacheError?.({ url, error: toError(error), operation, timestamp: Date.now() }));
   }
 
-  private static async getBufferFromCache(url: string, cache: Cache): Promise<ArrayBuffer | null> {
+  private static async openCache(notify: Notify, url: string): Promise<Cache | undefined> {
+    if (typeof caches === "undefined" || caches === null) return undefined;
     try {
-      const response = await cache.match(url);
-      if (response?.ok) {
-        return await response.arrayBuffer();
-      }
-      return null;
+      return await caches.open(CACHE_NAME);
     } catch (error) {
-      console.error("Failed to get data from cache:", error);
-      return null;
+      AudioCache.cacheError(notify, url, error, "get");
+      return undefined;
     }
   }
 
-  private async fetchAndCacheBuffer(
-    context: BaseContext,
+  private static async deleteResponse(
+    cache: Cache | undefined,
+    request: Request,
+    notify: Notify,
     url: string,
-    cache: Cache,
-    validators?: CacheValidators,
-    signal?: AbortSignal,
-    callbacks?: Pick<CacheCallbacks, "onCacheHit">,
-  ): Promise<ArrayBuffer> {
-    const etag = validators?.etag;
-    const lastModified = validators?.lastModified;
-    const headers = new Headers();
-    if (etag) headers.append("If-None-Match", etag);
-    if (lastModified) headers.append("If-Modified-Since", lastModified);
-
-    console.debug(`[AudioCache] Fetching ${url}`, {
-      headers: Object.fromEntries(headers.entries()),
-      hasEtag: !!etag,
-      hasLastModified: !!lastModified,
-    });
-
-    const fetchResponse = await fetch(url, { headers, signal });
-
-    console.debug(`[AudioCache] Response ${url}`, {
-      status: fetchResponse.status,
-      statusText: fetchResponse.statusText,
-      etag: fetchResponse.headers?.get("ETag"),
-      lastModified: fetchResponse.headers?.get("Last-Modified"),
-      cacheControl: fetchResponse.headers?.get("Cache-Control"),
-    });
-
-    if (fetchResponse.status === 304) {
-      const cachedResponse = await cache.match(url);
-      if (cachedResponse) {
-        // Emit cache hit for 304 responses
-        if (callbacks?.onCacheHit) {
-          const event: CacheHitEvent = {
-            url,
-            cacheType: "conditional",
-            timestamp: Date.now(),
-          };
-          callbacks.onCacheHit(event);
-        }
-
-        // Update metadata timestamp on revalidation
-        const timestamp = Date.now();
-        const newCacheControl = fetchResponse.headers?.get("Cache-Control");
-        await AudioCache.updateMetadata(cache, url, {
-          timestamp,
-          etag,
-          lastModified,
-          // Only update cacheControl if present in response, otherwise preserve existing
-          ...(newCacheControl ? { cacheControl: newCacheControl } : {}),
-        });
-        return await cachedResponse.arrayBuffer();
-      } else {
-        // Cache inconsistency: 304 response but no cached body
-        // This can happen if cache was partially corrupted or cleared
-        // Fall back to re-fetching without validation headers
-        console.warn(`Cache inconsistency detected for ${url}: 304 response but no cached body. Re-fetching.`);
-
-        // Re-fetch without validation headers to get fresh content
-        const freshResponse = await fetch(url, { signal });
-        if (freshResponse.status === 200) {
-          const responseClone = freshResponse.clone();
-          const newEtag = freshResponse.headers.get("ETag");
-          const newLastModified = freshResponse.headers.get("Last-Modified");
-          const newCacheControl = freshResponse.headers.get("Cache-Control");
-
-          await AudioCache.writeBufferAndMetadata(cache, url, responseClone, {
-            timestamp: Date.now(),
-            etag: newEtag || undefined,
-            lastModified: newLastModified || undefined,
-            cacheControl: newCacheControl || undefined,
-          });
-
-          // Use progress tracking for cache recovery scenario if body exists
-          if (freshResponse.body) {
-            const { stream, total } = this.createProgressTrackingStream(context, freshResponse, url, signal);
-            return await AudioCache.collectStreamToArrayBuffer(stream, total || undefined);
-          } else {
-            // Fallback for mock responses without body (testing scenario)
-            return await freshResponse.arrayBuffer();
-          }
-        } else {
-          throw new Error(
-            `Failed to fetch resource after cache inconsistency: ${freshResponse.status} ${freshResponse.statusText}`,
-          );
-        }
-      }
-    }
-
-    if (fetchResponse.status === 200) {
-      const responseClone = fetchResponse.clone();
-      const newEtag = fetchResponse.headers.get("ETag");
-      const newLastModified = fetchResponse.headers.get("Last-Modified");
-      const newCacheControl = fetchResponse.headers.get("Cache-Control");
-
-      await AudioCache.writeBufferAndMetadata(cache, url, responseClone, {
-        timestamp: Date.now(),
-        etag: newEtag || undefined,
-        lastModified: newLastModified || undefined,
-        cacheControl: newCacheControl || undefined,
-      });
-    }
-
-    if (signal?.aborted) {
-      throw new DOMException("Operation was aborted", "AbortError");
-    }
-
-    // Use progress tracking for the main response if body exists
-    if (fetchResponse.body) {
-      const { stream, total } = this.createProgressTrackingStream(context, fetchResponse, url, signal);
-      return await AudioCache.collectStreamToArrayBuffer(stream, total || undefined);
-    } else {
-      // Fallback for mock responses without body (testing scenario)
-      return await fetchResponse.arrayBuffer();
-    }
-  }
-
-  /**
-   * Atomically write a response body and its metadata into the cache.
-   * On failure, deletes both partial entries (best-effort via `allSettled`)
-   * and rethrows the original error.
-   */
-  private static async writeBufferAndMetadata(
-    cache: Cache,
-    url: string,
-    response: Response,
-    metadata: Partial<CacheMetadata>,
   ): Promise<void> {
+    if (!cache) return;
     try {
-      await Promise.all([cache.put(url, response), AudioCache.updateMetadata(cache, url, metadata)]);
+      await cache.delete(request, { ignoreVary: true });
     } catch (error) {
-      // Clean up partial cache entries on error; both deletes run regardless.
-      await Promise.allSettled([cache.delete(url), cache.delete(metaKey(url))]);
-      throw error;
+      AudioCache.cacheError(notify, url, error, "delete");
     }
   }
 
-  /**
-   * Creates a ReadableStream wrapper that tracks download progress.
-   * Uses the callback aggregation system to emit progress to all registered listeners.
-   * Honours `signal` between reads and releases the underlying reader on
-   * any exit path (done, error, abort).
-   * @param response - The fetch Response object with ReadableStream body
-   * @param url - URL being downloaded (for progress event data and callback lookup)
-   * @param signal - Optional AbortSignal observed at chunk boundaries
-   * @returns Object containing the progress-tracking stream and total size
-   */
-  private createProgressTrackingStream(
-    context: BaseContext,
-    response: Response,
+  private static async storeResponse(
+    cache: Cache | undefined,
+    request: Request,
+    bytes: ArrayBuffer,
+    entry: HttpEntry,
+    notify: Notify,
     url: string,
-    signal?: AbortSignal,
-  ): { stream: ReadableStream<Uint8Array>; total: number | null } {
-    // Extract Content-Length from response headers
-    const contentLengthHeader = response.headers.get("content-length");
-    const total = contentLengthHeader ? Number.parseInt(contentLengthHeader, 10) : null;
-
-    let loaded = 0;
-
-    if (!response.body) {
-      // Fallback for responses without body - shouldn't happen for audio files
-      throw new Error("Response body is null");
+  ): Promise<void> {
+    if (!cache) return;
+    const headers = new Headers(entry.headers);
+    // Fetch already decoded content coding; stored bytes are uncompressed.
+    headers.delete("content-encoding");
+    headers.set("content-length", String(bytes.byteLength));
+    headers.set(POLICY_HEADER, entry.metadata);
+    try {
+      await cache.put(request, new Response(bytes, { status: 200, headers }));
+    } catch (error) {
+      await AudioCache.deleteResponse(cache, request, notify, url);
+      AudioCache.cacheError(notify, url, error, "set");
     }
-
-    const reader = response.body.getReader();
-    const pendingCallbacks = this.pendingCallbacks.get(context);
-
-    const stream = new ReadableStream<Uint8Array>({
-      async start(controller) {
-        try {
-          while (true) {
-            if (signal?.aborted) {
-              throw new DOMException("Operation was aborted", "AbortError");
-            }
-            const { done, value } = await reader.read();
-            if (done) {
-              // Emit final progress event at 100%
-              AudioCache.callAllCallbacks(pendingCallbacks, url, "onLoadingProgress", {
-                url,
-                loaded,
-                total,
-                progress: total ? 1 : -1, // 100% if total known, -1 if unknown
-                timestamp: Date.now(),
-              } satisfies LoadingProgressEvent);
-              controller.close();
-              return;
-            }
-
-            if (value) {
-              loaded += value.byteLength;
-
-              // Emit progress event
-              const progress = total ? loaded / total : -1;
-              AudioCache.callAllCallbacks(pendingCallbacks, url, "onLoadingProgress", {
-                url,
-                loaded,
-                total,
-                progress,
-                timestamp: Date.now(),
-              } satisfies LoadingProgressEvent);
-
-              controller.enqueue(value);
-            }
-          }
-        } catch (error) {
-          controller.error(error);
-        } finally {
-          reader.releaseLock();
-        }
-      },
-
-      cancel(reason) {
-        // Clean up reader when stream is cancelled
-        return reader.cancel(reason);
-      },
-    });
-
-    return { stream, total };
   }
 
-  /**
-   * Collects all chunks from a ReadableStream into a single ArrayBuffer
-   * @param stream - The ReadableStream to collect from
-   * @returns Promise that resolves to the complete ArrayBuffer
-   */
-  private static async collectStreamToArrayBuffer(
-    stream: ReadableStream<Uint8Array>,
-    knownLength?: number,
+  private static async readBytes(
+    response: Response,
+    signal: AbortSignal,
+    notify: Notify,
+    url: string,
   ): Promise<ArrayBuffer> {
-    const reader = stream.getReader();
-
+    if (!response.body) return response.arrayBuffer();
+    const contentLength = Number(response.headers.get("content-length"));
+    const total =
+      Number.isFinite(contentLength) && contentLength > 0 && !response.headers.has("content-encoding")
+        ? contentLength
+        : null;
+    const reader = response.body.getReader();
+    let bytes = new Uint8Array(total ?? 8192);
+    let loaded = 0;
+    const abort = () => {
+      void reader.cancel().catch(() => {});
+    };
+    signal.addEventListener("abort", abort, { once: true });
+    const progress = (done: boolean) => {
+      const timestamp = Date.now();
+      notify((callbacks) =>
+        callbacks.onLoadingProgress?.({
+          url,
+          loaded,
+          total,
+          progress: total ? (done ? 1 : loaded / total) : -1,
+          timestamp,
+        }),
+      );
+    };
     try {
-      if (knownLength !== undefined && knownLength > 0) {
-        // Pre-allocation path: we know the exact size
-        const result = new ArrayBuffer(knownLength);
-        const uint8View = new Uint8Array(result);
-        let offset = 0;
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          if (value) {
-            uint8View.set(value, offset);
-            offset += value.byteLength;
-          }
+      while (true) {
+        checkAbort(signal);
+        const next = await reader.read();
+        checkAbort(signal);
+        if (next.done) break;
+        if (loaded + next.value.byteLength > bytes.length) {
+          const grown = new Uint8Array(Math.max(bytes.length * 2, loaded + next.value.byteLength));
+          grown.set(bytes.subarray(0, loaded));
+          bytes = grown;
         }
-
-        return result;
-      } else {
-        // Exponential growth path: unknown size
-        let buffer = new Uint8Array(8192); // Start with 8KB
-        let totalLength = 0;
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          if (value) {
-            // Grow buffer if needed
-            if (totalLength + value.byteLength > buffer.length) {
-              const newSize = Math.max(buffer.length * 2, totalLength + value.byteLength);
-              const newBuffer = new Uint8Array(newSize);
-              newBuffer.set(buffer.subarray(0, totalLength));
-              buffer = newBuffer;
-            }
-
-            buffer.set(value, totalLength);
-            totalLength += value.byteLength;
-          }
-        }
-
-        // Return exact-sized ArrayBuffer
-        return buffer.slice(0, totalLength).buffer;
+        bytes.set(next.value, loaded);
+        loaded += next.value.byteLength;
+        progress(false);
       }
+      progress(true);
+      return bytes.slice(0, loaded).buffer;
     } finally {
+      signal.removeEventListener("abort", abort);
       reader.releaseLock();
     }
   }
 
-  /**
-   * Fetch + decode an audio URL WITHOUT touching the persistent Cache API.
-   * Used when the Cache API global (`caches`) is unavailable (e.g. Node).
-   *
-   * Mirrors the network branch of {@link fetchAndCacheBuffer}/{@link getAudioBuffer}
-   * but never reads from or writes to `caches`. Still:
-   * - uses the in-memory decoded-buffer LRU (write happens in {@link getAudioBuffer}),
-   * - emits progress callbacks via {@link createProgressTrackingStream},
-   * - is deduped through {@link getOrCreatePendingRequest} by the caller.
-   */
-  private async fetchAndDecodeWithoutCache(
+  private async loadHttp(
     context: BaseContext,
     url: string,
-    signal?: AbortSignal,
-  ): Promise<ArrayBuffer> {
-    const fetchResponse = await fetch(url, { signal });
-
-    if (fetchResponse.status !== 200 && !fetchResponse.ok) {
-      throw new Error(`Failed to fetch resource: ${fetchResponse.status} ${fetchResponse.statusText}`);
-    }
-
-    if (signal?.aborted) {
-      throw new DOMException("Operation was aborted", "AbortError");
-    }
-
-    // Use progress tracking for the response if body exists
-    if (fetchResponse.body) {
-      const { stream, total } = this.createProgressTrackingStream(context, fetchResponse, url, signal);
-      return await AudioCache.collectStreamToArrayBuffer(stream, total || undefined);
-    }
-    // Fallback for mock responses without body (testing scenario)
-    return await fetchResponse.arrayBuffer();
-  }
-
-  /**
-   * Run the shared network-result pipeline: fetch bytes, decode them, emit
-   * loading callbacks, and retain the decoded buffer in the in-memory LRU.
-   * The caller supplies the fetch strategy so persistent-cache and degraded
-   * runtimes share this plumbing without changing their network behavior.
-   */
-  private async fetchDecodeAndCache(
-    context: BaseContext,
-    url: string,
-    decodedBuffers: ByteBoundedLRUCache<string, AudioBuffer>,
-    fetchBuffer: () => Promise<ArrayBuffer>,
-    callbacks?: Pick<CacheCallbacks, "onLoadingComplete" | "onLoadingError" | "onCacheError">,
-    reportCacheError = false,
+    memory: ByteBoundedLRUCache<string, MemoryEntry>,
+    signal: AbortSignal,
+    notify: Notify,
   ): Promise<AudioBuffer> {
+    let errorType: "network" | "decode" = "network";
     try {
-      const arrayBuffer = await fetchBuffer();
-      let audioBuffer: AudioBuffer;
-      try {
-        audioBuffer = await AudioCache.decodeAudioData(context, arrayBuffer);
-      } catch (error) {
-        callbacks?.onLoadingError?.({
-          url,
-          error: toError(error),
-          errorType: "decode",
-          timestamp: Date.now(),
-        });
-        throw error;
+      checkAbort(signal);
+      const request = new Request(url, { headers: REQUEST_HEADERS });
+      const policyRequest = { url: request.url, method: "GET", headers: Object.fromEntries(request.headers) };
+      let cached = memory.get(url);
+      if (
+        cached?.http &&
+        AudioCache.canRetain(cached.http) &&
+        cached.http.policy.satisfiesWithoutRevalidation(policyRequest)
+      ) {
+        notify((callbacks) => callbacks.onCacheHit?.({ url, cacheType: "memory", timestamp: Date.now() }));
+        return cached.buffer;
       }
-
-      callbacks?.onLoadingComplete?.({
-        url,
-        duration: audioBuffer.duration,
-        size: arrayBuffer.byteLength,
-        timestamp: Date.now(),
-      });
-      decodedBuffers.set(url, audioBuffer);
-      return audioBuffer;
+      const persistent = await AudioCache.openCache(notify, url);
+      let stored: Response | undefined;
+      let entry = cached?.http;
+      if (persistent) {
+        try {
+          stored = await persistent.match(request);
+          if (stored) {
+            const storedEntry = AudioCache.readEntry(stored, request);
+            if (!storedEntry || !AudioCache.canRetain(storedEntry)) {
+              stored = undefined;
+              await AudioCache.deleteResponse(persistent, request, notify, url);
+            } else if (entry?.metadata !== storedEntry.metadata) {
+              // Never combine a different persisted representation with an older
+              // decoded buffer (another context/cache instance may have written).
+              entry = storedEntry;
+              cached = undefined;
+            }
+          }
+        } catch (error) {
+          AudioCache.cacheError(notify, url, error, "get");
+        }
+      }
+      checkAbort(signal);
+      if (entry && stored && entry.policy.satisfiesWithoutRevalidation(policyRequest)) {
+        const bytes = await stored.arrayBuffer();
+        errorType = "decode";
+        let buffer: AudioBuffer;
+        try {
+          buffer = await context.decodeAudioData(bytes);
+        } catch (error) {
+          await AudioCache.deleteResponse(persistent, request, notify, url);
+          throw error;
+        }
+        checkAbort(signal);
+        memory.set(url, { buffer, http: entry });
+        notify((callbacks) => callbacks.onCacheHit?.({ url, cacheType: "browser", timestamp: Date.now() }));
+        return buffer;
+      }
+      notify((callbacks) =>
+        callbacks.onCacheMiss?.({ url, reason: entry ? "expired" : "not-found", timestamp: Date.now() }),
+      );
+      const headers = entry ? policyHeaders(entry.policy.revalidationHeaders(policyRequest)) : request.headers;
+      // One policy owner: don't let an independent browser HTTP cache supply a
+      // representation under different reuse rules before we see the response.
+      let response = await fetch(url, { headers, signal, cache: "no-store" });
+      checkAbort(signal);
+      let bytes: ArrayBuffer | undefined;
+      let buffer: AudioBuffer | undefined;
+      let conditional = false;
+      if (response.status === 304 && entry && (stored || cached)) {
+        const update = entry.policy.revalidatedPolicy(policyRequest, {
+          status: 304,
+          headers: Object.fromEntries(response.headers),
+        });
+        if (update.matches && !update.modified) {
+          const merged = { ...entry.headers };
+          // Include NEW origin header names: upstream 4.1.1's merge only carries
+          // names that were already in the old response. No directive parsing.
+          response.headers.forEach((value, key) => {
+            if (!["content-length", "content-encoding", POLICY_HEADER].includes(key)) merged[key] = value;
+          });
+          merged.date = response.headers.get("date") ?? new Date().toUTCString();
+          merged.age = response.headers.get("age") ?? "0";
+          entry = AudioCache.createEntry(request, merged);
+          buffer = cached?.buffer;
+          bytes = stored ? await stored.arrayBuffer() : undefined;
+          conditional = true;
+        }
+      }
+      if (response.status === 304 && !conditional) {
+        response = await fetch(url, { headers: request.headers, signal, cache: "no-store" });
+        checkAbort(signal);
+      }
+      if (!conditional) {
+        if (response.status !== 200)
+          throw new Error(`Failed to fetch resource: ${response.status} ${response.statusText}`);
+        const originHeaders = Object.fromEntries(response.headers);
+        delete originHeaders[POLICY_HEADER];
+        entry = AudioCache.createEntry(request, originHeaders);
+        bytes = await AudioCache.readBytes(response, signal, notify, url);
+      }
+      checkAbort(signal);
+      if (!entry) throw new Error("Missing response policy");
+      // CORS can hide Vary and Age. This URL-only API cannot prove they are
+      // absent, so filtered responses are delivered but not retained.
+      const retain = response.type !== "cors" && AudioCache.canRetain(entry);
+      memory.delete(url);
+      if (!retain) await AudioCache.deleteResponse(persistent, request, notify, url);
+      if (!buffer) {
+        if (!bytes) throw new Error("Missing response body");
+        const byteLength = bytes.byteLength;
+        // Native decoding can detach its input buffer.
+        const persistentBytes = retain && persistent ? bytes.slice(0) : undefined;
+        errorType = "decode";
+        try {
+          buffer = await context.decodeAudioData(bytes);
+        } catch (error) {
+          console.error("Failed to decode audio data:", error);
+          throw error;
+        }
+        checkAbort(signal);
+        if (persistentBytes) await AudioCache.storeResponse(persistent, request, persistentBytes, entry, notify, url);
+        const decoded = buffer;
+        notify((callbacks) =>
+          callbacks.onLoadingComplete?.({ url, duration: decoded.duration, size: byteLength, timestamp: Date.now() }),
+        );
+      } else if (retain && bytes) {
+        await AudioCache.storeResponse(persistent, request, bytes, entry, notify, url);
+      }
+      checkAbort(signal);
+      if (retain) memory.set(url, { buffer, http: entry });
+      if (conditional)
+        notify((callbacks) => callbacks.onCacheHit?.({ url, cacheType: "conditional", timestamp: Date.now() }));
+      return buffer;
     } catch (error) {
-      callbacks?.onLoadingError?.({
-        url,
-        error: toError(error),
-        errorType: getNetworkErrorType(error),
-        timestamp: Date.now(),
-      });
-      if (reportCacheError) {
-        callbacks?.onCacheError?.({
-          url,
-          error: toError(error),
-          operation: "get",
-          timestamp: Date.now(),
-        });
-      }
+      notify((callbacks) =>
+        callbacks.onLoadingError?.({ url, error: toError(error), errorType, timestamp: Date.now() }),
+      );
       throw error;
     }
   }
 
-  private static async decodeAudioData(context: BaseContext, arrayBuffer: ArrayBuffer): Promise<AudioBuffer> {
-    try {
-      return await context.decodeAudioData(arrayBuffer);
-    } catch (error) {
-      console.error("Failed to decode audio data:", error);
-      throw error;
-    }
-  }
-
-  private static async getMetadataFromCache(url: string, cache: Cache): Promise<CacheMetadata | null> {
-    try {
-      const metaResponse = await cache.match(metaKey(url));
-      if (metaResponse?.ok) {
-        return await metaResponse.json();
-      }
-      return null;
-    } catch (error) {
-      console.error("Failed to get metadata from cache:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Get an AudioBuffer for the specified URL, using intelligent caching strategies.
-   *
-   * Caching Flow:
-   * 1. Check memory cache (LRU) for decoded AudioBuffer
-   * 2. Check persistent cache for raw ArrayBuffer and metadata
-   * 3. Make conditional HTTP request if validation tokens available
-   * 4. Decode audio data and cache at all levels
-   *
-   * The cache prioritizes HTTP conditional requests (ETag/Last-Modified) over TTL
-   * to ensure content freshness while maintaining performance through 304 responses.
-   *
-   * @param context - AudioContext for decoding audio data
-   * @param url - URL of the audio resource to fetch
-   * @param signal - Optional AbortSignal to cancel the operation
-   * @returns Promise that resolves to decoded AudioBuffer
-   * @throws Error if audio cannot be fetched or decoded
-   */
-  public async getAudioBuffer(
+  async getAudioBuffer(
     context: BaseContext,
     url: string,
     signal?: AbortSignal,
     callbacks?: CacheCallbacks,
   ): Promise<AudioBuffer> {
-    let decodedBuffers = this.decodedBuffers.get(context);
-    if (decodedBuffers === undefined) {
-      decodedBuffers = new ByteBoundedLRUCache<string, AudioBuffer>(
-        DEFAULT_DECODED_BUFFER_CACHE_BYTES,
-        estimateAudioBufferBytes,
-      );
-      this.decodedBuffers.set(context, decodedBuffers);
-    }
-
-    // Call loading start callback
-    if (callbacks?.onLoadingStart) {
-      callbacks.onLoadingStart({
-        url,
-        timestamp: Date.now(),
-      });
-    }
-
-    // Check if the decoded buffer is already available in memory cache.
-    // Single get + narrow avoids the has/get/`!` race.
-    const memoryHit = decodedBuffers.get(url);
-    if (memoryHit !== undefined) {
-      if (callbacks?.onCacheHit) {
-        callbacks.onCacheHit({
-          url,
-          cacheType: "memory",
-          timestamp: Date.now(),
-        });
-      }
-      return memoryHit;
-    }
-
-    // handle data: urls
+    checkAbort(signal);
+    callbacks?.onLoadingStart?.({ url, timestamp: Date.now() });
+    const memory = this.getMemory(context);
     if (url.startsWith("data:")) {
-      const parsed = parseDataUrl(url);
-      if (parsed === null) {
-        const error = new Error(`Malformed data: URL: ${url.slice(0, 32)}…`);
-        if (callbacks?.onLoadingError) {
-          callbacks.onLoadingError({
-            url,
-            error,
-            errorType: "decode",
-            timestamp: Date.now(),
-          });
-        }
+      const hit = memory.get(url);
+      if (hit) {
+        callbacks?.onCacheHit?.({ url, cacheType: "memory", timestamp: Date.now() });
+        return hit.buffer;
+      }
+      try {
+        const comma = url.indexOf(",");
+        if (comma < 0) throw new Error("Malformed data URL");
+        const header = url.slice(5, comma);
+        const payload = url.slice(comma + 1);
+        const decoded = /;base64$/i.test(header) ? atob(payload) : decodeURIComponent(payload);
+        const bytes = Uint8Array.from(decoded, (character) => character.charCodeAt(0));
+        const buffer = await context.decodeAudioData(bytes.buffer);
+        checkAbort(signal);
+        memory.set(url, { buffer });
+        return buffer;
+      } catch (error) {
+        callbacks?.onLoadingError?.({ url, error: toError(error), errorType: "decode", timestamp: Date.now() });
         throw error;
       }
-      const audioBuffer = await AudioCache.decodeAudioData(context, parsed.bytes.buffer as ArrayBuffer);
-      decodedBuffers.set(url, audioBuffer);
-      return audioBuffer;
     }
-
-    // When the browser Cache API is unavailable (e.g. Node), transparently
-    // degrade to a fetch-only path: no persistent cache read/write, no error
-    // log — still using the in-memory LRU, pending-request dedup, and progress
-    // callbacks. The available-cache path below is byte-for-byte unchanged.
-    if (!AudioCache.isCacheApiAvailable()) {
-      return this.getOrCreatePendingRequest(
-        context,
-        url,
-        async (requestSignal) => {
-          // No persistent cache, so this is always a miss.
-          if (callbacks?.onCacheMiss) {
-            callbacks.onCacheMiss({
-              url,
-              reason: "not-found",
-              timestamp: Date.now(),
-            });
-          }
-
-          return await this.fetchDecodeAndCache(
-            context,
-            url,
-            decodedBuffers,
-            () => this.fetchAndDecodeWithoutCache(context, url, requestSignal),
-            callbacks,
-          );
-        },
-        signal,
-        { onLoadingProgress: callbacks?.onLoadingProgress },
-      );
-    }
-
-    const cache = await AudioCache.openCache();
-
-    const metadata = await AudioCache.getMetadataFromCache(url, cache);
-
-    // Determine if we should make a network request
-    // This logic implements HTTP caching best practices:
-    // 1. Check Cache-Control freshness first (RFC-compliant behavior)
-    // 2. If stale, use validation headers for conditional requests
-    // 3. Fall back to TTL when no validation tokens exist
-    const shouldFetch = (() => {
-      if (!metadata) {
-        return true; // Must fetch if nothing is cached
-      }
-
-      // Check for directives that require revalidation
-      if (requiresRevalidation(metadata.cacheControl)) {
-        return true; // Must revalidate due to no-cache, no-store, or must-revalidate
-      }
-
-      // Check Cache-Control freshness
-      const maxAge = parseMaxAge(metadata.cacheControl);
-      if (maxAge !== null) {
-        const age = (Date.now() - metadata.timestamp) / 1000;
-        if (maxAge > 0 && age < maxAge) {
-          return false; // Fresh content, serve from cache
-        }
-        // If max-age=0 or content is stale, proceed to validation
-      }
-
-      // Content is stale (or max-age=0), check if we can revalidate
-      if (metadata.etag || metadata.lastModified) {
-        return true; // Stale but can be validated with conditional request
-      }
-
-      // No validation headers available, fall back to TTL
-      return Date.now() - metadata.timestamp > AudioCache.cacheExpirationTime;
-    })();
-
-    return this.getOrCreatePendingRequest(
-      context,
-      url,
-      async (requestSignal) => {
-        if (shouldFetch) {
-          // Cache miss - need to fetch from network
-          if (callbacks?.onCacheMiss) {
-            callbacks.onCacheMiss({
-              url,
-              reason: metadata ? "expired" : "not-found",
-              timestamp: Date.now(),
-            });
-          }
-
-          return await this.fetchDecodeAndCache(
-            context,
-            url,
-            decodedBuffers,
-            () =>
-              this.fetchAndCacheBuffer(
-                context,
-                url,
-                cache,
-                { etag: metadata?.etag, lastModified: metadata?.lastModified },
-                requestSignal,
-                { onCacheHit: callbacks?.onCacheHit },
-              ),
-            callbacks,
-            true,
-          );
-        } else {
-          // Content should be fresh in cache
-          const cachedBuffer = await AudioCache.getBufferFromCache(url, cache);
-          if (cachedBuffer) {
-            // Cache hit from browser cache
-            if (callbacks?.onCacheHit) {
-              callbacks.onCacheHit({
-                url,
-                cacheType: "browser",
-                timestamp: Date.now(),
-              });
-            }
-
-            const audioBuffer = await AudioCache.decodeAudioData(context, cachedBuffer);
-            decodedBuffers.set(url, audioBuffer);
-            return audioBuffer;
-          } else {
-            // Cache inconsistency - metadata exists but body is missing
-            if (callbacks?.onCacheError) {
-              callbacks.onCacheError({
-                url,
-                error: new Error("Cache inconsistency: metadata exists but body is missing"),
-                operation: "get",
-                timestamp: Date.now(),
-              });
-            }
-
-            // Fallback to network if body missing but metadata is fresh
-            return await this.fetchDecodeAndCache(
-              context,
-              url,
-              decodedBuffers,
-              () =>
-                this.fetchAndCacheBuffer(
-                  context,
-                  url,
-                  cache,
-                  { etag: metadata?.etag, lastModified: metadata?.lastModified },
-                  requestSignal,
-                  { onCacheHit: callbacks?.onCacheHit },
-                ),
-              callbacks,
-            );
-          }
-        }
-      },
-      signal,
-      { onLoadingProgress: callbacks?.onLoadingProgress },
+    return this.join(context, url, signal, callbacks, (runSignal, notify) =>
+      this.loadHttp(context, url, memory, runSignal, notify),
     );
   }
 
-  public clearMemoryCache(): void {
+  clearMemoryCache(): void {
     this.decodedBuffers = new WeakMap();
     this.pendingRequests = new WeakMap();
-    this.pendingCallbacks = new WeakMap();
   }
 }

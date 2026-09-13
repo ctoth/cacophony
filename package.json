@@ -28,6 +28,7 @@
     "dist",
     "bin",
     "docs",
+    "THIRD_PARTY_NOTICES.md",
     "README.md"
   ],
   "scripts": {
@@ -75,6 +76,7 @@
     "@rollup/plugin-replace": "^5.0.7",
     "@rollup/plugin-typescript": "^11.1.6",
     "@types/audioworklet": "^0.0.87",
+    "@types/http-cache-semantics": "4.0.4",
     "@types/node": "^22.18.1",
     "hls.js": "^1.6.16",
     "husky": "^9.1.7",
@@ -95,6 +97,7 @@
   },
   "dependencies": {
     "fft.js": "^4.0.4",
+    "http-cache-semantics": "4.1.1",
     "mediabunny": "^1.51.0"
   },
   "optionalDependencies": {

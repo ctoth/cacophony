@@ -253,6 +253,8 @@ describe("AudioCache Progress Tracking", () => {
     });
 
     it("should deduplicate callbacks for concurrent requests", async () => {
+      let clock = Date.now();
+      vi.spyOn(Date, "now").mockImplementation(() => clock++);
       const testUrl = "https://example.com/audio-concurrent.mp3";
       const mockArrayBuffer = new ArrayBuffer(256);
       const mockAudioBuffer = new AudioBuffer({ length: 25, sampleRate: 44100 });
@@ -286,8 +288,8 @@ describe("AudioCache Progress Tracking", () => {
       expect(callbacks2.onLoadingProgress).toHaveBeenCalled();
 
       // Progress data should be identical
-      const calls1 = (callbacks1.onLoadingProgress as any).mock.calls;
-      const calls2 = (callbacks2.onLoadingProgress as any).mock.calls;
+      const calls1 = callbacks1.onLoadingProgress.mock.calls;
+      const calls2 = callbacks2.onLoadingProgress.mock.calls;
       expect(calls1.length).toBe(calls2.length);
       expect(calls1).toEqual(calls2);
     });
@@ -297,44 +299,22 @@ describe("AudioCache Progress Tracking", () => {
       const mockArrayBuffer = new ArrayBuffer(128);
       const mockAudioBuffer = new AudioBuffer({ length: 12, sampleRate: 44100 });
 
-      // Mock cache with existing content
-      global.caches = {
-        open: vi.fn().mockResolvedValue({
-          match: vi.fn().mockImplementation((url) => {
-            if (url.endsWith(":meta")) {
-              return Promise.resolve({
-                ok: true,
-                json: () =>
-                  Promise.resolve({
-                    url: testUrl,
-                    etag: '"cached-version"',
-                    timestamp: Date.now() - 1000,
-                  }),
-              });
-            }
-            if (url === testUrl) {
-              return Promise.resolve({
-                ok: true,
-                arrayBuffer: () => Promise.resolve(mockArrayBuffer),
-              });
-            }
-            return Promise.resolve(null);
+      // Populate through the public API; don't manufacture private metadata.
+      global.fetch = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(mockArrayBuffer, {
+            headers: { etag: '"cached-version"', "cache-control": "no-cache" },
           }),
-          put: vi.fn(),
-          delete: vi.fn(),
-        }),
-      } as any;
-
-      // Mock 304 response
-      global.fetch = vi.fn().mockResolvedValue({
-        status: 304,
-        statusText: "Not Modified",
-        ok: false,
-        headers: new Headers(),
-      });
-
+        )
+        .mockResolvedValueOnce(
+          new Response(null, {
+            status: 304,
+            headers: { etag: '"cached-version"' },
+          }),
+        );
       audioContextMock.decodeAudioData = vi.fn().mockResolvedValue(mockAudioBuffer);
-
+      await cache.getAudioBuffer(audioContextMock, testUrl);
       await cache.getAudioBuffer(audioContextMock, testUrl, undefined, mockCallbacks);
 
       // Should not call progress callback for 304 responses

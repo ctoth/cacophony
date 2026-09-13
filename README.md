@@ -1306,7 +1306,11 @@ Cacophony implements intelligent three-layer caching for optimal performance:
 
 **Memory Cache (LRU)** → **Browser Cache API** → **Network**
 
-The cache system is fully automatic and HTTP-compliant, respecting standard cache headers (ETag, Last-Modified). When cache validation tokens are available, Cacophony makes lightweight conditional requests (304 responses have no body). When tokens are unavailable, it falls back to TTL-based caching (24 hours default).
+HTTP reuse decisions are made by `http-cache-semantics` for both decoded memory entries and persistent responses. Fresh responses can be reused; stale responses are conditionally validated when ETag or Last-Modified is available. `no-cache` requires validation, and `no-store` prevents retention in either layer. A successful matching 304 can reuse the decoded buffer while updating its policy.
+
+The 24-hour default TTL applies only when the response supplies no Cache-Control, Expires, Pragma, or validators. Explicit expiry never falls back to that TTL. Custom TTL values use milliseconds and are rounded down to whole seconds. Persistence uses a versioned response containing both bytes and policy; older cache entries are ignored and fetched again.
+
+This URL-only API explicitly controls the request's `Accept` header. Responses varying on other, host-managed headers are delivered without application-cache retention. CORS-filtered responses are also not retained because JavaScript cannot establish whether headers such as Vary or Age were hidden. Such loads may therefore make more network requests. Network fetches bypass the browser's separate HTTP cache so the application does not combine independent freshness decisions. These rules do not change data-URL decoding or caching.
 
 ```typescript
 const cacophony = new Cacophony();
@@ -1314,7 +1318,7 @@ const cacophony = new Cacophony();
 // First load - fetches from network, stores in cache
 const sound1 = await cacophony.createSound('audio.mp3');
 
-// Second load - instant from memory cache
+// Second load - from memory while the HTTP policy permits reuse
 const sound2 = await cacophony.createSound('audio.mp3');
 
 // Monitor cache performance via events
@@ -1336,7 +1340,7 @@ import { AudioCache } from 'cacophony';
 AudioCache.setCacheExpirationTime(60 * 60 * 1000); // 1 hour
 ```
 
-The caching system requires no configuration in most cases. It automatically optimizes for performance while respecting HTTP standards.
+Decoded buffers remain bounded to 64 MiB per audio context. Concurrent callers share fetching and decoding; cancelling one caller does not cancel the others. Storage errors are reported through cacheError while a successfully downloaded response can still be delivered.
 
 ## Cancellation with AbortSignal
 
