@@ -62,6 +62,8 @@ export class Sound extends RoutableSource implements BaseSound {
    * (Laroche & Dolson 1999 peak-based pitch shift).
    */
   private _pitchFactor: number = 1;
+  /** @internal Invalidates deferred playback starts when the Sound is stopped or cleaned up. */
+  _playbackGeneration = 0;
   private eventEmitter: TypedEventEmitter<SoundEvents> = new TypedEventEmitter<SoundEvents>();
   private _holdings: SoundCleanupHoldings = { sources: [], gainNodes: [], mediaElements: [] };
   private _unregisterToken: object = {};
@@ -202,7 +204,14 @@ export class Sound extends RoutableSource implements BaseSound {
   preplay(): Playback[] {
     // Keep stopped voices replayable by their owners, but stop retaining them
     // in the collection used for Sound controls and future voice admission.
-    this.playbacks = this.playbacks.filter((playback) => playback.state !== "stopped");
+    if (this.playbacks.some((playback) => playback.state === "stopped")) {
+      this.playbacks = this.playbacks.filter((playback) => {
+        if (playback.state !== "stopped") return true;
+        this._unsubscribeFromPlayback(playback);
+        this._detachPlaybackOutput(playback);
+        return false;
+      });
+    }
     // Capture array lengths at entry so a throw mid-construction can truncate
     // back to exactly what was here before — this preplay call's pushes get
     // rolled back without touching prior entries.
@@ -270,37 +279,7 @@ export class Sound extends RoutableSource implements BaseSound {
       } else if (this.panType === "stereo") {
         playback.stereoPan = this.stereoPan;
       }
-      // Set up event propagation from playback to sound. Each listener captures
-      // `this` and is registered on the playback's own emitter — so the
-      // playback holds a reference back to the Sound for the lifetime of the
-      // listener. Capture the unsubscribe functions so we can break the cycle
-      // explicitly when the playback ends (naturally) or is cleaned up.
-      const unsubEnded = playback.on("ended", () => {
-        this.emit("ended", undefined);
-        // Natural end: the playback has fired its terminal event; tear down
-        // our subscriptions so it can be GC'd without waiting for cleanup().
-        this._unsubscribeFromPlayback(playback);
-      });
-      playback._loopEndCallback = () => {
-        this.emit("loopEnd", undefined);
-      };
-      const unsubError = playback.on("error", (errorEvent) => {
-        this.emitAsync("soundError", {
-          url: this.url,
-          error: errorEvent.error,
-          errorType: "playback",
-          timestamp: errorEvent.timestamp,
-          recoverable: errorEvent.recoverable,
-        });
-      });
-      // Clear-the-callback step counts as an "unsubscribe" for the closure
-      // _loopEndCallback holds (it captures `this`). Combine all three.
-      const clearLoopCallback = () => {
-        if (playback._loopEndCallback) {
-          playback._loopEndCallback = undefined;
-        }
-      };
-      this._playbackUnsubscribes.set(playback, [unsubEnded, unsubError, clearLoopCallback]);
+      this._subscribeToPlayback(playback);
 
       this.playbacks.push(playback);
       return [playback];
@@ -340,12 +319,59 @@ export class Sound extends RoutableSource implements BaseSound {
     }
   }
 
-  /**
-   * Detaches the Sound-side listeners that were registered on a playback in
-   * {@link preplay}. Idempotent — safe to call on a playback whose
-   * subscriptions were already torn down. Breaks the Sound↔playback closure
-   * cycle described on the entries in {@link _playbackUnsubscribes}.
-   */
+  /** Disconnect a reaped voice from primary and send targets while preserving its internal graph. */
+  private _detachPlaybackOutput(playback: Playback): void {
+    if (!playback.source) return;
+    playback.outputNode.disconnect();
+    for (const sendGain of playback._sendGains.values()) sendGain.disconnect();
+    playback._sendGains.clear();
+  }
+
+  /** @internal Restore routing and event forwarding for a successfully restarted voice. */
+  _readmitPlayback(playback: Playback): void {
+    if (this.playbacks.includes(playback)) return;
+    this._detachPlaybackOutput(playback);
+    playback.outputNode.connect(this._resolveRouteTargetNode());
+    this._wireRouteSends(playback);
+    this._subscribeToPlayback(playback);
+    this.playbacks.push(playback);
+  }
+
+  private _subscribeToPlayback(playback: Playback): void {
+    if (this._playbackUnsubscribes.has(playback)) return;
+    // Set up event propagation from playback to sound. Each listener captures
+    // `this` and is registered on the playback's own emitter — so the
+    // playback holds a reference back to the Sound for the lifetime of the
+    // listener. Capture the unsubscribe functions so we can break the cycle
+    // explicitly when the playback ends (naturally) or is cleaned up.
+    const unsubEnded = playback.on("ended", () => {
+      this.emit("ended", undefined);
+      // Natural end: the playback has fired its terminal event; tear down
+      // our subscriptions so it can be GC'd without waiting for cleanup().
+      this._unsubscribeFromPlayback(playback);
+    });
+    playback._loopEndCallback = () => {
+      this.emit("loopEnd", undefined);
+    };
+    const unsubError = playback.on("error", (errorEvent) => {
+      this.emitAsync("soundError", {
+        url: this.url,
+        error: errorEvent.error,
+        errorType: "playback",
+        timestamp: errorEvent.timestamp,
+        recoverable: errorEvent.recoverable,
+      });
+    });
+    // Clear-the-callback step counts as an "unsubscribe" for the closure
+    // _loopEndCallback holds (it captures `this`). Combine all three.
+    const clearLoopCallback = () => {
+      if (playback._loopEndCallback) {
+        playback._loopEndCallback = undefined;
+      }
+    };
+    this._playbackUnsubscribes.set(playback, [unsubEnded, unsubError, clearLoopCallback]);
+  }
+
   private _unsubscribeFromPlayback(playback: Playback): void {
     const unsubs = this._playbackUnsubscribes.get(playback);
     if (!unsubs) {
@@ -412,6 +438,7 @@ export class Sound extends RoutableSource implements BaseSound {
   }
 
   stop(): void {
+    this._playbackGeneration++;
     this._holdings.sources.length = 0;
     this._holdings.gainNodes.length = 0;
     this._holdings.mediaElements.length = 0;
@@ -561,6 +588,7 @@ export class Sound extends RoutableSource implements BaseSound {
   }
 
   cleanup(): void {
+    this._playbackGeneration++;
     this._cacophony?.unregisterSoundCleanup(this._unregisterToken);
     this._preparedMediaElementCleanup?.();
     this._preparedMediaElementCleanup = undefined;

@@ -161,8 +161,11 @@ Unplayed, paused, and playing voices remain registered.
 
 An individual `playback.stop()` preserves the ability to call `playback.play()`
 again. A successfully restarted playback rejoins `sound.playbacks` and receives
-Sound controls again, even if it was previously reaped. Reaping does not call
-`cleanup()`; call `playback.cleanup()` when a retained playback is no longer needed.
+Sound controls again, even if it was previously reaped. Reaping disconnects its
+output and sends; replay restores the Sound's current routing and event forwarding.
+The playback retains its individual volume, rate, and other settings while reaped.
+Reaping does not call `cleanup()`; call `playback.cleanup()` when a retained playback
+is no longer needed.
 
 ### Audio Sprites for Games
 
