@@ -11,32 +11,16 @@
 <li><a href="" aria-current="page">AudioCache</a></li></ul>
 <h1>Class AudioCache</h1></div>
 <section class="tsd-panel tsd-comment">
-<div class="tsd-comment tsd-typography"><p>AudioCache provides efficient caching of audio resources using HTTP caching standards.</p>
-<p>Features:</p>
-<ul>
-<li>Three-layer caching: Memory (LRU) → Browser Cache API → Network</li>
-<li>HTTP conditional requests with ETag and Last-Modified support</li>
-<li>Robust error handling with cache inconsistency recovery</li>
-</ul>
-<p>Caching Strategy:</p>
-<ul>
-<li>Always makes conditional requests when validation tokens (ETag/Last-Modified) are available</li>
-<li>Uses TTL as fallback only when no validation tokens exist</li>
-<li>Conditional requests are lightweight (304 responses have no body)</li>
-</ul>
-</div>
-<div class="tsd-comment tsd-typography">
-<div class="tsd-tag-example">
-<h4 class="tsd-anchor-link" id="example">Example<a href="#example" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><pre><code class="typescript"><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">cache</span><span class="hl-1"> = </span><span class="hl-5">new</span><span class="hl-1"> </span><span class="hl-0">AudioCache</span><span class="hl-1">();</span><br/><span class="hl-5">const</span><span class="hl-1"> </span><span class="hl-6">audioBuffer</span><span class="hl-1"> = </span><span class="hl-3">await</span><span class="hl-1"> </span><span class="hl-4">cache</span><span class="hl-1">.</span><span class="hl-0">getAudioBuffer</span><span class="hl-1">(</span><span class="hl-4">audioContext</span><span class="hl-1">, </span><span class="hl-2">&#39;audio.mp3&#39;</span><span class="hl-1">);</span><br/><br/><span class="hl-7">// Optional: Configure TTL for when no validation tokens exist</span><br/><span class="hl-4">AudioCache</span><span class="hl-1">.</span><span class="hl-0">setCacheExpirationTime</span><span class="hl-1">(</span><span class="hl-8">60</span><span class="hl-1"> * </span><span class="hl-8">60</span><span class="hl-1"> * </span><span class="hl-8">1000</span><span class="hl-1">); </span><span class="hl-7">// 1 hour</span>
-</code><button type="button">Copy</button></pre>
-
-</div></div></section>
+<div class="tsd-comment tsd-typography"><p>HTTP policy governs decoded memory entries and persistent response bytes.
+Bytes and versioned policy share ONE Cache API response, preventing split
+writes. Legacy v1 entries are not read. Memory is bounded per decoding context.</p>
+</div></section>
 <section class="tsd-panel">
 <h4>Implements</h4>
 <ul class="tsd-hierarchy">
 <li><span class="tsd-signature-type">ICache</span></li></ul></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ce242a9db8288d0d8832cb77654c4e2d77287154/src/cache.ts#L222">src/cache.ts:222</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/7dc1246591a385d2f055c8513351cdb12cfc3519/src/cache.ts#L132">src/cache.ts:132</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -74,59 +58,44 @@
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <p>Implementation of ICache.clearMemoryCache</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ce242a9db8288d0d8832cb77654c4e2d77287154/src/cache.ts#L1022">src/cache.ts:1022</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/7dc1246591a385d2f055c8513351cdb12cfc3519/src/cache.ts#L621">src/cache.ts:621</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getaudiobuffer"><span>get<wbr/>Audio<wbr/>Buffer</span><a href="#getaudiobuffer" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="getaudiobuffer-1"><span class="tsd-kind-call-signature">getAudioBuffer</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">context</span><span class="tsd-signature-symbol">:</span> <a href="../interfaces/BaseContext.html" class="tsd-signature-type tsd-kind-interface">BaseContext</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">url</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">signal</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">AbortSignal</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">callbacks</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">CacheCallbacks</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">AudioBuffer</span><span class="tsd-signature-symbol">&gt;</span><a href="#getaudiobuffer-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
-<div class="tsd-comment tsd-typography"><p>Get an AudioBuffer for the specified URL, using intelligent caching strategies.</p>
-<p>Caching Flow:</p>
-<ol>
-<li>Check memory cache (LRU) for decoded AudioBuffer</li>
-<li>Check persistent cache for raw ArrayBuffer and metadata</li>
-<li>Make conditional HTTP request if validation tokens available</li>
-<li>Decode audio data and cache at all levels</li>
-</ol>
-<p>The cache prioritizes HTTP conditional requests (ETag/Last-Modified) over TTL
-to ensure content freshness while maintaining performance through 304 responses.</p>
-</div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
-<li><span><span class="tsd-kind-parameter">context</span>: <a href="../interfaces/BaseContext.html" class="tsd-signature-type tsd-kind-interface">BaseContext</a></span>
-<div class="tsd-comment tsd-typography"><p>AudioContext for decoding audio data</p>
-</div></li>
-<li><span><span class="tsd-kind-parameter">url</span>: <span class="tsd-signature-type">string</span></span>
-<div class="tsd-comment tsd-typography"><p>URL of the audio resource to fetch</p>
-</div></li>
-<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">signal</span>: <span class="tsd-signature-type">AbortSignal</span></span>
-<div class="tsd-comment tsd-typography"><p>Optional AbortSignal to cancel the operation</p>
-</div></li>
+<li><span><span class="tsd-kind-parameter">context</span>: <a href="../interfaces/BaseContext.html" class="tsd-signature-type tsd-kind-interface">BaseContext</a></span></li>
+<li><span><span class="tsd-kind-parameter">url</span>: <span class="tsd-signature-type">string</span></span></li>
+<li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">signal</span>: <span class="tsd-signature-type">AbortSignal</span></span></li>
 <li><span><code class="tsd-tag">Optional</code><span class="tsd-kind-parameter">callbacks</span>: <span class="tsd-signature-type">CacheCallbacks</span></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">AudioBuffer</span><span class="tsd-signature-symbol">&gt;</span></h4><p>Promise that resolves to decoded AudioBuffer</p>
-
-<div class="tsd-comment tsd-typography">
-<div class="tsd-tag-throws">
-<h4 class="tsd-anchor-link" id="throws">Throws<a href="#throws" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>Error if audio cannot be fetched or decoded</p>
-</div></div><aside class="tsd-sources">
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Promise</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">AudioBuffer</span><span class="tsd-signature-symbol">&gt;</span></h4><aside class="tsd-sources">
 <p>Implementation of ICache.getAudioBuffer</p>
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ce242a9db8288d0d8832cb77654c4e2d77287154/src/cache.ts#L815">src/cache.ts:815</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/7dc1246591a385d2f055c8513351cdb12cfc3519/src/cache.ts#L580">src/cache.ts:580</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="setcacheexpirationtime"><code class="tsd-tag">Static</code><span>set<wbr/>Cache<wbr/>Expiration<wbr/>Time</span><a href="#setcacheexpirationtime" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
 <div class="tsd-signature tsd-anchor-link" id="setcacheexpirationtime-1"><span class="tsd-kind-call-signature">setCacheExpirationTime</span><span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">time</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">void</span><a href="#setcacheexpirationtime-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
+<div class="tsd-comment tsd-typography"><p>Fallback for new responses with no cache directives, expiry, or validators.
+Existing memory and persistent policies retain their original lifetime.</p>
+</div>
 <div class="tsd-parameters">
 <h4 class="tsd-parameters-title">Parameters</h4>
 <ul class="tsd-parameter-list">
 <li><span><span class="tsd-kind-parameter">time</span>: <span class="tsd-signature-type">number</span></span></li></ul></div>
-<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
+<h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4>
+<div class="tsd-comment tsd-typography">
+<div class="tsd-tag-throws">
+<h4 class="tsd-anchor-link" id="throws">Throws<a href="#throws" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p>If time is negative or non-finite.</p>
+</div></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/ce242a9db8288d0d8832cb77654c4e2d77287154/src/cache.ts#L228">src/cache.ts:228</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/7dc1246591a385d2f055c8513351cdb12cfc3519/src/cache.ts#L143">src/cache.ts:143</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
