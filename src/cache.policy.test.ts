@@ -193,6 +193,31 @@ describe("AudioCache HTTP policy", () => {
     expect(audioContextMock.decodeAudioData).toHaveBeenCalledTimes(1);
   });
 
+  it.each([false, true])("revalidates mixed-case no-cache directives (clear memory: %s)", async (clearMemory) => {
+    respond({ "cache-control": 'No-Cache, max-age=60, Extension="Mixed,Case"', etag: '"one"' });
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 304, headers: { etag: '"one"' } }));
+    await cache.getAudioBuffer(audioContextMock, url);
+    if (clearMemory) cache.clearMemoryCache();
+    await cache.getAudioBuffer(audioContextMock, url);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get("if-none-match")).toBe('"one"');
+    const metadata = JSON.parse(entries.get(url)?.headers.get("x-cacophony-cache-policy") ?? "null");
+    expect(metadata.policyHeaders["cache-control"]).toContain('extension="Mixed,Case"');
+  });
+
+  it("honors mixed-case no-store on revalidation", async () => {
+    respond({ "cache-control": "no-cache", etag: '"one"' });
+    fetchMock.mockResolvedValueOnce(
+      new Response(null, { status: 304, headers: { etag: '"one"', "cache-control": "No-Store, Max-Age=60" } }),
+    );
+    respond({ "cache-control": "No-Store" });
+    await cache.getAudioBuffer(audioContextMock, url);
+    await cache.getAudioBuffer(audioContextMock, url);
+    await cache.getAudioBuffer(audioContextMock, url);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(entries.size).toBe(0);
+  });
+
   it("does not revalidate a fresh must-revalidate entry", async () => {
     respond({ "cache-control": "max-age=60, must-revalidate" });
     await cache.getAudioBuffer(audioContextMock, url);

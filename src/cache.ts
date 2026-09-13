@@ -102,6 +102,19 @@ function isHeaders(value: unknown): value is Record<string, string> {
   return isRecord(value) && Object.values(value).every((item) => typeof item === "string");
 }
 
+function normalizePolicyHeaders(headers: Record<string, string>): Record<string, string> {
+  const normalized = { ...headers };
+  if (normalized["cache-control"]) {
+    // Upstream 4.1.1 treats directive names as case-sensitive. Skip quoted
+    // values (including embedded commas) so only directive names change case.
+    normalized["cache-control"] = normalized["cache-control"].replace(
+      /("(?:\\.|[^"\\])*")|(^|,)(\s*[^=,\s]+)/g,
+      (_match, quoted: string | undefined, separator: string, name: string) => quoted ?? separator + name.toLowerCase(),
+    );
+  }
+  return normalized;
+}
+
 function policyHeaders(headers: CachePolicy.Headers): Headers {
   const result = new Headers();
   for (const [key, value] of Object.entries(headers)) {
@@ -127,7 +140,7 @@ export class AudioCache implements ICache {
   }
 
   private static createEntry(request: Request, headers: Record<string, string>, cors = false): HttpEntry {
-    const effectiveHeaders = { ...headers };
+    const effectiveHeaders = normalizePolicyHeaders(headers);
     // Application default only: explicit directives, Expires and validators win.
     // All parsing and reuse decisions still belong to upstream CachePolicy.
     if (!["cache-control", "expires", "pragma", "etag", "last-modified"].some((key) => key in headers)) {
@@ -172,7 +185,7 @@ export class AudioCache implements ICache {
       // from persistent JSON. Restore time with the public serialization API.
       const serialized = new CachePolicy(
         { url: request.url, method: "GET", headers: value.requestHeaders },
-        { status: 200, headers: value.policyHeaders },
+        { status: 200, headers: normalizePolicyHeaders(value.policyHeaders) },
         { shared: false, cacheHeuristic: 0, immutableMinTimeToLive: 0 },
       ).toObject();
       serialized.t = value.time;
@@ -473,7 +486,7 @@ export class AudioCache implements ICache {
       if (response.status === 304 && entry && (stored || cached)) {
         const update = entry.policy.revalidatedPolicy(policyRequest, {
           status: 304,
-          headers: Object.fromEntries(response.headers),
+          headers: normalizePolicyHeaders(Object.fromEntries(response.headers)),
         });
         if (update.matches && !update.modified) {
           const merged = { ...entry.headers };
