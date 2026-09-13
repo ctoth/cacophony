@@ -226,7 +226,13 @@ export class AudioCache implements ICache {
       const controller = new AbortController();
       const subscribers = new Set<Subscriber>();
       const notify: Notify = (deliver) => {
-        for (const current of subscribers) if (current.callbacks) deliver(current.callbacks);
+        for (const current of subscribers) {
+          try {
+            if (current.callbacks) deliver(current.callbacks);
+          } catch {
+            // An observer must not interrupt the load or other subscribers.
+          }
+        }
       };
       const promise = Promise.resolve().then(() => load(controller.signal, notify));
       pending = { controller, subscribers, promise };

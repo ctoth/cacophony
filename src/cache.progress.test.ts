@@ -137,6 +137,38 @@ describe("AudioCache Progress Tracking", () => {
       } as any;
     });
 
+    it("should isolate throwing progress callbacks during a shared load", async () => {
+      const testUrl = "https://example.com/throwing-progress.mp3";
+      const bytes = new ArrayBuffer(16);
+      const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      global.fetch = vi.fn().mockResolvedValue(createMockResponse(bytes, { contentLength: 16 }));
+      audioContextMock.decodeAudioData = vi.fn().mockResolvedValue(buffer);
+      const throwingProgress = vi.fn(() => {
+        throw new Error("subscriber callback failed");
+      });
+
+      const results = await Promise.allSettled([
+        cache.getAudioBuffer(audioContextMock, testUrl, undefined, {
+          onLoadingProgress: throwingProgress,
+        }),
+        cache.getAudioBuffer(audioContextMock, testUrl, undefined, mockCallbacks),
+      ]);
+
+      expect(results).toEqual([
+        { status: "fulfilled", value: buffer },
+        { status: "fulfilled", value: buffer },
+      ]);
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(audioContextMock.decodeAudioData).toHaveBeenCalledExactlyOnceWith(bytes);
+      expect(throwingProgress).toHaveBeenCalledTimes(5);
+      expect(mockCallbacks.onLoadingProgress).toHaveBeenCalledTimes(5);
+      expect(mockCallbacks.onLoadingProgress).toHaveBeenLastCalledWith(
+        expect.objectContaining({ loaded: 16, total: 16, progress: 1 }),
+      );
+      expect(mockCallbacks.onLoadingComplete).toHaveBeenCalledTimes(1);
+      expect(mockCallbacks.onLoadingError).not.toHaveBeenCalled();
+    });
+
     it("should track progress with known Content-Length", async () => {
       const testUrl = "https://example.com/audio-with-length.mp3";
       const mockArrayBuffer = new ArrayBuffer(1024);
