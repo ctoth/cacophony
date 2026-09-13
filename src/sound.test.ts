@@ -299,6 +299,40 @@ describe("Sound cloning", () => {
     expect(clonedSound.filters.length).toBe(originalSound.filters.length);
   });
 
+  it.each([
+    "omitted",
+    "empty",
+    "replacement",
+  ] as const)("applies %s clone filters to new playbacks without changing the original", (mode) => {
+    const originalFilter = originalSound.filters[0];
+    originalFilter.frequency.value = 800;
+    const [originalPlayback] = originalSound.play();
+    const originalPlaybackFilter = originalPlayback.filters[0];
+    const replacement = audioContextMock.createBiquadFilter();
+    replacement.frequency.value = 2400;
+    const expectedFilters = mode === "omitted" ? [originalFilter] : mode === "empty" ? [] : [replacement];
+    const clone = originalSound.clone(mode === "omitted" ? {} : { filters: expectedFilters });
+
+    try {
+      expect(clone.filters).toEqual(expectedFilters);
+      const [playback] = clone.preplay();
+      expect(playback.filters).toHaveLength(expectedFilters.length);
+      for (const [index, filter] of expectedFilters.entries()) {
+        expect(playback.filters[index]).not.toBe(filter);
+        expect(playback.filters[index].frequency.value).toBe(filter.frequency.value);
+      }
+      expect(clone.buffer).toBe(buffer);
+      expect(originalSound.filters).toEqual([originalFilter]);
+      expect(originalSound.playbacks).toEqual([originalPlayback]);
+      expect(originalPlayback.isPlaying).toBe(true);
+      expect(originalPlayback.filters).toHaveLength(1);
+      expect(originalPlayback.filters[0]).toBe(originalPlaybackFilter);
+      expect(originalPlaybackFilter.frequency.value).toBe(800);
+    } finally {
+      clone.cleanup();
+    }
+  });
+
   it("clones a Sound instance with overridden volume", () => {
     const clonedSound = originalSound.clone({ volume: 0.5 });
 

@@ -163,7 +163,7 @@ export class Sound extends RoutableSource implements BaseSound {
     const playbackRate = overrides.playbackRate ?? this.playbackRate;
     const volume = overrides.volume !== undefined ? overrides.volume : this.volume;
     const position = overrides.position !== undefined ? overrides.position : this.position;
-    const filters = overrides.filters?.length ? overrides.filters : this._filters;
+    const filters = overrides.filters ?? this._filters;
 
     const clone = new Sound(
       this.url,

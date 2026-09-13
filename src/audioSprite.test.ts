@@ -162,6 +162,37 @@ describe("audio sprites", () => {
     clone.cleanup();
   });
 
+  it("clears clone filters while retaining sprite bounds, identity, and the shared buffer", async () => {
+    instrumentBufferSourceStarts();
+    const buffer = new AudioBuffer({ length: 100, numberOfChannels: 1, sampleRate: 10 });
+    const sprite = await cacophony.createSprite(buffer, { clip: { start: 2, duration: 4 } });
+    const original = sprite.sounds.clip;
+    const filter = audioContextMock.createBiquadFilter();
+    original.addFilter(filter);
+    const clone = original.clone({ filters: [] });
+
+    try {
+      expect(clone.filters).toEqual([]);
+      expect(original.filters).toEqual([filter]);
+      expect(clone.region).toBe(original.region);
+      expect(clone.spriteName).toBe("clip");
+      expect(clone.buffer).toBe(buffer);
+      sprite.cleanup();
+
+      const [playback] = clone.preplay();
+      expect(playback.filters).toEqual([]);
+      expect(playback.duration).toBe(4);
+      expect(() => playback.seek(4.01)).toThrow("Invalid time value for seek");
+      playback.play();
+      const source = playback.source!;
+      expect("buffer" in source ? source.buffer : undefined).toBe(buffer);
+      expect("start" in source ? source.start : undefined).toHaveBeenCalledWith(0, 2, 4);
+    } finally {
+      clone.cleanup();
+      sprite.cleanup();
+    }
+  });
+
   it("copies and freezes validated regions and rejects invalid maps atomically", async () => {
     const buffer = new AudioBuffer({ length: 100, numberOfChannels: 1, sampleRate: 10 });
     const region = { start: 1, duration: 2 };
