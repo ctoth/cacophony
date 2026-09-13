@@ -18,6 +18,20 @@ class TestPlayback extends BasePlayback {
 }
 
 describe("BasePlayback state", () => {
+  it("exposes the current lifecycle state", () => {
+    const playback = new TestPlayback({} as PlaybackContainer);
+
+    expect(playback.state).toBe("unplayed");
+    playback.play();
+    expect(playback.state).toBe("playing");
+    playback.pause();
+    expect(playback.state).toBe("paused");
+    playback.stop();
+    expect(playback.state).toBe("stopped");
+    playback.play();
+    expect(playback.state).toBe("playing");
+  });
+
   it("owns the playback state transitions", () => {
     const playback = new TestPlayback({} as PlaybackContainer);
 

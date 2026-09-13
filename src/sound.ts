@@ -200,6 +200,9 @@ export class Sound extends RoutableSource implements BaseSound {
    */
 
   preplay(): Playback[] {
+    // Keep stopped voices replayable by their owners, but stop retaining them
+    // in the collection used for Sound controls and future voice admission.
+    this.playbacks = this.playbacks.filter((playback) => playback.state !== "stopped");
     // Capture array lengths at entry so a throw mid-construction can truncate
     // back to exactly what was here before — this preplay call's pushes get
     // rolled back without touching prior entries.

@@ -339,6 +339,15 @@ export class Playback extends BasePlayback implements BaseSound {
     }
   }
 
+  protected override emitPlayStarted(isResume: boolean): void {
+    // A stopped voice may have been reaped by Sound.preplay() or natural end.
+    // Restore ownership only after its source has successfully started.
+    if (this._state === "stopped" && !this.origin.playbacks.includes(this)) {
+      this.origin.playbacks.push(this);
+    }
+    super.emitPlayStarted(isResume);
+  }
+
   pause(): void {
     if (!this.source || this._state !== "playing") {
       return;
