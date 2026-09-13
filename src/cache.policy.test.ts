@@ -350,6 +350,31 @@ describe("AudioCache HTTP policy", () => {
     expect(new Headers(fetchMock.mock.calls[2]?.[1]?.headers).has("if-none-match")).toBe(false);
   });
 
+  it.each([false, true])("reloads when a 304 omits the stored ETag (clear memory: %s)", async (clearMemory) => {
+    respond({ "cache-control": "no-cache", etag: '"one"' });
+    const first = await cache.getAudioBuffer(audioContextMock, url);
+    if (clearMemory) cache.clearMemoryCache();
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 304 }));
+    const replacement = new Uint8Array([5, 6, 7, 8]);
+    fetchMock.mockResolvedValueOnce(
+      new Response(replacement, { headers: { "cache-control": "max-age=60", etag: '"two"' } }),
+    );
+    const second = await cache.getAudioBuffer(audioContextMock, url);
+    expect(second).not.toBe(first);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    const conditional = fetchMock.mock.calls[1]?.[1];
+    const recovery = fetchMock.mock.calls[2]?.[1];
+    expect(new Headers(conditional?.headers).get("if-none-match")).toBe('"one"');
+    expect(recovery?.cache).toBe("reload");
+    expect(recovery?.signal).toBe(conditional?.signal);
+    expect(new Headers(recovery?.headers).has("if-none-match")).toBe(false);
+    expect(audioContextMock.decodeAudioData).toHaveBeenLastCalledWith(replacement.buffer);
+    expect(entries.get(url)?.headers.get("etag")).toBe('"two"');
+    cache.clearMemoryCache();
+    await cache.getAudioBuffer(audioContextMock, url);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   it("retries 304 when no complete representation exists, preserving the shared signal", async () => {
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 304 }));
     respond({ "cache-control": "max-age=60" });
