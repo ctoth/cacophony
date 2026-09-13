@@ -138,6 +138,56 @@ describe("media-element streaming public contract", () => {
     expect(playbackEvents).toEqual(["play", "pause", "play", "resume", "stop"]);
   });
 
+  it.each(["unplayed", "playing", "paused"])("emits one seek after an accepted media seek while %s", async (state) => {
+    const element = createMediaElement();
+    const sound = await createStreamingSound("createSound", element);
+    const [playback] = sound.preplay();
+    if (state !== "unplayed") {
+      playback.play();
+      await vi.waitFor(() => expect(playback.isPlaying).toBe(true));
+    }
+    if (state === "paused") playback.pause();
+    const seek = vi.fn(() => expect(element.currentTime).toBe(12.5));
+    playback.on("seek", seek);
+
+    sound.seek(12.5);
+    await Promise.resolve();
+
+    expect(seek).toHaveBeenCalledExactlyOnceWith(12.5);
+    sound.cleanup();
+  });
+
+  it("does not emit seek when the media currentTime setter throws", async () => {
+    const element = createMediaElement();
+    const sound = await createStreamingSound("createSound", element);
+    const [playback] = sound.preplay();
+    const seek = vi.fn();
+    playback.on("seek", seek);
+    Object.defineProperty(element, "currentTime", {
+      configurable: true,
+      get: () => 0,
+      set: () => {
+        throw new Error("Seek rejected");
+      },
+    });
+
+    expect(() => playback.seek(5)).toThrow("Seek rejected");
+    expect(seek).not.toHaveBeenCalled();
+    sound.cleanup();
+  });
+
+  it.each([90, Infinity])("does not emit seek for unseekable media with duration %s", async (duration) => {
+    const element = createMediaElement({ duration, seekable: false });
+    const sound = await createStreamingSound("createSound", element);
+    const [playback] = sound.preplay();
+    const seek = vi.fn();
+    playback.on("seek", seek);
+
+    expect(() => playback.seek(5)).toThrow(/seekable range/);
+    expect(seek).not.toHaveBeenCalled();
+    sound.cleanup();
+  });
+
   it("seeks media only when the browser exposes a seekable range", async () => {
     const finiteElement = createMediaElement({ duration: 90, seekable: true });
     const finiteSound = await createStreamingSound("createSound", finiteElement);

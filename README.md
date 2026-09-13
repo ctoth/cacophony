@@ -1304,9 +1304,16 @@ synth.type = 'square';  // Triggers typeChange event
 | `pause` | `void` | Fired when playback pauses. |
 | `resume` | `void` | Fired when playback resumes after being paused. |
 | `ended` | `void` | Fired when playback ends naturally. |
-| `seek` | `number` | Fired when playback position changes. Receives new time in seconds. |
+| `seek` | `number` | Fired once after a successful `Playback.seek(time)`, with the requested time in seconds. Rejected seeks do not emit. |
 | `volumeChange` | `number` | Fired when playback volume changes. Receives new volume value. |
 | `error` | `PlaybackErrorEvent` | Fired on playback errors. Contains `error`, `errorType`, `timestamp`, `recoverable`. |
+
+`seek` is specific to `Playback` (buffer and media-element sources). Subscribe on
+each playback to observe seeks, including those requested through `Sound.seek()`.
+`Sound` does not relay a collective `seek`: its concurrent voices can have
+different positions, and a collective seek can fail after some voices have moved.
+For media elements, the event reports acceptance of the `currentTime` write;
+it does not wait for the browser's asynchronous `seeked` event or playback resumption.
 
 #### Synth Events
 

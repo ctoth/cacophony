@@ -166,6 +166,40 @@ describe("Playback class", () => {
     expect(playback.isPlaying).toBe(true);
   });
 
+  it.each(["unplayed", "playing", "paused", "stopped"])("emits one seek after a buffer seek while %s", (state) => {
+    if (state !== "unplayed") playback.play();
+    if (state === "paused") playback.pause();
+    if (state === "stopped") playback.stop();
+    const seek = vi.fn(() => {
+      expect(playback.currentTime).toBe(0.001);
+      expect(playback.isPlaying).toBe(state === "playing");
+    });
+    playback.on("seek", seek);
+
+    playback.seek(0.001);
+
+    expect(seek).toHaveBeenCalledExactlyOnceWith(0.001);
+  });
+
+  it.each([-1, NaN, Infinity])("does not emit seek for invalid time %s", (time) => {
+    const seek = vi.fn();
+    playback.on("seek", seek);
+    expect(() => playback.seek(time)).toThrow("Invalid time value for seek");
+    expect(seek).not.toHaveBeenCalled();
+  });
+
+  it("does not emit seek when restarting the buffer source throws", () => {
+    playback.play();
+    const seek = vi.fn();
+    playback.on("seek", seek);
+    vi.mocked(audioContextMock.createBufferSource).mockImplementationOnce(() => {
+      throw new Error("Source creation failed");
+    });
+
+    expect(() => playback.seek(0.001)).toThrow("Source creation failed");
+    expect(seek).not.toHaveBeenCalled();
+  });
+
   it("handles seeking correctly", () => {
     const seekTime = 5;
     playback.seek(seekTime);
