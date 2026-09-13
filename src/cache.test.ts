@@ -166,6 +166,28 @@ describe("AudioCache storage and lifecycle", () => {
     expect(bytes && new Uint8Array(bytes)).toEqual(new Uint8Array([1, 2, 3, 4]));
   });
 
+  it("reports cancellation during data-URL decoding as abort without retaining the result", async () => {
+    const dataUrl = "data:audio/wav;base64,AQIDBA==";
+    const decoded = deferred<AudioBuffer>();
+    vi.mocked(context.decodeAudioData).mockReturnValueOnce(decoded.promise);
+    const controller = new AbortController();
+    const onLoadingError = vi.fn();
+    const pending = cache.getAudioBuffer(context, dataUrl, controller.signal, { onLoadingError });
+    const rejected = expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    controller.abort();
+    decoded.resolve(new AudioBuffer({ length: 4, sampleRate: 48000 }));
+    await rejected;
+    expect(onLoadingError).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        url: dataUrl,
+        errorType: "abort",
+        error: expect.objectContaining({ name: "AbortError" }),
+      }),
+    );
+    await cache.getAudioBuffer(context, dataUrl);
+    expect(context.decodeAudioData).toHaveBeenCalledTimes(2);
+  });
+
   it("reports malformed data URLs", async () => {
     const onLoadingError = vi.fn();
     await expect(cache.getAudioBuffer(context, "data:broken", undefined, { onLoadingError })).rejects.toThrow();

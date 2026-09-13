@@ -591,7 +591,12 @@ export class AudioCache implements ICache {
         memory.set(url, { buffer });
         return buffer;
       } catch (error) {
-        callbacks?.onLoadingError?.({ url, error: toError(error), errorType: "decode", timestamp: Date.now() });
+        callbacks?.onLoadingError?.({
+          url,
+          error: toError(error),
+          errorType: signal?.aborted ? "abort" : "decode",
+          timestamp: Date.now(),
+        });
         throw error;
       }
     }
