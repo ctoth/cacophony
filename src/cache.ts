@@ -253,7 +253,13 @@ export class AudioCache implements ICache {
         if (settled) return;
         release();
         if (active.subscribers.size === 0) active.controller.abort();
-        reject(new DOMException("Operation was aborted", "AbortError"));
+        const error = new DOMException("Operation was aborted", "AbortError");
+        try {
+          callbacks?.onLoadingError?.({ url, error, errorType: "abort", timestamp: Date.now() });
+        } catch {
+          // An observer must not prevent cancellation from settling.
+        }
+        reject(error);
       };
       signal?.addEventListener("abort", abort, { once: true });
       active.promise.then(

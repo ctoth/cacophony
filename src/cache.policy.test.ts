@@ -45,6 +45,57 @@ describe("AudioCache HTTP policy", () => {
   }
 
   it.each([
+    { shared: false, throws: false },
+    { shared: true, throws: false },
+    { shared: true, throws: true },
+  ])("reports cancellation once to the cancelled subscriber: %j", async ({ shared, throws }) => {
+    let finishFetch!: (response: Response) => void;
+    fetchMock.mockImplementation(
+      () =>
+        new Promise<Response>((resolve) => {
+          finishFetch = resolve;
+        }),
+    );
+    const controller = new AbortController();
+    const onLoadingError = vi.fn(() => {
+      if (throws) throw new Error("Observer failed");
+    });
+    const cancelledCallbacks = {
+      onLoadingStart: vi.fn(),
+      onLoadingProgress: vi.fn(),
+      onLoadingComplete: vi.fn(),
+      onLoadingError,
+    };
+    const remainingCallbacks = { onLoadingComplete: vi.fn(), onLoadingError: vi.fn() };
+    const cancelled = cache.getAudioBuffer(audioContextMock, url, controller.signal, cancelledCallbacks);
+    const rejected = expect(cancelled).rejects.toMatchObject({ name: "AbortError" });
+    const remaining = shared ? cache.getAudioBuffer(audioContextMock, url, undefined, remainingCallbacks) : undefined;
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+
+    controller.abort();
+    await rejected;
+    expect(fetchMock.mock.calls[0][1]?.signal?.aborted).toBe(!shared);
+    finishFetch(new Response(new Uint8Array([1, 2, 3, 4])));
+    if (remaining) {
+      await expect(remaining).resolves.toBeInstanceOf(AudioBuffer);
+      expect(remainingCallbacks.onLoadingComplete).toHaveBeenCalledTimes(1);
+    }
+    // Allow the abandoned shared operation's rejection handler to finish too.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(cancelledCallbacks.onLoadingStart).toHaveBeenCalledTimes(1);
+    expect(onLoadingError).toHaveBeenCalledExactlyOnceWith({
+      url,
+      error: expect.objectContaining({ name: "AbortError", message: "Operation was aborted" }),
+      errorType: "abort",
+      timestamp: expect.any(Number),
+    });
+    expect(cancelledCallbacks.onLoadingProgress).not.toHaveBeenCalled();
+    expect(cancelledCallbacks.onLoadingComplete).not.toHaveBeenCalled();
+    expect(remainingCallbacks.onLoadingError).not.toHaveBeenCalled();
+  });
+
+  it.each([
     { revalidate: false, keepMemory: false },
     { revalidate: true, keepMemory: false },
     { revalidate: true, keepMemory: true },
