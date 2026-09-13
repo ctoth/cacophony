@@ -5,6 +5,7 @@ import type { SynthEvents } from "./events";
 import type { FilterCloneOverrides } from "./filters";
 import type { OscillatorCloneOverrides } from "./oscillatorMixin";
 import type { PanCloneOverrides } from "./pannerMixin";
+import { validatePlayOptions } from "./playOptions";
 import { RoutableSource } from "./routableSource";
 import { SynthPlayback } from "./synthPlayback";
 import type { VolumeCloneOverrides } from "./volumeMixin";
@@ -116,25 +117,31 @@ export class Synth extends RoutableSource implements BaseSound {
     if (this.oscillatorOptions.type) oscillator.type = this.oscillatorOptions.type;
 
     const gainNode = this.context.createGain();
-    const primaryTargetNode = this._resolveRouteTargetNode();
-    gainNode.connect(primaryTargetNode);
-    const playback = new SynthPlayback(this, oscillator, gainNode);
-    this._preparePlayback(playback);
-    playback.volume = this.volume;
-    if (this.panType === "HRTF") {
-      playback.threeDOptions = this.threeDOptions;
-      playback.position = this.position;
-    } else if (this.panType === "stereo") {
-      playback.stereoPan = this.stereoPan;
+    let playback: SynthPlayback | undefined;
+    try {
+      const primaryTargetNode = this._resolveRouteTargetNode();
+      gainNode.connect(primaryTargetNode);
+      playback = new SynthPlayback(this, oscillator, gainNode);
+      this._preparePlayback(playback);
+      playback.volume = this.volume;
+      if (this.panType === "HRTF") {
+        playback.threeDOptions = this.threeDOptions;
+        playback.position = this.position;
+      } else if (this.panType === "stereo") {
+        playback.stereoPan = this.stereoPan;
+      }
+      this.playbacks.push(playback);
+      return [playback];
+    } catch (error) {
+      playback?.cleanup();
+      oscillator.disconnect();
+      gainNode.disconnect();
+      throw error;
     }
-    this.playbacks.push(playback);
-    return [playback];
   }
 
   play(options?: PlayOptions): ReturnType<this["preplay"]> {
-    if (options?.at !== undefined) {
-      throw new Error("Scheduled playback is not supported for synths");
-    }
+    validatePlayOptions(options, this.panType, "synth");
     const playbacks = super.play(options) as ReturnType<this["preplay"]>;
     this.emit("play", playbacks[0]);
     return playbacks;

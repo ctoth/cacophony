@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "include": ["src/play-options.test.ts", "src/mediaStream.test.ts", "src/pcmStream.test.ts", "src/synth.test.ts"],
+  "exclude": ["node_modules", "src/processors/**/*.ts"]
+}

@@ -125,6 +125,7 @@ export class Group implements BaseSound {
    */
 
   play(options?: PlayOptions): Playback[] {
+    for (const sound of this.sounds) sound.validatePlayOptions(options);
     return this.sounds.flatMap((sound) => sound.play(options));
   }
 

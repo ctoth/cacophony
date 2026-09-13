@@ -58,6 +58,25 @@ describe("MediaStreamSound", () => {
     context.close();
   });
 
+  it("applies common invocation options and rejects unsupported controls before preparation", () => {
+    const sound = new MediaStreamSound(stream, context, globalGainNode);
+    const prepare = vi.spyOn(sound, "preplay");
+    expect(() => sound.play({ loopCount: 0 })).toThrow("loopCount");
+    expect(() => sound.play({ playbackRate: 1 })).toThrow("playbackRate");
+    expect(() => sound.play({ fadeOut: 10 })).toThrow("fadeOut");
+    expect(prepare).not.toHaveBeenCalled();
+    const [voice] = sound.play({ volume: 0.25, panType: "stereo", stereoPan: 0 });
+    expect(voice.volume).toBe(0.25);
+    expect(voice.stereoPan).toBe(0);
+    expectPath(source, [voice.panner!, voice.outputNode, globalGainNode], destination);
+    voice.pause();
+    voice.play({ volume: 0, panType: "HRTF", position: [1, 2, 3] });
+    expect(voice.volume).toBe(0);
+    expect(voice.position).toEqual([1, 2, 3]);
+    expect(() => voice.play({ playbackRate: 2 })).toThrow("playbackRate");
+    sound.stop();
+  });
+
   it("creates one reusable playback for a live MediaStream", () => {
     const sound = new MediaStreamSound(stream, context, globalGainNode);
     sound.addFilter(context.createBiquadFilter());

@@ -26,6 +26,27 @@ describe("PcmStreamSound", () => {
     mockAudioWorklet();
   });
 
+  it("forwards invocation settings before activating the worklet", async () => {
+    const sound = await cacophony.createPcmStreamSound();
+    const prepare = vi.spyOn(sound, "preplay");
+    expect(() => sound.play({ loopCount: 0 })).toThrow("loopCount");
+    expect(() => sound.play({ playbackRate: 1 })).toThrow("playbackRate");
+    expect(prepare).not.toHaveBeenCalled();
+    const [voice] = sound.preplay();
+    const atStart: number[] = [];
+    vi.spyOn(voice.source!.port, "postMessage").mockImplementation((message) => {
+      if (message.type === "play") atStart.push(voice.volume);
+    });
+    sound.play({ volume: 0.25, panType: "stereo", stereoPan: 0 });
+    expect(atStart).toEqual([0.25]);
+    expect(voice.stereoPan).toBe(0);
+    voice.pause();
+    voice.play({ volume: 0 });
+    expect(atStart).toEqual([0.25, 0]);
+    expect(() => voice.play({ loopCount: 0 })).toThrow("loopCount");
+    sound.stop();
+  });
+
   it("constructs the PCM worklet through the public Cacophony factory", async () => {
     const createNode = vi.spyOn(cacophony, "createWorkletNode");
 

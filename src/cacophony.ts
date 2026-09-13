@@ -59,7 +59,7 @@ import { type CacophonyLogger, consoleLogger, noopLogger } from "./logger";
 import { MediaStreamSound, type MediaStreamSoundOptions } from "./mediaStream";
 import { LoudnessMeter } from "./meters/loudness-meter";
 import { MicrophoneStream, type MicrophoneStreamOptions } from "./microphone";
-import type { ThreeDOptions } from "./pannerMixin";
+import type { HrtfPannerOptions, ThreeDOptions } from "./pannerMixin";
 import { PcmStreamSound, type PcmStreamSoundOptions } from "./pcmStream";
 import { GATE_DEFAULT_RATIO } from "./processors/dynamics-core";
 import { DATTORRO_INV_SQRT2 } from "./processors/modulated-delay-core";
@@ -124,6 +124,19 @@ export interface StereoToBFormatOptions {
  * @interface PlayOptions
  */
 export interface PlayOptions {
+  /** Per-voice gain; omitted values inherit the source defaults. */
+  volume?: number;
+  /** Positive rate multiplier. Unsupported for synths and live streams. */
+  playbackRate?: number;
+  /** Additional repetitions, or infinite. Unsupported for synths and live streams. */
+  loopCount?: LoopCount;
+  panType?: PanType;
+  /** Stereo-only pan, from -1 to 1. */
+  stereoPan?: number;
+  /** HRTF-only position; takes precedence over threeDOptions position fields. */
+  position?: Position;
+  /** Partial HRTF settings preserve unspecified effective values. */
+  threeDOptions?: ThreeDOptions | Partial<HrtfPannerOptions>;
   /** Absolute AudioContext time, in seconds, for a buffer source's first start. */
   at?: number;
   fadeIn?: number; // duration in ms

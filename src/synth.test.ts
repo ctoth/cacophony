@@ -19,6 +19,41 @@ describe("Synth class", () => {
     synth = new Synth(audioContextMock, masterInput);
   });
 
+  it("configures invocation options at oscillator start without changing synth defaults", () => {
+    const createOscillator = audioContextMock.createOscillator.bind(audioContextMock);
+    const starts: unknown[] = [];
+    vi.spyOn(audioContextMock, "createOscillator").mockImplementation(() => {
+      const oscillator = createOscillator();
+      vi.spyOn(oscillator, "start").mockImplementation(() => {
+        const voice = synth.playbacks[synth.playbacks.length - 1];
+        starts.push([voice.volume, voice.panType, voice.stereoPan]);
+      });
+      return oscillator;
+    });
+    synth.play({ volume: 0.3, panType: "stereo", stereoPan: 0 });
+    expect(starts).toEqual([[0.3, "stereo", 0]]);
+    expect(synth.volume).toBe(1);
+    expect(synth.panType).toBe("HRTF");
+    synth.stop();
+  });
+
+  it("cleans up a synth voice after start failure", () => {
+    const prepare = synth.preplay.bind(synth);
+    let failed: SynthPlayback | undefined;
+    vi.spyOn(synth, "preplay").mockImplementation(() => {
+      const voices = prepare();
+      failed = voices[0];
+      vi.spyOn(failed.source!, "start").mockImplementation(() => {
+        throw new Error("start failed");
+      });
+      return voices;
+    });
+    expect(() => synth.play({ volume: 0.5 })).toThrow("start failed");
+    expect(synth.playbacks).toHaveLength(0);
+    expect(failed?.source).toBeUndefined();
+    expect(failed?.gainNode).toBeUndefined();
+  });
+
   it("is created with correct default properties", () => {
     expect(synth.context).toBe(audioContextMock);
     expect(synth.soundType).toBe("oscillator");

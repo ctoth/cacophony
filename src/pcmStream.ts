@@ -2,6 +2,7 @@ import { BasePlayback } from "./basePlayback";
 import type { BaseSound, Cacophony, LoopCount, PanType, PlayOptions, SoundType, StreamCapabilities } from "./cacophony";
 import type { AudioNode, AudioParam, AudioWorkletNode, BaseContext, BiquadFilterNode, GainNode } from "./context";
 import { TypedEventEmitter } from "./eventEmitter";
+import { applyPlayOptions, validatePlayOptions } from "./playOptions";
 import { RoutableSource } from "./routableSource";
 
 export type PcmStreamState = "idle" | "playing" | "paused" | "stopped" | "ended";
@@ -50,7 +51,7 @@ export class PcmStreamPlayback extends BasePlayback {
     origin: PcmStreamSound,
     source: AudioWorkletNode,
     gainNode: GainNode,
-    context: BaseContext,
+    private readonly context: BaseContext,
     outputNode: AudioNode,
     panType: PanType,
   ) {
@@ -71,12 +72,12 @@ export class PcmStreamPlayback extends BasePlayback {
     if (!this.source) {
       throw new Error("Cannot play a PCM stream that has been cleaned up");
     }
-    if (options?.at !== undefined) {
-      throw new Error("Scheduled playback is only supported for buffer sounds");
-    }
+    validatePlayOptions(options, this.panType, "stream");
     if (this.isPlaying) {
       return [this];
     }
+    applyPlayOptions(this, this.context, options);
+    if (options?.fadeIn !== undefined) void this.fadeIn(options.fadeIn, options.fadeType);
     const isResume = this.isPaused;
     this.source.port.postMessage({ type: "play" });
     this.emitPlayStarted(isResume);
@@ -357,14 +358,11 @@ export class PcmStreamSound extends RoutableSource implements BaseSound {
   }
 
   play(options?: PlayOptions): PcmStreamPlayback[] {
-    if (options?.at !== undefined) {
-      throw new Error("Scheduled playback is only supported for buffer sounds");
-    }
+    validatePlayOptions(options, this.panType, "stream");
     if (this.state === "ended") {
       throw new Error("Cannot play a PCM stream after it has ended");
     }
-    const playbacks = this.preplay();
-    playbacks.forEach((playback) => playback.play());
+    const playbacks = super.play(options) as PcmStreamPlayback[];
     this.setState("playing");
     return playbacks;
   }

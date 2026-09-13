@@ -129,6 +129,29 @@ Cacophony uses a two-tier architecture that separates audio assets from their pl
 
 This design allows the same sound to be played multiple times simultaneously with different settings (volume, position, playback rate, etc.).
 
+Pass invocation settings to `play(options)` to configure each voice before audio
+starts. Omitted values inherit source defaults; `0` is valid for volume, stereo
+pan, and loop count. Sound defaults and overlapping voices stay independent.
+
+```typescript
+const [voice] = sound.play({ volume: 0.5, playbackRate: 1.2, loopCount: 0,
+  panType: 'stereo', stereoPan: 0 });
+const step = group.playOrdered(true, { volume: 0.7, panType: 'HRTF',
+  position: [10, 0, 5], threeDOptions: { distanceModel: 'linear', rolloffFactor: 0.1 } });
+```
+
+`stereoPan` requires the effective stereo mode; `position` and `threeDOptions`
+require HRTF. Partial HRTF options preserve unspecified settings. Group all,
+random, and ordered playback and sprite children accept these same options.
+Invalid options throw before voice preparation, and group playback preflights
+every member. Direct `Playback.play(options)` also supports these settings,
+scheduling, and fades. Calling play on an already playing voice remains a no-op
+after validation.
+
+Synths and live streams support volume, spatial settings, and fade-in. They
+reject playback rate, loop count, scheduled starts, end fades, and per-loop fade
+settings because these sources do not support those controls.
+
 ```typescript
 const sound = await cacophony.createSound('laser.mp3');
 
