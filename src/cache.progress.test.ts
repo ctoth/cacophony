@@ -129,12 +129,63 @@ describe("AudioCache Progress Tracking", () => {
 
       // Mock caches.open to return a working cache
       global.caches = {
+        delete: vi.fn().mockResolvedValue(false),
         open: vi.fn().mockResolvedValue({
           match: vi.fn().mockResolvedValue(null),
           put: vi.fn().mockResolvedValue(undefined),
           delete: vi.fn().mockResolvedValue(true),
         }),
       } as any;
+    });
+
+    it("bounds progress when decoded transfer bytes exceed visible Content-Length", async () => {
+      const bytes = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+      vi.spyOn(global, "fetch").mockResolvedValueOnce(createMockResponse(bytes.buffer, { contentLength: 3 }));
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValue(
+        new AudioBuffer({ length: 4, sampleRate: 48000 }),
+      );
+      await cache.getAudioBuffer(audioContextMock, "https://other.test/compressed.wav", undefined, mockCallbacks);
+      const events = vi.mocked(mockCallbacks.onLoadingProgress!).mock.calls.map(([event]) => event);
+      expect(events.length).toBeGreaterThan(1);
+      for (const event of events) {
+        expect(event.progress).toBeGreaterThanOrEqual(0);
+        expect(event.progress).toBeLessThanOrEqual(1);
+      }
+      expect(events.at(-1)).toMatchObject({ loaded: 8, total: 3, progress: 1 });
+      expect(audioContextMock.decodeAudioData).toHaveBeenCalledExactlyOnceWith(bytes.buffer);
+      expect(mockCallbacks.onLoadingError).not.toHaveBeenCalled();
+    });
+
+    it("should isolate throwing progress callbacks during a shared load", async () => {
+      const testUrl = "https://example.com/throwing-progress.mp3";
+      const bytes = new ArrayBuffer(16);
+      const buffer = new AudioBuffer({ length: 100, sampleRate: 44100 });
+      global.fetch = vi.fn().mockResolvedValue(createMockResponse(bytes, { contentLength: 16 }));
+      audioContextMock.decodeAudioData = vi.fn().mockResolvedValue(buffer);
+      const throwingProgress = vi.fn(() => {
+        throw new Error("subscriber callback failed");
+      });
+
+      const results = await Promise.allSettled([
+        cache.getAudioBuffer(audioContextMock, testUrl, undefined, {
+          onLoadingProgress: throwingProgress,
+        }),
+        cache.getAudioBuffer(audioContextMock, testUrl, undefined, mockCallbacks),
+      ]);
+
+      expect(results).toEqual([
+        { status: "fulfilled", value: buffer },
+        { status: "fulfilled", value: buffer },
+      ]);
+      expect(global.fetch).toHaveBeenCalledTimes(1);
+      expect(audioContextMock.decodeAudioData).toHaveBeenCalledExactlyOnceWith(bytes);
+      expect(throwingProgress).toHaveBeenCalledTimes(5);
+      expect(mockCallbacks.onLoadingProgress).toHaveBeenCalledTimes(5);
+      expect(mockCallbacks.onLoadingProgress).toHaveBeenLastCalledWith(
+        expect.objectContaining({ loaded: 16, total: 16, progress: 1 }),
+      );
+      expect(mockCallbacks.onLoadingComplete).toHaveBeenCalledTimes(1);
+      expect(mockCallbacks.onLoadingError).not.toHaveBeenCalled();
     });
 
     it("should track progress with known Content-Length", async () => {
@@ -253,6 +304,8 @@ describe("AudioCache Progress Tracking", () => {
     });
 
     it("should deduplicate callbacks for concurrent requests", async () => {
+      let clock = Date.now();
+      vi.spyOn(Date, "now").mockImplementation(() => clock++);
       const testUrl = "https://example.com/audio-concurrent.mp3";
       const mockArrayBuffer = new ArrayBuffer(256);
       const mockAudioBuffer = new AudioBuffer({ length: 25, sampleRate: 44100 });
@@ -286,8 +339,8 @@ describe("AudioCache Progress Tracking", () => {
       expect(callbacks2.onLoadingProgress).toHaveBeenCalled();
 
       // Progress data should be identical
-      const calls1 = (callbacks1.onLoadingProgress as any).mock.calls;
-      const calls2 = (callbacks2.onLoadingProgress as any).mock.calls;
+      const calls1 = callbacks1.onLoadingProgress.mock.calls;
+      const calls2 = callbacks2.onLoadingProgress.mock.calls;
       expect(calls1.length).toBe(calls2.length);
       expect(calls1).toEqual(calls2);
     });
@@ -297,44 +350,22 @@ describe("AudioCache Progress Tracking", () => {
       const mockArrayBuffer = new ArrayBuffer(128);
       const mockAudioBuffer = new AudioBuffer({ length: 12, sampleRate: 44100 });
 
-      // Mock cache with existing content
-      global.caches = {
-        open: vi.fn().mockResolvedValue({
-          match: vi.fn().mockImplementation((url) => {
-            if (url.endsWith(":meta")) {
-              return Promise.resolve({
-                ok: true,
-                json: () =>
-                  Promise.resolve({
-                    url: testUrl,
-                    etag: '"cached-version"',
-                    timestamp: Date.now() - 1000,
-                  }),
-              });
-            }
-            if (url === testUrl) {
-              return Promise.resolve({
-                ok: true,
-                arrayBuffer: () => Promise.resolve(mockArrayBuffer),
-              });
-            }
-            return Promise.resolve(null);
+      // Populate through the public API; don't manufacture private metadata.
+      global.fetch = vi
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(mockArrayBuffer, {
+            headers: { etag: '"cached-version"', "cache-control": "no-cache" },
           }),
-          put: vi.fn(),
-          delete: vi.fn(),
-        }),
-      } as any;
-
-      // Mock 304 response
-      global.fetch = vi.fn().mockResolvedValue({
-        status: 304,
-        statusText: "Not Modified",
-        ok: false,
-        headers: new Headers(),
-      });
-
+        )
+        .mockResolvedValueOnce(
+          new Response(null, {
+            status: 304,
+            headers: { etag: '"cached-version"' },
+          }),
+        );
       audioContextMock.decodeAudioData = vi.fn().mockResolvedValue(mockAudioBuffer);
-
+      await cache.getAudioBuffer(audioContextMock, testUrl);
       await cache.getAudioBuffer(audioContextMock, testUrl, undefined, mockCallbacks);
 
       // Should not call progress callback for 304 responses
