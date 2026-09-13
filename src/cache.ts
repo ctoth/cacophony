@@ -385,7 +385,7 @@ export class AudioCache implements ICache {
           url,
           loaded,
           total,
-          progress: total ? (done ? 1 : loaded / total) : -1,
+          progress: total ? (done ? 1 : Math.min(1, loaded / total)) : -1,
           timestamp,
         }),
       );

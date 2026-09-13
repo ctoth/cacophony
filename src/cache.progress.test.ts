@@ -138,6 +138,24 @@ describe("AudioCache Progress Tracking", () => {
       } as any;
     });
 
+    it("bounds progress when decoded transfer bytes exceed visible Content-Length", async () => {
+      const bytes = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+      vi.spyOn(global, "fetch").mockResolvedValueOnce(createMockResponse(bytes.buffer, { contentLength: 3 }));
+      vi.spyOn(audioContextMock, "decodeAudioData").mockResolvedValue(
+        new AudioBuffer({ length: 4, sampleRate: 48000 }),
+      );
+      await cache.getAudioBuffer(audioContextMock, "https://other.test/compressed.wav", undefined, mockCallbacks);
+      const events = vi.mocked(mockCallbacks.onLoadingProgress!).mock.calls.map(([event]) => event);
+      expect(events.length).toBeGreaterThan(1);
+      for (const event of events) {
+        expect(event.progress).toBeGreaterThanOrEqual(0);
+        expect(event.progress).toBeLessThanOrEqual(1);
+      }
+      expect(events.at(-1)).toMatchObject({ loaded: 8, total: 3, progress: 1 });
+      expect(audioContextMock.decodeAudioData).toHaveBeenCalledExactlyOnceWith(bytes.buffer);
+      expect(mockCallbacks.onLoadingError).not.toHaveBeenCalled();
+    });
+
     it("should isolate throwing progress callbacks during a shared load", async () => {
       const testUrl = "https://example.com/throwing-progress.mp3";
       const bytes = new ArrayBuffer(16);
