@@ -415,20 +415,36 @@ export class AudioCache implements ICache {
         }
       }
       checkAbort(signal);
-      if (entry && stored && entry.policy.satisfiesWithoutRevalidation(policyRequest)) {
-        const bytes = await stored.arrayBuffer();
-        errorType = "decode";
-        let buffer: AudioBuffer;
+      const readStoredBytes = async (response: Response): Promise<ArrayBuffer | undefined> => {
         try {
-          buffer = await context.decodeAudioData(bytes);
+          return await response.arrayBuffer();
         } catch (error) {
+          AudioCache.cacheError(notify, url, error, "get");
+          memory.delete(url);
+          cached = undefined;
+          entry = undefined;
+          stored = undefined;
           await AudioCache.deleteResponse(persistent, request, notify, url);
-          throw error;
+          return undefined;
         }
+      };
+      if (entry && stored && entry.policy.satisfiesWithoutRevalidation(policyRequest)) {
+        const bytes = await readStoredBytes(stored);
         checkAbort(signal);
-        memory.set(url, { buffer, http: entry });
-        notify((callbacks) => callbacks.onCacheHit?.({ url, cacheType: "browser", timestamp: Date.now() }));
-        return buffer;
+        if (bytes) {
+          errorType = "decode";
+          let buffer: AudioBuffer;
+          try {
+            buffer = await context.decodeAudioData(bytes);
+          } catch (error) {
+            await AudioCache.deleteResponse(persistent, request, notify, url);
+            throw error;
+          }
+          checkAbort(signal);
+          memory.set(url, { buffer, http: entry });
+          notify((callbacks) => callbacks.onCacheHit?.({ url, cacheType: "browser", timestamp: Date.now() }));
+          return buffer;
+        }
       }
       notify((callbacks) =>
         callbacks.onCacheMiss?.({ url, reason: entry ? "expired" : "not-found", timestamp: Date.now() }),
@@ -457,12 +473,13 @@ export class AudioCache implements ICache {
           merged.date = response.headers.get("date") ?? new Date().toUTCString();
           merged.age = response.headers.get("age") ?? "0";
           entry = AudioCache.createEntry(request, merged, entry.cors);
+          bytes = stored ? await readStoredBytes(stored) : undefined;
           buffer = cached?.buffer;
-          bytes = stored ? await stored.arrayBuffer() : undefined;
-          conditional = true;
+          conditional = bytes !== undefined || buffer !== undefined;
         }
       }
       if (response.status === 304 && !conditional) {
+        checkAbort(signal);
         response = await fetch(url, { headers: request.headers, signal, cache: "reload" });
         checkAbort(signal);
       }

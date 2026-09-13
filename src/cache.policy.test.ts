@@ -44,6 +44,58 @@ describe("AudioCache HTTP policy", () => {
     fetchMock.mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3, 4]), { headers }));
   }
 
+  it.each([
+    { revalidate: false, keepMemory: false },
+    { revalidate: true, keepMemory: false },
+    { revalidate: true, keepMemory: true },
+  ])("recovers from unreadable persistent bodies: %j", async ({ revalidate, keepMemory }) => {
+    respond({ "cache-control": revalidate ? "no-cache" : "max-age=60", etag: '"one"' });
+    const first = await cache.getAudioBuffer(audioContextMock, url);
+    if (!keepMemory) cache.clearMemoryCache();
+    const stored = entries.get(url);
+    if (!stored) throw new Error("Missing stored representation");
+    const readError = new Error("Persistent storage I/O failure");
+    vi.spyOn(stored, "clone").mockImplementation(
+      () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.error(readError);
+            },
+          }),
+          { headers: stored.headers },
+        ),
+    );
+    if (revalidate) {
+      fetchMock.mockResolvedValueOnce(new Response(null, { status: 304, headers: { etag: '"one"' } }));
+    }
+    const replacement = new Uint8Array([5, 6, 7, 8]);
+    fetchMock.mockImplementationOnce(async () => {
+      expect(entries.has(url)).toBe(false);
+      return new Response(replacement, { headers: { "cache-control": "max-age=60", etag: '"two"' } });
+    });
+    const callbacks = { onCacheError: vi.fn(), onLoadingError: vi.fn(), onCacheHit: vi.fn() };
+    const recovered = await cache.getAudioBuffer(audioContextMock, url, undefined, callbacks);
+    expect(recovered).not.toBe(first);
+    expect(callbacks.onCacheError).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ url, error: readError, operation: "get" }),
+    );
+    expect(callbacks.onLoadingError).not.toHaveBeenCalled();
+    expect(callbacks.onCacheHit).not.toHaveBeenCalled();
+    expect(fetchMock).toHaveBeenCalledTimes(revalidate ? 3 : 2);
+    const recoveryRequest = fetchMock.mock.calls.at(-1)?.[1];
+    expect(new Headers(recoveryRequest?.headers).has("if-none-match")).toBe(false);
+    if (revalidate) {
+      expect(recoveryRequest?.cache).toBe("reload");
+      expect(recoveryRequest?.signal).toBe(fetchMock.mock.calls[1]?.[1]?.signal);
+    }
+    expect(audioContextMock.decodeAudioData).toHaveBeenLastCalledWith(replacement.buffer);
+    cache.clearMemoryCache();
+    await cache.getAudioBuffer(audioContextMock, url);
+    expect(fetchMock).toHaveBeenCalledTimes(revalidate ? 3 : 2);
+    expect(entries.get(url)?.headers.get("etag")).toBe('"two"');
+  });
+
   it.each([true, false])("does not retain no-store responses (persistent cache: %s)", async (persistent) => {
     if (!persistent) vi.stubGlobal("caches", undefined);
     respond({ "cache-control": "no-store" });
