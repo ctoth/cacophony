@@ -26,7 +26,7 @@ test.beforeAll(async () => {
       const first = await cache.getAudioBuffer(context, url);
       const second = await cache.getAudioBuffer(context, url);
       if (mode === 'cors-browser') await caches.delete('audio-cache-v2');
-      if (mode === 'validate' || mode === 'private' || mode === 'cors' || mode === 'cors-validate' || mode === 'cors-browser' || mode === 'cors-age') {
+      if (mode === 'validate' || mode === 'private' || mode === 'cors' || mode.endsWith('validate') || mode === 'cors-browser' || mode === 'cors-age' || mode === 'cors-no-store-update') {
         cache.clearMemoryCache();
         await cache.getAudioBuffer(context, url);
       }
@@ -53,7 +53,7 @@ test.beforeAll(async () => {
         "access-control-allow-origin": "*",
         "cache-control": mode?.endsWith("no-store") ? "no-store" : "private, max-age=60",
       };
-      if (mode === "validate" || mode === "cors-validate") {
+      if (mode?.endsWith("validate")) {
         headers.etag = '"one"';
         headers["cache-control"] = count === 1 ? "no-cache" : "max-age=60";
       }
@@ -66,6 +66,14 @@ test.beforeAll(async () => {
         // Last-Modified is visible without Expose-Headers. Manually adding
         // If-Modified-Since would trigger OPTIONS, which this server rejects.
         headers["last-modified"] = "Mon, 01 Sep 2025 00:00:00 GMT";
+      }
+      if (mode === "cors-exposed-validate") {
+        // Even a visible ETag must be validated by Fetch, not by adding
+        // If-None-Match ourselves: this origin rejects all preflights.
+        headers["access-control-expose-headers"] = "ETag";
+      }
+      if (mode === "cors-no-store-update") {
+        headers["cache-control"] = count === 1 ? "no-cache" : "no-store";
       }
       if (mode === "cors-age") {
         headers["access-control-expose-headers"] = "Age";
@@ -111,6 +119,8 @@ for (const mode of [
   "cors",
   "cors-no-store",
   "cors-validate",
+  "cors-exposed-validate",
+  "cors-no-store-update",
   "cors-browser",
   "cors-age",
   "cors-vary",
@@ -136,7 +146,12 @@ for (const mode of [
     if (mode.endsWith("no-store")) {
       expect(result).toEqual({ same: false, decodes: 2, stored: 0 });
       expect(requests.get(`/audio/${mode}`)).toBe(2);
-    } else if (mode === "cors-validate" || mode === "cors-age") {
+    } else if (mode === "cors-no-store-update") {
+      // The second load must evict the previously retained body and policy;
+      // clearing memory before the third load checks persistent eviction too.
+      expect(result).toEqual({ same: false, decodes: 3, stored: 0 });
+      expect(requests.get(`/audio/${mode}`)).toBe(3);
+    } else if (mode === "cors-validate" || mode === "cors-exposed-validate" || mode === "cors-age") {
       expect(result).toEqual({ same: false, decodes: 3, stored: 1 });
       expect(requests.get(`/audio/${mode}`)).toBe(2);
     } else if (mode === "cors-vary") {

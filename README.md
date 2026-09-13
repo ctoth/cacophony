@@ -1306,13 +1306,21 @@ Cacophony implements intelligent three-layer caching for optimal performance:
 
 **Memory Cache (LRU)** → **Browser Cache API** → **Network**
 
-HTTP reuse decisions are made by `http-cache-semantics` for both decoded memory entries and persistent responses. Fresh responses can be reused; stale responses are conditionally validated when ETag or Last-Modified is available. `no-cache` requires validation, and `no-store` prevents retention in either layer. A successful matching 304 can reuse the decoded buffer while updating its policy.
+HTTP reuse decisions are made by `http-cache-semantics` for both decoded memory entries and persistent responses, using the response headers available to the runtime. Fresh responses can be reused; stale responses are conditionally validated when ETag or Last-Modified is available. `no-cache` requires validation, and `no-store` prevents retention in either layer. A successful matching 304 can reuse the decoded buffer while updating its policy.
 
 The 24-hour default TTL applies only when the response supplies no Cache-Control, Expires, Pragma, or validators. Explicit expiry never falls back to that TTL. Custom TTL values use milliseconds and are rounded down to whole seconds. Persistence uses a versioned response containing both bytes and policy; older cache entries are ignored and fetched again.
 
 Cross-origin audio uses both decoded memory and persistent caching. CORS exposes Cache-Control, Expires, and Last-Modified without extra server configuration. For cross-origin entries requiring validation, Cacophony asks Fetch to revalidate through the browser HTTP cache, avoiding application-added conditional headers and their CORS preflight requirements. Browser HTTP caching remains enabled. A browser-validated response is decoded again because Fetch delivers the resulting representation rather than its internal 304 exchange.
 
-Application policy uses the headers JavaScript can see. Servers should expose Age, Date, ETag, and Vary through Access-Control-Expose-Headers when those headers affect application caching; hidden Age or Vary cannot be accounted for by the application cache. This URL-only API explicitly controls Accept; a visible Vary on other, host-managed headers prevents application-cache retention. Data-URL decoding and caching are unchanged.
+In browsers, the guarantee is HTTP policy based on browser-visible headers. Cross-origin caching remains enabled when CORS hides headers. A hidden Age can overestimate remaining freshness, and a hidden Vary cannot participate in application-cache matching. Browser validation applies when Fetch runs; a fresh application-cache hit does not consult the browser HTTP cache. This URL-only API explicitly controls Accept; a visible Vary on other, host-managed headers prevents application-cache retention. Data-URL decoding and caching are unchanged.
+
+For static audio, use versioned or content-hashed URLs such as `/audio/chime.a1b2c3.ogg` with a long `Cache-Control: max-age`. Publish changed audio at a new URL. For mutable audio requiring validation on every load, use `Cache-Control: no-cache`. Expose relevant response headers when freshness or variants depend on them:
+
+```http
+Access-Control-Expose-Headers: Age, Date, ETag, Vary
+```
+
+This header supplements the server's normal CORS access configuration. Exposing ETag does not cause Cacophony to add conditional request headers to cross-origin requests; Fetch still handles validation.
 
 ```typescript
 const cacophony = new Cacophony();
@@ -1337,7 +1345,7 @@ cacophony.on('cacheMiss', (event) => {
 // Clear memory cache (browser cache persists)
 cacophony.clearMemoryCache();
 
-// Optional: configure TTL for when no validation tokens exist
+// Optional: configure TTL for responses without cache directives, expiry, or validators
 import { AudioCache } from 'cacophony';
 AudioCache.setCacheExpirationTime(60 * 60 * 1000); // 1 hour
 ```
