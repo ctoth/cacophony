@@ -478,6 +478,7 @@ export class Playback extends BasePlayback implements BaseSound {
     if (wasPlaying) {
       this.play();
     }
+    this.emit("seek", time);
   }
 
   get currentTime(): number {

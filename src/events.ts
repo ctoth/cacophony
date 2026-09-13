@@ -37,6 +37,7 @@ export type SoundEvents = BaseAudioEvents & {
  * Playback-specific events.
  */
 export type PlaybackEvents = BaseAudioEvents & {
+  /** Emitted once after Playback.seek() accepts a position, in seconds. */
   seek: number;
 };
 
