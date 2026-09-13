@@ -194,6 +194,29 @@ describe("AudioCache HTTP policy", () => {
     expect(audioContextMock.decodeAudioData).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    false,
+    true,
+  ])("reports conditional hits and only completes newly decoded 304 loads (clear memory: %s)", async (clearMemory) => {
+    respond({ "cache-control": "no-cache", etag: '"one"' });
+    const first = await cache.getAudioBuffer(audioContextMock, url);
+    if (clearMemory) cache.clearMemoryCache();
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 304, headers: { etag: '"one"' } }));
+    const callbacks = { onLoadingComplete: vi.fn(), onCacheHit: vi.fn(), onLoadingError: vi.fn() };
+    const second = await cache.getAudioBuffer(audioContextMock, url, undefined, callbacks);
+    expect(second === first).toBe(!clearMemory);
+    expect(callbacks.onCacheHit).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ url, cacheType: "conditional" }),
+    );
+    expect(callbacks.onLoadingComplete).toHaveBeenCalledTimes(clearMemory ? 1 : 0);
+    if (clearMemory) {
+      expect(callbacks.onLoadingComplete).toHaveBeenCalledWith(expect.objectContaining({ url, size: 4 }));
+    }
+    expect(callbacks.onLoadingError).not.toHaveBeenCalled();
+    expect(audioContextMock.decodeAudioData).toHaveBeenCalledTimes(clearMemory ? 2 : 1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it.each([false, true])("revalidates mixed-case no-cache directives (clear memory: %s)", async (clearMemory) => {
     respond({ "cache-control": 'No-Cache, max-age=60, Extension="Mixed,Case"', etag: '"one"' });
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 304, headers: { etag: '"one"' } }));
