@@ -307,6 +307,54 @@ describe("AudioCache HTTP policy", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    { initial: 2000, next: 10000, clearMemory: false },
+    { initial: 2000, next: 10000, clearMemory: true },
+    { initial: 10000, next: 2000, clearMemory: false },
+    { initial: 10000, next: 2000, clearMemory: true },
+  ])("applies TTL changes to new representations without rewriting existing policy: %j", async ({
+    initial,
+    next,
+    clearMemory,
+  }) => {
+    AudioCache.setCacheExpirationTime(initial);
+    respond();
+    await cache.getAudioBuffer(audioContextMock, url);
+    AudioCache.setCacheExpirationTime(next);
+    vi.setSystemTime(Date.now() + 3000);
+    if (clearMemory) cache = new AudioCache();
+    if (initial < 3000) respond();
+    await cache.getAudioBuffer(audioContextMock, url);
+    const oldFetches = initial < 3000 ? 2 : 1;
+    expect(fetchMock).toHaveBeenCalledTimes(oldFetches);
+
+    respond();
+    const newUrl = `${url}?new`;
+    await cache.getAudioBuffer(audioContextMock, newUrl);
+    vi.setSystemTime(Date.now() + 3000);
+    if (clearMemory) cache = new AudioCache();
+    if (next < 3000) respond();
+    await cache.getAudioBuffer(audioContextMock, newUrl);
+    expect(fetchMock).toHaveBeenCalledTimes(oldFetches + (next < 3000 ? 2 : 1));
+  });
+
+  it.each([
+    -1,
+    Number.NaN,
+    Number.POSITIVE_INFINITY,
+    Number.NEGATIVE_INFINITY,
+  ])("rejects invalid TTL %s without changing the configured lifetime", async (invalid) => {
+    AudioCache.setCacheExpirationTime(2000);
+    expect(() => AudioCache.setCacheExpirationTime(invalid)).toThrow(RangeError);
+    respond();
+    const first = await cache.getAudioBuffer(audioContextMock, url);
+    vi.setSystemTime(Date.now() + 1000);
+    expect(await cache.getAudioBuffer(audioContextMock, url)).toBe(first);
+    vi.setSystemTime(Date.now() + 2000);
+    respond();
+    expect(await cache.getAudioBuffer(audioContextMock, url)).not.toBe(first);
+  });
+
   it.each(["etag", "last-modified"])("uses %s validation instead of fallback TTL", async (validator) => {
     const value = validator === "etag" ? '"one"' : "Mon, 01 Sep 2025 00:00:00 GMT";
     respond({ [validator]: value });

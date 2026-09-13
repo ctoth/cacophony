@@ -135,7 +135,11 @@ export class AudioCache implements ICache {
   private decodedBuffers = new WeakMap<BaseContext, ByteBoundedLRUCache<string, MemoryEntry>>();
   private pendingRequests = new WeakMap<BaseContext, Map<string, PendingRequest>>();
 
-  /** Fallback for responses with no cache directives, expiry, or validators. */
+  /**
+   * Fallback for new responses with no cache directives, expiry, or validators.
+   * Existing memory and persistent policies retain their original lifetime.
+   * @throws {RangeError} If time is negative or non-finite.
+   */
   static setCacheExpirationTime(time: number): void {
     if (!Number.isFinite(time) || time < 0) throw new RangeError("Cache expiration must be finite and non-negative");
     AudioCache.cacheExpirationTime = time;
