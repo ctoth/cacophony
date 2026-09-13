@@ -1,5 +1,6 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { nodeBackendAvailable } from "./backend-available";
 import type { PlayOptions } from "./cacophony";
 import { Group } from "./group";
 import { createOfflineNodeCacophony } from "./node";
@@ -15,52 +16,58 @@ afterEach(() => {
 });
 
 describe("per-playback options", () => {
-  it("renders scheduled fades toward the overridden gain at the overridden rate", async () => {
-    const { cacophony: engine, context } = await createOfflineNodeCacophony({
-      length: 4800,
-      sampleRate: 48000,
-      numberOfChannels: 1,
-      quiet: true,
-    });
-    const buffer = context.createBuffer(1, 4800, 48000);
-    buffer.getChannelData(0).fill(1);
-    const sound = await engine.createSound(buffer, "buffer", "stereo");
-    const [voice] = sound.play({ at: 0.02, volume: 0.4, playbackRate: 2, loopCount: 0, fadeIn: 20 });
-    expect(voice.playbackRate).toBe(2);
-    const samples = (await context.startRendering()).getChannelData(0);
-    expect(Math.abs(samples[480])).toBeLessThan(1e-6);
-    expect(samples[1440]).toBeGreaterThan(0);
-    expect(samples[2400]).toBeGreaterThan(samples[1440] * 1.8);
-    expect(samples[2400]).toBeLessThanOrEqual(0.401);
-    expect(Math.abs(samples[4000])).toBeLessThan(1e-6);
-  });
+  it.skipIf(!nodeBackendAvailable)(
+    "renders scheduled fades toward the overridden gain at the overridden rate",
+    async () => {
+      const { cacophony: engine, context } = await createOfflineNodeCacophony({
+        length: 4800,
+        sampleRate: 48000,
+        numberOfChannels: 1,
+        quiet: true,
+      });
+      const buffer = context.createBuffer(1, 4800, 48000);
+      buffer.getChannelData(0).fill(1);
+      const sound = await engine.createSound(buffer, "buffer", "stereo");
+      const [voice] = sound.play({ at: 0.02, volume: 0.4, playbackRate: 2, loopCount: 0, fadeIn: 20 });
+      expect(voice.playbackRate).toBe(2);
+      const samples = (await context.startRendering()).getChannelData(0);
+      expect(Math.abs(samples[480])).toBeLessThan(1e-6);
+      expect(samples[1440]).toBeGreaterThan(0);
+      expect(samples[2400]).toBeGreaterThan(samples[1440] * 1.8);
+      expect(samples[2400]).toBeLessThanOrEqual(0.401);
+      expect(Math.abs(samples[4000])).toBeLessThan(1e-6);
+    },
+  );
 
-  it("preserves sprite regions and buffer sharing with invocation overrides", async () => {
-    const { cacophony: engine, context } = await createOfflineNodeCacophony({
-      length: 512,
-      sampleRate: 48000,
-      numberOfChannels: 1,
-      quiet: true,
-    });
-    const buffer = context.createBuffer(1, 256, 48000);
-    buffer.getChannelData(0).fill(0.5, 0, 128);
-    buffer.getChannelData(0).fill(-0.5, 128);
-    const sprite = await engine.createSprite(
-      buffer,
-      { a: { start: 0, duration: 128 / 48000 }, b: { start: 128 / 48000, duration: 128 / 48000 } },
-      { panType: "stereo" },
-    );
-    const [first] = sprite.sounds.a.play({ at: 0, volume: 0.5, playbackRate: 2, loopCount: 0, stereoPan: 0 });
-    const [second] = sprite.sounds.b.play({ at: 256 / 48000, volume: 0.25 });
-    expect(sprite.sounds.a.buffer).toBe(sprite.sounds.b.buffer);
-    expect(first.loopCount).toBe(0);
-    expect(second.playbackRate).toBe(1);
-    const samples = (await context.startRendering()).getChannelData(0);
-    expect(samples[32]).toBeGreaterThan(0);
-    expect(Math.abs(samples[100])).toBeLessThan(1e-6);
-    expect(samples[300]).toBeLessThan(0);
-    expect(Math.abs(samples[400])).toBeLessThan(1e-6);
-  });
+  it.skipIf(!nodeBackendAvailable)(
+    "preserves sprite regions and buffer sharing with invocation overrides",
+    async () => {
+      const { cacophony: engine, context } = await createOfflineNodeCacophony({
+        length: 512,
+        sampleRate: 48000,
+        numberOfChannels: 1,
+        quiet: true,
+      });
+      const buffer = context.createBuffer(1, 256, 48000);
+      buffer.getChannelData(0).fill(0.5, 0, 128);
+      buffer.getChannelData(0).fill(-0.5, 128);
+      const sprite = await engine.createSprite(
+        buffer,
+        { a: { start: 0, duration: 128 / 48000 }, b: { start: 128 / 48000, duration: 128 / 48000 } },
+        { panType: "stereo" },
+      );
+      const [first] = sprite.sounds.a.play({ at: 0, volume: 0.5, playbackRate: 2, loopCount: 0, stereoPan: 0 });
+      const [second] = sprite.sounds.b.play({ at: 256 / 48000, volume: 0.25 });
+      expect(sprite.sounds.a.buffer).toBe(sprite.sounds.b.buffer);
+      expect(first.loopCount).toBe(0);
+      expect(second.playbackRate).toBe(1);
+      const samples = (await context.startRendering()).getChannelData(0);
+      expect(samples[32]).toBeGreaterThan(0);
+      expect(Math.abs(samples[100])).toBeLessThan(1e-6);
+      expect(samples[300]).toBeLessThan(0);
+      expect(Math.abs(samples[400])).toBeLessThan(1e-6);
+    },
+  );
 
   it("disconnects nodes when preparation fails after the voice is constructed", async () => {
     const sound = await makeSound();
@@ -129,7 +136,7 @@ describe("per-playback options", () => {
     expect(inherited.loopCount).toBe(3);
   });
 
-  it("merges partial HRTF settings and switches either pan mode", async () => {
+  it.skipIf(!nodeBackendAvailable)("merges partial HRTF settings and switches either pan mode", async () => {
     const { cacophony: engine, context } = await createOfflineNodeCacophony({
       length: 4800,
       sampleRate: 48000,
