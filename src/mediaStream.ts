@@ -288,7 +288,7 @@ export class MediaStreamSound extends RoutableSource implements BaseSound {
   }
 
   play(options?: PlayOptions): MediaStreamPlayback[] {
-    validatePlayOptions(options, this.panType, "stream");
+    validatePlayOptions(options, this.playbacks[0]?.panType ?? this.panType, "stream");
     return super.play(options) as MediaStreamPlayback[];
   }
 

@@ -358,7 +358,7 @@ export class PcmStreamSound extends RoutableSource implements BaseSound {
   }
 
   play(options?: PlayOptions): PcmStreamPlayback[] {
-    validatePlayOptions(options, this.panType, "stream");
+    validatePlayOptions(options, this.playbacks[0]?.panType ?? this.panType, "stream");
     if (this.state === "ended") {
       throw new Error("Cannot play a PCM stream after it has ended");
     }

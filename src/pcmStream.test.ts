@@ -47,6 +47,32 @@ describe("PcmStreamSound", () => {
     sound.stop();
   });
 
+  it("preserves a live PCM voice when invocation validation fails", async () => {
+    const sound = await cacophony.createPcmStreamSound();
+    const [voice] = sound.play({ panType: "stereo" });
+    const source = voice.source!;
+    const postMessage = vi.spyOn(source.port, "postMessage");
+    postMessage.mockClear();
+    const prepare = vi.spyOn(sound, "preplay");
+
+    expect(() => sound.play({ position: [1, 2, 3] })).toThrow("require HRTF");
+    expect(sound.playbacks).toEqual([voice]);
+    expect(sound.isPlaying).toBe(true);
+    expect(voice.source).toBe(source);
+    expect(postMessage).not.toHaveBeenCalled();
+    expect(prepare).not.toHaveBeenCalled();
+    sound.stop();
+  });
+
+  it("inherits the reusable PCM voice's panning settings", async () => {
+    const sound = await cacophony.createPcmStreamSound();
+    const [voice] = sound.play({ panType: "stereo" });
+    sound.pause();
+    expect(sound.play({ stereoPan: 0.5 })).toEqual([voice]);
+    expect(voice.stereoPan).toBe(0.5);
+    sound.stop();
+  });
+
   it("constructs the PCM worklet through the public Cacophony factory", async () => {
     const createNode = vi.spyOn(cacophony, "createWorkletNode");
 

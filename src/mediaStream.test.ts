@@ -77,6 +77,44 @@ describe("MediaStreamSound", () => {
     sound.stop();
   });
 
+  it("preserves a live voice and owned tracks when invocation validation fails", () => {
+    const sound = new MediaStreamSound(stream, context, globalGainNode);
+    const [voice] = sound.play({ panType: "stereo" });
+    const prepare = vi.spyOn(sound, "preplay");
+
+    expect(() => sound.play({ position: [1, 2, 3] })).toThrow("require HRTF");
+    expect(sound.playbacks).toEqual([voice]);
+    expect(sound.isPlaying).toBe(true);
+    expect(track.readyState).toBe("live");
+    expect(track.stop).not.toHaveBeenCalled();
+    expectPath(source, [voice.panner!, voice.outputNode, globalGainNode], destination);
+    expect(prepare).not.toHaveBeenCalled();
+    sound.stop();
+  });
+
+  it("inherits the reusable voice's panning settings", () => {
+    const sound = new MediaStreamSound(stream, context, globalGainNode);
+    const [voice] = sound.play({ panType: "stereo" });
+    sound.pause();
+    expect(sound.play({ stereoPan: 0.5 })).toEqual([voice]);
+    expect(voice.stereoPan).toBe(0.5);
+    sound.stop();
+  });
+
+  it("does not dispose an existing voice when playing it throws", () => {
+    const sound = new MediaStreamSound(stream, context, globalGainNode);
+    const [voice] = sound.play();
+    vi.spyOn(voice, "play").mockImplementation(() => {
+      throw new Error("play failed");
+    });
+    expect(() => sound.play()).toThrow("play failed");
+    expect(sound.playbacks).toEqual([voice]);
+    expect(sound.isPlaying).toBe(true);
+    expect(track.stop).not.toHaveBeenCalled();
+    expectPath(source, [voice.panner!, voice.outputNode, globalGainNode], destination);
+    sound.stop();
+  });
+
   it("creates one reusable playback for a live MediaStream", () => {
     const sound = new MediaStreamSound(stream, context, globalGainNode);
     sound.addFilter(context.createBiquadFilter());
