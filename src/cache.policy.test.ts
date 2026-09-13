@@ -357,6 +357,47 @@ describe("AudioCache HTTP policy", () => {
     expect(fetchMock.mock.calls[1]?.[1]?.signal).toBe(fetchMock.mock.calls[0]?.[1]?.signal);
   });
 
+  it("preserves a complete 203 representation through storage and revalidation", async () => {
+    const bytes = new Uint8Array([1, 2, 3, 4]);
+    fetchMock.mockResolvedValueOnce(
+      new Response(bytes, { status: 203, headers: { "cache-control": "max-age=60", etag: '"one"' } }),
+    );
+    const first = await cache.getAudioBuffer(audioContextMock, url);
+    expect(audioContextMock.decodeAudioData).toHaveBeenLastCalledWith(bytes.buffer);
+    expect(await cache.getAudioBuffer(audioContextMock, url)).toBe(first);
+    expect(entries.get(url)?.status).toBe(203);
+    cache.clearMemoryCache();
+    await cache.getAudioBuffer(audioContextMock, url);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    vi.setSystemTime(Date.now() + 61000);
+    cache.clearMemoryCache();
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 304, headers: { etag: '"one"' } }));
+    await cache.getAudioBuffer(audioContextMock, url);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get("if-none-match")).toBe('"one"');
+    expect(entries.get(url)?.status).toBe(203);
+    cache.clearMemoryCache();
+    await cache.getAudioBuffer(audioContextMock, url);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("decodes complete 202 responses without treating their status as cacheable 200", async () => {
+    for (let i = 0; i < 2; i++) {
+      fetchMock.mockResolvedValueOnce(new Response(new Uint8Array([1, 2, 3, 4]), { status: 202 }));
+      await expect(cache.getAudioBuffer(audioContextMock, url)).resolves.toBeInstanceOf(AudioBuffer);
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(entries.size).toBe(0);
+  });
+
+  it.each([204, 205, 206])("rejects status %s without decoding an incomplete representation", async (status) => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status }));
+    await expect(cache.getAudioBuffer(audioContextMock, url)).rejects.toThrow(String(status));
+    expect(audioContextMock.decodeAudioData).not.toHaveBeenCalled();
+    expect(entries.size).toBe(0);
+  });
+
   it("fails a recovery fetch cleanly instead of decoding an error response", async () => {
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 304 }));
     fetchMock.mockResolvedValueOnce(new Response(null, { status: 500 }));

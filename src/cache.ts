@@ -73,6 +73,7 @@ class ByteBoundedLRUCache<K, V> {
 
 interface HttpEntry {
   policy: CachePolicy;
+  status: number;
   cors: boolean;
   /** Origin headers before the explicitly configured fallback TTL is applied. */
   headers: Record<string, string>;
@@ -139,7 +140,12 @@ export class AudioCache implements ICache {
     AudioCache.cacheExpirationTime = time;
   }
 
-  private static createEntry(request: Request, headers: Record<string, string>, cors = false): HttpEntry {
+  private static createEntry(
+    request: Request,
+    headers: Record<string, string>,
+    status: number,
+    cors = false,
+  ): HttpEntry {
     const effectiveHeaders = normalizePolicyHeaders(headers);
     // Application default only: explicit directives, Expires and validators win.
     // All parsing and reuse decisions still belong to upstream CachePolicy.
@@ -149,11 +155,12 @@ export class AudioCache implements ICache {
     const requestHeaders = Object.fromEntries(request.headers);
     const policy = new CachePolicy(
       { url: request.url, method: "GET", headers: requestHeaders },
-      { status: 200, headers: effectiveHeaders },
+      { status, headers: effectiveHeaders },
       { shared: false, cacheHeuristic: 0, immutableMinTimeToLive: 0 },
     );
     const metadata = JSON.stringify({
       version: 2,
+      status,
       cors,
       url: request.url,
       time: policy.toObject().t,
@@ -161,7 +168,7 @@ export class AudioCache implements ICache {
       policyHeaders: effectiveHeaders,
       headers,
     });
-    return { policy, headers, metadata, cors };
+    return { policy, status, headers, metadata, cors };
   }
 
   private static readEntry(response: Response, request: Request): HttpEntry | undefined {
@@ -185,12 +192,13 @@ export class AudioCache implements ICache {
       // from persistent JSON. Restore time with the public serialization API.
       const serialized = new CachePolicy(
         { url: request.url, method: "GET", headers: value.requestHeaders },
-        { status: 200, headers: normalizePolicyHeaders(value.policyHeaders) },
+        { status: response.status, headers: normalizePolicyHeaders(value.policyHeaders) },
         { shared: false, cacheHeuristic: 0, immutableMinTimeToLive: 0 },
       ).toObject();
       serialized.t = value.time;
       return {
         policy: CachePolicy.fromObject(serialized),
+        status: response.status,
         headers: value.headers,
         metadata,
         cors: value.cors === true,
@@ -335,7 +343,7 @@ export class AudioCache implements ICache {
     headers.set("content-length", String(bytes.byteLength));
     headers.set(POLICY_HEADER, entry.metadata);
     try {
-      await cache.put(request, new Response(bytes, { status: 200, headers }));
+      await cache.put(request, new Response(bytes, { status: entry.status, headers }));
     } catch (error) {
       await AudioCache.deleteResponse(cache, request, notify, url);
       AudioCache.cacheError(notify, url, error, "set");
@@ -497,7 +505,7 @@ export class AudioCache implements ICache {
           });
           merged.date = response.headers.get("date") ?? new Date().toUTCString();
           merged.age = response.headers.get("age") ?? "0";
-          entry = AudioCache.createEntry(request, merged, entry.cors);
+          entry = AudioCache.createEntry(request, merged, entry.status, entry.cors);
           bytes = stored ? await readStoredBytes(stored) : undefined;
           buffer = cached?.buffer;
           conditional = bytes !== undefined || buffer !== undefined;
@@ -509,11 +517,12 @@ export class AudioCache implements ICache {
         checkAbort(signal);
       }
       if (!conditional) {
-        if (response.status !== 200)
+        // Partial and bodyless successes cannot provide a complete audio file.
+        if (!response.ok || [204, 205, 206].includes(response.status))
           throw new Error(`Failed to fetch resource: ${response.status} ${response.statusText}`);
         const originHeaders = Object.fromEntries(response.headers);
         delete originHeaders[POLICY_HEADER];
-        entry = AudioCache.createEntry(request, originHeaders, response.type === "cors");
+        entry = AudioCache.createEntry(request, originHeaders, response.status, response.type === "cors");
         bytes = await AudioCache.readBytes(response, signal, notify, url);
       }
       checkAbort(signal);
