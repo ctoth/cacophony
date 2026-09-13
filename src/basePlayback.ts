@@ -1,5 +1,5 @@
 import type { Bus } from "./bus";
-import type { FadeType, PlayOptions } from "./cacophony";
+import type { FadeType, PanType, PlayOptions } from "./cacophony";
 import type { PlaybackContainer } from "./container";
 import type { AudioNode, BaseContext, BiquadFilterNode, GainNode } from "./context";
 import { EffectChain } from "./effectChain";
@@ -156,6 +156,14 @@ export abstract class BasePlayback extends /* @__PURE__ */ PannerMixin(/* @__PUR
       throw new Error("Cannot automate a filter before the playback effect chain is initialized");
     }
     this._effectChain.rampParam(filter, paramName, value, options);
+  }
+
+  override setPanType(panType: PanType, audioContext: BaseContext): void {
+    const previousPanner = this.panner;
+    super.setPanType(panType, audioContext);
+    if (this.panner === previousPanner || !this.panner || !this.source || !this.gainNode) return;
+    this.setEffectChainEndpoints(this.source, this.panner);
+    this.panner.connect(this.gainNode);
   }
 
   abstract play(options?: PlayOptions): [this];

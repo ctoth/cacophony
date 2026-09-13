@@ -26,6 +26,53 @@ describe("PcmStreamSound", () => {
     mockAudioWorklet();
   });
 
+  it("forwards invocation settings before activating the worklet", async () => {
+    const sound = await cacophony.createPcmStreamSound();
+    const prepare = vi.spyOn(sound, "preplay");
+    expect(() => sound.play({ loopCount: 0 })).toThrow("loopCount");
+    expect(() => sound.play({ playbackRate: 1 })).toThrow("playbackRate");
+    expect(prepare).not.toHaveBeenCalled();
+    const [voice] = sound.preplay();
+    const atStart: number[] = [];
+    vi.spyOn(voice.source!.port, "postMessage").mockImplementation((message) => {
+      if (message.type === "play") atStart.push(voice.volume);
+    });
+    sound.play({ volume: 0.25, panType: "stereo", stereoPan: 0 });
+    expect(atStart).toEqual([0.25]);
+    expect(voice.stereoPan).toBe(0);
+    voice.pause();
+    voice.play({ volume: 0 });
+    expect(atStart).toEqual([0.25, 0]);
+    expect(() => voice.play({ loopCount: 0 })).toThrow("loopCount");
+    sound.stop();
+  });
+
+  it("preserves a live PCM voice when invocation validation fails", async () => {
+    const sound = await cacophony.createPcmStreamSound();
+    const [voice] = sound.play({ panType: "stereo" });
+    const source = voice.source!;
+    const postMessage = vi.spyOn(source.port, "postMessage");
+    postMessage.mockClear();
+    const prepare = vi.spyOn(sound, "preplay");
+
+    expect(() => sound.play({ position: [1, 2, 3] })).toThrow("require HRTF");
+    expect(sound.playbacks).toEqual([voice]);
+    expect(sound.isPlaying).toBe(true);
+    expect(voice.source).toBe(source);
+    expect(postMessage).not.toHaveBeenCalled();
+    expect(prepare).not.toHaveBeenCalled();
+    sound.stop();
+  });
+
+  it("inherits the reusable PCM voice's panning settings", async () => {
+    const sound = await cacophony.createPcmStreamSound();
+    const [voice] = sound.play({ panType: "stereo" });
+    sound.pause();
+    expect(sound.play({ stereoPan: 0.5 })).toEqual([voice]);
+    expect(voice.stereoPan).toBe(0.5);
+    sound.stop();
+  });
+
   it("constructs the PCM worklet through the public Cacophony factory", async () => {
     const createNode = vi.spyOn(cacophony, "createWorkletNode");
 

@@ -8,6 +8,7 @@ import type {
   GainNode,
   MediaStreamAudioSourceNode,
 } from "./context";
+import { applyPlayOptions, validatePlayOptions } from "./playOptions";
 import { RoutableSource } from "./routableSource";
 
 export interface MediaStreamSoundOptions {
@@ -47,7 +48,7 @@ export class MediaStreamPlayback extends BasePlayback {
     origin: MediaStreamSound,
     source: MediaStreamAudioSourceNode,
     gainNode: GainNode,
-    context: BaseContext,
+    private readonly context: BaseContext,
     outputNode: AudioNode,
     panType: PanType,
     stopTracksOnStop: boolean,
@@ -103,9 +104,7 @@ export class MediaStreamPlayback extends BasePlayback {
     if (!this.source) {
       throw new Error("Cannot play a media stream that has been cleaned up");
     }
-    if (options?.at !== undefined) {
-      throw new Error("Scheduled playback is only supported for buffer sounds");
-    }
+    validatePlayOptions(options, this.panType, "stream");
     if (this.isPlaying) {
       return [this];
     }
@@ -113,6 +112,8 @@ export class MediaStreamPlayback extends BasePlayback {
     if (tracks.length > 0 && tracks.every((track) => track.readyState === "ended")) {
       throw new Error("Cannot play a media stream whose tracks have ended");
     }
+    applyPlayOptions(this, this.context, options);
+    if (options?.fadeIn !== undefined) void this.fadeIn(options.fadeIn, options.fadeType);
     const isResume = this.isPaused;
     if (isResume && this.pausedTrackStates) {
       tracks.forEach((track) => {
@@ -287,9 +288,7 @@ export class MediaStreamSound extends RoutableSource implements BaseSound {
   }
 
   play(options?: PlayOptions): MediaStreamPlayback[] {
-    if (options?.at !== undefined) {
-      throw new Error("Scheduled playback is only supported for buffer sounds");
-    }
+    validatePlayOptions(options, this.playbacks[0]?.panType ?? this.panType, "stream");
     return super.play(options) as MediaStreamPlayback[];
   }
 

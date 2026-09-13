@@ -30,6 +30,7 @@ import type {
   GainNode,
   SourceNode,
 } from "./context";
+import { applyPlayOptions, validatePlayOptions } from "./playOptions";
 import type { Sound } from "./sound";
 import { WORKLETS } from "./worklets";
 
@@ -86,18 +87,6 @@ export class Playback extends BasePlayback implements BaseSound {
     this.setGainNode(gainNode);
     this.setEffectChainEndpoints(this.source, this.panner!);
     this.panner!.connect(this.gainNode!);
-  }
-
-  override setPanType(panType: PanType, audioContext: BaseContext): void {
-    const previousPanner = this.panner;
-    super.setPanType(panType, audioContext);
-
-    if (this.panner === previousPanner || !this.panner || !this.source || !this.gainNode) {
-      return;
-    }
-
-    this.setEffectChainEndpoints(this.source, this.panner);
-    this.panner.connect(this.gainNode);
   }
 
   private setupSourceNode(source: SourceNode) {
@@ -255,13 +244,19 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Cannot play a sound that has been cleaned up");
     }
 
-    if (options?.at !== undefined && "mediaElement" in this.source) {
-      throw new Error("Scheduled playback is only supported for buffer sounds");
-    }
+    validatePlayOptions(options, this.panType, "mediaElement" in this.source ? "media" : "buffer");
 
     if (this._state === "playing") {
       return [this];
     }
+
+    applyPlayOptions(this, this.context, options);
+    if (options?.playbackRate !== undefined) this.playbackRate = options.playbackRate;
+    if (options?.loopCount !== undefined) this.loop(options.loopCount);
+    if (options?.fadeIn !== undefined) {
+      void this.fadeIn(options.fadeIn, options.fadeType, { perLoop: options.fadeInPerLoop, startTime: options.at });
+    }
+    if (options?.fadeOut !== undefined) this.configureFadeOut(options.fadeOut, options.fadeType);
 
     const isResume = this._state === "paused";
     if (this._state === "stopped") this.currentLoop = 0;

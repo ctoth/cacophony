@@ -97,8 +97,20 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
      */
 
     play(options?: PlayOptions): BasePlayback[] {
+      const existingVoices = new Set(this.playbacks);
       const playback = this.preplay();
-      playback.forEach((p) => p.play(options));
+      try {
+        playback.forEach((p) => p.play(options));
+      } catch (error) {
+        for (const voice of playback) {
+          if (existingVoices.has(voice)) continue;
+          voice.stop();
+          voice.cleanup();
+          const index = this.playbacks.indexOf(voice);
+          if (index !== -1) this.playbacks.splice(index, 1);
+        }
+        throw error;
+      }
       return playback;
     }
 

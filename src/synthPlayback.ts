@@ -1,6 +1,7 @@
 import type { BaseSound, PlayOptions } from "./cacophony";
 import type { AudioNode, AudioParam, BaseContext, GainNode, OscillatorNode } from "./context";
 import { OscillatorMixin } from "./oscillatorMixin";
+import { applyPlayOptions, validatePlayOptions } from "./playOptions";
 import type { Synth } from "./synth";
 
 export class SynthPlayback extends OscillatorMixin implements BaseSound {
@@ -37,9 +38,7 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
   }
 
   play(options?: PlayOptions): [this] {
-    if (options?.at !== undefined) {
-      throw new Error("Scheduled playback is not supported for synths");
-    }
+    validatePlayOptions(options, this.panType, "synth");
     if (!this.source || !this.panner) {
       throw new Error("Cannot play a synth that has been cleaned up");
     }
@@ -48,6 +47,8 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
       return [this];
     }
 
+    applyPlayOptions(this, this.context, options);
+    if (options?.fadeIn !== undefined) void this.fadeIn(options.fadeIn, options.fadeType);
     const isResume = this._state === "paused";
     if (isResume || this._state === "stopped") {
       this.recreateSource();

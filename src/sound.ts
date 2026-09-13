@@ -37,6 +37,7 @@ import { TypedEventEmitter } from "./eventEmitter";
 import type { SoundEvents } from "./events";
 import type { PanCloneOverrides } from "./pannerMixin";
 import { Playback } from "./playback";
+import { validatePlayOptions } from "./playOptions";
 import type { TimeStretchOptions } from "./processors/timestretch-core";
 import { RoutableSource } from "./routableSource";
 import type { VolumeCloneOverrides } from "./volumeMixin";
@@ -224,6 +225,7 @@ export class Sound extends RoutableSource implements BaseSound {
     // truncated below).
     let createdSource: SourceNode | undefined;
     let createdGainNode: GainNode | undefined;
+    let createdPlayback: Playback | undefined;
     try {
       let source: SourceNode;
       if (this.buffer) {
@@ -254,6 +256,7 @@ export class Sound extends RoutableSource implements BaseSound {
       const primaryTargetNode = this._resolveRouteTargetNode();
       gainNode.connect(primaryTargetNode);
       const playback = new Playback(this, source, gainNode);
+      createdPlayback = playback;
       this._preparePlayback(playback);
       this._holdings.sources.push(source);
       this._holdings.gainNodes.push(gainNode);
@@ -292,6 +295,10 @@ export class Sound extends RoutableSource implements BaseSound {
       this._holdings.gainNodes.length = gainNodesLen;
       this._holdings.mediaElements.length = mediaElementsLen;
       this.playbacks.length = playbacksLen;
+      if (createdPlayback) {
+        this._unsubscribeFromPlayback(createdPlayback);
+        createdPlayback.cleanup();
+      }
       if (createdGainNode) {
         try {
           createdGainNode.disconnect();
@@ -383,10 +390,16 @@ export class Sound extends RoutableSource implements BaseSound {
     }
   }
 
+  /** @internal Preflight invocation options without allocating a voice. */
+  validatePlayOptions(options?: PlayOptions): void {
+    validatePlayOptions(options, this.panType, this.buffer ? "buffer" : "media");
+  }
+
   play(options?: PlayOptions): ReturnType<this["preplay"]> {
-    if (options?.at !== undefined && !this.buffer) {
-      throw new Error("Scheduled playback is only supported for buffer sounds");
-    }
+    this.validatePlayOptions(options);
+    const sourcesLen = this._holdings.sources.length;
+    const gainNodesLen = this._holdings.gainNodes.length;
+    const mediaElementsLen = this._holdings.mediaElements.length;
 
     const playbacks = this.preplay() as ReturnType<this["preplay"]>;
 
@@ -416,21 +429,11 @@ export class Sound extends RoutableSource implements BaseSound {
           this.playbacks.splice(idx, 1);
         }
         this._unsubscribeFromPlayback(playback);
+        playback.cleanup();
+        this._holdings.sources.length = sourcesLen;
+        this._holdings.gainNodes.length = gainNodesLen;
+        this._holdings.mediaElements.length = mediaElementsLen;
         throw error;
-      }
-    }
-
-    if (options) {
-      for (const playback of playbacks) {
-        if (options.fadeIn !== undefined) {
-          playback.fadeIn(options.fadeIn, options.fadeType, {
-            perLoop: options.fadeInPerLoop,
-            startTime: options.at,
-          });
-        }
-        if (options.fadeOut !== undefined) {
-          playback.configureFadeOut(options.fadeOut, options.fadeType);
-        }
       }
     }
 
