@@ -129,6 +129,7 @@ describe("AudioCache Progress Tracking", () => {
 
       // Mock caches.open to return a working cache
       global.caches = {
+        delete: vi.fn().mockResolvedValue(false),
         open: vi.fn().mockResolvedValue({
           match: vi.fn().mockResolvedValue(null),
           put: vi.fn().mockResolvedValue(undefined),

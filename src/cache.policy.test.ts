@@ -15,6 +15,7 @@ describe("AudioCache HTTP policy", () => {
     fetchMock.mockReset();
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("caches", {
+      delete: vi.fn().mockResolvedValue(false),
       open: async () => ({
         match: async (request: Request | string) =>
           entries.get(typeof request === "string" ? request : request.url)?.clone(),

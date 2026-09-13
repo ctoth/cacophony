@@ -131,6 +131,7 @@ function policyHeaders(headers: CachePolicy.Headers): Headers {
  */
 export class AudioCache implements ICache {
   private static cacheExpirationTime = 24 * 60 * 60 * 1000;
+  private static readonly cleanedStorage = new WeakSet<CacheStorage>();
   private decodedBuffers = new WeakMap<BaseContext, ByteBoundedLRUCache<string, MemoryEntry>>();
   private pendingRequests = new WeakMap<BaseContext, Map<string, PendingRequest>>();
 
@@ -306,6 +307,14 @@ export class AudioCache implements ICache {
 
   private static async openCache(notify: Notify, url: string): Promise<Cache | undefined> {
     if (typeof caches === "undefined" || caches === null) return undefined;
+    if (!AudioCache.cleanedStorage.has(caches)) {
+      AudioCache.cleanedStorage.add(caches);
+      try {
+        await caches.delete("audio-cache");
+      } catch (error) {
+        AudioCache.cacheError(notify, url, error, "delete");
+      }
+    }
     try {
       return await caches.open(CACHE_NAME);
     } catch (error) {

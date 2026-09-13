@@ -40,7 +40,7 @@ describe("AudioCache storage and lifecycle", () => {
       delete: async (request: Request | string) => entries.delete(key(request)),
     });
     vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal("caches", { open });
+    vi.stubGlobal("caches", { open, delete: vi.fn().mockResolvedValue(false) });
     vi.spyOn(context, "decodeAudioData").mockImplementation(
       async () => new AudioBuffer({ length: 4, sampleRate: 48000 }),
     );
@@ -77,6 +77,32 @@ describe("AudioCache storage and lifecycle", () => {
     entries.set(`${url}:meta`, new Response(JSON.stringify({ timestamp: Date.now(), cacheControl: "max-age=3600" })));
     await cache.getAudioBuffer(context, url);
     expect(open).toHaveBeenCalledWith("audio-cache-v2");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("removes only the legacy namespace once across cache instances and concurrent loads", async () => {
+    const namespaces = new Set(["audio-cache", "audio-cache-v2", "unrelated-app"]);
+    const deleteCache = vi.fn(async (name: string) => namespaces.delete(name));
+    vi.stubGlobal("caches", { open, delete: deleteCache });
+    await Promise.all([cache.getAudioBuffer(context, url), new AudioCache().getAudioBuffer(context, `${url}?other`)]);
+    cache.clearMemoryCache();
+    await cache.getAudioBuffer(context, url);
+    expect(deleteCache).toHaveBeenCalledExactlyOnceWith("audio-cache");
+    expect(namespaces).toEqual(new Set(["audio-cache-v2", "unrelated-app"]));
+    expect(entries.has(url)).toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports failed legacy cleanup once and continues using current storage", async () => {
+    const error = new Error("Legacy deletion denied");
+    const deleteCache = vi.fn().mockRejectedValue(error);
+    vi.stubGlobal("caches", { open, delete: deleteCache });
+    const onCacheError = vi.fn();
+    const first = await cache.getAudioBuffer(context, url, undefined, { onCacheError });
+    expect(onCacheError).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ url, error, operation: "delete" }));
+    cache.clearMemoryCache();
+    expect(await cache.getAudioBuffer(context, url)).not.toBe(first);
+    expect(deleteCache).toHaveBeenCalledTimes(1);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
