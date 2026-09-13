@@ -318,6 +318,23 @@ describe("AudioCache HTTP policy", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it.each([
+    { directive: "public", clearMemory: false },
+    { directive: "public", clearMemory: true },
+    { directive: "private", clearMemory: false },
+    { directive: "private", clearMemory: true },
+  ])("does not invent freshness from storage permission alone: %j", async ({ directive, clearMemory }) => {
+    respond({ "cache-control": directive });
+    respond({ "cache-control": directive });
+    const first = await cache.getAudioBuffer(audioContextMock, url);
+    expect(entries.has(url)).toBe(true);
+    if (clearMemory) cache.clearMemoryCache();
+    expect(await cache.getAudioBuffer(audioContextMock, url)).not.toBe(first);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1]?.[1]?.cache).toBe("no-cache");
+    expect(audioContextMock.decodeAudioData).toHaveBeenCalledTimes(2);
+  });
+
   it("uses configured TTL only for responses without explicit policy or validators", async () => {
     AudioCache.setCacheExpirationTime(2000);
     respond();
