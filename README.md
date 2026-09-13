@@ -153,6 +153,20 @@ setTimeout(() => playback2.stop(), 2000);
 sound.stop();  // Stops all three playbacks
 ```
 
+Each playback exposes a read-only `state`: `"unplayed"`, `"playing"`, `"paused"`,
+or `"stopped"`. When `sound.preplay()` or `sound.play()` prepares a new voice,
+it removes stopped entries from `sound.playbacks`. Repeated play/stop calls
+therefore retain at most the most recently stopped voice in that collection.
+Unplayed, paused, and playing voices remain registered.
+
+An individual `playback.stop()` preserves the ability to call `playback.play()`
+again. A successfully restarted playback rejoins `sound.playbacks` and receives
+Sound controls again, even if it was previously reaped. Reaping disconnects its
+output and sends; replay restores the Sound's current routing and event forwarding.
+The playback retains its individual volume, rate, and other settings while reaped.
+Reaping does not call `cleanup()`; call `playback.cleanup()` when a retained playback
+is no longer needed.
+
 ### Audio Sprites for Games
 
 Pack many short effects into one decoded WAV atlas while keeping each named

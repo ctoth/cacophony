@@ -63,6 +63,53 @@ describe("Media element play() rejection", () => {
     return { htmlSound, mediaElement };
   };
 
+  it.each(["stop", "cleanup"] as const)("does not readmit a pending replay after Sound.%s", async (action) => {
+    const play = vi.fn().mockResolvedValue(undefined);
+    const { htmlSound, mediaElement } = await setupHtmlSound(play);
+    const [voice] = htmlSound.play();
+    await vi.waitFor(() => expect(voice.isPlaying).toBe(true));
+    voice.stop();
+    htmlSound.preplay();
+    expect(htmlSound.playbacks).not.toContain(voice);
+    let resolve!: () => void;
+    play.mockImplementationOnce(
+      () =>
+        new Promise<void>((done) => {
+          resolve = done;
+        }),
+    );
+    voice.play();
+    htmlSound[action]();
+    mediaElement.pause.mockClear();
+    resolve();
+    await new Promise<void>((done) => queueMicrotask(done));
+
+    expect(voice.isPlaying).toBe(false);
+    expect(htmlSound.playbacks).not.toContain(voice);
+    expect(mediaElement.pause).toHaveBeenCalled();
+    voice.cleanup();
+    htmlSound.cleanup();
+  });
+
+  it("cancels an individual pending media start", async () => {
+    let resolve!: () => void;
+    const { htmlSound, mediaElement } = await setupHtmlSound(
+      vi.fn(
+        () =>
+          new Promise<void>((done) => {
+            resolve = done;
+          }),
+      ),
+    );
+    const [voice] = htmlSound.play();
+    voice.stop();
+    resolve();
+    await new Promise<void>((done) => queueMicrotask(done));
+    expect(voice.state).toBe("stopped");
+    expect(mediaElement.pause).toHaveBeenCalled();
+    htmlSound.cleanup();
+  });
+
   it("play() succeeds when mediaElement.play() resolves", () => {
     // Default createSound with URL uses buffer source — play is synchronous
     const playbacks = sound.play();

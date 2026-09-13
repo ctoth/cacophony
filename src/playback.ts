@@ -264,6 +264,8 @@ export class Playback extends BasePlayback implements BaseSound {
     }
 
     const isResume = this._state === "paused";
+    if (this._state === "stopped") this.currentLoop = 0;
+    const originGeneration = this.origin._playbackGeneration;
 
     try {
       let mediaPlayPromise: Promise<void> | undefined;
@@ -303,10 +305,16 @@ export class Playback extends BasePlayback implements BaseSound {
         const tracked = mediaPlayPromise
           .then(
             () => {
+              if (this._mediaPlayPromise !== tracked || !this.source) return;
+              if (this.origin._playbackGeneration !== originGeneration) {
+                if ("mediaElement" in this.source) this.source.mediaElement.pause();
+                return;
+              }
               this._startTime = this.context.currentTime;
               this.emitPlayStarted(isResume);
             },
             (error: Error) => {
+              if (this._mediaPlayPromise !== tracked || this.origin._playbackGeneration !== originGeneration) return;
               void this.emitAsync("error", {
                 error,
                 errorType: "source",
@@ -339,6 +347,15 @@ export class Playback extends BasePlayback implements BaseSound {
     }
   }
 
+  protected override emitPlayStarted(isResume: boolean): void {
+    // A stopped voice may have been reaped by Sound.preplay() or natural end.
+    // Restore ownership only after its source has successfully started.
+    if (this._state === "stopped" && !this.origin.playbacks.includes(this)) {
+      this.origin._readmitPlayback(this);
+    }
+    super.emitPlayStarted(isResume);
+  }
+
   pause(): void {
     if (!this.source || this._state !== "playing") {
       return;
@@ -362,7 +379,9 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source) {
       throw new Error("Cannot stop a sound that has been cleaned up");
     }
-    if (this._state === "stopped" || this._state === "unplayed") {
+    const pendingMediaPlay = this._mediaPlayPromise !== undefined;
+    this._mediaPlayPromise = undefined;
+    if (!pendingMediaPlay && (this._state === "stopped" || this._state === "unplayed")) {
       return;
     }
 
@@ -536,6 +555,7 @@ export class Playback extends BasePlayback implements BaseSound {
    */
 
   cleanup(): void {
+    this._mediaPlayPromise = undefined;
     if (!this.source) {
       return; // Already cleaned up
     }

@@ -50,6 +50,48 @@ describe("Playback class", () => {
     vi.restoreAllMocks();
   });
 
+  it("bounds retained playbacks across repeated play/stop calls (#212)", () => {
+    vi.mocked(audioContextMock.createBufferSource).mockRestore();
+    for (let i = 0; i < 100; i++) {
+      const [voice] = sound.play();
+      voice.stop();
+      expect(sound.playbacks).toHaveLength(1);
+    }
+  });
+
+  it("reaps only stopped playbacks when preparing another voice (#212)", () => {
+    vi.mocked(audioContextMock.createBufferSource).mockRestore();
+    const [playing] = sound.play();
+    const [paused] = sound.play();
+    paused.pause();
+    const [stopped] = sound.play();
+    stopped.stop();
+    const [unplayed] = sound.preplay();
+    const [next] = sound.preplay();
+
+    expect(sound.playbacks).toEqual([playing, paused, unplayed, next]);
+    sound.cleanup();
+  });
+
+  it("replays a reaped playback and restores Sound controls without duplicates (#212)", () => {
+    vi.mocked(audioContextMock.createBufferSource).mockRestore();
+    const [voice] = sound.play();
+    voice.stop();
+    const [next] = sound.preplay();
+    expect(sound.playbacks).toEqual([next]);
+
+    voice.play();
+    voice.play();
+    expect(voice.isPlaying).toBe(true);
+    expect(voice.currentTime).toBe(0);
+    expect(sound.playbacks).toEqual([next, voice]);
+    sound.volume = 0.25;
+    expect(voice.volume).toBe(0.25);
+    sound.stop();
+    expect(voice.source).toBeUndefined();
+    expect(next.source).toBeUndefined();
+  });
+
   it("can play and stop", () => {
     playback.play();
     expect(playback.isPlaying).toBe(true);

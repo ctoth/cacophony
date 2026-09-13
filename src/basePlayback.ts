@@ -163,9 +163,14 @@ export abstract class BasePlayback extends /* @__PURE__ */ PannerMixin(/* @__PUR
   abstract stop(): void;
 
   /**
-   * Checks if the audio is currently playing.
+   * Gets the current lifecycle state without changing playback.
    */
 
+  get state(): PlaybackState {
+    return this._state;
+  }
+
+  /** Checks if the audio is currently playing. */
   get isPlaying(): boolean {
     return this._state === "playing";
   }

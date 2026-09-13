@@ -180,14 +180,14 @@ describe("Sound playback and state management", () => {
     }
   });
 
-  it("does not remove playback on explicit stop (container.stop handles that)", () => {
+  it("retains an explicitly stopped playback until the next preplay or Sound.stop", () => {
     const playback = sound.play()[0];
     expect(sound.playbacks.length).toBe(1);
 
     // Explicit stop on the playback — does NOT auto-remove
     playback.stop();
     expect(playback.isPlaying).toBe(false);
-    // The playback stays in the array; Sound.stop() is responsible for clearing
+    // The next preplay reaps it; Sound.stop() also clears the collection
     expect(sound.playbacks.length).toBe(1);
   });
 
