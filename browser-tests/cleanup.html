@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cacophony native source cleanup</title>
+  </head>
+  <body>
+    <script type="module">
+      import { Cacophony } from "/src/cacophony.ts";
+
+      window.runCleanupCheck = async (scheduled) => {
+        if (typeof OfflineAudioContext === "undefined") return { supported: false };
+        const sampleRate = 48_000;
+        const length = 4_800;
+        const context = new OfflineAudioContext(2, length, sampleRate);
+        const cacophony = Cacophony.createOffline(
+          { context, length, numberOfChannels: 2, sampleRate },
+          undefined,
+          { autoUnlock: false, quiet: true },
+        );
+        let timer;
+        try {
+          const buffer = context.createBuffer(2, context.sampleRate * 6, context.sampleRate);
+          const sound = await cacophony.createSound(buffer, "buffer", "stereo");
+          const [voice] = sound.play({
+            at: context.currentTime + (scheduled ? 60 : 0),
+            loopCount: "infinite",
+          });
+          const source = voice.source;
+          const ended = new Promise((resolve) => source.addEventListener("ended", () => resolve(true), { once: true }));
+          // Exercise the client-facing Sound.cleanup cascade, keeping the asset alive.
+          sound.cleanup();
+          // Pull the silent source during offline rendering: WebKit does not process
+          // disconnected sources. Reconnecting must not revive a terminated voice.
+          source.connect(context.destination);
+          await context.startRendering();
+          const terminated = await Promise.race([
+            ended,
+            new Promise((resolve) => { timer = setTimeout(() => resolve(false), 3000); }),
+          ]);
+          return { supported: true, terminated, bufferPreserved: sound.buffer === buffer };
+        } finally {
+          clearTimeout(timer);
+        }
+      };
+    </script>
+  </body>
+</html>

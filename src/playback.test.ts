@@ -585,6 +585,68 @@ describe("Playback cloning for media-element-backed playback", () => {
 });
 
 describe("Playback cleanup functionality", () => {
+  it.each([0, 60])("terminates a looping source scheduled at %s before disconnecting", (at) => {
+    const buffer = new AudioBuffer({ length: 44100, sampleRate: 44100 });
+    const sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
+    const [voice] = sound.play({ at, loopCount: "infinite" });
+    const source = voice.source as AudioBufferSourceNode;
+    const order: string[] = [];
+    const stop = vi.spyOn(source, "stop").mockImplementation(() => {
+      expect(source.onended).toBeNull();
+      order.push("stop");
+    });
+    vi.spyOn(source, "disconnect").mockImplementation(() => {
+      order.push("disconnect");
+    });
+
+    voice.cleanup();
+    voice.cleanup();
+
+    expect(stop).toHaveBeenCalledTimes(1);
+    expect(order.slice(0, 2)).toEqual(["stop", "disconnect"]);
+    expect(() => voice.play()).toThrow("cleaned up");
+    sound.cleanup();
+  });
+
+  it.each([
+    "unplayed",
+    "paused",
+    "stopped",
+  ] as const)("cleans a %s voice without stopping its source again", (state) => {
+    const buffer = new AudioBuffer({ length: 44100, sampleRate: 44100 });
+    const sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
+    const [voice] = sound.preplay();
+    if (state !== "unplayed") {
+      voice.play();
+      if (state === "paused") voice.pause();
+      else voice.stop();
+    }
+    const stop = vi.spyOn(voice.source as AudioBufferSourceNode, "stop");
+
+    voice.cleanup();
+
+    expect(stop).not.toHaveBeenCalled();
+    expect(voice.source).toBeUndefined();
+    sound.cleanup();
+  });
+
+  it("preserves sibling voices and the Sound buffer for future playback", () => {
+    const buffer = new AudioBuffer({ length: 44100, sampleRate: 44100 });
+    const sound = new Sound("test-url", buffer, audioContextMock, audioContextMock.createGain());
+    const [first] = sound.play();
+    const [sibling] = sound.play();
+    const siblingStop = vi.spyOn(sibling.source as AudioBufferSourceNode, "stop");
+
+    first.cleanup();
+
+    expect(siblingStop).not.toHaveBeenCalled();
+    expect(sibling.isPlaying).toBe(true);
+    const [next] = sound.play();
+    expect((next.source as AudioBufferSourceNode).buffer).toBe(buffer);
+    expect(next.isPlaying).toBe(true);
+    sound.cleanup();
+  });
+
   let playback: Playback;
   let buffer: AudioBuffer;
   let source: AudioBufferSourceNode;

@@ -569,6 +569,11 @@ export class Playback extends BasePlayback implements BaseSound {
       mediaElement.load();
     } else if ("onended" in this.source) {
       this.source.onended = null;
+      // Disconnecting alone leaves a started source running, including native loops.
+      // Scheduled starts also have playing state; unplayed/paused/stopped sources do not need stop().
+      if ("stop" in this.source && this._state === "playing") {
+        this.source.stop();
+      }
     }
     this._offset = 0;
     this._startTime = 0;
