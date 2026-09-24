@@ -16,7 +16,7 @@ for (const scheduled of [false, true]) {
     const result = await page.evaluate((scheduled) => window.runCleanupCheck(scheduled), scheduled);
     test.skip(
       !result.supported && process.platform === "win32",
-      "The Windows WebKit build does not expose AudioContext",
+      "The Windows WebKit build does not expose OfflineAudioContext",
     );
     expect(result.supported).toBe(true);
     expect(result.terminated).toBe(true);
