@@ -19,6 +19,12 @@ jobs:
         with:
           node-version: 24
           registry-url: 'https://registry.npmjs.org'
+      - name: Extract release notes from CHANGELOG.md
+        # Fails the release before anything is built or published if the tag has no changelog entry.
+        run: |
+          test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./package.json').version")" \
+            || { echo "::error::Tag $GITHUB_REF_NAME does not match package.json version"; exit 1; }
+          node scripts/changelog.mjs notes "$GITHUB_REF_NAME" > "$RUNNER_TEMP/release-notes.md"
       - name: Install dependencies
         run: npm ci
       - name: Build

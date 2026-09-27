@@ -29,6 +29,7 @@
     "bin",
     "docs",
     "THIRD_PARTY_NOTICES.md",
+    "CHANGELOG.md",
     "README.md"
   ],
   "scripts": {
@@ -51,7 +52,10 @@
     "lint": "biome check --error-on-warnings .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "changelog:check": "node scripts/changelog.mjs check",
+    "preversion": "node scripts/changelog.mjs check --ready-to-release",
+    "version": "node scripts/changelog.mjs release && git add CHANGELOG.md"
   },
   "lint-staged": {
     "*": "biome check --write --no-errors-on-unmatched --files-ignore-unknown=true"

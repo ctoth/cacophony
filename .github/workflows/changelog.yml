@@ -1,0 +1,42 @@
+name: Changelog
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  push:
+    branches: [master]
+
+jobs:
+  changelog:
+    name: Changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Validate CHANGELOG.md
+        run: node scripts/changelog.mjs check
+      - name: Require an Unreleased entry for user-facing changes
+        # Library code, the CLI, and package.json (dependencies, exports, engines) are user-facing.
+        # Test-only, docs-only, and CI-only changes are exempt; so is anything labeled skip-changelog.
+        if: >-
+          github.event_name == 'pull_request'
+          && !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
+          && github.event.pull_request.user.login != 'dependabot[bot]'
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: |
+          user_facing=$(git diff --name-only "$BASE...HEAD" | grep -E '^(src|bin)/|^package\.json$' | grep -vE '\.test\.ts$|^src/setupTests\.ts$' || true)
+          if [ -z "$user_facing" ]; then
+            echo "No user-facing files changed."
+            exit 0
+          fi
+          if git diff --quiet "$BASE...HEAD" -- CHANGELOG.md; then
+            echo "::error file=CHANGELOG.md::This PR changes user-facing files but adds nothing under \"## [Unreleased]\" in CHANGELOG.md. Add an entry, or apply the skip-changelog label if users won't notice."
+            echo "$user_facing"
+            exit 1
+          fi
