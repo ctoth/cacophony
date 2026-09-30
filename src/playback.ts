@@ -30,6 +30,7 @@ import type {
   GainNode,
   SourceNode,
 } from "./context";
+import { Occlusion } from "./occlusion";
 import { applyPlayOptions, validatePlayOptions } from "./playOptions";
 import type { Sound } from "./sound";
 import { WORKLETS } from "./worklets";
@@ -65,6 +66,7 @@ export class Playback extends BasePlayback implements BaseSound {
    * not-yet-built playback is honoured once {@link setPitchShift} builds the node.
    */
   private _pitchFactor: number = 1;
+  private _occlusion?: Occlusion;
   /**
    * Creates an instance of the Playback class.
    * @throws {Error} Throws an error if an invalid pan type is provided.
@@ -97,6 +99,43 @@ export class Playback extends BasePlayback implements BaseSound {
     } else {
       throw new Error("Unsupported source type");
     }
+  }
+
+  /** The last requested normalized occlusion amount, initially 0 (clear direct path). */
+  get occlusion(): number {
+    return this._occlusion?.amount ?? 0;
+  }
+
+  /**
+   * Renders obstruction for this voice independently of volume, fades, and positioning.
+   * The caller owns geometry, materials, and policy; Cacophony only renders the amount.
+   * Finite amounts clamp to [0, 1]; non-finite amounts throw RangeError.
+   * A dedicated pre-panner low-pass opens to Nyquist at 0 and closes logarithmically
+   * to 800 Hz at 1, with attenuation from 0 to -18 dB. Resetting to 0 is transparent.
+   * Nodes are allocated on the first nonzero amount and reused, including after reset.
+   * @param amount - 0 for a clear path, 1 for maximum obstruction.
+   * @param duration - Linear transition duration in milliseconds, default 50; 0 applies immediately.
+   * @throws {RangeError} For a non-finite amount or a negative/non-finite duration.
+   * @throws {Error} If this playback has been cleaned up.
+   */
+  setOcclusion(amount: number, duration = 50): void {
+    this.assertNotCleanedUp();
+    if (!Number.isFinite(amount)) throw new RangeError("Occlusion amount must be finite");
+    if (!Number.isFinite(duration) || duration < 0) {
+      throw new RangeError("Occlusion duration must be finite and non-negative");
+    }
+    const normalized = Math.max(0, Math.min(1, amount));
+    if (!this._occlusion) {
+      if (normalized === 0) return;
+      this._occlusion = new Occlusion(this.context, this.panner!);
+      this.setEffectChainEndpoints(this.source!, this.panner!);
+    }
+    this._occlusion.setAmount(normalized, duration);
+  }
+
+  protected override setEffectChainEndpoints(input: AudioNode, output: AudioNode): void {
+    this._occlusion?.setOutput(output);
+    super.setEffectChainEndpoints(input, this._occlusion?.input ?? output);
   }
 
   /**
@@ -582,6 +621,8 @@ export class Playback extends BasePlayback implements BaseSound {
     this.source.disconnect();
     this.source = undefined;
     super.cleanup();
+    this._occlusion?.destroy();
+    this._occlusion = undefined;
   }
 
   private assertNotCleanedUp(): void {
@@ -866,6 +907,7 @@ export class Playback extends BasePlayback implements BaseSound {
     clone.volume = this.volume;
     clone.playbackRate = this._playbackRate;
     clone._offset = this._offset;
+    clone.setOcclusion(this.occlusion, 0);
     if (this._fadeInConfig) {
       clone._fadeInConfig = { ...this._fadeInConfig };
     }
