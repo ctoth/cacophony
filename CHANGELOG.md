@@ -17,6 +17,9 @@ someone upgrading, not as a commit message. `npm version` stamps the release; se
 
 ## [Unreleased]
 
+### Added
+- `Playback.setOcclusion(amount, duration?)` renders per-voice obstruction with a dedicated pre-panner low-pass and attenuation stage, independently of volume and fades. Amounts clamp to `[0, 1]`; transitions default to 50 ms; resetting to `0` restores the clear path. `Playback.occlusion` reports the requested amount. The caller owns geometry, materials, and policy. (#221)
+
 ## [0.33.0] - 2026-09-26
 
 ### Fixed

@@ -1,3 +1,4 @@
+import { rampAudioParam } from "./automation";
 import type { FadeType } from "./cacophony";
 import type { AudioNode, AudioParam, AudioWorkletNode } from "./context";
 import type { BuiltEffect } from "./effects";
@@ -178,20 +179,7 @@ export class EffectChain {
       return;
     }
 
-    const now = node.context.currentTime;
-    const duration = options?.duration;
-    if (duration === undefined || duration <= 0) {
-      param.setValueAtTime(value, now);
-      return;
-    }
-
-    const endTime = now + duration / 1000;
-    param.setValueAtTime(param.value, now);
-    if (options?.type === "exponential") {
-      param.exponentialRampToValueAtTime(value === 0 ? 0.0001 : value, endTime);
-    } else {
-      param.linearRampToValueAtTime(value, endTime);
-    }
+    rampAudioParam(param, value, node.context.currentTime, options);
   }
 
   destroy(): void {

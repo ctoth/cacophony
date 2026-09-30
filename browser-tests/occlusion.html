@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cacophony occlusion rendering</title>
+  </head>
+  <body>
+    <script type="module">
+      import { Cacophony } from "/src/cacophony.ts";
+
+      window.runOcclusionRenderCheck = async () => {
+        if (typeof OfflineAudioContext === "undefined") return { supported: false };
+        const sampleRate = 48_000;
+        const length = 12_000;
+        const render = async (frequency, amount, reset = false) => {
+          const context = new OfflineAudioContext(1, length, sampleRate);
+          const audio = Cacophony.createOffline(
+            { context, length, numberOfChannels: 1, sampleRate },
+            undefined,
+            { autoUnlock: false, quiet: true },
+          );
+          const buffer = context.createBuffer(1, length, sampleRate);
+          const input = buffer.getChannelData(0);
+          for (let i = 0; i < length; i++) input[i] = 0.25 * Math.sin(2 * Math.PI * frequency * i / sampleRate);
+          const sound = await audio.createSound(buffer, "buffer", "stereo");
+          const [voice] = sound.preplay();
+          if (amount !== undefined) voice.setOcclusion(amount, 0);
+          if (reset) voice.setOcclusion(0, 0);
+          voice.play();
+          const samples = (await context.startRendering()).getChannelData(0).slice(4_800);
+          sound.cleanup();
+          return samples;
+        };
+        const rms = (samples) => Math.sqrt(samples.reduce((sum, value) => sum + value * value, 0) / samples.length);
+        const lowDry = await render(100);
+        const lowOccluded = await render(100, 1);
+        const highDry = await render(8_000);
+        const highOccluded = await render(8_000, 1);
+        const cutoffDry = await render(800);
+        const cutoffOccluded = await render(800, 1);
+        const resetErrors = [];
+        for (const frequency of [200, 4_000, 21_600]) {
+          const dry = await render(frequency);
+          const reset = await render(frequency, 1, true);
+          resetErrors.push(Math.max(...reset.map((value, i) => Math.abs(value - dry[i]))));
+        }
+        return {
+          supported: true,
+          lowDb: 20 * Math.log10(rms(lowOccluded) / rms(lowDry)),
+          cutoffDb: 20 * Math.log10(rms(cutoffOccluded) / rms(cutoffDry)),
+          highRatio: rms(highOccluded) / rms(highDry),
+          resetErrors,
+        };
+      };
+    </script>
+  </body>
+</html>

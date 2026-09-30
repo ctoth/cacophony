@@ -81,6 +81,37 @@ async function audioDemo() {
 audioDemo();
 ```
 
+## Per-playback occlusion
+
+Apply obstruction to an individual `Playback` using a normalized amount:
+
+```typescript
+const [voice] = sound.play({ panType: 'HRTF', position: [5, 0, 0] });
+voice.setOcclusion(0.7);      // Smooth transition over 50 ms by default.
+voice.setOcclusion(0, 100);   // Restore the clear path over 100 ms.
+console.log(voice.occlusion); // Last requested amount, independent of transition progress.
+```
+
+The caller computes the amount and owns geometry, materials, and policy.
+Cacophony renders it with a dedicated low-pass and attenuation stage after user
+effects and before the panner. Finite amounts clamp to `[0, 1]`; non-finite
+amounts throw `RangeError`. The optional transition duration is in milliseconds:
+`0` applies immediately; negative or non-finite durations throw `RangeError`.
+
+At `0`, the low-pass opens to the context's Nyquist frequency and attenuation
+returns to unity, restoring the unobstructed response. At `1`, the low-pass
+cutoff is 800 Hz (limited to Nyquist on lower-rate contexts) and attenuation is
+-18 dB. Intermediate amounts map logarithmically to cutoff and linearly in
+decibels to attenuation. The filter has a Butterworth response without a resonant
+peak. Changes use linear AudioParam ramps, cancelling and re-anchoring any prior
+occlusion transition at its current value.
+
+Occlusion leaves ordinary volume and fades independent. Each voice starts clear;
+updates affect only that voice. Pause/resume and panner changes retain its
+occlusion, and `Playback.clone()` copies the requested amount into independent
+nodes. One lazily allocated filter/gain pair is reused even after resetting to
+`0`, then disconnected on cleanup. Updating a cleaned-up playback throws.
+
 ## Mobile Autoplay Handling
 
 Modern browsers — especially iOS Safari and Chrome on Android — refuse to
