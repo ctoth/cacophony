@@ -140,6 +140,7 @@ export { PcmStreamPlayback, PcmStreamSound } from "./pcmStream";
 export { Playback } from "./playback";
 export type { TimeStretchOptions } from "./processors/timestretch-core";
 export { timeStretch, timeStretchChannels } from "./processors/timestretch-core";
+export type { SendGainOptions } from "./routableSource";
 export type { ScheduledCallbackHandle } from "./scheduler";
 export { Scheduler } from "./scheduler";
 export { Sound } from "./sound";

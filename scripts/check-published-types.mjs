@@ -48,7 +48,7 @@ try {
   writeFileSync(join(tempRoot, "package.json"), JSON.stringify({ private: true, type: "module" }));
   writeFileSync(
     join(tempRoot, "index.ts"),
-    `import { type BaseSound, type Playback, type Sound, type Group, type Synth, type PlayOptions, timeStretch } from "cacophony";
+    `import { type BaseSound, type Playback, type Sound, type Group, type Synth, type PlayOptions, type SendGainOptions, timeStretch } from "cacophony";
 
 declare const playback: Playback;
 const baseSound: BaseSound = playback;
@@ -65,6 +65,13 @@ group.playRandom({ panType: "stereo", stereoPan: 0 });
 group.play(options);
 playback.play(options);
 synth.play({ volume: 0.5, panType: "stereo", stereoPan: 0 });
+const sendOptions: SendGainOptions = { duration: 250, type: "exponential" };
+sound.routeTo("aux", 0.5, sendOptions);
+group.routeTo("aux", 0, sendOptions);
+synth.routeTo("aux", 0.2, sendOptions);
+sound.removeSend("aux");
+group.removeSend("aux");
+synth.removeSend("aux");
 
 void [baseSound, position, isPlaying, stretched, voice, selected];
 `,

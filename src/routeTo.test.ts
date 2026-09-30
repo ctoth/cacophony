@@ -264,8 +264,8 @@ describe("Group.routeTo", () => {
     const s1Spy = vi.spyOn(s1, "routeTo");
     const s2Spy = vi.spyOn(s2, "routeTo");
     group.routeTo(bus);
-    expect(s1Spy).toHaveBeenCalledWith(bus);
-    expect(s2Spy).toHaveBeenCalledWith(bus);
+    expect(s1Spy).toHaveBeenCalledWith(bus, undefined, undefined);
+    expect(s2Spy).toHaveBeenCalledWith(bus, undefined, undefined);
     bus.destroy();
   });
 
@@ -277,8 +277,8 @@ describe("Group.routeTo", () => {
     const s1Spy = vi.spyOn(s1, "routeTo");
     const s2Spy = vi.spyOn(s2, "routeTo");
     group.routeTo(bus, 0.4);
-    expect(s1Spy).toHaveBeenCalledWith(bus, 0.4);
-    expect(s2Spy).toHaveBeenCalledWith(bus, 0.4);
+    expect(s1Spy).toHaveBeenCalledWith(bus, 0.4, undefined);
+    expect(s2Spy).toHaveBeenCalledWith(bus, 0.4, undefined);
     bus.destroy();
   });
 });
