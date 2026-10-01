@@ -45,6 +45,55 @@
           maximum: Math.max(...samples.map(Math.abs)),
         };
       };
+
+      window.renderInterruptedSourceSend = async (type) => {
+        if (typeof OfflineAudioContext === "undefined") return { supported: false };
+        const sampleRate = 48_000;
+        const length = sampleRate / 2;
+        const context = new OfflineAudioContext(1, length, sampleRate);
+        if (typeof context.suspend !== "function" || typeof context.resume !== "function") {
+          return { supported: true, render: null };
+        }
+        const audio = Cacophony.createOffline(
+          { context, length, numberOfChannels: 1, sampleRate },
+          undefined,
+          { autoUnlock: false, quiet: true },
+        );
+        const buffer = context.createBuffer(1, length, sampleRate);
+        buffer.getChannelData(0).fill(0.25);
+        const sound = await audio.createSound(buffer, "buffer", "stereo");
+        // A disconnected primary bus isolates the aux envelope at the destination.
+        const dry = audio.createBus();
+        dry.disconnect(audio.master);
+        const aux = audio.createBus();
+        sound.routeTo(dry);
+        sound.routeTo(aux, 1);
+        const [voice] = sound.preplay();
+        sound.routeTo(aux, 0.25, { duration: 200, type });
+        voice.play();
+        const suspended = context.suspend(0.1);
+        const rendering = context.startRendering();
+        await suspended;
+        const frame = Math.round(context.currentTime * sampleRate);
+        const fraction = context.currentTime / 0.2;
+        const expectedGain = type === "linear" ? 1 - 0.75 * fraction : 0.25 ** fraction;
+        sound.routeTo(aux, 1, { duration: 100 });
+        await context.resume();
+        const samples = (await rendering).getChannelData(0);
+        const fullLevel = samples[sampleRate * 0.4];
+        sound.cleanup();
+        return {
+          supported: true,
+          render: {
+            fullLevel,
+            expectedGain,
+            maximumStep: Math.abs(samples[frame] - samples[frame - 1]),
+            interruptionGain: samples[frame] / fullLevel,
+            midpointGain: samples[frame + 2400] / fullLevel,
+            finalGain: samples[sampleRate * 0.3] / fullLevel,
+          },
+        };
+      };
     </script>
   </body>
 </html>

@@ -8,6 +8,49 @@
     <script type="module">
       import { Cacophony } from "/src/cacophony.ts";
 
+      window.runInterruptedOcclusionRenderCheck = async () => {
+        if (typeof OfflineAudioContext === "undefined") return { supported: false };
+        const sampleRate = 48_000;
+        const length = sampleRate / 2;
+        const context = new OfflineAudioContext(1, length, sampleRate);
+        if (typeof context.suspend !== "function" || typeof context.resume !== "function") {
+          return { supported: true, render: null };
+        }
+        const audio = Cacophony.createOffline(
+          { context, length, numberOfChannels: 1, sampleRate },
+          undefined,
+          { autoUnlock: false, quiet: true },
+        );
+        const buffer = context.createBuffer(1, length, sampleRate);
+        buffer.getChannelData(0).fill(0.25);
+        const sound = await audio.createSound(buffer, "buffer", "stereo");
+        const [voice] = sound.preplay();
+        voice.setOcclusion(1, 200);
+        voice.play();
+        const suspended = context.suspend(0.1);
+        const rendering = context.startRendering();
+        await suspended;
+        const frame = Math.round(context.currentTime * sampleRate);
+        const expectedGain = 1 + (10 ** (-18 / 20) - 1) * (context.currentTime / 0.2);
+        voice.setOcclusion(0, 100);
+        await context.resume();
+        const samples = (await rendering).getChannelData(0);
+        const dryLevel = samples[sampleRate * 0.4];
+        sound.cleanup();
+        // DC isolates the gain envelope after the low-pass startup transient.
+        return {
+          supported: true,
+          render: {
+            dryLevel,
+            expectedGain,
+            maximumStep: Math.abs(samples[frame] - samples[frame - 1]),
+            interruptionGain: samples[frame] / dryLevel,
+            midpointGain: samples[frame + 2400] / dryLevel,
+            tailMaximumError: Math.max(...samples.slice(sampleRate * 0.3).map((value) => Math.abs(value - dryLevel))),
+          },
+        };
+      };
+
       window.runOcclusionRenderCheck = async () => {
         if (typeof OfflineAudioContext === "undefined") return { supported: false };
         const sampleRate = 48_000;
