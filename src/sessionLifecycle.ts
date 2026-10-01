@@ -26,11 +26,14 @@ export function installSessionLifecycle(options: SessionLifecycleOptions): () =>
   let disposed = false;
   let recovering = false;
   let lastState = observable.state;
+  // An autoplay-locked context has never run; its first start belongs to the gesture unlock.
+  let hasRun = lastState === "running";
 
   const recover = () => {
     if (
       disposed ||
       recovering ||
+      !hasRun ||
       isUserPaused() ||
       doc.visibilityState !== "visible" ||
       (observable.state !== "suspended" && observable.state !== "interrupted") ||
@@ -38,7 +41,6 @@ export function installSessionLifecycle(options: SessionLifecycleOptions): () =>
     )
       return;
     recovering = true;
-    // Call synchronously so foreground signals keep their platform activation.
     try {
       context.resume().then(
         () => {
@@ -65,6 +67,7 @@ export function installSessionLifecycle(options: SessionLifecycleOptions): () =>
     const state = observable.state;
     if (state === lastState || state === undefined) return;
     lastState = state;
+    if (state === "running") hasRun = true;
     if (state === "closed") {
       onClosed();
       return;

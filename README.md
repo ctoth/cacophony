@@ -154,9 +154,12 @@ environments (`typeof document === 'undefined'`).
 By default, browser instances observe context `statechange` and emit `suspend`,
 `resume`, or `interrupted` once per transition, including changes initiated by
 the platform or by code using the context directly. Construction does not emit
-an initial state event. `autoRecover` attempts silent resume after suspension or
-interruption only while the document is visible, and retries on `visibilitychange`,
-`pageshow`, and window `focus`. It does not suspend audio merely because the page
+an initial state event. A gesture unlock therefore emits `resume` along with
+`unlock`. Once the context has run, `autoRecover` attempts silent resume after
+suspension or interruption only while the document is visible, and retries on
+`visibilitychange`, `pageshow`, and window `focus`. A context that has never run
+(blocked by autoplay policy) is left to the gesture unlock, so `unlock` still fires
+on the first interaction. It does not suspend audio merely because the page
 is hidden. Failed recovery is logged through the instance logger; the existing
 gesture unlock remains available when the browser requires interaction.
 
@@ -182,8 +185,9 @@ await cacophony.context.close?.(); // The caller owns context and sound cleanup.
 `devicechange` carries `{ devices: MediaDeviceInfo[], timestamp: number }`, with
 only `audiooutput` devices. Enumeration does not request permission; labels and
 the device list may be restricted. Failed enumeration is logged and emits no
-partial result. Closing the context also removes browser session listeners when
-`autoRecover` is enabled. `sinkChange` reports the active sink independently of
+partial result. Closing the context also removes browser session, sink, and gesture
+listeners when `autoRecover` is enabled; your event subscriptions stay attached
+until `dispose()`. `sinkChange` reports the active sink independently of
 the available device list; neither event selects a replacement automatically.
 
 Automated tests cover native context transitions and synthetic device-list

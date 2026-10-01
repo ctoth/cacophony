@@ -497,6 +497,7 @@ export class Cacophony {
   private outputDeviceCleanup: () => void = () => {};
   private lastContextEventState?: string;
   private suspendRequest = 0;
+  private pendingPause?: { request: number; promise: Promise<void> };
 
   /**
    * Constructs a new Cacophony instance.
@@ -597,7 +598,7 @@ export class Cacophony {
           isUserPaused: () => this.suspendState === "suspended",
           onStateChange: (state) => this.publishContextState(state),
           onDeviceChange: (event) => this.emit("devicechange", event),
-          onClosed: () => this.dispose(),
+          onClosed: () => this.detachPlatformListeners(),
           logger: this.logger,
         });
       }
@@ -617,11 +618,15 @@ export class Cacophony {
    * Idempotent. The caller still owns sound cleanup and context.close().
    */
   dispose(): void {
+    this.detachPlatformListeners();
+    this.eventEmitter.removeAllListeners();
+  }
+
+  private detachPlatformListeners(): void {
     this.autoplayUnlockCleanup();
     this.sessionLifecycleCleanup();
     this.outputDeviceCleanup();
     this.autoplayUnlockCleanup = this.sessionLifecycleCleanup = this.outputDeviceCleanup = () => {};
-    this.eventEmitter.removeAllListeners();
   }
 
   /** The platform's current sink, or undefined when unavailable/offline. */
@@ -2107,22 +2112,33 @@ export class Cacophony {
    * Suspends the audio context.
    *
    * Resolves after the underlying AudioContext transition completes.
-   * State events are emitted once per observed transition. If already user-paused,
+   * State events are emitted once per observed transition. A pause made while
+   * another is pending settles with that pending suspension; once user-paused,
    * resolves immediately as a no-op. If the underlying
    * `suspend()` call rejects, the rejection is propagated and no event fires.
    */
-  async pause(): Promise<void> {
-    if (!this.context.suspend) {
-      return;
+  pause(): Promise<void> {
+    if (this.pendingPause?.request === this.suspendRequest) {
+      return this.pendingPause.promise;
     }
-    if (this.suspendState === "suspended") {
-      return;
+    if (!this.context.suspend || this.suspendState === "suspended") {
+      return Promise.resolve();
     }
-    const previousState = this.suspendState;
     const request = ++this.suspendRequest;
+    const promise = this.suspendContext(request);
+    this.pendingPause = { request, promise };
+    const clear = () => {
+      if (this.pendingPause?.promise === promise) this.pendingPause = undefined;
+    };
+    promise.then(clear, clear);
+    return promise;
+  }
+
+  private async suspendContext(request: number): Promise<void> {
+    const previousState = this.suspendState;
     this.suspendState = "suspended";
     try {
-      await this.context.suspend();
+      await this.context.suspend?.();
     } catch (error) {
       if (request === this.suspendRequest) this.suspendState = previousState;
       throw error;

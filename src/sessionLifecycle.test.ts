@@ -269,6 +269,60 @@ describe("audio session lifecycle", () => {
     expect(logger.warn).toHaveBeenCalledWith(expect.any(String), error);
   });
 
+  it("leaves an autoplay-locked context to the gesture unlock", async () => {
+    state = "suspended";
+    vi.mocked(context.resume).mockImplementation(async () => {
+      transition("running");
+    });
+    create({ autoUnlock: true });
+    const unlock = vi.fn();
+    instance.on("unlock", unlock);
+    host.dispatchEvent(new Event("focus"));
+    doc.dispatchEvent(new Event("visibilitychange"));
+    host.dispatchEvent(new Event("pageshow"));
+    expect(context.resume).not.toHaveBeenCalled();
+    doc.body.dispatchEvent(new Event("click"));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(context.resume).toHaveBeenCalledOnce();
+    expect(unlock).toHaveBeenCalledOnce();
+    transition("interrupted");
+    expect(context.resume).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps application event subscriptions when the browser context closes", () => {
+    create();
+    const listener = vi.fn();
+    instance.on("volumeChange", listener);
+    transition("closed");
+    instance.setGlobalVolume(0.5);
+    expect(listener).toHaveBeenCalledWith(0.5);
+  });
+
+  it("settles concurrent pauses with the pending suspension", async () => {
+    create();
+    let fail!: (error: Error) => void;
+    const suspend = vi.fn(
+      () =>
+        new Promise<void>((_, reject) => {
+          fail = reject;
+        }),
+    );
+    Object.defineProperty(context, "suspend", { value: suspend });
+    const first = instance.pause();
+    let secondSettled = false;
+    const second = instance.pause().finally(() => {
+      secondSettled = true;
+    });
+    await Promise.resolve();
+    expect(secondSettled).toBe(false);
+    const error = new Error("suspend failed");
+    fail(error);
+    await expect(first).rejects.toBe(error);
+    await expect(second).rejects.toBe(error);
+    expect(suspend).toHaveBeenCalledOnce();
+  });
+
   it("observes contexts without a mediaDevices capability", () => {
     vi.stubGlobal("navigator", {});
     create();
