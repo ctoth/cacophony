@@ -293,4 +293,42 @@ describe("spatial motion smoothing", () => {
     sound.cleanup();
     expect(cancelPan).toHaveBeenCalledWith(0);
   });
+
+  it.each([
+    ["stereo", { stereoPan: 2 }],
+    ["HRTF", { position: [Number.NaN, 0, 0] as [number, number, number] }],
+    ["HRTF", { threeDOptions: { positionX: Infinity } }],
+  ] as const)("rejects invalid %s voice clone pose overrides before allocating", async (panType, overrides) => {
+    const sound = await makeSound(cacophony, panType);
+    const [voice] = sound.play();
+    const voices = sound.playbacks.length;
+    const gain = vi.spyOn(audioContextMock, "createGain");
+    const source = vi.spyOn(audioContextMock, "createBufferSource");
+    expect(() => voice.clone(overrides)).toThrow(RangeError);
+    expect(gain).not.toHaveBeenCalled();
+    expect(source).not.toHaveBeenCalled();
+    expect(sound.playbacks).toHaveLength(voices);
+    sound.cleanup();
+  });
+
+  it("starts a replayed voice at its requested pose instead of sweeping there", async () => {
+    const sound = await makeSound();
+    sound.spatialSmoothingTau = 0.1;
+    const [voice] = sound.play();
+    const panner = voice.panner as PannerNode;
+    const target = vi.spyOn(panner.positionX, "setTargetAtTime");
+    voice.position = [10, 0, 0];
+    expect(target).toHaveBeenCalledTimes(1);
+    voice.stop();
+    // Stopping is silent, so pending motion snaps to its requested target.
+    expect(panner.positionX.value).toBe(10);
+    voice.position = [20, 0, 0];
+    expect(panner.positionX.value).toBe(20);
+    voice.play({ position: [30, 0, 0] });
+    expect(panner.positionX.value).toBe(30);
+    expect(target).toHaveBeenCalledTimes(1);
+    voice.position = [40, 0, 0];
+    expect(target).toHaveBeenLastCalledWith(40, audioContextMock.currentTime, 0.1);
+    sound.cleanup();
+  });
 });

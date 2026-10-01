@@ -18,7 +18,7 @@ someone upgrading, not as a commit message. `npm version` stamps the release; se
 ## [Unreleased]
 
 ### Added
-- Opt-in spatial motion smoothing via `RuntimeOptions.spatialSmoothingTau`, source/voice `spatialSmoothingTau`, and `Cacophony.listenerSmoothingTau` (seconds). Position, orientation and stereo pan retarget smoothly; initial poses remain immediate, getters report requested targets, and setting the constant to `0` snaps pending transitions. Legacy listener APIs remain immediate. (#201)
+- Opt-in spatial motion smoothing via `RuntimeOptions.spatialSmoothingTau`, source/voice `spatialSmoothingTau`, and `Cacophony.listenerSmoothingTau` (seconds). Position, orientation and stereo pan retarget smoothly; initial and replayed poses remain immediate, getters report requested targets, and setting the constant to `0` snaps pending transitions. Legacy listener APIs remain immediate. (#201)
 - Sources and Groups can remove an aux send with `removeSend(busOrName)` and ramp an existing send with `routeTo(busOrName, gain, { duration, type })`. Removal disconnects every voice's send and prevents future voices or bus drains from recreating it, while preserving primary routing. Ramps reuse existing nodes, interrupt smoothly, and take milliseconds; instant changes remain the default. (#241)
 - `Playback.setOcclusion(amount, duration?)` renders per-voice obstruction with a dedicated pre-panner low-pass and attenuation stage, independently of volume and fades. Amounts clamp to `[0, 1]`; transitions default to 50 ms; resetting to `0` restores the clear path. `Playback.occlusion` reports the requested amount. The caller owns geometry, materials, and policy. (#221)
 

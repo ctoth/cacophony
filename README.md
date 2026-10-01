@@ -1042,7 +1042,9 @@ Sound, Synth, and stream sources inherit the instance default. A source assignme
 updates its current voices and the default for future voices. Sound, Synth, and
 Playback clones preserve the setting and requested pose. Initial source and
 `play(options)` poses are immediate; subsequent changes, including while paused,
-are smoothed. Partial `threeDOptions` updates leave omitted axes alone.
+are smoothed. Stopping a voice snaps pending motion to its target, and a stopped
+voice takes new poses immediately, so a replayed voice starts where it was asked to.
+Partial `threeDOptions` updates leave omitted axes alone.
 
 Spatial getters report the last requested targets, including during transitions.
 Use these setters consistently: direct automation or mutation of the underlying

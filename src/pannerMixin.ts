@@ -66,6 +66,8 @@ export interface PannerControls {
   spatialSmoothingTau: number;
   /** @internal Whether spatial writes should transition instead of initialize a voice. */
   readonly _spatialSmoothingActive: boolean;
+  /** @internal Snap pending spatial transitions to their requested targets. */
+  _snapSpatialMotion(): void;
   setPanType(panType: PanType, audioContext: BaseContext): void;
   setPannerNode(pannerNode: PannerNode): void;
   /** Requested stereo pan target, including during smoothing. */
@@ -108,6 +110,11 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
     /** @internal */
     get _spatialSmoothingActive(): boolean {
       return true;
+    }
+
+    /** @internal */
+    _snapSpatialMotion(): void {
+      if (this.panner) this.spatialAutomation.reconfigure(0, this.panner.context.currentTime);
     }
 
     private writeSpatialParam(param: AudioParam, value: number, scheduled = false): void {

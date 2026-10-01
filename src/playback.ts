@@ -878,6 +878,14 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     validateSpatialSmoothingTau(overrides.spatialSmoothingTau ?? this.spatialSmoothingTau);
     const panType = overrides.panType ?? this.panType;
+    // Validate only the pose overrides the clone applies, before allocating any nodes.
+    validatePlayOptions(
+      panType === "HRTF"
+        ? { position: overrides.position, threeDOptions: overrides.threeDOptions }
+        : { stereoPan: overrides.stereoPan },
+      panType,
+      "buffer",
+    );
     // we'll need to create a new gain node
     const gainNode = this.context.createGain();
     gainNode.connect(this.origin._resolveRouteTargetNode());
