@@ -25,7 +25,7 @@ import { resolve } from "node:path";
 import type { AudioContext, OfflineAudioContext } from "node-web-audio-api";
 import type { ICache } from "./cache";
 import { Cacophony, type RuntimeOptions } from "./cacophony";
-import type { BaseContext } from "./context";
+import type { AudioSinkId, BaseContext } from "./context";
 import type { CacophonyLogger } from "./logger";
 import { validateSpatialSmoothingTau } from "./spatialAutomation";
 
@@ -122,7 +122,7 @@ interface NodeRuntimeOptions {
  * for a null sink (headless / no audio device). Mirrors the Audio Output
  * Devices API `sinkId`, which `node-web-audio-api` honors at runtime.
  */
-export type NodeAudioSinkId = string | { type: "none" };
+export type NodeAudioSinkId = AudioSinkId;
 
 /** Options for {@link createNodeCacophony}. */
 export interface NodeCacophonyOptions extends NodeRuntimeOptions {

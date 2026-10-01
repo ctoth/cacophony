@@ -48,7 +48,7 @@ try {
   writeFileSync(join(tempRoot, "package.json"), JSON.stringify({ private: true, type: "module" }));
   writeFileSync(
     join(tempRoot, "index.ts"),
-    `import { Cacophony, type RuntimeOptions, type BaseSound, type Playback, type Sound, type Group, type Synth, type PlayOptions, type SendGainOptions, timeStretch } from "cacophony";
+    `import { Cacophony, type RuntimeOptions, type BaseSound, type Playback, type Sound, type Group, type Synth, type PlayOptions, type SendGainOptions, type AudioSinkId, type DeviceChangeEvent, timeStretch } from "cacophony";
 
 declare const playback: Playback;
 const baseSound: BaseSound = playback;
@@ -72,8 +72,15 @@ synth.routeTo("aux", 0.2, sendOptions);
 sound.removeSend("aux");
 group.removeSend("aux");
 synth.removeSend("aux");
-const runtime: RuntimeOptions = { spatialSmoothingTau: 0.03 };
+const runtime: RuntimeOptions = { spatialSmoothingTau: 0.03, autoRecover: false };
 const audio = new Cacophony(undefined, undefined, runtime);
+const sinkId: AudioSinkId = { type: "none" };
+const selection: Promise<void> = audio.setOutputDevice(sinkId);
+const currentSink: AudioSinkId | undefined = audio.outputDevice;
+audio.on("sinkChange", ({ sinkId }) => { const sink: AudioSinkId = sinkId; void sink; });
+audio.on("devicechange", (event) => { const inventory: DeviceChangeEvent = event; void inventory; });
+audio.on("interrupted", (event) => { const payload: undefined = event; void payload; });
+audio.dispose();
 audio.listenerSmoothingTau = 0.04;
 const defaultTau: number = audio.spatialSmoothingTau;
 sound.spatialSmoothingTau = 0.05;
@@ -83,7 +90,7 @@ const smoothedVoice: Playback = playback.clone({ spatialSmoothingTau: 0.02, posi
 sound.clone({ spatialSmoothingTau: 0 });
 synth.clone({ spatialSmoothingTau: 0.03 });
 
-void [baseSound, position, isPlaying, stretched, voice, selected, defaultTau, smoothedVoice];
+void [baseSound, position, isPlaying, stretched, voice, selected, defaultTau, smoothedVoice, selection, currentSink];
 `,
   );
   writeFileSync(

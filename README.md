@@ -149,6 +149,88 @@ const cacophony = new Cacophony(undefined, undefined, { autoUnlock: false });
 The auto-unlock has no effect on offline contexts or in non-browser
 environments (`typeof document === 'undefined'`).
 
+## Mobile Robustness and Audio Sessions
+
+By default, browser instances observe context `statechange` and emit `suspend`,
+`resume`, or `interrupted` once per transition, including changes initiated by
+the platform or by code using the context directly. Construction does not emit
+an initial state event. `autoRecover` attempts silent resume after suspension or
+interruption only while the document is visible, and retries on `visibilitychange`,
+`pageshow`, and window `focus`. It does not suspend audio merely because the page
+is hidden. Failed recovery is logged through the instance logger; the existing
+gesture unlock remains available when the browser requires interaction.
+
+`await cacophony.pause()` records user intent before suspending. Neither automatic
+recovery nor subsequent gestures undo that pause; call `await cacophony.resume()`
+to continue. This also protects pauses made while a recovery attempt is pending.
+Set `{ autoRecover: false }` to disable browser session and device-list listeners.
+`autoUnlock` controls gesture handling separately; disable both to manage all
+recovery yourself. Offline and non-browser contexts install no session listeners.
+
+```typescript
+const cacophony = new Cacophony();
+cacophony.on('interrupted', () => showAudioStatus('Audio interrupted'));
+cacophony.on('resume', () => showAudioStatus('Audio running'));
+cacophony.on('devicechange', ({ devices }) => updateOutputPicker(devices));
+cacophony.on('sinkChange', ({ sinkId }) => showSelectedOutput(sinkId));
+
+// When the instance is no longer needed:
+cacophony.dispose(); // Removes platform and gesture listeners and event subscriptions.
+await cacophony.context.close?.(); // The caller owns context and sound cleanup.
+```
+
+`devicechange` carries `{ devices: MediaDeviceInfo[], timestamp: number }`, with
+only `audiooutput` devices. Enumeration does not request permission; labels and
+the device list may be restricted. Failed enumeration is logged and emits no
+partial result. Closing the context also removes browser session listeners when
+`autoRecover` is enabled. `sinkChange` reports the active sink independently of
+the available device list; neither event selects a replacement automatically.
+
+Automated tests cover native context transitions and synthetic device-list
+notifications. Real hardware and OS interruptions require this manual matrix:
+
+| Platform | Action | Expected result |
+| --- | --- | --- |
+| iOS Safari | Interrupt playback with a call or Siri, then return | `interrupted`/`suspend` when reported by the OS; visible-page recovery or gesture unlock restores audio |
+| Android Chrome | Unplug headphones during playback | Device-list notification when delivered; context transitions are observable and recovery is attempted |
+| Both | Background and foreground the page | No forced background suspension; retry on foreground if the context needs recovery |
+| Both | Pause explicitly, then repeat these actions and tap | Audio remains paused until the app calls `resume()` |
+
+## Output Device Selection
+
+`setOutputDevice(sinkId)` delegates to the supplied context's runtime `setSinkId`
+capability. `outputDevice` reads its current sink: `''` means the system default,
+a device id selects that output, and `{ type: 'none' }` selects silent processing.
+The same API works with the Node backend; its constructor `sinkId` option remains
+available. Switching does not recreate the context or audio graph.
+
+```typescript
+// Run from a user action. selectAudioOutput is optional and browser-dependent.
+const mediaDevices = navigator.mediaDevices as MediaDevices & {
+  selectAudioOutput?: () => Promise<MediaDeviceInfo>;
+};
+if (mediaDevices.selectAudioOutput) {
+  const output = await mediaDevices.selectAudioOutput();
+  await cacophony.setOutputDevice(output.deviceId);
+}
+await cacophony.setOutputDevice(''); // Return to the system default.
+```
+
+Concrete device selection requires a secure context and any permissions required
+by the platform; obtaining authorized ids (through `selectAudioOutput` or permitted
+`enumerateDevices`/`getUserMedia`) belongs to the app. Platform errors such as
+`NotAllowedError` and `NotFoundError` propagate unchanged. Unsupported real-time
+contexts reject with `Error("Output device selection is not supported by this context")`
+until the shared typed-error API in #169 lands. Offline selection is a no-op and
+`outputDevice` is `undefined`.
+
+Support is detected on the actual context, never inferred from a browser name.
+Native Chromium supports selection; Safari and Firefox versions lacking
+`AudioContext.setSinkId` reject it. Standardized-audio-context wrappers that do
+not expose `setSinkId` are unsupported even when the native browser supports it.
+See [Chrome's output-selection guide](https://developer.chrome.com/blog/audiocontext-setsinkid/)
+for platform permissions and silent-sink behavior.
+
 ## Core Concepts
 
 ### Sound vs Playback Architecture

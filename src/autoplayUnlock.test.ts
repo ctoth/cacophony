@@ -154,7 +154,7 @@ describe("Autoplay unlock", () => {
       const unlockListener = vi.fn();
       c.on("unlock", unlockListener);
 
-      expect(doc.addEventListenerSpy).not.toHaveBeenCalled();
+      expect(doc.addEventListenerSpy.mock.calls.filter(([type]) => UNLOCK_EVENTS.includes(type))).toHaveLength(0);
 
       state = nextState;
       ctx.dispatchEvent(new Event("statechange"));
@@ -189,7 +189,7 @@ describe("Autoplay unlock", () => {
       const doc = installMockDocument();
       const ctx = new AudioContext();
       new Cacophony(ctx as any, mockCache, { autoUnlock: false });
-      expect(doc.addEventListenerSpy).not.toHaveBeenCalled();
+      expect(doc.addEventListenerSpy.mock.calls.filter(([type]) => UNLOCK_EVENTS.includes(type))).toHaveLength(0);
     });
 
     it("does NOT install listeners on an offline context", () => {

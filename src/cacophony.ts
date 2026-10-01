@@ -8,6 +8,7 @@ import type {
   AudioListener,
   AudioNode,
   AudioParam,
+  AudioSinkId,
   AudioWorkletNode,
   BaseContext,
   BiquadFilterNode,
@@ -64,6 +65,7 @@ import { PcmStreamSound, type PcmStreamSoundOptions } from "./pcmStream";
 import { GATE_DEFAULT_RATIO } from "./processors/dynamics-core";
 import { DATTORRO_INV_SQRT2 } from "./processors/modulated-delay-core";
 import { type TimeStretchOptions, timeStretch } from "./processors/timestretch-core";
+import { installSessionLifecycle } from "./sessionLifecycle";
 import { Sound } from "./sound";
 import { SpatialAutomation, validateSpatialSmoothingTau } from "./spatialAutomation";
 import { Synth } from "./synth";
@@ -217,9 +219,16 @@ export interface RuntimeOptions {
    */
   autoUnlock?: boolean;
   /**
-   * Optional logger for Cacophony's host-side diagnostic output (the
-   * `[cacophony/worklet]` messages emitted while loading AudioWorklet
-   * modules, plus the "AudioWorklet not supported" warning).
+   * Observe browser context and device-list changes and attempt silent recovery
+   * while the page is visible. Foreground signals retry blocked recovery;
+   * gestures remain governed by autoUnlock. Explicit pause() is never recovered.
+   * Set false to disable these listeners. No effect offline or outside browsers.
+   * @default true
+   */
+  autoRecover?: boolean;
+  /**
+   * Optional logger for host-side worklet and browser session diagnostics,
+   * including recovery and device-enumeration failures.
    *
    * When provided, all such output is routed through this object instead of
    * the global `console`. Useful for capturing or redirecting logs in Node /
@@ -484,6 +493,10 @@ export class Cacophony {
   // Cleanup function for the autoplay-unlock state watcher and gesture
   // listeners. No-op when autoUnlock is disabled or unsupported.
   private autoplayUnlockCleanup: () => void = () => {};
+  private sessionLifecycleCleanup: () => void = () => {};
+  private outputDeviceCleanup: () => void = () => {};
+  private lastContextEventState?: string;
+  private suspendRequest = 0;
 
   /**
    * Constructs a new Cacophony instance.
@@ -560,12 +573,74 @@ export class Cacophony {
     if (autoUnlock && !this.isOffline) {
       this.autoplayUnlockCleanup = installAutoplayUnlock({
         context: this.context,
+        isUserPaused: () => this.suspendState === "suspended",
         onUnlock: () => {
           this.suspendState = "running";
           this.emit("unlock", undefined);
         },
       });
     }
+    if (!this.isOffline) {
+      const observable = this.context as BaseContext & {
+        addEventListener?: (type: string, listener: () => void) => void;
+        removeEventListener?: (type: string, listener: () => void) => void;
+      };
+      const onSinkChange = () => {
+        const sinkId = this.outputDevice;
+        if (sinkId !== undefined) this.emit("sinkChange", { sinkId });
+      };
+      observable.addEventListener?.("sinkchange", onSinkChange);
+      this.outputDeviceCleanup = () => observable.removeEventListener?.("sinkchange", onSinkChange);
+      if (runtimeOptions.autoRecover !== false) {
+        this.sessionLifecycleCleanup = installSessionLifecycle({
+          context: this.context,
+          isUserPaused: () => this.suspendState === "suspended",
+          onStateChange: (state) => this.publishContextState(state),
+          onDeviceChange: (event) => this.emit("devicechange", event),
+          onClosed: () => this.dispose(),
+          logger: this.logger,
+        });
+      }
+    }
+  }
+
+  private publishContextState(state: string): void {
+    if (state === this.lastContextEventState) return;
+    this.lastContextEventState = state;
+    if (state === "running") this.emit("resume", undefined);
+    else if (state === "suspended") this.emit("suspend", undefined);
+    else if (state === "interrupted") this.emit("interrupted", undefined);
+  }
+
+  /**
+   * Remove platform watchers, gesture listeners, and public event subscriptions.
+   * Idempotent. The caller still owns sound cleanup and context.close().
+   */
+  dispose(): void {
+    this.autoplayUnlockCleanup();
+    this.sessionLifecycleCleanup();
+    this.outputDeviceCleanup();
+    this.autoplayUnlockCleanup = this.sessionLifecycleCleanup = this.outputDeviceCleanup = () => {};
+    this.eventEmitter.removeAllListeners();
+  }
+
+  /** The platform's current sink, or undefined when unavailable/offline. */
+  get outputDevice(): AudioSinkId | undefined {
+    if (this.isOffline) return undefined;
+    return (this.context as BaseContext & { sinkId?: AudioSinkId }).sinkId;
+  }
+
+  /**
+   * Select a browser or Node output sink without changing the audio graph.
+   * Permissions belong to the caller. Platform rejections propagate unchanged.
+   * Offline contexts ignore selection; unsupported real-time contexts reject.
+   */
+  async setOutputDevice(sinkId: AudioSinkId): Promise<void> {
+    if (this.isOffline) return;
+    const context = this.context as BaseContext & { setSinkId?: (sinkId: AudioSinkId) => Promise<void> };
+    if (typeof context.setSinkId !== "function")
+      throw new Error("Output device selection is not supported by this context");
+    await context.setSinkId(sinkId);
   }
 
   /**
@@ -2031,9 +2106,9 @@ export class Cacophony {
   /**
    * Suspends the audio context.
    *
-   * Resolves after the underlying AudioContext transition completes, then
-   * emits the `suspend` event. If the context is already suspended (per this
-   * instance's view), resolves immediately as a no-op. If the underlying
+   * Resolves after the underlying AudioContext transition completes.
+   * State events are emitted once per observed transition. If already user-paused,
+   * resolves immediately as a no-op. If the underlying
    * `suspend()` call rejects, the rejection is propagated and no event fires.
    */
   async pause(): Promise<void> {
@@ -2043,9 +2118,16 @@ export class Cacophony {
     if (this.suspendState === "suspended") {
       return;
     }
-    await this.context.suspend();
+    const previousState = this.suspendState;
+    const request = ++this.suspendRequest;
     this.suspendState = "suspended";
-    this.emit("suspend", undefined);
+    try {
+      await this.context.suspend();
+    } catch (error) {
+      if (request === this.suspendRequest) this.suspendState = previousState;
+      throw error;
+    }
+    this.publishContextState((this.context as BaseContext & { state?: string }).state ?? "suspended");
   }
 
   /**
@@ -2053,17 +2135,24 @@ export class Cacophony {
    * This method is required to resume the audio context on mobile devices.
    * On desktop, the audio context will automatically resume when a sound is played.
    *
-   * Resolves after the underlying AudioContext transition completes, then
-   * emits the `resume` event. If the underlying `resume()` call rejects, the
+   * Resolves after the underlying AudioContext transition completes.
+   * State events are emitted once per observed transition. If `resume()` rejects, the
    * rejection is propagated and no event fires.
    */
   async resume(): Promise<void> {
     if (!this.context.resume) {
       return;
     }
-    await this.context.resume();
+    const previousState = this.suspendState;
+    const request = ++this.suspendRequest;
     this.suspendState = "running";
-    this.emit("resume", undefined);
+    try {
+      await this.context.resume();
+    } catch (error) {
+      if (request === this.suspendRequest) this.suspendState = previousState;
+      throw error;
+    }
+    this.publishContextState((this.context as BaseContext & { state?: string }).state ?? "running");
   }
 
   setGlobalVolume(volume: number) {
