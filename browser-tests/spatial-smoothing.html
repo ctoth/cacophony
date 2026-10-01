@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cacophony spatial motion smoothing</title>
+  </head>
+  <body>
+    <script type="module">
+      import { Cacophony } from "/src/cacophony.ts";
+
+      window.runSpatialSmoothingCheck = async () => {
+        if (typeof OfflineAudioContext === "undefined") return { supported: false };
+        const sampleRate = 48000;
+        const length = 24000;
+        const context = new OfflineAudioContext(2, length, sampleRate);
+        const audio = Cacophony.createOffline(
+          { context, length, numberOfChannels: 2, sampleRate }, undefined,
+          { spatialSmoothingTau: 0.1, quiet: true },
+        );
+        const buffer = context.createBuffer(1, length, sampleRate);
+        buffer.getChannelData(0).fill(0.25);
+        const sound = await audio.createSound(buffer, "buffer", "stereo");
+        sound.stereoPan = -1;
+        const [voice] = sound.play();
+        const initialPan = voice.stereoPan;
+        const listener = context.listener;
+        const modern = ["positionX", "positionY", "positionZ", "forwardX", "forwardY", "forwardZ", "upX", "upY", "upZ"]
+          .every((key) => typeof listener[key]?.setTargetAtTime === "function");
+        const listenerCalls = [];
+        if (modern) {
+          for (const key of ["positionX", "forwardX", "upX"]) {
+            const param = listener[key];
+            const original = param.setTargetAtTime.bind(param);
+            param.setTargetAtTime = (...args) => { listenerCalls.push([key, ...args]); return original(...args); };
+          }
+        }
+        audio.listenerPosition = [10, 2, 3];
+        audio.listenerForwardOrientation = [1, 0, -1];
+        audio.listenerUpOrientation = [1, 1, 0];
+        const listenerPose = { position: audio.listenerPosition, orientation: audio.listenerOrientation };
+        if (typeof context.suspend !== "function" || typeof context.resume !== "function") {
+          sound.cleanup();
+          return { supported: true, modern, listenerCalls, listenerPose, initialPan, render: null };
+        }
+        // Exercise public setters during rendering; pre-scheduling every write at time 0
+        // would collapse the timeline and fail to test interrupted transitions.
+        const pauses = [0.1, 0.15, 0.2].map((time) => context.suspend(time));
+        const rendering = context.startRendering();
+        await pauses[0];
+        const first = context.currentTime;
+        voice.stereoPan = 1;
+        await context.resume();
+        await pauses[1];
+        const second = context.currentTime;
+        voice.stereoPan = -1;
+        await context.resume();
+        await pauses[2];
+        const third = context.currentTime;
+        voice.spatialSmoothingTau = 0.05;
+        await context.resume();
+        const samples = (await rendering).getChannelData(1);
+        const secondPan = 1 - 2 * Math.exp(-(second - first) / 0.1);
+        const thirdPan = -1 + (secondPan + 1) * Math.exp(-(third - second) / 0.1);
+        const later = third + 0.05;
+        const expected = [secondPan, thirdPan, -1 + (thirdPan + 1) * Math.exp(-1)]
+          .map((pan) => Math.sin((pan + 1) * Math.PI / 4));
+        const actual = [second, third, later].map((time) => samples[Math.round(time * sampleRate)] / 0.25);
+        const jumps = [second, third].map((time) => {
+          const frame = Math.round(time * sampleRate);
+          return Math.abs(samples[frame] - samples[frame - 1]);
+        });
+        sound.cleanup();
+        return { supported: true, modern, listenerCalls, listenerPose, initialPan,
+          render: { expected, actual, jumps, initialRight: samples[2400] } };
+      };
+      window.runSpatialMotionArtifactCheck = async () => {
+        if (typeof OfflineAudioContext === "undefined") return { supported: false };
+        const sampleRate = 48000;
+        const length = 24000;
+        const step = (samples) => {
+          let maximum = 0;
+          for (let i = 4320; i < samples.length; i++) {
+            maximum = Math.max(maximum, Math.abs(samples[i] - samples[i - 1]));
+          }
+          return maximum;
+        };
+        const render = async (tau, moveListener) => {
+          const context = new OfflineAudioContext(2, length, sampleRate);
+          if (typeof context.suspend !== "function" || typeof context.resume !== "function") return null;
+          // Legacy listener behavior is covered by the target round-trip check.
+          if (moveListener && typeof context.listener.positionZ?.setTargetAtTime !== "function") return null;
+          const audio = Cacophony.createOffline(
+            { context, length, numberOfChannels: 2, sampleRate }, undefined,
+            { spatialSmoothingTau: tau, quiet: true },
+          );
+          const buffer = context.createBuffer(1, length, sampleRate);
+          // DC isolates the motion envelope from the source's own derivative.
+          buffer.getChannelData(0).fill(0.25);
+          const sound = await audio.createSound(buffer, "buffer", "HRTF");
+          sound.position = [0, 0, -1];
+          sound.play();
+          const times = [0.1, 0.15, 0.2, 0.25];
+          const distances = [5, 2, 8, 1];
+          const pauses = times.map((time) => context.suspend(time));
+          const rendering = context.startRendering();
+          for (let i = 0; i < pauses.length; i++) {
+            await pauses[i];
+            if (moveListener) audio.listenerPosition = [0, 0, distances[i] - 1];
+            else sound.position = [0, 0, -distances[i]];
+            await context.resume();
+          }
+          const samples = (await rendering).getChannelData(0);
+          sound.cleanup();
+          return { maximumStep: step(samples), finite: samples.every(Number.isFinite) };
+        };
+        const comparisons = [];
+        for (const moveListener of [false, true]) {
+          const instant = await render(0, moveListener);
+          const smooth = await render(0.05, moveListener);
+          if (!instant || !smooth) return { supported: true, comparisons: null };
+          comparisons.push({ moveListener, instant, smooth });
+        }
+        return { supported: true, comparisons };
+      };
+    </script>
+  </body>
+</html>

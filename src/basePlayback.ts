@@ -28,6 +28,15 @@ export abstract class BasePlayback extends /* @__PURE__ */ PannerMixin(/* @__PUR
   constructor(origin: PlaybackContainer) {
     super();
     this.origin = origin;
+    this.spatialSmoothingTau = origin.spatialSmoothingTau ?? 0;
+  }
+
+  /**
+   * @internal Smooth only while a voice can be heard or resumed. Unplayed and stopped
+   * voices take poses immediately, so a replayed voice starts at its requested pose.
+   */
+  override get _spatialSmoothingActive(): boolean {
+    return this._state === "playing" || this._state === "paused";
   }
 
   protected setEffectChainEndpoints(input: AudioNode, output: AudioNode): void {
@@ -197,6 +206,8 @@ export abstract class BasePlayback extends /* @__PURE__ */ PannerMixin(/* @__PUR
 
   protected markStopped(): void {
     this._state = "stopped";
+    // A stopped voice is silent, so pending motion can finish without an audible jump.
+    this._snapSpatialMotion();
   }
 
   protected emitPlayStarted(isResume: boolean): void {

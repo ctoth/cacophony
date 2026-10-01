@@ -65,6 +65,7 @@ import { GATE_DEFAULT_RATIO } from "./processors/dynamics-core";
 import { DATTORRO_INV_SQRT2 } from "./processors/modulated-delay-core";
 import { type TimeStretchOptions, timeStretch } from "./processors/timestretch-core";
 import { Sound } from "./sound";
+import { SpatialAutomation, validateSpatialSmoothingTau } from "./spatialAutomation";
 import { Synth } from "./synth";
 import type { WebCodecsStreamSound } from "./webCodecsStream";
 import { ALL_WORKLETS, WORKLETS, type WorkletModule, type WorkletUrl } from "./worklets";
@@ -178,6 +179,12 @@ export interface OfflineOptions {
 }
 
 export interface RuntimeOptions {
+  /**
+   * Default exponential time constant in seconds for source and listener motion.
+   * 0 (default) preserves immediate writes. Sources/voices can override spatialSmoothingTau;
+   * listenerSmoothingTau controls listener updates independently. Must be finite and nonnegative.
+   */
+  spatialSmoothingTau?: number;
   createAudioWorkletNode?: (context: BaseContext, name: string, options?: AudioWorkletNodeOptions) => any;
   /**
    * Optional hook to remap a worklet module URL just before it is handed to
@@ -343,16 +350,23 @@ function readListenerPosition(listener: ListenerPositionParams): Position {
  * Write listener orientation through AudioParams, or `setOrientation` when
  * those params are missing.
  */
-function writeListenerOrientation(listener: AudioListener, forward: Position, up: Position): void {
+function writeListenerOrientation(
+  listener: AudioListener,
+  forward: Position,
+  up: Position,
+  automation: SpatialAutomation,
+  now: number,
+  tau: number,
+): void {
   const [forwardX, forwardY, forwardZ] = forward;
   const [upX, upY, upZ] = up;
   if (hasListenerOrientationParams(listener)) {
-    listener.forwardX.value = forwardX;
-    listener.forwardY.value = forwardY;
-    listener.forwardZ.value = forwardZ;
-    listener.upX.value = upX;
-    listener.upY.value = upY;
-    listener.upZ.value = upZ;
+    automation.write(listener.forwardX, forwardX, now, tau);
+    automation.write(listener.forwardY, forwardY, now, tau);
+    automation.write(listener.forwardZ, forwardZ, now, tau);
+    automation.write(listener.upX, upX, now, tau);
+    automation.write(listener.upY, upY, now, tau);
+    automation.write(listener.upZ, upZ, now, tau);
     return;
   }
   if (typeof listener.setOrientation === "function") {
@@ -366,12 +380,18 @@ function writeListenerOrientation(listener: AudioListener, forward: Position, up
  * Write listener position through AudioParams, or `setPosition` when those
  * params are missing.
  */
-function writeListenerPosition(listener: AudioListener, position: Position, currentTime: number): void {
+function writeListenerPosition(
+  listener: AudioListener,
+  position: Position,
+  currentTime: number,
+  automation: SpatialAutomation,
+  tau: number,
+): void {
   const [x, y, z] = position;
   if (hasListenerPositionParams(listener)) {
-    listener.positionX.setValueAtTime(x, currentTime);
-    listener.positionY.setValueAtTime(y, currentTime);
-    listener.positionZ.setValueAtTime(z, currentTime);
+    automation.write(listener.positionX, x, currentTime, tau, true);
+    automation.write(listener.positionY, y, currentTime, tau, true);
+    automation.write(listener.positionZ, z, currentTime, tau, true);
     return;
   }
   if (typeof listener.setPosition === "function") {
@@ -399,6 +419,26 @@ export class Cacophony {
   private cachedListenerPosition: Position = [...DEFAULT_LISTENER_POSITION];
   private cachedListenerForward: Position = [...DEFAULT_LISTENER_FORWARD];
   private cachedListenerUp: Position = [...DEFAULT_LISTENER_UP];
+  /** Default source motion time constant in seconds, fixed at construction. */
+  readonly spatialSmoothingTau: number;
+  private _listenerSmoothingTau: number;
+  private readonly listenerAutomation = new SpatialAutomation();
+
+  /**
+   * Listener motion time constant in seconds, initially the runtime spatialSmoothingTau.
+   * Applies to all listener pose setters. 0 preserves instant writes and snaps pending
+   * transitions to their targets. Legacy listener methods remain instant.
+   * @throws RangeError for negative or non-finite values.
+   */
+  get listenerSmoothingTau(): number {
+    return this._listenerSmoothingTau;
+  }
+
+  set listenerSmoothingTau(tau: number) {
+    validateSpatialSmoothingTau(tau);
+    this.listenerAutomation.reconfigure(tau, this.context.currentTime);
+    this._listenerSmoothingTau = tau;
+  }
   private prevVolume: number = 1;
   private isMuted: boolean = false;
   /**
@@ -464,6 +504,10 @@ export class Cacophony {
    *   `autoUnlock` opt-out and a `createAudioWorkletNode` factory override.
    */
   constructor(context?: BaseContext, cache?: ICache, runtimeOptions: RuntimeOptions = {}) {
+    const tau = runtimeOptions.spatialSmoothingTau ?? 0;
+    validateSpatialSmoothingTau(tau);
+    this.spatialSmoothingTau = tau;
+    this._listenerSmoothingTau = tau;
     this.context = context ?? new AudioContext();
     this.listener = this.context.listener;
     if (hasListenerPositionParams(this.listener)) {
@@ -2084,6 +2128,7 @@ export class Cacophony {
     return MicrophoneStream.request(this.context, this.globalGainNode, options, this);
   }
 
+  /** Requested listener orientation; modern AudioParams approach it using listenerSmoothingTau. */
   get listenerOrientation(): Orientation {
     return {
       forward: [...this.cachedListenerForward],
@@ -2094,38 +2139,68 @@ export class Cacophony {
   set listenerOrientation(orientation: Orientation) {
     const forward: Position = [orientation.forward[0], orientation.forward[1], orientation.forward[2]];
     const up: Position = [orientation.up[0], orientation.up[1], orientation.up[2]];
-    writeListenerOrientation(this.listener, forward, up);
+    writeListenerOrientation(
+      this.listener,
+      forward,
+      up,
+      this.listenerAutomation,
+      this.context.currentTime,
+      this.listenerSmoothingTau,
+    );
     this.cachedListenerForward = forward;
     this.cachedListenerUp = up;
   }
 
+  /** Requested listener up vector, including during smoothing. */
   get listenerUpOrientation(): Position {
     return [...this.cachedListenerUp];
   }
 
   set listenerUpOrientation(up: Position) {
     const nextUp: Position = [up[0], up[1], up[2]];
-    writeListenerOrientation(this.listener, this.cachedListenerForward, nextUp);
+    writeListenerOrientation(
+      this.listener,
+      this.cachedListenerForward,
+      nextUp,
+      this.listenerAutomation,
+      this.context.currentTime,
+      this.listenerSmoothingTau,
+    );
     this.cachedListenerUp = nextUp;
   }
 
+  /** Requested listener forward vector, including during smoothing. */
   get listenerForwardOrientation(): Position {
     return [...this.cachedListenerForward];
   }
 
   set listenerForwardOrientation(forward: Position) {
     const nextForward: Position = [forward[0], forward[1], forward[2]];
-    writeListenerOrientation(this.listener, nextForward, this.cachedListenerUp);
+    writeListenerOrientation(
+      this.listener,
+      nextForward,
+      this.cachedListenerUp,
+      this.listenerAutomation,
+      this.context.currentTime,
+      this.listenerSmoothingTau,
+    );
     this.cachedListenerForward = nextForward;
   }
 
+  /** Requested listener position; modern AudioParams approach it using listenerSmoothingTau. */
   get listenerPosition(): Position {
     return [...this.cachedListenerPosition];
   }
 
   set listenerPosition(position: Position) {
     const nextPosition: Position = [position[0], position[1], position[2]];
-    writeListenerPosition(this.listener, nextPosition, this.context.currentTime);
+    writeListenerPosition(
+      this.listener,
+      nextPosition,
+      this.context.currentTime,
+      this.listenerAutomation,
+      this.listenerSmoothingTau,
+    );
     this.cachedListenerPosition = nextPosition;
   }
 }

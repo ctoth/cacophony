@@ -27,6 +27,7 @@ import type { ICache } from "./cache";
 import { Cacophony, type RuntimeOptions } from "./cacophony";
 import type { BaseContext } from "./context";
 import type { CacophonyLogger } from "./logger";
+import { validateSpatialSmoothingTau } from "./spatialAutomation";
 
 /** The shape of the lazily-loaded `node-web-audio-api` module namespace. */
 type NodeBackend = typeof import("node-web-audio-api");
@@ -106,8 +107,10 @@ const resolveWorkletUrl: NonNullable<RuntimeOptions["resolveWorkletUrl"]> = asyn
   return blobUrl;
 };
 
-/** Shared options for routing Cacophony's host-side diagnostics. */
-interface LoggingOptions {
+/** Shared motion and diagnostic options for the Node factories. */
+interface NodeRuntimeOptions {
+  /** Default source/listener motion time constant in seconds. 0 keeps immediate writes. */
+  spatialSmoothingTau?: number;
   /** Optional logger for the `[cacophony/worklet]` diagnostics. */
   logger?: CacophonyLogger;
   /** Suppress all host-side diagnostics (ignored when `logger` is set). */
@@ -122,7 +125,7 @@ interface LoggingOptions {
 export type NodeAudioSinkId = string | { type: "none" };
 
 /** Options for {@link createNodeCacophony}. */
-export interface NodeCacophonyOptions extends LoggingOptions {
+export interface NodeCacophonyOptions extends NodeRuntimeOptions {
   /**
    * Real-time context to use. When omitted, a fresh `AudioContext` is
    * constructed (a `playback` latency hint is applied for portability —
@@ -143,7 +146,7 @@ export interface NodeCacophonyOptions extends LoggingOptions {
 }
 
 /** Options for {@link createOfflineNodeCacophony}. */
-export interface OfflineNodeCacophonyOptions extends LoggingOptions {
+export interface OfflineNodeCacophonyOptions extends NodeRuntimeOptions {
   /** Channel count of the render buffer. @default 2 */
   numberOfChannels?: number;
   /** Length of the render buffer, in sample frames. */
@@ -174,6 +177,7 @@ export interface OfflineNodeCacophony {
  * done (e.g. on exit or Ctrl-C) for the process to terminate.
  */
 export async function createNodeCacophony(options: NodeCacophonyOptions = {}): Promise<NodeCacophony> {
+  validateSpatialSmoothingTau(options.spatialSmoothingTau ?? 0);
   const backend = await loadBackend();
   // `sinkId` is cast in because the DOM lib's AudioContextOptions does not model
   // it yet; node-web-audio-api reads it at runtime (undefined -> default device).
@@ -185,6 +189,7 @@ export async function createNodeCacophony(options: NodeCacophonyOptions = {}): P
     resolveWorkletUrl,
     logger: options.logger,
     quiet: options.quiet,
+    spatialSmoothingTau: options.spatialSmoothingTau,
   });
   return { cacophony, context };
 }
@@ -194,6 +199,7 @@ export async function createNodeCacophony(options: NodeCacophonyOptions = {}): P
  * backend. Drive it with `await context.startRendering()`.
  */
 export async function createOfflineNodeCacophony(options: OfflineNodeCacophonyOptions): Promise<OfflineNodeCacophony> {
+  validateSpatialSmoothingTau(options.spatialSmoothingTau ?? 0);
   const backend = await loadBackend();
   const context = new backend.OfflineAudioContext({
     numberOfChannels: options.numberOfChannels ?? 2,
@@ -213,6 +219,7 @@ export async function createOfflineNodeCacophony(options: OfflineNodeCacophonyOp
       resolveWorkletUrl,
       logger: options.logger,
       quiet: options.quiet,
+      spatialSmoothingTau: options.spatialSmoothingTau,
     },
   );
   return { cacophony, context };

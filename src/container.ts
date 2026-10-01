@@ -3,6 +3,7 @@ import type { Cacophony, FadeType, PlayOptions, Position } from "./cacophony";
 import type { BiquadFilterNode } from "./context";
 import type { FilterManager } from "./filters";
 import type { HrtfPannerOptions, ThreeDOptions } from "./pannerMixin";
+import { validateSpatialSmoothingTau } from "./spatialAutomation";
 
 type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
 
@@ -47,6 +48,8 @@ export interface PlaybackContainer {
   _stereoPan: number;
   _threeDOptions: ThreeDOptions;
   _volume: number;
+  /** Spatial time constant in seconds; assigning changes current and future voices. */
+  spatialSmoothingTau: number;
   preplay(): BasePlayback[];
   play(options?: PlayOptions): BasePlayback[];
   stop(): void;
@@ -76,6 +79,7 @@ type PlaybackContainerConstructor<TBase extends Constructor> = TBase &
 export function PlaybackContainer<TBase extends Constructor>(Base: TBase): PlaybackContainerConstructor<TBase>;
 export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
   abstract class PlaybackContainer extends Base {
+    declare readonly cacophony?: Cacophony;
     playbacks: BasePlayback[] = [];
     _position: Position = [0, 0, 0];
     _stereoPan: number = 0;
@@ -87,6 +91,25 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
      */
     _threeDOptions: ThreeDOptions = { ...defaultHrtfThreeDOptions };
     _volume: number = 1;
+    private _spatialSmoothingTau?: number;
+
+    /**
+     * Spatial time constant in seconds, inherited from the owning Cacophony (default 0).
+     * Setting it changes current and future voices; a voice can override it individually
+     * until the next container assignment. Initial poses remain immediate.
+     * @throws RangeError for negative or non-finite values.
+     */
+    get spatialSmoothingTau(): number {
+      return this._spatialSmoothingTau ?? this.cacophony?.spatialSmoothingTau ?? 0;
+    }
+
+    set spatialSmoothingTau(tau: number) {
+      validateSpatialSmoothingTau(tau);
+      this._spatialSmoothingTau = tau;
+      this.playbacks.forEach((playback) => {
+        playback.spatialSmoothingTau = tau;
+      });
+    }
 
     abstract preplay(): BasePlayback[];
 
@@ -221,7 +244,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
         // Was stereo, now receiving HRTF partial — fall back to HRTF defaults + override.
         this._threeDOptions = { ...defaultHrtfThreeDOptions, ...options };
       }
-      this.playbacks.forEach((p) => (p.threeDOptions = this._threeDOptions));
+      this.playbacks.forEach((p) => (p.threeDOptions = options));
     }
 
     get stereoPan(): number {

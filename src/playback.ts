@@ -31,11 +31,13 @@ import type {
   SourceNode,
 } from "./context";
 import { Occlusion } from "./occlusion";
+import type { PanCloneOverrides } from "./pannerMixin";
 import { applyPlayOptions, validatePlayOptions } from "./playOptions";
 import type { Sound } from "./sound";
+import { validateSpatialSmoothingTau } from "./spatialAutomation";
 import { WORKLETS } from "./worklets";
 
-type PlaybackCloneOverrides = {
+type PlaybackCloneOverrides = PanCloneOverrides & {
   loopCount: LoopCount;
   panType: PanType;
 };
@@ -874,7 +876,16 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source || !this.gainNode || !this.context) {
       throw new Error("Cannot clone a sound that has been cleaned up");
     }
+    validateSpatialSmoothingTau(overrides.spatialSmoothingTau ?? this.spatialSmoothingTau);
     const panType = overrides.panType ?? this.panType;
+    // Validate only the pose overrides the clone applies, before allocating any nodes.
+    validatePlayOptions(
+      panType === "HRTF"
+        ? { position: overrides.position, threeDOptions: overrides.threeDOptions }
+        : { stereoPan: overrides.stereoPan },
+      panType,
+      "buffer",
+    );
     // we'll need to create a new gain node
     const gainNode = this.context.createGain();
     gainNode.connect(this.origin._resolveRouteTargetNode());
@@ -904,6 +915,14 @@ export class Playback extends BasePlayback implements BaseSound {
     clone.loopCount = loopCount;
     clone.currentLoop = this.currentLoop;
     clone.setPanType(panType, this.context);
+    clone.spatialSmoothingTau = overrides.spatialSmoothingTau ?? this.spatialSmoothingTau;
+    if (panType === "HRTF") {
+      if (this.panType === "HRTF") clone.threeDOptions = this.threeDOptions;
+      if (overrides.threeDOptions !== undefined) clone.threeDOptions = overrides.threeDOptions;
+      if (overrides.position !== undefined) clone.position = overrides.position;
+    } else {
+      clone.stereoPan = overrides.stereoPan ?? this.stereoPan ?? 0;
+    }
     clone.volume = this.volume;
     clone.playbackRate = this._playbackRate;
     clone._offset = this._offset;

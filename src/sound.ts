@@ -40,6 +40,7 @@ import { Playback } from "./playback";
 import { validatePlayOptions } from "./playOptions";
 import type { TimeStretchOptions } from "./processors/timestretch-core";
 import { RoutableSource } from "./routableSource";
+import { validateSpatialSmoothingTau } from "./spatialAutomation";
 import type { VolumeCloneOverrides } from "./volumeMixin";
 
 type SoundCloneOverrides = PanCloneOverrides &
@@ -158,6 +159,7 @@ export class Sound extends RoutableSource implements BaseSound {
    */
 
   clone(overrides: Partial<SoundCloneOverrides> = {}): Sound {
+    validateSpatialSmoothingTau(overrides.spatialSmoothingTau ?? this.spatialSmoothingTau);
     const panType = overrides.panType ?? this.panType;
     const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
     const loopCount = overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
@@ -182,6 +184,7 @@ export class Sound extends RoutableSource implements BaseSound {
     clone.loop(loopCount);
     clone.playbackRate = playbackRate;
     clone.volume = volume;
+    clone.spatialSmoothingTau = overrides.spatialSmoothingTau ?? this.spatialSmoothingTau;
     if (panType === "HRTF") {
       // Apply HRTF override or inherit from source.
       if (overrides.threeDOptions !== undefined) {
