@@ -67,6 +67,15 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps ${{ matrix.browser }}
+      # Native Firefox resume() needs an audio server even in headless mode.
+      - name: Provide a virtual audio output for Firefox
+        if: matrix.browser == 'firefox'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pulseaudio
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=cacophony_test
+          pactl set-default-sink cacophony_test
       - run: npm run test:browser -- --project ${{ matrix.browser }}
 
   build:
