@@ -22,16 +22,16 @@ async function renderMotion(tau: number, listener: boolean) {
   const sound = await cacophony.createSound(buffer, "buffer", "HRTF");
   sound.position = [0, 0, -1];
   sound.play();
-  const times = [0.1, 0.15, 0.2, 0.25];
-  const distances = [5, 2, 8, 1];
-  const suspensions = times.map((time) => context.suspend(time));
+  if (listener) cacophony.listenerPosition = [0, 0, 4];
+  else sound.position = [0, 0, -5];
+  // The native backend requires suspend registration before rendering starts.
+  // Use one interruption per render; the browser fixture covers multiple points.
+  const suspension = context.suspend(0.1);
   const rendering = context.startRendering();
-  for (let i = 0; i < suspensions.length; i++) {
-    await suspensions[i];
-    if (listener) cacophony.listenerPosition = [0, 0, distances[i]! - 1];
-    else sound.position = [0, 0, -distances[i]!];
-    await context.resume();
-  }
+  await suspension;
+  if (listener) cacophony.listenerPosition = [0, 0, 1];
+  else sound.position = [0, 0, -2];
+  await context.resume();
   const samples = (await rendering).getChannelData(0);
   sound.cleanup();
   return samples;
@@ -50,33 +50,22 @@ describe.skipIf(!nodeBackendAvailable)("spatial smoothing native rendering", () 
     const sound = await cacophony.createSound(buffer, "buffer", "stereo");
     sound.stereoPan = -1;
     const [voice] = sound.play();
-    const pauses = [0.1, 0.15, 0.2].map((time) => context.suspend(time));
-    const rendering = context.startRendering();
-    await pauses[0];
-    const firstTime = context.currentTime;
+    // Start an envelope at time 0, then interrupt it at the one registered pause.
     voice.stereoPan = 1;
-    await context.resume();
-    await pauses[1];
-    const secondTime = context.currentTime;
+    const pause = context.suspend(0.1);
+    const rendering = context.startRendering();
+    await pause;
+    const interruptionTime = context.currentTime;
     voice.stereoPan = -1;
-    await context.resume();
-    await pauses[2];
-    const thirdTime = context.currentTime;
     voice.spatialSmoothingTau = 0.05;
     await context.resume();
     const right = (await rendering).getChannelData(1);
-    const atSecond = 1 - 2 * Math.exp(-(secondTime - firstTime) / 0.1);
-    const atThird = -1 + (atSecond + 1) * Math.exp(-(thirdTime - secondTime) / 0.1);
-    for (const [time, pan] of [
-      [secondTime, atSecond],
-      [thirdTime, atThird],
-    ]) {
-      const frame = Math.round(time! * sampleRate);
-      expect(right[frame]! / 0.25).toBeCloseTo(Math.sin(((pan! + 1) * Math.PI) / 4), 3);
-      expect(Math.abs(right[frame]! - right[frame - 1]!)).toBeLessThan(0.0001);
-    }
-    const laterFrame = Math.round((thirdTime + 0.05) * sampleRate);
-    const laterPan = -1 + (atThird + 1) * Math.exp(-1);
+    const interruptedPan = 1 - 2 * Math.exp(-interruptionTime / 0.1);
+    const frame = Math.round(interruptionTime * sampleRate);
+    expect(right[frame]! / 0.25).toBeCloseTo(Math.sin(((interruptedPan! + 1) * Math.PI) / 4), 3);
+    expect(Math.abs(right[frame]! - right[frame - 1]!)).toBeLessThan(0.0001);
+    const laterFrame = Math.round((interruptionTime + 0.05) * sampleRate);
+    const laterPan = -1 + (interruptedPan + 1) * Math.exp(-1);
     expect(right[laterFrame]! / 0.25).toBeCloseTo(Math.sin(((laterPan + 1) * Math.PI) / 4), 3);
     sound.cleanup();
   });
