@@ -177,6 +177,9 @@ export interface AudioWorklet {
 // BaseContext — the common interface for all audio contexts
 // ---------------------------------------------------------------------------
 
+/** A device id, the default device (empty string), or a silent output sink. */
+export type AudioSinkId = string | { type: "none" };
+
 export interface BaseContext {
   readonly currentTime: number;
   readonly sampleRate: number;

@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cacophony audio session compatibility</title>
+  </head>
+  <body>
+    <button id="start">Start audio session</button>
+    <script type="module">
+      import { Cacophony } from "/src/cacophony.ts";
+
+      window.audioSession = { supported: typeof AudioContext !== "undefined", ready: false, events: [], devices: [] };
+      document.querySelector("#start").addEventListener("click", async () => {
+        if (!window.audioSession.supported) return;
+        const context = new AudioContext();
+        await context.resume();
+        const cacophony = new Cacophony(context, undefined, { autoUnlock: false, quiet: true });
+        const session = window.audioSession;
+        session.context = context;
+        session.cacophony = cacophony;
+        for (const name of ["suspend", "resume", "interrupted"]) {
+          cacophony.on(name, () => session.events.push(name));
+        }
+        cacophony.on("devicechange", (event) => session.devices.push(event));
+        cacophony.on("sinkChange", (event) => session.sink = event.sinkId);
+        session.ready = true;
+      });
+    </script>
+  </body>
+</html>

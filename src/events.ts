@@ -1,5 +1,6 @@
 import type { BasePlayback } from "./basePlayback";
 import type { BaseSound, FadeType } from "./cacophony";
+import type { AudioSinkId } from "./context";
 import type { SynthPlayback } from "./synthPlayback";
 
 /**
@@ -59,15 +60,23 @@ export interface GlobalPlaybackEvent {
   timestamp: number;
 }
 
-/**
- * Global Cacophony events including loading and cache operations.
- */
+/** The available audio outputs changed; this does not identify the active sink. */
+export interface DeviceChangeEvent {
+  devices: MediaDeviceInfo[];
+  timestamp: number;
+}
+
+/** Global Cacophony events including audio sessions, loading, and cache operations. */
 export type CacophonyEvents = {
   volumeChange: number;
   mute: undefined;
   unmute: undefined;
   suspend: undefined;
   resume: undefined;
+  interrupted: undefined;
+  devicechange: DeviceChangeEvent;
+  /** The context's active sink changed, including changes made outside Cacophony. */
+  sinkChange: { sinkId: AudioSinkId };
   /**
    * Fired once when the audio context is unlocked by the first user gesture
    * (touchend / click / keydown) via the auto-unlock listeners installed by

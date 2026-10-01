@@ -56,6 +56,8 @@ export interface AutoplayUnlockOptions {
    * cannot break the unlock flow.
    */
   onUnlock: () => void;
+  /** Explicit user pauses must survive subsequent gestures. */
+  isUserPaused?: () => boolean;
 }
 
 /**
@@ -69,7 +71,7 @@ export interface AutoplayUnlockOptions {
  * @internal
  */
 export function installAutoplayUnlock(opts: AutoplayUnlockOptions): () => void {
-  const { context, onUnlock } = opts;
+  const { context, onUnlock, isUserPaused } = opts;
 
   // Server-side / non-browser: nothing to do.
   if (typeof document === "undefined") {
@@ -108,7 +110,7 @@ export function installAutoplayUnlock(opts: AutoplayUnlockOptions): () => void {
   };
 
   const handler = () => {
-    if (disposed || resumeInFlight) return;
+    if (disposed || resumeInFlight || isUserPaused?.()) return;
     resumeInFlight = true;
 
     // Remove listeners FIRST so a re-entrant gesture cannot re-trigger us
@@ -154,6 +156,12 @@ export function installAutoplayUnlock(opts: AutoplayUnlockOptions): () => void {
       () => {
         resumeInFlight = false;
         if (disposed) return;
+        if (isUserPaused?.()) {
+          void context
+            .suspend?.()
+            .catch((err: unknown) => console.warn("[cacophony/autoplayUnlock] suspend failed:", err));
+          return;
+        }
         try {
           onUnlock();
         } catch (err) {
@@ -178,7 +186,7 @@ export function installAutoplayUnlock(opts: AutoplayUnlockOptions): () => void {
   };
 
   function syncGestureListeners(): void {
-    if (observableContext.state === "suspended" || observableContext.state === "interrupted") {
+    if (!isUserPaused?.() && (observableContext.state === "suspended" || observableContext.state === "interrupted")) {
       armAll();
     } else {
       removeAll();
