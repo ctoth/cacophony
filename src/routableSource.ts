@@ -89,6 +89,7 @@ export abstract class RoutableSource extends PlaybackContainer(FilterManager) im
    * the endpoint. Ramps from zero or involving negative gains use linear interpolation.
    *
    * @throws RangeError for non-finite gain or negative/non-finite duration.
+   * @throws TypeError when `options` is given without `sendGain`; primary routes do not ramp.
    */
   routeTo(target: Bus | string, sendGain?: number, options?: SendGainOptions): void {
     const bus = this._resolveBusArg(target);
@@ -96,6 +97,7 @@ export abstract class RoutableSource extends PlaybackContainer(FilterManager) im
       this._addSend(bus, sendGain, options);
       return;
     }
+    if (options !== undefined) throw new TypeError("Send ramp options require a send gain");
     this._setPrimary(bus);
   }
 

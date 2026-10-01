@@ -117,6 +117,15 @@ describe("source send gain automation", () => {
     expect(sound.preplay()[0]._sendGains.get(bus)!.gain.value).toBe(0.5);
   });
 
+  it("rejects ramp options on a primary route without rerouting", async () => {
+    const sound = await buildSound();
+    const bus = cacophony.createBus();
+    const [voice] = sound.preplay();
+    expect(() => sound.routeTo(bus, undefined, { duration: 250 })).toThrow(TypeError);
+    expectNotReachable(voice.outputNode, bus.input);
+    expectPath(voice.outputNode, [], cacophony.master.input);
+  });
+
   it("uses a linear ramp for a signed gain transition requested as exponential", async () => {
     const sound = await buildSound();
     const bus = cacophony.createBus();
