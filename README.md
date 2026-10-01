@@ -613,6 +613,28 @@ drums.routeTo(reverbBus, 0.3);
 drums.play();
 ```
 
+Source sends can be changed and removed while voices are playing:
+
+```typescript
+drums.routeTo(reverbBus, 0.1, { duration: 250 }); // ramp the existing send over 250 ms
+drums.routeTo(reverbBus, 0, { duration: 500, type: 'exponential' });
+drums.removeSend(reverbBus); // disconnect the send on every voice and forget it for future voices
+```
+
+Gain changes are immediate by default. Ramps reuse each voice's send GainNode,
+cancel earlier automation, and start from the current envelope value. New sends
+and future voices start at the requested gain. Exponential fades to zero reach
+exact silence at the endpoint; transitions from zero or involving negative gains
+use a linear ramp. Durations are finite, non-negative milliseconds and gains must
+be finite.
+
+`removeSend` leaves primary routing and other sends alone, even when the removed
+send's bus is also the primary target. It is a no-op if the source has no send to
+that bus. Both methods accept a registered bus name and work on Sound, Synth,
+stream sources, and Group members. To remove a send after its named bus has been
+destroyed, pass the retained bus reference; its name is no longer registered.
+Removal disconnects immediately.
+
 ### Looking up buses by name
 
 ```typescript

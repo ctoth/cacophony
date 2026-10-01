@@ -2,6 +2,7 @@ import type { Bus } from "./bus";
 import type { BaseSound, FadeType, LoopCount, PlayOptions, Position } from "./cacophony";
 import type { BiquadFilterNode } from "./context";
 import type { Playback } from "./playback";
+import type { SendGainOptions } from "./routableSource";
 import type { Sound } from "./sound";
 
 export class Group implements BaseSound {
@@ -194,14 +195,15 @@ export class Group implements BaseSound {
    * Routes every sound in this group to the specified Bus (or back to
    * master). Fans the call out to every member; see {@link Sound.routeTo}
    * for full semantics. With a `sendGain`, adds a per-sound send instead
-   * of redirecting primary routing.
+   * of redirecting primary routing. `options` ramps existing sends in place.
    */
-  routeTo(target: Bus | string, sendGain?: number): void {
-    if (sendGain !== undefined) {
-      this.sounds.forEach((sound) => sound.routeTo(target, sendGain));
-    } else {
-      this.sounds.forEach((sound) => sound.routeTo(target));
-    }
+  routeTo(target: Bus | string, sendGain?: number, options?: SendGainOptions): void {
+    this.sounds.forEach((sound) => sound.routeTo(target, sendGain, options));
+  }
+
+  /** Remove every member's aux send; see {@link Sound.removeSend}. */
+  removeSend(target: Bus | string): void {
+    this.sounds.forEach((sound) => sound.removeSend(target));
   }
 
   set position(position: [number, number, number]) {

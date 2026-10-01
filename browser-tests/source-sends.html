@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cacophony source send rendering</title>
+  </head>
+  <body>
+    <script type="module">
+      import { Cacophony } from "/src/cacophony.ts";
+
+      window.renderSourceSend = async (mode) => {
+        if (typeof OfflineAudioContext === "undefined") return { supported: false };
+        const sampleRate = 48_000;
+        const length = 12_000;
+        const context = new OfflineAudioContext(1, length, sampleRate);
+        const audio = Cacophony.createOffline(
+          { context, length, numberOfChannels: 1, sampleRate },
+          undefined,
+          { autoUnlock: false, quiet: true },
+        );
+        const buffer = context.createBuffer(1, length, sampleRate);
+        buffer.getChannelData(0).fill(0.25);
+        const sound = await audio.createSound(buffer, "buffer", "stereo");
+        const dry = audio.createBus();
+        dry.disconnect(audio.master);
+        const aux = audio.createBus("aux");
+        sound.routeTo(dry);
+        sound.routeTo(aux, 1);
+        const [voice] = sound.preplay();
+        if (mode === "remove") {
+          sound.removeSend("aux");
+          // Both the prepared voice and a future voice must stay silent.
+          sound.play();
+        } else {
+          sound.routeTo(aux, 0, { duration: 100, type: mode });
+        }
+        voice.play();
+        const samples = (await context.startRendering()).getChannelData(0);
+        sound.cleanup();
+        return {
+          supported: true,
+          initial: samples[0],
+          midpoint: samples[2400],
+          tailMaximum: Math.max(...samples.slice(4800).map(Math.abs)),
+          maximum: Math.max(...samples.map(Math.abs)),
+        };
+      };
+    </script>
+  </body>
+</html>
