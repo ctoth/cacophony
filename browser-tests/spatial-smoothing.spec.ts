@@ -2,6 +2,17 @@ import { expect, test } from "@playwright/test";
 
 declare global {
   interface Window {
+    runSpatialMotionArtifactCheck(): Promise<
+      | { supported: false }
+      | {
+          supported: true;
+          comparisons: Array<{
+            moveListener: boolean;
+            instant: { maximumStep: number; finite: boolean };
+            smooth: { maximumStep: number; finite: boolean };
+          }> | null;
+        }
+    >;
     runSpatialSmoothingCheck(): Promise<
       | { supported: false }
       | {
@@ -27,6 +38,22 @@ test("spatial targets round-trip on modern and legacy native listeners", async (
   if (result.modern) {
     expect(result.listenerCalls.map(([key]) => key)).toEqual(["positionX", "forwardX", "upX"]);
     for (const call of result.listenerCalls) expect(call[3]).toBe(0.1);
+  }
+});
+
+test("HRTF source and listener motion reduces discontinuities against an instantaneous control", async ({ page }) => {
+  await page.goto("/browser-tests/spatial-smoothing.html");
+  const result = await page.evaluate(() => window.runSpatialMotionArtifactCheck());
+  test.skip(!result.supported && process.platform === "win32", "OfflineAudioContext unavailable in this browser");
+  expect(result.supported).toBe(true);
+  if (!result.supported) return;
+  test.skip(result.comparisons === null, "Offline suspend/resume and schedulable listener position are required");
+  if (!result.comparisons) return;
+  expect(result.comparisons.map(({ moveListener }) => moveListener)).toEqual([false, true]);
+  for (const { instant, smooth } of result.comparisons) {
+    expect(instant.maximumStep).toBeGreaterThan(0.001);
+    expect(smooth.maximumStep).toBeLessThan(instant.maximumStep / 5);
+    expect(smooth.finite).toBe(true);
   }
 });
 

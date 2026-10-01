@@ -73,6 +73,55 @@
         return { supported: true, modern, listenerCalls, listenerPose, initialPan,
           render: { expected, actual, jumps, initialRight: samples[2400] } };
       };
+      window.runSpatialMotionArtifactCheck = async () => {
+        if (typeof OfflineAudioContext === "undefined") return { supported: false };
+        const sampleRate = 48000;
+        const length = 24000;
+        const step = (samples) => {
+          let maximum = 0;
+          for (let i = 4320; i < samples.length; i++) {
+            maximum = Math.max(maximum, Math.abs(samples[i] - samples[i - 1]));
+          }
+          return maximum;
+        };
+        const render = async (tau, moveListener) => {
+          const context = new OfflineAudioContext(2, length, sampleRate);
+          if (typeof context.suspend !== "function" || typeof context.resume !== "function") return null;
+          // Legacy listener behavior is covered by the target round-trip check.
+          if (moveListener && typeof context.listener.positionZ?.setTargetAtTime !== "function") return null;
+          const audio = Cacophony.createOffline(
+            { context, length, numberOfChannels: 2, sampleRate }, undefined,
+            { spatialSmoothingTau: tau, quiet: true },
+          );
+          const buffer = context.createBuffer(1, length, sampleRate);
+          // DC isolates the motion envelope from the source's own derivative.
+          buffer.getChannelData(0).fill(0.25);
+          const sound = await audio.createSound(buffer, "buffer", "HRTF");
+          sound.position = [0, 0, -1];
+          sound.play();
+          const times = [0.1, 0.15, 0.2, 0.25];
+          const distances = [5, 2, 8, 1];
+          const pauses = times.map((time) => context.suspend(time));
+          const rendering = context.startRendering();
+          for (let i = 0; i < pauses.length; i++) {
+            await pauses[i];
+            if (moveListener) audio.listenerPosition = [0, 0, distances[i] - 1];
+            else sound.position = [0, 0, -distances[i]];
+            await context.resume();
+          }
+          const samples = (await rendering).getChannelData(0);
+          sound.cleanup();
+          return { maximumStep: step(samples), finite: samples.every(Number.isFinite) };
+        };
+        const comparisons = [];
+        for (const moveListener of [false, true]) {
+          const instant = await render(0, moveListener);
+          const smooth = await render(0.05, moveListener);
+          if (!instant || !smooth) return { supported: true, comparisons: null };
+          comparisons.push({ moveListener, instant, smooth });
+        }
+        return { supported: true, comparisons };
+      };
     </script>
   </body>
 </html>
