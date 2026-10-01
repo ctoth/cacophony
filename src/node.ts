@@ -106,8 +106,10 @@ const resolveWorkletUrl: NonNullable<RuntimeOptions["resolveWorkletUrl"]> = asyn
   return blobUrl;
 };
 
-/** Shared options for routing Cacophony's host-side diagnostics. */
-interface LoggingOptions {
+/** Shared motion and diagnostic options for the Node factories. */
+interface NodeRuntimeOptions {
+  /** Default source/listener motion time constant in seconds. 0 keeps immediate writes. */
+  spatialSmoothingTau?: number;
   /** Optional logger for the `[cacophony/worklet]` diagnostics. */
   logger?: CacophonyLogger;
   /** Suppress all host-side diagnostics (ignored when `logger` is set). */
@@ -122,7 +124,7 @@ interface LoggingOptions {
 export type NodeAudioSinkId = string | { type: "none" };
 
 /** Options for {@link createNodeCacophony}. */
-export interface NodeCacophonyOptions extends LoggingOptions {
+export interface NodeCacophonyOptions extends NodeRuntimeOptions {
   /**
    * Real-time context to use. When omitted, a fresh `AudioContext` is
    * constructed (a `playback` latency hint is applied for portability —
@@ -143,7 +145,7 @@ export interface NodeCacophonyOptions extends LoggingOptions {
 }
 
 /** Options for {@link createOfflineNodeCacophony}. */
-export interface OfflineNodeCacophonyOptions extends LoggingOptions {
+export interface OfflineNodeCacophonyOptions extends NodeRuntimeOptions {
   /** Channel count of the render buffer. @default 2 */
   numberOfChannels?: number;
   /** Length of the render buffer, in sample frames. */
@@ -185,6 +187,7 @@ export async function createNodeCacophony(options: NodeCacophonyOptions = {}): P
     resolveWorkletUrl,
     logger: options.logger,
     quiet: options.quiet,
+    spatialSmoothingTau: options.spatialSmoothingTau,
   });
   return { cacophony, context };
 }
@@ -213,6 +216,7 @@ export async function createOfflineNodeCacophony(options: OfflineNodeCacophonyOp
       resolveWorkletUrl,
       logger: options.logger,
       quiet: options.quiet,
+      spatialSmoothingTau: options.spatialSmoothingTau,
     },
   );
   return { cacophony, context };

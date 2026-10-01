@@ -28,6 +28,12 @@ export abstract class BasePlayback extends /* @__PURE__ */ PannerMixin(/* @__PUR
   constructor(origin: PlaybackContainer) {
     super();
     this.origin = origin;
+    this.spatialSmoothingTau = origin.spatialSmoothingTau ?? 0;
+  }
+
+  /** @internal Keep source defaults and initial play(options) poses immediate. */
+  override get _spatialSmoothingActive(): boolean {
+    return this._state !== "unplayed";
   }
 
   protected setEffectChainEndpoints(input: AudioNode, output: AudioNode): void {

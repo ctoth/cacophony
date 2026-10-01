@@ -7,6 +7,7 @@ import type { OscillatorCloneOverrides } from "./oscillatorMixin";
 import type { PanCloneOverrides } from "./pannerMixin";
 import { validatePlayOptions } from "./playOptions";
 import { RoutableSource } from "./routableSource";
+import { validateSpatialSmoothingTau } from "./spatialAutomation";
 import { SynthPlayback } from "./synthPlayback";
 import type { VolumeCloneOverrides } from "./volumeMixin";
 
@@ -68,6 +69,7 @@ export class Synth extends RoutableSource implements BaseSound {
    *        more complex configurations like 3D audio options and filter adjustments.
    */
   clone(overrides: Partial<SynthCloneOverrides> = {}): Synth {
+    validateSpatialSmoothingTau(overrides.spatialSmoothingTau ?? this.spatialSmoothingTau);
     const panType = overrides.panType ?? this.panType;
     const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
     const volume = overrides.volume !== undefined ? overrides.volume : this.volume;
@@ -84,6 +86,7 @@ export class Synth extends RoutableSource implements BaseSound {
       this._cacophony,
     );
     clone._volume = volume;
+    clone.spatialSmoothingTau = overrides.spatialSmoothingTau ?? this.spatialSmoothingTau;
     clone._position = [...position] as Position;
     clone._stereoPan = stereoPan;
     // Apply HRTF override (if provided) through the canonical setter so the

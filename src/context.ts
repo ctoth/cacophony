@@ -16,6 +16,8 @@ export interface AudioParam {
   linearRampToValueAtTime(value: number, endTime: number): AudioParam;
   exponentialRampToValueAtTime(value: number, endTime: number): AudioParam;
   cancelScheduledValues(cancelTime: number): AudioParam;
+  /** Optional for custom hosts; spatial setters stay immediate when unavailable. */
+  setTargetAtTime?(target: number, startTime: number, timeConstant: number): AudioParam;
 }
 
 // ---------------------------------------------------------------------------

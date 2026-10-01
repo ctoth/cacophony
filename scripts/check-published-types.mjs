@@ -48,7 +48,7 @@ try {
   writeFileSync(join(tempRoot, "package.json"), JSON.stringify({ private: true, type: "module" }));
   writeFileSync(
     join(tempRoot, "index.ts"),
-    `import { type BaseSound, type Playback, type Sound, type Group, type Synth, type PlayOptions, type SendGainOptions, timeStretch } from "cacophony";
+    `import { Cacophony, type RuntimeOptions, type BaseSound, type Playback, type Sound, type Group, type Synth, type PlayOptions, type SendGainOptions, timeStretch } from "cacophony";
 
 declare const playback: Playback;
 const baseSound: BaseSound = playback;
@@ -72,8 +72,18 @@ synth.routeTo("aux", 0.2, sendOptions);
 sound.removeSend("aux");
 group.removeSend("aux");
 synth.removeSend("aux");
+const runtime: RuntimeOptions = { spatialSmoothingTau: 0.03 };
+const audio = new Cacophony(undefined, undefined, runtime);
+audio.listenerSmoothingTau = 0.04;
+const defaultTau: number = audio.spatialSmoothingTau;
+sound.spatialSmoothingTau = 0.05;
+synth.spatialSmoothingTau = 0.02;
+playback.spatialSmoothingTau = 0.1;
+const smoothedVoice: Playback = playback.clone({ spatialSmoothingTau: 0.02, position: [1, 2, 3] });
+sound.clone({ spatialSmoothingTau: 0 });
+synth.clone({ spatialSmoothingTau: 0.03 });
 
-void [baseSound, position, isPlaying, stretched, voice, selected];
+void [baseSound, position, isPlaying, stretched, voice, selected, defaultTau, smoothedVoice];
 `,
   );
   writeFileSync(

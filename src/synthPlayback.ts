@@ -89,13 +89,7 @@ export class SynthPlayback extends OscillatorMixin implements BaseSound {
       // Already cleaned up — same idempotency guard as Playback.cleanup.
       return;
     }
-    if (this.panner && this.gainNode) {
-      try {
-        this.panner.disconnect();
-      } catch {}
-    }
     this.source = undefined;
-    this.panner = undefined;
     this.markStopped();
     this.eventEmitter.removeAllListeners();
     // super.cleanup() (VolumeMixin) disconnects + clears `gainNode`; after

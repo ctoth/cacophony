@@ -1011,6 +1011,48 @@ stereoSound.play();
 
 See [TypeDoc](https://cacophony.js.org) for distance models, cone effects, and advanced 3D audio options.
 
+### Motion smoothing
+
+Source position, source orientation, stereo pan, and modern listener pose updates can
+approach their targets exponentially instead of changing in steps. Smoothing is opt-in:
+the default time constant is `0`, which keeps immediate writes.
+
+```typescript
+const audio = new Cacophony(undefined, undefined, { spatialSmoothingTau: 0.03 });
+const moving = await audio.createSound('bird.mp3', 'buffer', 'HRTF');
+moving.position = [10, 5, 0];
+const [voice] = moving.play(); // Starts at this pose immediately
+
+moving.position = [12, 5, 0]; // Current voices approach the new position
+moving.spatialSmoothingTau = 0.05; // Applies to current and future voices
+voice.spatialSmoothingTau = 0.02; // Independent until the next source assignment
+audio.listenerSmoothingTau = 0.04; // Independent of source defaults
+audio.listenerPosition = [1, 0, 0];
+
+moving.spatialSmoothingTau = 0; // Snap pending motion to its target
+moving.position = [30, 5, 0]; // An immediate teleport
+```
+
+Time constants are **seconds**, unlike fade/ramp durations in milliseconds. After
+one time constant, roughly 63% of the change is complete; after three, roughly 95%.
+Negative or non-finite constants throw `RangeError`. The same runtime option is
+available on `createNodeCacophony()` and `createOfflineNodeCacophony()`.
+
+Sound, Synth, and stream sources inherit the instance default. A source assignment
+updates its current voices and the default for future voices. Sound, Synth, and
+Playback clones preserve the setting and requested pose. Initial source and
+`play(options)` poses are immediate; subsequent changes, including while paused,
+are smoothed. Partial `threeDOptions` updates leave omitted axes alone.
+
+Spatial getters report the last requested targets, including during transitions.
+Use these setters consistently: direct automation or mutation of the underlying
+panner parameters is outside this target-state contract. Orientation components
+are smoothed independently; this does not provide constant-speed angular rotation.
+HRTF processing uses control-rate parameters, so smoothing reduces motion artifacts
+without promising sample-perfect continuity. Legacy listeners using
+`setPosition`/`setOrientation`, and custom parameters lacking `setTargetAtTime`,
+continue to update immediately.
+
 ## Microphone Input
 
 Capture, process, and manipulate live audio input:

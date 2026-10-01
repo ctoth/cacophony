@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cacophony spatial motion smoothing</title>
+  </head>
+  <body>
+    <script type="module">
+      import { Cacophony } from "/src/cacophony.ts";
+
+      window.runSpatialSmoothingCheck = async () => {
+        if (typeof OfflineAudioContext === "undefined") return { supported: false };
+        const sampleRate = 48000;
+        const length = 24000;
+        const context = new OfflineAudioContext(2, length, sampleRate);
+        const audio = Cacophony.createOffline(
+          { context, length, numberOfChannels: 2, sampleRate }, undefined,
+          { spatialSmoothingTau: 0.1, quiet: true },
+        );
+        const buffer = context.createBuffer(1, length, sampleRate);
+        buffer.getChannelData(0).fill(0.25);
+        const sound = await audio.createSound(buffer, "buffer", "stereo");
+        sound.stereoPan = -1;
+        const [voice] = sound.play();
+        const initialPan = voice.stereoPan;
+        const listener = context.listener;
+        const modern = ["positionX", "positionY", "positionZ", "forwardX", "forwardY", "forwardZ", "upX", "upY", "upZ"]
+          .every((key) => typeof listener[key]?.setTargetAtTime === "function");
+        const listenerCalls = [];
+        if (modern) {
+          for (const key of ["positionX", "forwardX", "upX"]) {
+            const param = listener[key];
+            const original = param.setTargetAtTime.bind(param);
+            param.setTargetAtTime = (...args) => { listenerCalls.push([key, ...args]); return original(...args); };
+          }
+        }
+        audio.listenerPosition = [10, 2, 3];
+        audio.listenerForwardOrientation = [1, 0, -1];
+        audio.listenerUpOrientation = [1, 1, 0];
+        const listenerPose = { position: audio.listenerPosition, orientation: audio.listenerOrientation };
+        if (typeof context.suspend !== "function" || typeof context.resume !== "function") {
+          sound.cleanup();
+          return { supported: true, modern, listenerCalls, listenerPose, initialPan, render: null };
+        }
+        // Exercise public setters during rendering; pre-scheduling every write at time 0
+        // would collapse the timeline and fail to test interrupted transitions.
+        const pauses = [0.1, 0.15, 0.2].map((time) => context.suspend(time));
+        const rendering = context.startRendering();
+        await pauses[0];
+        const first = context.currentTime;
+        voice.stereoPan = 1;
+        await context.resume();
+        await pauses[1];
+        const second = context.currentTime;
+        voice.stereoPan = -1;
+        await context.resume();
+        await pauses[2];
+        const third = context.currentTime;
+        voice.spatialSmoothingTau = 0.05;
+        await context.resume();
+        const samples = (await rendering).getChannelData(1);
+        const secondPan = 1 - 2 * Math.exp(-(second - first) / 0.1);
+        const thirdPan = -1 + (secondPan + 1) * Math.exp(-(third - second) / 0.1);
+        const later = third + 0.05;
+        const expected = [secondPan, thirdPan, -1 + (thirdPan + 1) * Math.exp(-1)]
+          .map((pan) => Math.sin((pan + 1) * Math.PI / 4));
+        const actual = [second, third, later].map((time) => samples[Math.round(time * sampleRate)] / 0.25);
+        const jumps = [second, third].map((time) => {
+          const frame = Math.round(time * sampleRate);
+          return Math.abs(samples[frame] - samples[frame - 1]);
+        });
+        sound.cleanup();
+        return { supported: true, modern, listenerCalls, listenerPose, initialPan,
+          render: { expected, actual, jumps, initialRight: samples[2400] } };
+      };
+    </script>
+  </body>
+</html>
