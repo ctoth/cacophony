@@ -207,6 +207,7 @@ export class Group implements BaseSound {
   }
 
   set position(position: [number, number, number]) {
+    for (const sound of this.sounds) sound._validateSpatialOptions({ position });
     this._position = position;
     this.sounds.forEach((sound) => (sound.position = this._position));
   }

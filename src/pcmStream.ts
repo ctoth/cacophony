@@ -172,7 +172,7 @@ export class PcmStreamSound extends RoutableSource implements BaseSound {
   private readonly workletNode: AudioWorkletNode;
   private readonly channelCount: number;
   private readonly capacityFrames: number;
-  private readonly panType: PanType;
+  readonly panType: PanType;
   private readonly eventEmitter = new TypedEventEmitter<PcmStreamEvents>();
   private readonly signal?: AbortSignal;
   private bufferedFrames = 0;

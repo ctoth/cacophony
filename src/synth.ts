@@ -94,7 +94,7 @@ export class Synth extends RoutableSource implements BaseSound {
     // the new clone keeps its default HRTF storage initialized in the container.
     if (overrides.threeDOptions !== undefined) {
       clone.threeDOptions = overrides.threeDOptions;
-    } else if (this.panType === "HRTF") {
+    } else if (panType === "HRTF" && this.panType === "HRTF") {
       clone.threeDOptions = this.threeDOptions;
     }
     if (panType === "HRTF") {
