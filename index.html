@@ -505,6 +505,16 @@ for the low-level pattern). New code should use a Bus and <code>routeTo</code>.<
 </code><button type="button">Copy</button></pre>
 
 <p>See <a href="https://cacophony.js.org">TypeDoc</a> for distance models, cone effects, and advanced 3D audio options.</p>
+<p><code>stereoPan</code> requires stereo mode; <code>position</code> and <code>threeDOptions</code> require HRTF mode.
+These setters validate the source and every voice before changing defaults or live
+settings. An incompatible mode, invalid value, or cleaned-up voice rejects the
+whole update. Group spatial setters also validate every member first.</p>
+<p><code>threeDOptions</code> configures an HRTF panner without switching its mode. Select the
+mode when creating the source or with <code>play({ panType, ... })</code>. If per-playback
+overrides produce mixed stereo/HRTF voices, use each voice's spatial controls.</p>
+<p><code>Sound.clone</code>, <code>Synth.clone</code>, and <code>Playback.clone</code> validate spatial overrides against
+the clone's target mode before allocation. Supply <code>stereoPan</code> for stereo clones,
+or <code>position</code> and <code>threeDOptions</code> for HRTF clones; incompatible overrides throw.</p>
 <h3 id="motion-smoothing" class="tsd-anchor-link">Motion smoothing<a href="#motion-smoothing" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <p>Source position, source orientation, stereo pan, and modern listener pose updates can
 approach their targets exponentially instead of changing in steps. Smoothing is opt-in:

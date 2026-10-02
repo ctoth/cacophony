@@ -10,23 +10,13 @@
 <ul class="tsd-breadcrumb" aria-label="Breadcrumb">
 <li><a href="" aria-current="page">ThreeDOptions</a></li></ul>
 <h1>Type Alias ThreeDOptions</h1></div>
-<div class="tsd-signature"><span class="tsd-kind-type-alias">ThreeDOptions</span><span class="tsd-signature-symbol">:</span><br/>    <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">panType</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;stereo&quot;</span><span class="tsd-signature-symbol">;</span> <span class="tsd-kind-property">stereoPan</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">number</span> <span class="tsd-signature-symbol">}</span><br/>    <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">panType</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;HRTF&quot;</span><span class="tsd-signature-symbol">;</span> <span class="tsd-kind-property">position</span><span class="tsd-signature-symbol">?:</span> <a href="Position.html" class="tsd-signature-type tsd-kind-type-alias">Position</a> <span class="tsd-signature-symbol">}</span> <span class="tsd-signature-symbol">&amp;</span> <span class="tsd-signature-type">Required</span><span class="tsd-signature-symbol">&lt;</span><a href="HrtfPannerOptions.html" class="tsd-signature-type tsd-kind-type-alias">HrtfPannerOptions</a><span class="tsd-signature-symbol">&gt;</span></div>
-<div class="tsd-comment tsd-typography"><p>Canonical type describing the 3D-audio configuration for a sound, discriminated
-by <a href="PanType.html" class="tsd-kind-type-alias">PanType</a>.</p>
-<ul>
-<li>For <code>panType: &quot;stereo&quot;</code> the only relevant field is <code>stereoPan</code> (-1..1). HRTF
-position/orientation fields are intentionally not present on this variant
-so that callers cannot accidentally set them on a stereo source.</li>
-<li>For <code>panType: &quot;HRTF&quot;</code> the variant carries the <a href="HrtfPannerOptions.html" class="tsd-kind-type-alias">HrtfPannerOptions</a>
-subset plus an optional <code>[x,y,z]</code> position tuple.</li>
-</ul>
-<p>Containers / mixins exposing this type guarantee the HRTF variant is fully
-populated (<code>Required</code>) so callers can read fields without further narrowing.
-Inputs that only carry a partial override (e.g. clone calls) use the looser
-<a href="PanCloneOverrides.html" class="tsd-kind-type-alias">PanCloneOverrides</a> shape.</p>
+<div class="tsd-signature"><span class="tsd-kind-type-alias">ThreeDOptions</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">{</span> <span class="tsd-kind-property">panType</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;HRTF&quot;</span><span class="tsd-signature-symbol">;</span> <span class="tsd-kind-property">position</span><span class="tsd-signature-symbol">?:</span> <a href="Position.html" class="tsd-signature-type tsd-kind-type-alias">Position</a> <span class="tsd-signature-symbol">}</span> <span class="tsd-signature-symbol">&amp;</span> <span class="tsd-signature-type">Required</span><span class="tsd-signature-symbol">&lt;</span><br/>    <a href="HrtfPannerOptions.html" class="tsd-signature-type tsd-kind-type-alias">HrtfPannerOptions</a><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">&gt;</span></div>
+<div class="tsd-comment tsd-typography"><p>Fully populated HRTF configuration. Panning mode is selected by the source or
+voice; assigning these options configures that mode without switching it.
+Partial overrides use <a href="HrtfPannerOptions.html" class="tsd-kind-type-alias">HrtfPannerOptions</a>.</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/6a6acda0876e460f4a181fe08650ac58d22b1e52/src/pannerMixin.ts#L46">src/pannerMixin.ts:46</a></li></ul></aside></div>
+<li>Defined in <a href="https://github.com/ctoth/cacophony/blob/289cd645a6f5e67552d4010e1aa6c1d76b05e0fb/src/pannerMixin.ts#L37">src/pannerMixin.ts:37</a></li></ul></aside></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
