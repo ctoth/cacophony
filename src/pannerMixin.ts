@@ -1,6 +1,7 @@
 import type { PanType, Position } from "./cacophony";
 import type { AudioParam, BaseContext, PannerNode, StereoPannerNode } from "./context";
 import type { FilterManager } from "./filters";
+import { type SpatialOptions, validateSpatialOptions } from "./playOptions";
 import { SpatialAutomation, validateSpatialSmoothingTau } from "./spatialAutomation";
 
 /**
@@ -29,23 +30,11 @@ export type HrtfPannerOptions = Pick<
 >;
 
 /**
- * Canonical type describing the 3D-audio configuration for a sound, discriminated
- * by {@link PanType}.
- *
- * - For `panType: "stereo"` the only relevant field is `stereoPan` (-1..1). HRTF
- *   position/orientation fields are intentionally not present on this variant
- *   so that callers cannot accidentally set them on a stereo source.
- * - For `panType: "HRTF"` the variant carries the {@link HrtfPannerOptions}
- *   subset plus an optional `[x,y,z]` position tuple.
- *
- * Containers / mixins exposing this type guarantee the HRTF variant is fully
- * populated (`Required`) so callers can read fields without further narrowing.
- * Inputs that only carry a partial override (e.g. clone calls) use the looser
- * {@link PanCloneOverrides} shape.
+ * Fully populated HRTF configuration. Panning mode is selected by the source or
+ * voice; assigning these options configures that mode without switching it.
+ * Partial overrides use {@link HrtfPannerOptions}.
  */
-export type ThreeDOptions =
-  | { panType: "stereo"; stereoPan: number }
-  | ({ panType: "HRTF"; position?: Position } & Required<HrtfPannerOptions>);
+export type ThreeDOptions = { panType: "HRTF"; position?: Position } & Required<HrtfPannerOptions>;
 
 export type PanCloneOverrides = {
   spatialSmoothingTau?: number;
@@ -68,6 +57,8 @@ export interface PannerControls {
   readonly _spatialSmoothingActive: boolean;
   /** @internal Snap pending spatial transitions to their requested targets. */
   _snapSpatialMotion(): void;
+  /** @internal Validate a spatial write without changing the voice. */
+  _validateSpatialOptions(options: SpatialOptions): void;
   setPanType(panType: PanType, audioContext: BaseContext): void;
   setPannerNode(pannerNode: PannerNode): void;
   /** Requested stereo pan target, including during smoothing. */
@@ -131,6 +122,14 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
       return this._panType;
     }
 
+    /** @internal */
+    _validateSpatialOptions(options: SpatialOptions): void {
+      validateSpatialOptions(options, this.panType);
+      if (!this.panner) {
+        throw new Error("Cannot set spatial controls of a sound that has been cleaned up");
+      }
+    }
+
     setPanType(panType: PanType, audioContext: BaseContext) {
       if (this._panType === panType && this.panner) {
         // If the pan type is already set and a panner exists, do nothing
@@ -176,15 +175,7 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
      */
 
     set stereoPan(value: number) {
-      if (this.panType !== "stereo") {
-        throw new Error("Stereo panning is not available when using HRTF.");
-      }
-      if (!this.panner) {
-        throw new Error("Cannot set stereo pan of a sound that has been cleaned up");
-      }
-      if (value < -1 || value > 1) {
-        throw new RangeError("Stereo pan must be between -1 and 1.");
-      }
+      this._validateSpatialOptions({ stereoPan: value });
       this.writeSpatialParam((this.panner as StereoPannerNode).pan, value, true);
     }
 
@@ -232,16 +223,7 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
      * @throws {Error} Throws an error if the sound has been cleaned up or if HRTF panning is not used.
      */
     set threeDOptions(options: ThreeDOptions | Partial<HrtfPannerOptions>) {
-      if (!this.panner) {
-        throw new Error("Cannot set 3D options of a sound that has been cleaned up");
-      }
-      if (this.panType !== "HRTF") {
-        throw new Error("Cannot set 3D options of a sound that is not using HRTF");
-      }
-      // If caller passed a stereo-variant ThreeDOptions to an HRTF panner, reject.
-      if ("panType" in options && options.panType === "stereo") {
-        throw new Error("Cannot apply stereo ThreeDOptions to an HRTF panner");
-      }
+      this._validateSpatialOptions({ threeDOptions: options });
       const panner = this.panner as PannerNode;
       panner.coneInnerAngle = options.coneInnerAngle !== undefined ? options.coneInnerAngle : panner.coneInnerAngle;
       panner.coneOuterAngle = options.coneOuterAngle !== undefined ? options.coneOuterAngle : panner.coneOuterAngle;
@@ -265,6 +247,7 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
         const value = options[key];
         if (value !== undefined) this.writeSpatialParam(panner[key], value);
       }
+      if ("position" in options && options.position !== undefined) this.position = options.position;
     }
 
     /**
@@ -275,12 +258,7 @@ export function PannerMixin<TBase extends Constructor>(Base: TBase) {
      */
 
     set position(position: Position) {
-      if (!this.panner) {
-        throw new Error("Cannot move a sound that has been cleaned up");
-      }
-      if (this.panType !== "HRTF") {
-        throw new Error("Cannot move a sound that is not using HRTF");
-      }
+      this._validateSpatialOptions({ position });
       const [x, y, z] = position;
       const panner = this.panner as PannerNode;
       this.writeSpatialParam(panner.positionX, x);

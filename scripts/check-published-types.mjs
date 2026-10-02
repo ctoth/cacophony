@@ -65,6 +65,10 @@ group.playRandom({ panType: "stereo", stereoPan: 0 });
 group.play(options);
 playback.play(options);
 synth.play({ volume: 0.5, panType: "stereo", stereoPan: 0 });
+// @ts-expect-error ThreeDOptions configures HRTF; mode selection is explicit.
+sound.threeDOptions = { panType: "stereo", stereoPan: 0.5 };
+sound.threeDOptions = { positionX: 1 };
+playback.threeDOptions = sound.threeDOptions;
 const sendOptions: SendGainOptions = { duration: 250, type: "exponential" };
 sound.routeTo("aux", 0.5, sendOptions);
 group.routeTo("aux", 0, sendOptions);

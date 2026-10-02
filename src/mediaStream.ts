@@ -228,7 +228,7 @@ export class MediaStreamSound extends RoutableSource implements BaseSound {
   protected globalGainNode: GainNode;
   private stream: MediaStream;
   private stopTracksOnStop: boolean;
-  private panType: PanType;
+  readonly panType: PanType;
   private primeWithMediaElement: boolean;
 
   constructor(

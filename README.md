@@ -1097,6 +1097,19 @@ stereoSound.play();
 
 See [TypeDoc](https://cacophony.js.org) for distance models, cone effects, and advanced 3D audio options.
 
+`stereoPan` requires stereo mode; `position` and `threeDOptions` require HRTF mode.
+These setters validate the source and every voice before changing defaults or live
+settings. An incompatible mode, invalid value, or cleaned-up voice rejects the
+whole update. Group spatial setters also validate every member first.
+
+`threeDOptions` configures an HRTF panner without switching its mode. Select the
+mode when creating the source or with `play({ panType, ... })`. If per-playback
+overrides produce mixed stereo/HRTF voices, use each voice's spatial controls.
+
+`Sound.clone`, `Synth.clone`, and `Playback.clone` validate spatial overrides against
+the clone's target mode before allocation. Supply `stereoPan` for stereo clones,
+or `position` and `threeDOptions` for HRTF clones; incompatible overrides throw.
+
 ### Motion smoothing
 
 Source position, source orientation, stereo pan, and modern listener pose updates can

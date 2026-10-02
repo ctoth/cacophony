@@ -1,16 +1,15 @@
 import type { BasePlayback } from "./basePlayback";
-import type { Cacophony, FadeType, PlayOptions, Position } from "./cacophony";
+import type { Cacophony, FadeType, PanType, PlayOptions, Position } from "./cacophony";
 import type { BiquadFilterNode } from "./context";
 import type { FilterManager } from "./filters";
 import type { HrtfPannerOptions, ThreeDOptions } from "./pannerMixin";
+import { type SpatialOptions, validateSpatialOptions } from "./playOptions";
 import { validateSpatialSmoothingTau } from "./spatialAutomation";
 
 type Constructor<T = FilterManager> = abstract new (...args: any[]) => T;
 
 /**
- * Fully-populated HRTF defaults used to initialize the container's canonical
- * `_threeDOptions` and to recover a coherent HRTF state when a partial HRTF
- * override is applied to a stereo-variant container.
+ * Fully populated HRTF configuration defaults, independent of the source's mode.
  */
 const defaultHrtfThreeDOptions: ThreeDOptions = {
   panType: "HRTF",
@@ -43,6 +42,7 @@ const defaultHrtfThreeDOptions: ThreeDOptions = {
  */
 export interface PlaybackContainer {
   cacophony?: Cacophony;
+  readonly panType: PanType;
   playbacks: BasePlayback[];
   _position: Position;
   _stereoPan: number;
@@ -50,6 +50,8 @@ export interface PlaybackContainer {
   _volume: number;
   /** Spatial time constant in seconds; assigning changes current and future voices. */
   spatialSmoothingTau: number;
+  /** @internal Validate a broadcast, including every voice, without mutation. */
+  _validateSpatialOptions(options: SpatialOptions): void;
   preplay(): BasePlayback[];
   play(options?: PlayOptions): BasePlayback[];
   stop(): void;
@@ -80,14 +82,13 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase): Playb
 export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
   abstract class PlaybackContainer extends Base {
     declare readonly cacophony?: Cacophony;
+    abstract readonly panType: PanType;
     playbacks: BasePlayback[] = [];
     _position: Position = [0, 0, 0];
     _stereoPan: number = 0;
     /**
-     * Canonical 3D-audio configuration storage. Always holds a fully-populated
-     * HRTF variant ({@link ThreeDOptions} with `panType: "HRTF"`) so callers
-     * reading via the getter never see undefined fields. Setting the stereo
-     * variant replaces this with the stereo shape (no stale HRTF fields).
+     * HRTF configuration for future voices. The source's panType selects the mode;
+     * this configuration cannot switch it.
      */
     _threeDOptions: ThreeDOptions = { ...defaultHrtfThreeDOptions };
     _volume: number = 1;
@@ -112,6 +113,12 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
     }
 
     abstract preplay(): BasePlayback[];
+
+    /** @internal */
+    _validateSpatialOptions(options: SpatialOptions): void {
+      validateSpatialOptions(options, this.panType);
+      for (const playback of this.playbacks) playback._validateSpatialOptions(options);
+    }
 
     /**
      * Starts playback of the sound and returns a Playback instance representing this particular playback.
@@ -195,9 +202,6 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
      */
 
     get position(): Position {
-      if (this._threeDOptions.panType === "stereo") {
-        return [0, 0, 0];
-      }
       return [this._threeDOptions.positionX, this._threeDOptions.positionY, this._threeDOptions.positionZ];
     }
 
@@ -208,11 +212,10 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
      */
 
     set position(position: Position) {
-      if (this._threeDOptions.panType === "HRTF") {
-        this._threeDOptions.positionX = position[0];
-        this._threeDOptions.positionY = position[1];
-        this._threeDOptions.positionZ = position[2];
-      }
+      this._validateSpatialOptions({ position });
+      this._threeDOptions.positionX = position[0];
+      this._threeDOptions.positionY = position[1];
+      this._threeDOptions.positionZ = position[2];
       this.playbacks.forEach((p) => (p.position = position));
     }
 
@@ -226,23 +229,19 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
     }
 
     /**
-     * Accepts either a full canonical {@link ThreeDOptions} value, or a partial
-     * HRTF-options override (legacy ergonomics). When a partial is provided the
-     * existing variant is merged in place — and if the existing variant is
-     * stereo, the partial is interpreted as a switch back to HRTF defaults plus
-     * the override (no stale stereo fields). When a full variant is provided
-     * with a different `panType`, the storage is replaced wholesale so stale
-     * fields from the previous variant cannot be observed via the getter.
+     * Configures HRTF panning without switching modes. Omitted fields retain
+     * their current values. Rejects incompatible sources or voices before mutation.
      */
     set threeDOptions(options: ThreeDOptions | Partial<HrtfPannerOptions>) {
-      if ("panType" in options) {
-        // Full canonical variant — replace storage so the discriminant is honored.
-        this._threeDOptions = { ...options };
-      } else if (this._threeDOptions.panType === "HRTF") {
-        this._threeDOptions = { ...this._threeDOptions, ...options };
-      } else {
-        // Was stereo, now receiving HRTF partial — fall back to HRTF defaults + override.
-        this._threeDOptions = { ...defaultHrtfThreeDOptions, ...options };
+      this._validateSpatialOptions({ threeDOptions: options });
+      for (const [key, value] of Object.entries(options)) {
+        if (value !== undefined && Object.hasOwn(defaultHrtfThreeDOptions, key)) {
+          Object.assign(this._threeDOptions, { [key]: value });
+        }
+      }
+      if ("position" in options && options.position !== undefined) {
+        [this._threeDOptions.positionX, this._threeDOptions.positionY, this._threeDOptions.positionZ] =
+          options.position;
       }
       this.playbacks.forEach((p) => (p.threeDOptions = options));
     }
@@ -252,6 +251,7 @@ export function PlaybackContainer<TBase extends Constructor>(Base: TBase) {
     }
 
     set stereoPan(value: number) {
+      this._validateSpatialOptions({ stereoPan: value });
       this._stereoPan = value;
       this.playbacks.forEach((p) => (p.stereoPan = value));
     }

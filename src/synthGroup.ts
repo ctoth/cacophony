@@ -82,6 +82,7 @@ export class SynthGroup {
   }
 
   set stereoPan(pan: number) {
+    for (const synth of this.synths) synth._validateSpatialOptions({ stereoPan: pan });
     this.synths.forEach((synth) => (synth.stereoPan = pan));
   }
 
@@ -93,6 +94,7 @@ export class SynthGroup {
   }
 
   set position(position: Position) {
+    for (const synth of this.synths) synth._validateSpatialOptions({ position });
     this.synths.forEach((synth) => (synth.position = position));
   }
 

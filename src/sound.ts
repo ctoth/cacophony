@@ -37,7 +37,7 @@ import { TypedEventEmitter } from "./eventEmitter";
 import type { SoundEvents } from "./events";
 import type { PanCloneOverrides } from "./pannerMixin";
 import { Playback } from "./playback";
-import { validatePlayOptions } from "./playOptions";
+import { validatePlayOptions, validateSpatialOptions } from "./playOptions";
 import type { TimeStretchOptions } from "./processors/timestretch-core";
 import { RoutableSource } from "./routableSource";
 import { validateSpatialSmoothingTau } from "./spatialAutomation";
@@ -161,6 +161,7 @@ export class Sound extends RoutableSource implements BaseSound {
   clone(overrides: Partial<SoundCloneOverrides> = {}): Sound {
     validateSpatialSmoothingTau(overrides.spatialSmoothingTau ?? this.spatialSmoothingTau);
     const panType = overrides.panType ?? this.panType;
+    validateSpatialOptions(overrides, panType);
     const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
     const loopCount = overrides.loopCount !== undefined ? overrides.loopCount : this.loopCount;
     const playbackRate = overrides.playbackRate ?? this.playbackRate;
