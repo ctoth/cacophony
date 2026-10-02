@@ -1106,6 +1106,10 @@ whole update. Group spatial setters also validate every member first.
 mode when creating the source or with `play({ panType, ... })`. If per-playback
 overrides produce mixed stereo/HRTF voices, use each voice's spatial controls.
 
+`Sound.clone`, `Synth.clone`, and `Playback.clone` validate spatial overrides against
+the clone's target mode before allocation. Supply `stereoPan` for stereo clones,
+or `position` and `threeDOptions` for HRTF clones; incompatible overrides throw.
+
 ### Motion smoothing
 
 Source position, source orientation, stereo pan, and modern listener pose updates can

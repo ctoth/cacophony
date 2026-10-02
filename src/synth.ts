@@ -5,7 +5,7 @@ import type { SynthEvents } from "./events";
 import type { FilterCloneOverrides } from "./filters";
 import type { OscillatorCloneOverrides } from "./oscillatorMixin";
 import type { PanCloneOverrides } from "./pannerMixin";
-import { validatePlayOptions } from "./playOptions";
+import { validatePlayOptions, validateSpatialOptions } from "./playOptions";
 import { RoutableSource } from "./routableSource";
 import { validateSpatialSmoothingTau } from "./spatialAutomation";
 import { SynthPlayback } from "./synthPlayback";
@@ -71,6 +71,7 @@ export class Synth extends RoutableSource implements BaseSound {
   clone(overrides: Partial<SynthCloneOverrides> = {}): Synth {
     validateSpatialSmoothingTau(overrides.spatialSmoothingTau ?? this.spatialSmoothingTau);
     const panType = overrides.panType ?? this.panType;
+    validateSpatialOptions(overrides, panType);
     const stereoPan = overrides.stereoPan !== undefined ? overrides.stereoPan : this.stereoPan;
     const volume = overrides.volume !== undefined ? overrides.volume : this.volume;
     const position = overrides.position !== undefined ? overrides.position : this.position;

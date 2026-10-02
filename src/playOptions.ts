@@ -16,7 +16,7 @@ function choice(name: string, value: unknown, values: readonly string[]): void {
   if (value !== undefined && !values.includes(value as string)) throw new RangeError(`Invalid ${name}`);
 }
 
-function validatePosition(position: Position): void {
+export function validatePosition(position: Position): void {
   if (position.length !== 3 || !Array.from(position).every(Number.isFinite)) {
     throw new RangeError("position must contain three finite coordinates");
   }

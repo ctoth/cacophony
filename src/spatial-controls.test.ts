@@ -1,13 +1,15 @@
 import { AudioBuffer } from "standardized-audio-context-mock";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { nodeBackendAvailable } from "./backend-available";
 import type { PanType, PlayOptions } from "./cacophony";
 import { Group } from "./group";
 import { MediaStreamSound } from "./mediaStream";
 import { createOfflineNodeCacophony } from "./node";
-import type { ThreeDOptions } from "./pannerMixin";
+import type { PanCloneOverrides, ThreeDOptions } from "./pannerMixin";
 import { audioContextMock, cacophony } from "./setupTests";
 import { SynthGroup } from "./synthGroup";
+
+afterEach(() => vi.restoreAllMocks());
 
 async function makeSource(kind: "sound" | "synth", panType: PanType) {
   return kind === "sound"
@@ -190,6 +192,72 @@ describe.each(["sound", "synth"] as const)("%s spatial broadcasts", (kind) => {
 });
 
 describe("spatial control owners", () => {
+  describe.each(["sound", "synth", "playback"] as const)("%s clone preflight", (kind) => {
+    it.each([
+      { panType: "stereo", position: [1, 2, 3] },
+      { panType: "stereo", threeDOptions: { refDistance: 2 } },
+      { panType: "HRTF", stereoPan: 0.5 },
+      { panType: "stereo", stereoPan: 5 },
+      { panType: "stereo", stereoPan: NaN },
+    ] as const)("rejects invalid spatial overrides before allocation: %j", async (overrides) => {
+      const source = await makeSource(kind === "synth" ? "synth" : "sound", "HRTF");
+      const owner = kind === "playback" ? source.play()[0] : source;
+      const before = snapshot(source);
+      const gain = vi.spyOn(audioContextMock, "createGain");
+      const buffer = vi.spyOn(audioContextMock, "createBufferSource");
+      const oscillator = vi.spyOn(audioContextMock, "createOscillator");
+      const options: PanCloneOverrides = {
+        ...overrides,
+        position: "position" in overrides ? [...overrides.position] : undefined,
+      };
+      expect(() => owner.clone(options)).toThrow();
+      expect(gain).not.toHaveBeenCalled();
+      expect(buffer).not.toHaveBeenCalled();
+      expect(oscillator).not.toHaveBeenCalled();
+      expect(snapshot(source)).toEqual(before);
+      source.stop();
+    });
+  });
+
+  it("validates empty group positions and owns position input and output", async () => {
+    const empty = new Group();
+    expect(() => {
+      empty.position = [NaN, 0, 0];
+    }).toThrow(RangeError);
+    expect(empty.position).toEqual([0, 0, 0]);
+    const sound = await cacophony.createSound(new AudioBuffer({ length: 44100, sampleRate: 44100 }));
+    const group = new Group([sound]);
+    const position: [number, number, number] = [1, 2, 3];
+    group.position = position;
+    position[0] = 99;
+    const result = group.position;
+    result[1] = 99;
+    expect(group.position).toEqual([1, 2, 3]);
+    expect(sound.position).toEqual([1, 2, 3]);
+  });
+
+  it("rejects source broadcasts after a stream voice switches modes without mutating the voice", async () => {
+    const sound = await cacophony.createPcmStreamSound();
+    const [voice] = sound.play({ panType: "stereo", stereoPan: -0.5 });
+    expect(() => {
+      sound.stereoPan = 0.5;
+    }).toThrow();
+    expect(() => {
+      sound.position = [1, 2, 3];
+    }).toThrow();
+    expect(() => {
+      sound.threeDOptions = { refDistance: 2 };
+    }).toThrow();
+    expect(voice.panType).toBe("stereo");
+    expect(voice.stereoPan).toBe(-0.5);
+    expect(voice.isPlaying).toBe(true);
+    expect(sound.stereoPan).toBe(0);
+    expect(sound.position).toEqual([0, 0, 0]);
+    voice.stereoPan = 0.5;
+    expect(voice.stereoPan).toBe(0.5);
+    sound.cleanup();
+  });
+
   it.skipIf(!nodeBackendAvailable)("keeps native stereo pan after rejecting mixed modes", async () => {
     const { cacophony: engine, context } = await createOfflineNodeCacophony({
       length: 512,

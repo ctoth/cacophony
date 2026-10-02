@@ -2,6 +2,7 @@ import type { Bus } from "./bus";
 import type { BaseSound, FadeType, LoopCount, PlayOptions, Position } from "./cacophony";
 import type { BiquadFilterNode } from "./context";
 import type { Playback } from "./playback";
+import { validatePosition } from "./playOptions";
 import type { SendGainOptions } from "./routableSource";
 import type { Sound } from "./sound";
 
@@ -207,13 +208,14 @@ export class Group implements BaseSound {
   }
 
   set position(position: [number, number, number]) {
+    validatePosition(position);
     for (const sound of this.sounds) sound._validateSpatialOptions({ position });
-    this._position = position;
+    this._position = [...position];
     this.sounds.forEach((sound) => (sound.position = this._position));
   }
 
   get position(): [number, number, number] {
-    return this._position;
+    return [...this._position];
   }
 
   get volume(): number {

@@ -19,6 +19,10 @@ someone upgrading, not as a commit message. `npm version` stamps the release; se
 
 ### ⚠ Breaking
 - Spatial setters (`stereoPan`, `position`, `threeDOptions`) now reject incompatible panning modes, invalid values, or cleaned-up voices before changing any source defaults or voices. Group spatial setters preflight every member too. `ThreeDOptions` now describes HRTF configuration only; assigning it never switches modes. Migration: select the intended `panType` when creating a source or in `play({ panType, ... })`, and control mixed-mode voices individually. (#104)
+- `Sound.clone`, `Synth.clone`, and `Playback.clone` reject invalid spatial overrides or overrides incompatible with the clone's target mode before allocation, instead of ignoring them or storing unusable defaults. Direct HRTF setters now share invocation constraints, including nonnegative cone angles. Migration: remove spatial overrides for the other mode and pass finite values within the documented bounds. (#104)
+
+### Fixed
+- Group positions are validated even with no members, and position inputs and returned snapshots no longer share mutable arrays with the group. (#104)
 
 ### Added
 - Browser audio-session recovery via `RuntimeOptions.autoRecover` (default `true`), platform `suspend`/`resume`/`interrupted` events, audio-output `devicechange` notifications, and `Cacophony.dispose()` for listener teardown. Visible-page recovery and gesture unlock preserve explicit user pauses. Recovery starts only after the context has first run, leaving autoplay unlock to the gesture path; a gesture unlock now also emits `resume`. Concurrent `pause()` calls settle with the pending suspension. (#209)
