@@ -36,7 +36,13 @@ for (const kind of ["fdn", "reverb", "delay"] as const) {
     const render = await renderTail(page, browserName, kind);
     if (!render) return;
     for (const channel of ["left", "right"] as const) {
-      if (render.before[channel] === 0) continue; // this effect leaves that channel silent throughout
+      // A delay keeps the input's image, so a hard-left burst leaves its right
+      // channel silent throughout. A reverb must sound on both.
+      if (kind === "delay" && channel === "right") {
+        expect(render.late.right).toBe(0);
+        continue;
+      }
+      expect(render.before[channel]).toBeGreaterThan(0);
       // No truncation and no jump across the disconnect: adjacent 50 ms windows
       // of a decaying tail differ by its decay only.
       const acrossCleanup = render.after[channel] / render.before[channel];
@@ -45,7 +51,6 @@ for (const kind of ["fdn", "reverb", "delay"] as const) {
       expect(render.late[channel]).toBeGreaterThan(0);
       expect(render.late[channel]).toBeLessThan(render.after[channel] * 1.5);
     }
-    expect(render.before.left + render.before.right).toBeGreaterThan(0);
   });
 }
 

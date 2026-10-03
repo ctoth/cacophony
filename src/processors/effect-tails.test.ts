@@ -1,6 +1,6 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-import { FdnReverbBank, type FdnReverbParams, FdnReverbProcessor } from "./fdn-reverb-core";
+import { FdnReverbBank, type FdnReverbParams } from "./fdn-reverb-core";
 
 const FS = 48000;
 const BLOCK = 128;
@@ -16,7 +16,14 @@ function makeRng(seed = 1): () => number {
 
 /** A bank whose channel cores are seeded per channel, so two banks are identical. */
 function seededBank(): FdnReverbBank {
-  return new FdnReverbBank(FS, (channel) => new FdnReverbProcessor(FS, 8, makeRng(channel + 1)));
+  return new FdnReverbBank(FS, (channel) => makeRng(channel + 1));
+}
+
+/** Normalized cross-correlation at lag 0. */
+function correlation(a: Float32Array, b: Float32Array): number {
+  let ab = 0;
+  for (let i = 0; i < a.length; i++) ab += a[i] * b[i];
+  return ab / Math.sqrt(energy(a) * energy(b));
 }
 
 const wetParams: FdnReverbParams = { decayTime: 1, preDelay: 0, damping: 0, diffusion: 0.5, mix: 1 };
@@ -44,9 +51,18 @@ describe("FdnReverbBank channel handling (#255)", () => {
     const balance = energy(output[1]) / energy(output[0]);
     expect(balance).toBeGreaterThan(0.5);
     expect(balance).toBeLessThan(2);
-    // Diffuse, not dual mono: the channels come from decorrelated cores.
-    expect(output[0]).not.toEqual(output[1]);
   });
+
+  // The channels must differ in their echo pattern, not only in their velvet
+  // sequences: at diffusion 0 the velvet filters contribute nothing.
+  for (const diffusion of [0, 0.5, 1]) {
+    it(`renders decorrelated channels at diffusion ${diffusion}`, () => {
+      const n = FS / 2;
+      const output = stereoOutput(n);
+      seededBank().process([noise(n, 7), new Float32Array(n)], output, { ...wetParams, diffusion });
+      expect(Math.abs(correlation(output[0], output[1]))).toBeLessThan(0.2);
+    });
+  }
 
   it("keeps the dry signal on its own channel", () => {
     const n = 1024;

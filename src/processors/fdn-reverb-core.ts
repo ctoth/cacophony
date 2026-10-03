@@ -104,6 +104,13 @@ const MIN_DECAY_TIME = 1e-3;
 const DEFAULT_DELAYS_AT_48K = [617, 769, 919, 1097, 1259, 1429, 1607, 1789];
 
 /**
+ * Extra samples (at 48 kHz) added to each delay line per output channel beyond
+ * the first, so the channels of a multichannel reverb have different echo
+ * patterns (the stereo-spread idea of Freeverb, with a different prime per line).
+ */
+const CHANNEL_DELAY_SPREAD_AT_48K = [13, 17, 19, 23, 29, 31, 37, 41];
+
+/**
  * Default DFM feedback-path delays κ_i in samples at 48 kHz (Schlecht 2020 eq.
  * 14, D_κ(z) = diag(z^{-κ_i})). Small, mutually-spread coprime integers so each
  * feedback path is delayed by a different short amount before the Hadamard mix,
@@ -559,16 +566,31 @@ export class FdnReverbBank {
   private readonly cores: FdnReverbProcessor[] = [];
   private excitation = new Float32Array(0);
   private wet = new Float32Array(0);
+  private readonly wetParams: FdnReverbParams = { decayTime: 0, preDelay: 0, damping: 0, diffusion: 0, mix: 1 };
 
   /**
    * @param sampleRate fs in Hz.
-   * @param createCore Builds the core for one output channel (injected for
-   *   deterministic tests).
+   * @param rngForChannel Supplies the velvet-noise RNG for one channel's core
+   *   (injected for deterministic tests).
    */
   constructor(
-    sampleRate: number,
-    private readonly createCore: (channel: number) => FdnReverbProcessor = () => new FdnReverbProcessor(sampleRate),
+    private readonly sampleRate: number,
+    private readonly rngForChannel: (channel: number) => () => number = () => Math.random,
   ) {}
+
+  /**
+   * Channel 0 uses the default delay set. Every further channel lengthens each
+   * line by a different amount, so the channels differ in their echo pattern
+   * itself and stay decorrelated even with `diffusion` at 0, where the velvet
+   * sequences contribute nothing.
+   */
+  private createCore(channel: number): FdnReverbProcessor {
+    const scale = this.sampleRate / 48000;
+    const delays = DEFAULT_DELAYS_AT_48K.map((d, i) =>
+      Math.max(1, Math.round((d + channel * CHANNEL_DELAY_SPREAD_AT_48K[i]) * scale)),
+    );
+    return new FdnReverbProcessor(this.sampleRate, delays.length, this.rngForChannel(channel), delays);
+  }
 
   /**
    * Render one block. `input` may have any number of channels, including none;
@@ -592,7 +614,12 @@ export class FdnReverbBank {
     }
 
     const mix = clamp01(params.mix);
-    const wetParams = { ...params, mix: 1 };
+    // Reused across blocks: no allocation on the audio thread in the steady state.
+    const wetParams = this.wetParams;
+    wetParams.decayTime = params.decayTime;
+    wetParams.preDelay = params.preDelay;
+    wetParams.damping = params.damping;
+    wetParams.diffusion = params.diffusion;
     // Dry keeps its own channel; a mono input (or a mono output) uses the sum.
     const dryPerChannel = output.length > 1 && input.length > 1;
     for (let ch = 0; ch < output.length; ch++) {
