@@ -99,6 +99,7 @@ export abstract class WorkletEffect<O extends object> implements CacophonyEffect
     protected readonly host: WorkletEffectHost,
     private readonly worklet: WorkletModule,
     protected readonly options: O,
+    private readonly nodeOptions?: AudioWorkletNodeOptions,
   ) {}
 
   /**
@@ -110,9 +111,27 @@ export abstract class WorkletEffect<O extends object> implements CacophonyEffect
   }
 
   build(context: BaseContext): Promise<AudioWorkletNode> {
-    return this.host.buildWorkletEffect(this.worklet, this.toParameterData(this.options), context);
+    const parameterData = this.toParameterData(this.options);
+    return this.nodeOptions
+      ? this.host.buildWorkletEffect(this.worklet, parameterData, context, this.nodeOptions)
+      : this.host.buildWorkletEffect(this.worklet, parameterData, context);
   }
 }
+
+/**
+ * Fixed stereo-in / stereo-out layout for effects that carry a tail (reverbs,
+ * feedback delays). Without it the node's output channel count follows whatever
+ * is connected at that moment, so the tail changes layout — or stops — when the
+ * last upstream source ends.
+ */
+const STEREO_TAIL_NODE_OPTIONS: AudioWorkletNodeOptions = {
+  numberOfInputs: 1,
+  numberOfOutputs: 1,
+  outputChannelCount: [2],
+  channelCount: 2,
+  channelCountMode: "explicit",
+  channelInterpretation: "speakers",
+};
 
 /**
  * Tracks AudioNodes that were produced by Cacophony's own factories so the
@@ -328,7 +347,7 @@ export interface ReverbOptions {
  */
 export class ReverbEffect extends WorkletEffect<ReverbOptions> {
   constructor(host: WorkletEffectHost, options: ReverbOptions = {}) {
-    super(host, WORKLETS.dattorroReverb, options);
+    super(host, WORKLETS.dattorroReverb, options, STEREO_TAIL_NODE_OPTIONS);
   }
 }
 
@@ -407,7 +426,7 @@ export interface FdnReverbOptions {
  */
 export class FdnReverbEffect extends WorkletEffect<FdnReverbOptions> {
   constructor(host: WorkletEffectHost, options: FdnReverbOptions = {}) {
-    super(host, WORKLETS.fdnReverb, options);
+    super(host, WORKLETS.fdnReverb, options, STEREO_TAIL_NODE_OPTIONS);
   }
 }
 
@@ -546,7 +565,7 @@ export interface ModulatedDelayOptions {
  */
 export class ModulatedDelayEffect extends WorkletEffect<ModulatedDelayOptions> {
   constructor(host: WorkletEffectHost, options: ModulatedDelayOptions = {}) {
-    super(host, WORKLETS.modulatedDelay, options);
+    super(host, WORKLETS.modulatedDelay, options, STEREO_TAIL_NODE_OPTIONS);
   }
 
   protected override toParameterData(options: ModulatedDelayOptions): Record<string, number> {

@@ -40,6 +40,7 @@ export class ModulatedDelayWorkletProcessor extends AudioWorkletProcessor {
   // LFO is seeded in quadrature (ch * pi/2) so a stereo pair gets the dynamic
   // stereo field Dattorro describes (p.776).
   private cores: ModulatedDelayProcessor[] = [];
+  private silence = new Float32Array(0);
 
   static get parameterDescriptors(): AudioParamDescriptor[] {
     // Default VALUES come from MODULATED_DELAY_DEFAULTS (modulated-delay-core.ts)
@@ -64,10 +65,12 @@ export class ModulatedDelayWorkletProcessor extends AudioWorkletProcessor {
   }
 
   process(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>): boolean {
-    const input = inputs[0];
+    // No input channels means every upstream source has ended or disconnected;
+    // the recirculating echoes still have to be rendered.
+    const input = inputs[0] ?? [];
     const output = outputs[0];
 
-    if (!input || input.length === 0 || !output || output.length === 0) {
+    if (!output || output.length === 0) {
       return true;
     }
 
@@ -82,14 +85,20 @@ export class ModulatedDelayWorkletProcessor extends AudioWorkletProcessor {
       interpolation: interpolationFromIndex(parameters.interpolation[0]),
     };
 
-    const channelCount = Math.min(input.length, output.length);
-    for (let ch = 0; ch < channelCount; ch++) {
+    const blockLength = output[0].length;
+    if (this.silence.length !== blockLength) {
+      this.silence = new Float32Array(blockLength);
+    }
+    // Every output channel advances each block: a mono input feeds all of them,
+    // a missing channel is fed silence.
+    for (let ch = 0; ch < output.length; ch++) {
+      const source = input[ch] ?? (input.length === 1 ? input[0] : this.silence);
       if (!this.cores[ch]) {
         // Seed the LFO 90 deg apart per channel for the quadrature stereo field
         // (Dattorro p.776).
         this.cores[ch] = new ModulatedDelayProcessor(sampleRate, (ch * Math.PI) / 2);
       }
-      this.cores[ch].process(input[ch], output[ch], params);
+      this.cores[ch].process(source, output[ch], params);
     }
     return true;
   }
