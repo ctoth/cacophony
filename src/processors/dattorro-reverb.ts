@@ -181,7 +181,9 @@ export class DattorroReverbProcessor extends AudioWorkletProcessor {
         outputs[0][0][i] = outputs[0][1][i] = inputs[0][0][i] * dr;
       }
     } else {
-      this._preDelay.set(new Float32Array(128), this._pDWrite);
+      // No input: this is the normal state of an idle reverb bus, so write
+      // silence in place rather than allocating a block every quantum.
+      this._preDelay.fill(0, this._pDWrite, this._pDWrite + 128);
     }
 
     let i = 0;

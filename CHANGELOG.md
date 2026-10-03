@@ -24,7 +24,7 @@ someone upgrading, not as a commit message. `npm version` stamps the release; se
 ### Fixed
 - Group positions are validated even with no members, and position inputs and returned snapshots no longer share mutable arrays with the group. (#104)
 - Reverb and delay tails no longer cut off when their input goes away. `createReverb`, `createFdnReverb`, and the `createDelay` family (delay, chorus, flanger, vibrato, doubling) keep rendering after the last source feeding them ends or is disconnected, for example a one-shot sending to a shared reverb bus. Before, the effect fell silent at that moment. (#255)
-- `createFdnReverb` no longer follows the pan of its input. A source panned to one side used to produce reverb on that side only; the wet signal is now diffuse across both channels, while the dry part of `mix` keeps its position. (#255)
+- `createFdnReverb` no longer follows the pan of its input. A source panned to one side used to produce reverb on that side only; the wet signal is now spread across both channels, which have different echo patterns and stay decorrelated at every `diffusion` setting, while the dry part of `mix` keeps its position. (#255)
 
 ### Added
 - Browser audio-session recovery via `RuntimeOptions.autoRecover` (default `true`), platform `suspend`/`resume`/`interrupted` events, audio-output `devicechange` notifications, and `Cacophony.dispose()` for listener teardown. Visible-page recovery and gesture unlock preserve explicit user pauses. Recovery starts only after the context has first run, leaving autoplay unlock to the gesture path; a gesture unlock now also emits `resume`. Concurrent `pause()` calls settle with the pending suspension. (#209)
@@ -35,7 +35,8 @@ someone upgrading, not as a commit message. `npm version` stamps the release; se
 
 ### Changed
 - `routeTo(busOrName, sendGain)` throws `RangeError` for a non-finite send gain instead of storing it, and `routeTo` throws `TypeError` when ramp options are passed without a send gain instead of ignoring them. (#241)
-- `createReverb`, `createFdnReverb`, and the `createDelay` family now always take stereo in and give stereo out: a mono input is up-mixed and an input with more than two channels is down-mixed. A mono source through `createChorus` or `createFlanger` therefore comes out as stereo, with the two channels modulated a quarter cycle apart. `createFdnReverb` excites its wet path with the mono sum of the input, so a hard-panned input produces about 3 dB less wet level than before. (#255)
+- `createReverb`, `createFdnReverb`, and the `createDelay` family now always take stereo in and give stereo out: a mono input is up-mixed and an input with more than two channels is down-mixed. A mono source through `createChorus`, `createFlanger`, `createVibrato`, or `createDoubling` therefore comes out as stereo, with the two channels modulated a quarter cycle apart; a plain `createDelay` is unchanged. An effect placed on a bus carrying more than two channels (for example first-order ambisonics ahead of a decoder) now folds it to stereo. (#255)
+- `createFdnReverb` excites its wet path with the mono sum of the input, as `createReverb` already did. The wet level is unchanged for a centred source, about 3 dB lower for a hard-panned source or for wide stereo material, and zero for content that is out of phase between left and right. (#255)
 
 ## [0.33.0] - 2026-09-26
 
