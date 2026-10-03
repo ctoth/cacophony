@@ -163,6 +163,15 @@ describe("Cacophony.createReverb / dattorro-reverb worklet", () => {
       WORKLETS.dattorroReverb,
       { wet: 0.7, dry: 0.3, decay: 0.8 },
       cacophony.context,
+      // A fixed stereo layout keeps the tail rendering once the input goes away (#255).
+      {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [2],
+        channelCount: 2,
+        channelCountMode: "explicit",
+        channelInterpretation: "speakers",
+      },
     );
     createNodeSpy.mockRestore();
   });

@@ -65,6 +65,15 @@ describe("Cacophony modulated-delay factories (createDelay / createChorus / crea
         rate: 0,
       },
       cacophony.context,
+      // A fixed stereo layout keeps the echoes rendering once the input goes away (#255).
+      {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [2],
+        channelCount: 2,
+        channelCountMode: "explicit",
+        channelInterpretation: "speakers",
+      },
     );
     createNodeSpy.mockRestore();
   });

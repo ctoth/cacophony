@@ -1,4 +1,4 @@
-import { type FdnReverbParams, FdnReverbProcessor } from "./fdn-reverb-core";
+import { FdnReverbBank, type FdnReverbParams } from "./fdn-reverb-core";
 
 /*
  * FDN reverb AudioWorklet shell — a thin AudioWorkletProcessor that delegates
@@ -20,9 +20,9 @@ import { type FdnReverbParams, FdnReverbProcessor } from "./fdn-reverb-core";
 const WORKLET_LOG_PREFIX = "[cacophony/worklet:fdn-reverb]";
 
 export class FdnReverbWorkletProcessor extends AudioWorkletProcessor {
-  // One stateful core per channel so each channel keeps its own delay-line and
-  // absorption-filter state across process() blocks.
-  private cores: FdnReverbProcessor[] = [];
+  // One stateful core per output channel, excited by the mono sum of the input
+  // and advanced every block (see FdnReverbBank).
+  private bank = new FdnReverbBank(sampleRate);
 
   static get parameterDescriptors(): AudioParamDescriptor[] {
     // Defaults: a moderate, natural room. decayTime in seconds (T60); preDelay
@@ -43,10 +43,12 @@ export class FdnReverbWorkletProcessor extends AudioWorkletProcessor {
   }
 
   process(inputs: Float32Array[][], outputs: Float32Array[][], parameters: Record<string, Float32Array>): boolean {
-    const input = inputs[0];
+    // No input channels means every upstream source has ended or disconnected;
+    // the tail still has to be rendered.
+    const input = inputs[0] ?? [];
     const output = outputs[0];
 
-    if (!input || input.length === 0 || !output || output.length === 0) {
+    if (!output || output.length === 0) {
       return true;
     }
 
@@ -59,13 +61,7 @@ export class FdnReverbWorkletProcessor extends AudioWorkletProcessor {
       mix: parameters.mix[0],
     };
 
-    const channelCount = Math.min(input.length, output.length);
-    for (let ch = 0; ch < channelCount; ch++) {
-      if (!this.cores[ch]) {
-        this.cores[ch] = new FdnReverbProcessor(sampleRate);
-      }
-      this.cores[ch].process(input[ch], output[ch], params);
-    }
+    this.bank.process(input, output, params);
     return true;
   }
 }

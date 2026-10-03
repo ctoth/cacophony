@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cacophony effect tails after the input goes away</title>
+  </head>
+  <body>
+    <script type="module">
+      import { Cacophony } from "/src/cacophony.ts";
+
+      const sampleRate = 48_000;
+      const seconds = 0.5;
+      const burstSeconds = 0.05;
+      const cleanupTime = 0.2;
+
+      const effects = {
+        fdn: (audio) => audio.createFdnReverb({ decayTime: 1, preDelay: 0, mix: 1 }),
+        reverb: (audio) => audio.createReverb({ decay: 0.7, wet: 1, dry: 0 }),
+        delay: (audio) => audio.createDelay({ delayTime: 30, feedback: 0.8, blend: 0 }),
+      };
+
+      const energy = (samples, from, to) => {
+        let total = 0;
+        for (let i = Math.round(from * sampleRate); i < Math.round(to * sampleRate); i++) {
+          total += samples[i] * samples[i];
+        }
+        return total;
+      };
+
+      /**
+       * A hard-left voice feeds a shared effect bus through an aux send while
+       * its dry route goes nowhere, so only the effect reaches the destination.
+       * The voice ends after the burst and is cleaned up (send disconnected)
+       * at `cleanupTime`, as an application does once a one-shot finishes.
+       */
+      window.renderEffectTail = async (kind) => {
+        if (typeof OfflineAudioContext === "undefined") return { supported: false };
+        const length = sampleRate * seconds;
+        const context = new OfflineAudioContext(2, length, sampleRate);
+        if (typeof context.suspend !== "function" || typeof context.resume !== "function") {
+          return { supported: true, render: null };
+        }
+        const audio = Cacophony.createOffline(
+          { context, length, numberOfChannels: 2, sampleRate },
+          undefined,
+          { autoUnlock: false, quiet: true },
+        );
+        const burst = context.createBuffer(1, sampleRate * burstSeconds, sampleRate);
+        const data = burst.getChannelData(0);
+        // Deterministic broadband burst (LCG noise), so every engine renders the same input.
+        let state = 1;
+        for (let i = 0; i < data.length; i++) {
+          state = (1664525 * state + 1013904223) >>> 0;
+          data[i] = (state / 4294967296) * 2 - 1;
+        }
+        const sound = await audio.createSound(burst, "buffer", "stereo");
+        sound.stereoPan = -1;
+        const dry = audio.createBus();
+        dry.disconnect(audio.master);
+        const wet = audio.createBus("wet");
+        await wet.addFilter(effects[kind](audio));
+        sound.routeTo(dry);
+        sound.routeTo(wet, 1);
+        sound.play();
+
+        const suspended = context.suspend(cleanupTime);
+        const rendering = context.startRendering();
+        await suspended;
+        sound.cleanup();
+        await context.resume();
+        const rendered = await rendering;
+        const left = rendered.getChannelData(0);
+        const right = rendered.getChannelData(1);
+
+        // The burst is over in every window. `ended`: the voice has finished but
+        // is still connected. `before`/`after`: either side of the cleanup.
+        const windows = { burst: [0, 0.05], ended: [0.08, 0.13], before: [0.14, 0.19], after: [0.21, 0.26], late: [0.3, 0.35] };
+        const render = {};
+        for (const [name, [from, to]] of Object.entries(windows)) {
+          render[name] = { left: energy(left, from, to), right: energy(right, from, to) };
+        }
+        return { supported: true, render };
+      };
+    </script>
+  </body>
+</html>

@@ -545,6 +545,68 @@ export class FdnReverbProcessor {
   }
 }
 
+/**
+ * Channel layer over {@link FdnReverbProcessor}: one stateful core per OUTPUT
+ * channel, all excited by the mono sum of the input.
+ *
+ * A reverb's wet field is diffuse, so it must not inherit the input's
+ * left/right image; each core's distinct velvet sequences decorrelate the
+ * channels instead. The dry part of the mix keeps its per-channel image. Every
+ * core advances on every block, with silence when the input has gone away, so
+ * the tail decays instead of freezing when upstream sources end or disconnect.
+ */
+export class FdnReverbBank {
+  private readonly cores: FdnReverbProcessor[] = [];
+  private excitation = new Float32Array(0);
+  private wet = new Float32Array(0);
+
+  /**
+   * @param sampleRate fs in Hz.
+   * @param createCore Builds the core for one output channel (injected for
+   *   deterministic tests).
+   */
+  constructor(
+    sampleRate: number,
+    private readonly createCore: (channel: number) => FdnReverbProcessor = () => new FdnReverbProcessor(sampleRate),
+  ) {}
+
+  /**
+   * Render one block. `input` may have any number of channels, including none;
+   * every channel of `output` is written.
+   */
+  process(input: readonly Float32Array[], output: Float32Array[], params: FdnReverbParams): void {
+    if (output.length === 0) return;
+    const len = output[0].length;
+    if (this.excitation.length !== len) {
+      this.excitation = new Float32Array(len);
+      this.wet = new Float32Array(len);
+    }
+
+    const excitation = this.excitation;
+    excitation.fill(0);
+    for (const channel of input) {
+      for (let s = 0; s < len; s++) excitation[s] += channel[s];
+    }
+    if (input.length > 1) {
+      for (let s = 0; s < len; s++) excitation[s] /= input.length;
+    }
+
+    const mix = clamp01(params.mix);
+    const wetParams = { ...params, mix: 1 };
+    // Dry keeps its own channel; a mono input (or a mono output) uses the sum.
+    const dryPerChannel = output.length > 1 && input.length > 1;
+    for (let ch = 0; ch < output.length; ch++) {
+      if (!this.cores[ch]) this.cores[ch] = this.createCore(ch);
+      this.cores[ch].process(excitation, this.wet, wetParams);
+      const dry = dryPerChannel ? input[ch] : excitation;
+      const out = output[ch];
+      for (let s = 0; s < len; s++) {
+        out[s] = (1 - mix) * (dry ? dry[s] : 0) + mix * this.wet[s];
+      }
+    }
+  }
+}
+
 /** Clamp x to [0,1]. */
 function clamp01(x: number): number {
   if (x < 0) return 0;

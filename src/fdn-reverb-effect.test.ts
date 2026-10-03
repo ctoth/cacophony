@@ -49,6 +49,15 @@ describe("Cacophony FDN reverb factory (createFdnReverb)", () => {
       WORKLETS.fdnReverb,
       { decayTime: 3, preDelay: 0.02, damping: 0.5, diffusion: 0.7, mix: 0.5 },
       cacophony.context,
+      // A fixed stereo layout keeps the tail rendering once the input goes away (#255).
+      {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        outputChannelCount: [2],
+        channelCount: 2,
+        channelCountMode: "explicit",
+        channelInterpretation: "speakers",
+      },
     );
     createNodeSpy.mockRestore();
   });
