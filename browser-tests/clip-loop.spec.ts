@@ -14,6 +14,7 @@ declare global {
       loopAudible: boolean;
       afterSilent: boolean;
       continuous: boolean;
+      endErrorSeconds?: number;
     }>;
   }
 }
@@ -42,6 +43,8 @@ for (const mode of [
     expect(result.noSuffix, JSON.stringify(result)).toBe(true);
     expect(result.afterSilent, JSON.stringify(result)).toBe(true);
     expect(result.continuous, JSON.stringify(result)).toBe(true);
+    if (mode === "single-rate" || mode === "absolute-rate")
+      expect(result.endErrorSeconds, JSON.stringify(result)).toBeLessThan(0.01);
     expect(result.playEvents).toBe(1);
     expect(result.prefix).toBe(!["cancel", "late", "single-rate", "absolute-rate"].includes(mode));
     expect(result.loopAudible).toBe(mode !== "cancel");

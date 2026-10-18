@@ -15,7 +15,8 @@ async function changedRateCheck(mode) {
   const sound = await engine.createSound(buffer, "buffer", "stereo"), [voice] = sound.preplay();
   await context.audioWorklet.addModule("/browser-tests/clip-capture.js");
   const capture = new AudioWorkletNode(context, "clip-capture", { outputChannelCount: [2] }), left = [], right = [];
-  capture.port.onmessage = event => { left.push(...event.data.left); right.push(...event.data.right); };
+  let captureFrame;
+  capture.port.onmessage = event => { captureFrame ??= event.data.frame; left.push(...event.data.left); right.push(...event.data.right); };
   capture.connect(context.destination); voice.disconnect(); voice.connect(capture);
   voice.setLoopRegion(0.25, 0.5); if (mode === "absolute-rate") voice.loop("infinite");
   let ended = 0, playEvents = 0; voice.on("ended", () => ended++); voice.on("play", () => playEvents++);
@@ -23,15 +24,19 @@ async function changedRateCheck(mode) {
     await context.resume(); const start = context.currentTime + 0.125; voice.play({ at: start });
     if (mode === "absolute-rate") voice.scheduleStop(start + 1);
     while (context.currentTime < start + 0.125) await new Promise(resolve => setTimeout(resolve, 5));
+    const changedAt = context.currentTime;
     voice.playbackRate = 2;
     const until = context.currentTime + 1.5;
     while (context.currentTime < until) await new Promise(resolve => setTimeout(resolve, 20));
     const first = right.findIndex(value => value > 0.1), last = right.findLastIndex(value => value > 0.1);
+    const actualEnd = (captureFrame + last + 1) / rate;
+    const expectedEnd = mode === "absolute-rate" ? start + 1 : changedAt + (0.5 - (changedAt - start)) / 2;
     return { supported: true, interruptedSupported: true, ended, state: voice.state, playEvents,
       beforeSilent: left.slice(0, 256).every(value => Math.abs(value) < 1e-6) && right.slice(0, 256).every(value => Math.abs(value) < 1e-6),
       noSuffix: left.every(value => value >= -1e-6), prefix: Math.max(...left) > 0.1, loopAudible: first >= 0,
       afterSilent: left.slice(-256).every(value => Math.abs(value) < 1e-6) && right.slice(-256).every(value => Math.abs(value) < 1e-6),
       continuous: first >= 0 && right.slice(first + 128, last - 128).every(value => value > 0.1),
+      endErrorSeconds: Math.abs(actualEnd - expectedEnd),
       minimumLeft: Math.min(...left), firstLoopFrame: first, lastLoopFrame: last,
     };
   } finally { sound.cleanup(); capture.port.postMessage("stop"); capture.disconnect(); engine.dispose(); await context.close(); }
