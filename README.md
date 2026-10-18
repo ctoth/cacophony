@@ -481,41 +481,6 @@ sound.play();
 sound.loop(0);
 ```
 
-Decoded buffer voices can enforce clip boundaries on the audio render clock:
-
-```typescript
-const sound = await cacophony.createSound('loop.wav', 'buffer');
-if (!sound.supportsClipLoop) throw new Error('A decoded buffer is required');
-const [voice] = sound.preplay();
-voice.setLoopRegion(1, 3);           // Sound-relative seconds: L=1, R=3
-voice.loop('infinite');             // Native, continuous R-to-L wrapping
-await voice.prepareSeek(1);
-const at = cacophony.context.currentTime + 0.25;
-voice.play({ at });
-voice.scheduleStop(at + 6);         // Three passes at rate1; ends at the final R
-```
-
-Configure bounds while idle or paused, before seeking. They must span at least
-one decoded sample within the Sound duration. Seeking to or beyond R rejects;
-an offset before L plays the prefix once. With explicit bounds, `loop(0)` plays
-once and ends at R; `'infinite'` wraps natively. Numeric repeat counts and
-per-loop fades reject. For finite repeated clips use native infinite looping
-and one `scheduleStop()` deadline, as above. Sprite bounds remain Sound-relative.
-
-`scheduleStop()` accepts an absolute AudioContext time after `play()`, including
-a future scheduled start. Stopping before that onset prevents all onset audio;
-a past deadline stops now. Changing playback rate leaves the absolute deadline
-unchanged. Calling it again replaces the deadline on the same source. Pause,
-seek, source recreation, stop and cleanup revoke it; arm it again after resume.
-Legacy numeric repeats and ended-time fade-outs cannot share a scheduled end.
-It cuts the source; downstream effects retain their ordinary tails.
-
-HTML media does not support these exact bounds or scheduled ends and throws
-`NotSupportedError`. `supportsClipLoop` checks the actual Sound/Playback buffer
-representation; it does not fetch or decode a URL. A configured clip clone
-copies its bounds and folded live position, while cloning an armed absolute end
-rejects before allocation. Replace the voice to remove its explicit bounds.
-
 ## Volume Control
 
 Cacophony provides a hierarchical volume control system:
@@ -1545,39 +1510,6 @@ each playback to observe seeks, including those requested through `Sound.seek()`
 different positions, and a collective seek can fail after some voices have moved.
 For media elements, the event reports acceptance of the `currentTime` write;
 it does not wait for the browser's asynchronous `seeked` event or playback resumption.
-
-To seek silently before playback, prepare an individual voice:
-
-```typescript
-const [voice] = sound.preplay();
-await voice.prepareSeek(30, { signal: controller.signal, timeoutMs: 10_000 });
-// Still unplayed and silent. Start explicitly when ready.
-voice.play();
-```
-
-`prepareSeek()` accepts idle or paused buffer and media-element voices and retains
-their state. Buffers resolve immediately. Media preparation waits for finite
-duration metadata, a seekable range containing the requested offset, and completed
-seeking with current audio data. It never calls `play()` or resumes/unlocks the
-audio context. Offset `0` is valid; negative, non-finite, and beyond-duration
-offsets reject. Live or unknown-duration media rejects with `NotSupportedError`.
-A per-voice input gate keeps paused decoding silent, including browsers that emit
-decoded samples while seeking. It opens after explicit playback is accepted and
-closes on pause, stop, or cleanup, independently of volume and effect settings.
-Readiness is bounded by `timeoutMs` (positive finite milliseconds up to
-2,147,483,647, default 10,000),
-rejecting with `TimeoutError` if the target never becomes seekable or ready.
-
-An abort, a new preparation, or `play()`, `seek()`, `stop()`, or `cleanup()` cancels
-pending work with `AbortError` and removes its listeners and timeout. Already
-requested browser seeks are not rolled back; only successful preparation commits
-the voice's offset and emits `seek`. Await the promise before playing to use that
-offset. Cancellation cannot later start playback or overwrite a newer position.
-HTML media remains subject to browser buffering and autoplay policy and does not
-offer sample-accurate starts. This API does not apply to live microphone or push
-PCM streams.
-An offset equal to the duration represents end-of-media; subsequently playing an
-HTML element at its end can restart it from zero under the browser's media rules.
 
 #### Synth Events
 
