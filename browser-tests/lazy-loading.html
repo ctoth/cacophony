@@ -9,9 +9,9 @@
         const context = new AudioContext();
         const audio = new Cacophony(context, undefined, { autoUnlock: false, quiet: true });
         try {
-          const node = await audio.createReverb().build(context);
-          const registered = node instanceof AudioWorkletNode;
-          node.disconnect();
+          const graph = await audio.createReverb().build(context);
+          const registered = graph.handle instanceof AudioWorkletNode;
+          graph.dispose();
           return registered;
         } finally {
           await context.close();
