@@ -1,4 +1,5 @@
 import { FdnReverbBank, type FdnReverbParams } from "./fdn-reverb-core";
+import { registerEffectProcessor } from "./register-effect";
 
 /*
  * FDN reverb AudioWorklet shell — a thin AudioWorkletProcessor that delegates
@@ -68,7 +69,7 @@ export class FdnReverbWorkletProcessor extends AudioWorkletProcessor {
 
 console.info(`${WORKLET_LOG_PREFIX} module evaluating`);
 try {
-  registerProcessor("fdn-reverb", FdnReverbWorkletProcessor);
+  registerEffectProcessor("fdn-reverb", FdnReverbWorkletProcessor);
   console.info(`${WORKLET_LOG_PREFIX} registerProcessor complete`);
 } catch (error) {
   console.error(`${WORKLET_LOG_PREFIX} registerProcessor failed`, error);

@@ -1,4 +1,5 @@
 import { FrequencyShifterCore } from "./frequency-shifter-core";
+import { registerEffectProcessor } from "./register-effect";
 
 export class FrequencyShifterWorkletProcessor extends AudioWorkletProcessor {
   private cores: FrequencyShifterCore[] = [];
@@ -28,4 +29,4 @@ export class FrequencyShifterWorkletProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor("frequency-shifter", FrequencyShifterWorkletProcessor);
+registerEffectProcessor("frequency-shifter", FrequencyShifterWorkletProcessor);

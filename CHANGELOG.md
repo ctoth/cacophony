@@ -17,6 +17,12 @@ someone upgrading, not as a commit message. `npm version` stamps the release; se
 
 ## [Unreleased]
 
+### ⚠ Breaking
+- Direct calls to a worklet effect's `build(context)` now return an owned `BuiltEffectGraph`. Use its `input` and `output` endpoints for manual routing and call `dispose()` when finished. `Bus.addFilter()` and source effect APIs still return the node handle and manage disposal for you.
+
+### Fixed
+- Removed worklet effects now stop their audio processors. Previously, visiting rooms or replacing effect chains could accumulate disconnected reverb and delay processors, consuming audio-thread time and causing crackles during long sessions. Bypassed effects remain reusable, and effects still render their tails when an upstream sound ends.
+
 ## [0.34.0] - 2026-10-03
 
 ### ⚠ Breaking

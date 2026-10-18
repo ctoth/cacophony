@@ -1,3 +1,5 @@
+import { registerEffectProcessor } from "./register-effect";
+
 import { type ShapeMode, TREMOLO_DEFAULTS, type TremoloParams, TremoloProcessor } from "./tremolo-core";
 
 /*
@@ -82,7 +84,7 @@ export class TremoloWorkletProcessor extends AudioWorkletProcessor {
 
 console.info(`${WORKLET_LOG_PREFIX} module evaluating`);
 try {
-  registerProcessor("tremolo", TremoloWorkletProcessor);
+  registerEffectProcessor("tremolo", TremoloWorkletProcessor);
   console.info(`${WORKLET_LOG_PREFIX} registerProcessor complete`);
 } catch (error) {
   console.error(`${WORKLET_LOG_PREFIX} registerProcessor failed`, error);

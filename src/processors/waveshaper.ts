@@ -1,3 +1,5 @@
+import { registerEffectProcessor } from "./register-effect";
+
 import { type WaveshaperParams, WaveshaperProcessor, type WaveshaperShape } from "./waveshaper-core";
 
 /*
@@ -80,7 +82,7 @@ export class WaveshaperWorkletProcessor extends AudioWorkletProcessor {
 
 console.info(`${WORKLET_LOG_PREFIX} module evaluating`);
 try {
-  registerProcessor("waveshaper", WaveshaperWorkletProcessor);
+  registerEffectProcessor("waveshaper", WaveshaperWorkletProcessor);
   console.info(`${WORKLET_LOG_PREFIX} registerProcessor complete`);
 } catch (error) {
   console.error(`${WORKLET_LOG_PREFIX} registerProcessor failed`, error);

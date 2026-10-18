@@ -1,6 +1,7 @@
 import FFT from "fft.js";
 import OLAProcessor from "./ola";
 import { computeMagnitudes, findPeaks, PeakRotatorState, shiftPeaks } from "./phase-vocoder-core";
+import { registerEffectProcessor } from "./register-effect";
 
 const BLOCK_SIZE = 2048;
 
@@ -107,4 +108,4 @@ export class HarmonizerWorkletProcessor extends OLAProcessor {
   }
 }
 
-registerProcessor("harmonizer", HarmonizerWorkletProcessor);
+registerEffectProcessor("harmonizer", HarmonizerWorkletProcessor);

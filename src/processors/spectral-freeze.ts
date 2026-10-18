@@ -1,5 +1,6 @@
 import FFT from "fft.js";
 import OLAProcessor from "./ola";
+import { registerEffectProcessor } from "./register-effect";
 import { SpectralFreezeState } from "./spectral-freeze-core";
 
 const BLOCK_SIZE = 2048;
@@ -52,4 +53,4 @@ export class SpectralFreezeWorkletProcessor extends OLAProcessor {
   }
 }
 
-registerProcessor("spectral-freeze", SpectralFreezeWorkletProcessor);
+registerEffectProcessor("spectral-freeze", SpectralFreezeWorkletProcessor);
