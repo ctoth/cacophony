@@ -17,6 +17,8 @@ someone upgrading, not as a commit message. `npm version` stamps the release; se
 
 ## [Unreleased]
 
+## [0.35.0] - 2026-10-18
+
 ### ⚠ Breaking
 - Direct calls to a worklet effect's `build(context)` now return an owned `BuiltEffectGraph`. Use its `input` and `output` endpoints for manual routing and call `dispose()` when finished. `Bus.addFilter()` and source effect APIs still return the node handle and manage disposal for you.
 
@@ -1432,7 +1434,8 @@ _0.1.0–0.1.2 were published to npm but not tagged; this block covers everythin
 - Sounds loaded from URLs are cached with the browser Cache API (`CacheManager`), and concurrent loads of the same URL are de-duplicated.
 - `Playback.fadeIn()` and `Playback.fadeOut()` with `'linear'` or `'exponential'` fades.
 
-[Unreleased]: https://github.com/ctoth/cacophony/compare/v0.34.0...HEAD
+[Unreleased]: https://github.com/ctoth/cacophony/compare/v0.35.0...HEAD
+[0.35.0]: https://github.com/ctoth/cacophony/compare/v0.34.0...v0.35.0
 [0.34.0]: https://github.com/ctoth/cacophony/compare/v0.33.0...v0.34.0
 [0.33.0]: https://github.com/ctoth/cacophony/compare/v0.32.1...v0.33.0
 [0.32.1]: https://github.com/ctoth/cacophony/compare/v0.32.0...v0.32.1
