@@ -55,6 +55,9 @@
           const prepared = { offset, mediaOffset: media.currentTime, paused: media.paused, state: voice.state, playEvents, silentPeak };
           const playing = new Promise((resolve) => voice.on("play", resolve));
           voice.play();
+          // Measure the selected start position before waiting for output samples.
+          // Engines can advance media substantially while priming their analyser.
+          const playOffset = media.currentTime;
           await playing;
           let playingPeak = 0;
           const start = performance.now();
@@ -63,7 +66,7 @@
             analyser.getFloatTimeDomainData(samples);
             playingPeak = Math.max(playingPeak, ...samples.map(Math.abs));
           }
-          return { ...prepared, playingPeak, playOffset: media.currentTime, afterPlayEvents: playEvents };
+          return { ...prepared, playingPeak, playOffset, afterPlayEvents: playEvents };
         } finally {
           sound?.cleanup();
           engine.dispose();
