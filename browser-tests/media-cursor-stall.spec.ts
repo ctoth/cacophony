@@ -3,11 +3,11 @@ import { expect, test } from "@playwright/test";
 
 test("HTML currentTime follows a real network buffering stall", async ({ page, browserName }) => {
   const rate = 24_000;
-  // Chromium waits for more startup data than Firefox before accepting play().
-  // Both fixtures must begin playback before the withheld suffix is released.
-  const seconds = browserName === "chromium" ? 30 : 4;
-  const initialSeconds = browserName === "chromium" ? 5 : 1;
-  const delayMs = browserName === "chromium" ? 8000 : 4000;
+  // Different native demuxers need different amounts of startup data. Retain
+  // the withheld middle until cleanup, while serving small range probes so
+  // WebKit can inspect the WAV header/tail before accepting progressive play.
+  const seconds = browserName === "firefox" ? 4 : 30;
+  const initialSeconds = browserName === "firefox" ? 1 : 5;
   const split = 44 + rate * 2 * initialSeconds;
   const bytes = Buffer.alloc(44 + rate * 2 * seconds);
   bytes.write("RIFF");
@@ -24,23 +24,25 @@ test("HTML currentTime follows a real network buffering stall", async ({ page, b
   bytes.writeUInt32LE(bytes.length - 44, 40);
   for (let i = 0; i < rate * seconds; i++)
     bytes.writeInt16LE(Math.sin((i * 2 * Math.PI * 440) / rate) * 12_000, 44 + i * 2);
-  const timers = new Set<ReturnType<typeof setTimeout>>();
-  const server = createServer((_request, response) => {
-    response.writeHead(200, {
+  const server = createServer((request, response) => {
+    const range = /^bytes=(\d+)-(\d*)$/.exec(request.headers.range ?? "");
+    const start = range ? Number(range[1]) : 0;
+    const end = range?.[2] ? Math.min(bytes.length - 1, Number(range[2])) : bytes.length - 1;
+    if (start > end || start >= bytes.length) {
+      response.writeHead(416);
+      response.end();
+      return;
+    }
+    response.writeHead(range ? 206 : 200, {
       "Content-Type": "audio/wav",
-      "Content-Length": bytes.length,
+      "Content-Length": end - start + 1,
       "Access-Control-Allow-Origin": "*",
+      "Accept-Ranges": "bytes",
+      ...(range ? { "Content-Range": `bytes ${start}-${end}/${bytes.length}` } : {}),
     });
-    response.write(bytes.subarray(0, split));
-    const timer = setTimeout(() => {
-      timers.delete(timer);
-      response.end(bytes.subarray(split));
-    }, delayMs);
-    timers.add(timer);
-    response.on("close", () => {
-      clearTimeout(timer);
-      timers.delete(timer);
-    });
+    if (end < split || start >= bytes.length - 8192) response.end(bytes.subarray(start, end + 1));
+    else if (start < split) response.write(bytes.subarray(start, split));
+    else response.flushHeaders();
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   try {
@@ -85,7 +87,6 @@ test("HTML currentTime follows a real network buffering stall", async ({ page, b
     expect(result.actual).toBeCloseTo(result.frozen, 2);
     expect(result.observed).toBeCloseTo(result.actual, 2);
   } finally {
-    for (const timer of timers) clearTimeout(timer);
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }

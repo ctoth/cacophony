@@ -17,8 +17,12 @@ someone upgrading, not as a commit message. `npm version` stamps the release; se
 
 ## [Unreleased]
 
+### Added
+- Buffer `Playback.setLoopRegion(L, R)` and `scheduleStop(atAudioSeconds)` keep clip loops and finite repeated playback on the native audio clock, without polling past R or restarting every pass. `Sound.supportsClipLoop` and `Playback.supportsClipLoop` identify decoded-buffer support; HTML media rejects these exact-boundary operations. Explicit clips accept zero or infinite loop mode, preserve bounds through pause/resume, and clone from their folded live position; an armed absolute end cannot be cloned.
+
 ### Fixed
 - Playing HTML media now reports its actual source position through `Playback.currentTime`, including network buffering stalls and native loop wraps, so synchronization can detect real drift.
+- Native whole-buffer infinite playback now reports a wrapped cursor consistently through rate changes and pause/resume.
 
 ## [0.36.0] - 2026-10-18
 

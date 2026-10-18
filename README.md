@@ -481,6 +481,41 @@ sound.play();
 sound.loop(0);
 ```
 
+Decoded buffer voices can enforce clip boundaries on the audio render clock:
+
+```typescript
+const sound = await cacophony.createSound('loop.wav', 'buffer');
+if (!sound.supportsClipLoop) throw new Error('A decoded buffer is required');
+const [voice] = sound.preplay();
+voice.setLoopRegion(1, 3);           // Sound-relative seconds: L=1, R=3
+voice.loop('infinite');             // Native, continuous R-to-L wrapping
+await voice.prepareSeek(1);
+const at = cacophony.context.currentTime + 0.25;
+voice.play({ at });
+voice.scheduleStop(at + 6);         // Three passes at rate1; ends at the final R
+```
+
+Configure bounds while idle or paused, before seeking. They must span at least
+one decoded sample within the Sound duration. Seeking to or beyond R rejects;
+an offset before L plays the prefix once. With explicit bounds, `loop(0)` plays
+once and ends at R; `'infinite'` wraps natively. Numeric repeat counts and
+per-loop fades reject. For finite repeated clips use native infinite looping
+and one `scheduleStop()` deadline, as above. Sprite bounds remain Sound-relative.
+
+`scheduleStop()` accepts an absolute AudioContext time after `play()`, including
+a future scheduled start. Stopping before that onset prevents all onset audio;
+a past deadline stops now. Changing playback rate leaves the absolute deadline
+unchanged. Calling it again replaces the deadline on the same source. Pause,
+seek, source recreation, stop and cleanup revoke it; arm it again after resume.
+Legacy numeric repeats and ended-time fade-outs cannot share a scheduled end.
+It cuts the source; downstream effects retain their ordinary tails.
+
+HTML media does not support these exact bounds or scheduled ends and throws
+`NotSupportedError`. `supportsClipLoop` checks the actual Sound/Playback buffer
+representation; it does not fetch or decode a URL. A configured clip clone
+copies its bounds and folded live position, while cloning an armed absolute end
+rejects before allocation. Replace the voice to remove its explicit bounds.
+
 ## Volume Control
 
 Cacophony provides a hierarchical volume control system:
