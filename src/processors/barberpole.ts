@@ -1,4 +1,5 @@
 import { BarberpoleCore } from "./barberpole-core";
+import { registerEffectProcessor } from "./register-effect";
 
 export class BarberpoleWorkletProcessor extends AudioWorkletProcessor {
   private cores: BarberpoleCore[] = [];
@@ -30,4 +31,4 @@ export class BarberpoleWorkletProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor("barberpole", BarberpoleWorkletProcessor);
+registerEffectProcessor("barberpole", BarberpoleWorkletProcessor);

@@ -1,4 +1,5 @@
 import { DYNAMICS_DEFAULTS, type DynamicsParams, DynamicsProcessor } from "./dynamics-core";
+import { registerEffectProcessor } from "./register-effect";
 
 /*
  * Dynamics AudioWorklet shell — thin AudioWorkletProcessor that delegates ALL
@@ -82,7 +83,7 @@ export class DynamicsWorkletProcessor extends AudioWorkletProcessor {
 
 console.info(`${WORKLET_LOG_PREFIX} module evaluating`);
 try {
-  registerProcessor("dynamics", DynamicsWorkletProcessor);
+  registerEffectProcessor("dynamics", DynamicsWorkletProcessor);
   console.info(`${WORKLET_LOG_PREFIX} registerProcessor complete`);
 } catch (error) {
   console.error(`${WORKLET_LOG_PREFIX} registerProcessor failed`, error);

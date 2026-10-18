@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8"><title>Effect retirement</title></head>
+  <body><script type="module">
+    import { Cacophony } from "/src/cacophony.ts";
+    window.testEffectRetirement = async (kind) => {
+      const context = new AudioContext();
+      const audio = new Cacophony(context, undefined, { autoUnlock: false, autoRecover: false, quiet: true });
+      audio.setGlobalVolume(0);
+      const bus = audio.createBus("retirement");
+      const source = context.createConstantSource();
+      source.offset.value = 0.25;
+      const analyser = context.createAnalyser();
+      analyser.fftSize = 256;
+      const mute = context.createGain();
+      mute.gain.value = 0;
+      analyser.connect(mute);
+      mute.connect(context.destination);
+      let node;
+      try {
+        const effect = kind === "fdn" ? audio.createFdnReverb({ mix: 0 })
+          : kind === "reverb" ? audio.createReverb({ dry: 1, wet: 0 })
+          : audio.createDelay({ blend: 1, feedforward: 0, feedback: 0 });
+        node = await bus.addFilter(effect);
+        source.connect(bus.input);
+        node.connect(analyser);
+        source.start();
+        await context.resume();
+        const samples = new Float32Array(analyser.fftSize);
+        const peak = () => { analyser.getFloatTimeDomainData(samples); return Math.max(...samples.map(Math.abs)); };
+        const until = async (predicate) => {
+          const deadline = performance.now() + 5000;
+          while (!predicate()) {
+            if (performance.now() > deadline) throw new Error("Audio condition timed out");
+            await new Promise(resolve => setTimeout(resolve, 10));
+          }
+        };
+        await until(() => peak() > 0.1);
+        const retired = new Promise(resolve => {
+          node.port.addEventListener("message", event => { if (event.data === "cacophony:disposed") resolve(); });
+          node.port.start();
+        });
+        bus.removeFilter(node);
+        await Promise.race([retired, new Promise((_, reject) => setTimeout(() => reject(new Error("No retirement acknowledgement")), 5000))]);
+        // A retained node must not restart DSP when somebody reconnects it.
+        source.connect(node);
+        node.connect(analyser);
+        const after = context.currentTime + 0.1;
+        await until(() => context.currentTime > after);
+        return { retainedFilters: bus.filters.length, retiredPeak: peak() };
+      } finally {
+        source.stop(); source.disconnect(); node?.disconnect(); analyser.disconnect(); mute.disconnect();
+        bus.destroy(); audio.dispose(); await context.close();
+      }
+    };
+  </script></body>
+</html>

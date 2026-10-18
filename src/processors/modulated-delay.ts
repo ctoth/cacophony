@@ -4,6 +4,7 @@ import {
   type ModulatedDelayParams,
   ModulatedDelayProcessor,
 } from "./modulated-delay-core";
+import { registerEffectProcessor } from "./register-effect";
 
 /*
  * Modulated-delay AudioWorklet shell — thin AudioWorkletProcessor that delegates
@@ -106,7 +107,7 @@ export class ModulatedDelayWorkletProcessor extends AudioWorkletProcessor {
 
 console.info(`${WORKLET_LOG_PREFIX} module evaluating`);
 try {
-  registerProcessor("modulated-delay", ModulatedDelayWorkletProcessor);
+  registerEffectProcessor("modulated-delay", ModulatedDelayWorkletProcessor);
   console.info(`${WORKLET_LOG_PREFIX} registerProcessor complete`);
 } catch (error) {
   console.error(`${WORKLET_LOG_PREFIX} registerProcessor failed`, error);

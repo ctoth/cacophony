@@ -1,3 +1,5 @@
+import { registerEffectProcessor } from "./register-effect";
+
 /*
 Dattorro Reverb AudioWorklet Implementation
 Original JavaScript implementation by Khôi Nguyễn (khoin)
@@ -262,5 +264,5 @@ export class DattorroReverbProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor("dattorro-reverb", DattorroReverbProcessor);
+registerEffectProcessor("dattorro-reverb", DattorroReverbProcessor);
 console.log("DattorroReverbProcessor registered");

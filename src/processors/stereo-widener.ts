@@ -1,3 +1,5 @@
+import { registerEffectProcessor } from "./register-effect";
+
 import { StereoWidenerCore } from "./stereo-widener-core";
 
 export class StereoWidenerWorkletProcessor extends AudioWorkletProcessor {
@@ -38,4 +40,4 @@ export class StereoWidenerWorkletProcessor extends AudioWorkletProcessor {
   }
 }
 
-registerProcessor("stereo-widener", StereoWidenerWorkletProcessor);
+registerEffectProcessor("stereo-widener", StereoWidenerWorkletProcessor);

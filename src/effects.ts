@@ -110,12 +110,32 @@ export abstract class WorkletEffect<O extends object> implements CacophonyEffect
     return { ...options } as Record<string, number>;
   }
 
-  build(context: BaseContext): Promise<AudioWorkletNode> {
+  async build(context: BaseContext): Promise<BuiltEffectGraph> {
     const parameterData = this.toParameterData(this.options);
-    return this.nodeOptions
+    const node = await (this.nodeOptions
       ? this.host.buildWorkletEffect(this.worklet, parameterData, context, this.nodeOptions)
-      : this.host.buildWorkletEffect(this.worklet, parameterData, context);
+      : this.host.buildWorkletEffect(this.worklet, parameterData, context));
+    return ownedWorklet(node);
   }
+}
+
+/** Disconnecting an AudioWorkletNode does not stop a processor that returns true. */
+function ownedWorklet(node: AudioWorkletNode): BuiltEffectGraph {
+  let disposed = false;
+  return {
+    handle: node,
+    input: node,
+    output: node,
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      try {
+        node.port.postMessage("cacophony:dispose");
+      } finally {
+        node.disconnect();
+      }
+    },
+  };
 }
 
 /**
@@ -754,8 +774,8 @@ export class StereoWidenerEffect implements CacophonyEffect {
     private readonly options: StereoWidenerOptions = {},
   ) {}
 
-  build(context: BaseContext): Promise<AudioWorkletNode> {
-    return this.host.buildWorkletEffect(
+  async build(context: BaseContext): Promise<BuiltEffectGraph> {
+    const node = await this.host.buildWorkletEffect(
       WORKLETS.stereoWidener,
       { ...this.options } as Record<string, number>,
       context,
@@ -768,6 +788,7 @@ export class StereoWidenerEffect implements CacophonyEffect {
         channelInterpretation: "speakers",
       },
     );
+    return ownedWorklet(node);
   }
 }
 

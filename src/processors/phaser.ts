@@ -1,4 +1,5 @@
 import { PHASER_DEFAULTS, type PhaserParams, PhaserProcessor } from "./phaser-core";
+import { registerEffectProcessor } from "./register-effect";
 
 /*
  * Phaser AudioWorklet shell — thin AudioWorkletProcessor that delegates ALL DSP
@@ -77,7 +78,7 @@ export class PhaserWorkletProcessor extends AudioWorkletProcessor {
 
 console.info(`${WORKLET_LOG_PREFIX} module evaluating`);
 try {
-  registerProcessor("phaser", PhaserWorkletProcessor);
+  registerEffectProcessor("phaser", PhaserWorkletProcessor);
   console.info(`${WORKLET_LOG_PREFIX} registerProcessor complete`);
 } catch (error) {
   console.error(`${WORKLET_LOG_PREFIX} registerProcessor failed`, error);
