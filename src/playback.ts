@@ -947,6 +947,13 @@ export class Playback extends BasePlayback implements BaseSound {
         this.startBufferSource(restartAt);
         return this.loopCount;
       }
+      if (changesInfiniteMode && this._state === "playing" && "buffer" in this.source) {
+        // Whole-buffer mode changes keep their native source and its deadline.
+        // Commit the cursor under the old mode before changing how it folds.
+        const elapsed = Math.max(0, (this.context.currentTime - this._startTime) * this._playbackRate);
+        this._offset = this.regionRelativeOffset(this._offset + elapsed, previousLoopCount);
+        this._startTime = Math.max(this._startTime, this.context.currentTime);
+      }
       this.loopCount = nextLoopCount;
       this.currentLoop = 0;
     }

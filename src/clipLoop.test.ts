@@ -141,6 +141,26 @@ describe("native clip bounds", () => {
     voice.pause();
     expect(voice.currentTime).toBeCloseTo(2);
   });
+  it("reanchors a whole-buffer loop mode change without replacing its source or armed deadline", () => {
+    const { voice } = make();
+    voice.loop("infinite");
+    voice.play();
+    voice.scheduleStop(12);
+    const source = sourceOf(voice);
+    clock = 9;
+    expect(voice.currentTime).toBe(1);
+    voice.loop(0);
+    expect(voice.source).toBe(source);
+    expect(source.loop).toBe(false);
+    expect(source.stop).toHaveBeenCalledExactlyOnceWith(12);
+    expect(voice.currentTime).toBe(1);
+    clock = 10;
+    expect(voice.currentTime).toBe(2);
+    voice.pause();
+    expect(voice.currentTime).toBe(2);
+    voice.play();
+    expect(sourceOf(voice).start).toHaveBeenCalledWith(0, 2);
+  });
   it("recreates bounded loop mode switches at the folded position and preserves future anchors", () => {
     const { voice } = make();
     voice.setLoopRegion(1, 2);
