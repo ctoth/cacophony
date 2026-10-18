@@ -2,7 +2,7 @@ import { AudioBuffer } from "standardized-audio-context-mock";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MediaElementSourceNode } from "./context";
 import { Playback } from "./playback";
-import { audioContextMock } from "./setupTests";
+import { audioContextMock, expectPath, expectReachable } from "./setupTests";
 import { Sound } from "./sound";
 
 class Media extends EventTarget {
@@ -219,6 +219,36 @@ describe("Playback.prepareSeek", () => {
     });
     await expect(voice.prepareSeek(0)).rejects.toThrow("Observer failure");
     expect(media.play).not.toHaveBeenCalled();
+  });
+
+  it("gates paused media seek output until accepted playback, reuses the gate, and disconnects it", async () => {
+    const media = new Media();
+    media.ready();
+    const voice = makeVoice(media);
+    const source = voice.source!;
+    const createGain = vi.spyOn(audioContextMock, "createGain");
+    const pending = voice.prepareSeek(3);
+    const gate = createGain.mock.results[0].value;
+    const setGate = vi.spyOn(gate.gain, "setValueAtTime");
+    expect(gate.gain.value).toBe(0);
+    expectPath(source, [], gate);
+    expectReachable(gate, voice.outputNode);
+    media.dispatchEvent(new Event("seeked"));
+    await pending;
+    expect(setGate).not.toHaveBeenCalledWith(1, expect.anything());
+    voice.play();
+    await Promise.resolve();
+    expect(setGate).toHaveBeenLastCalledWith(1, audioContextMock.currentTime);
+    voice.pause();
+    expect(setGate).toHaveBeenLastCalledWith(0, audioContextMock.currentTime);
+    await voice.prepareSeek(3);
+    expect(createGain).toHaveBeenCalledTimes(1);
+    voice.setPanType("stereo", audioContextMock);
+    expectPath(source, [], gate);
+    expectReachable(gate, voice.outputNode);
+    const disconnect = vi.spyOn(gate, "disconnect");
+    voice.cleanup();
+    expect(disconnect).toHaveBeenCalled();
   });
 
   it("propagates media failure without committing offset", async () => {

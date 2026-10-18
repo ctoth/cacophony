@@ -1526,6 +1526,9 @@ duration metadata, a seekable range containing the requested offset, and complet
 seeking with current audio data. It never calls `play()` or resumes/unlocks the
 audio context. Offset `0` is valid; negative, non-finite, and beyond-duration
 offsets reject. Live or unknown-duration media rejects with `NotSupportedError`.
+A per-voice input gate keeps paused decoding silent, including browsers that emit
+decoded samples while seeking. It opens after explicit playback is accepted and
+closes on pause, stop, or cleanup, independently of volume and effect settings.
 Readiness is bounded by `timeoutMs` (positive finite milliseconds up to
 2,147,483,647, default 10,000),
 rejecting with `TimeoutError` if the target never becomes seekable or ready.

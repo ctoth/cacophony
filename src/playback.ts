@@ -67,6 +67,8 @@ export class Playback extends BasePlayback implements BaseSound {
    */
   private _mediaPlayPromise?: Promise<void>;
   private _cancelPrepareSeek?: () => void;
+  /** Isolates paused media decoding (notably WebKit seek output) from the graph. */
+  private _mediaPreparationGate?: GainNode;
   _fadeInConfig?: { duration: number; type: FadeType; perLoop: boolean; targetVolume: number };
   _fadeOutConfig?: { duration: number; type: FadeType };
   _loopEndCallback?: () => void;
@@ -145,7 +147,7 @@ export class Playback extends BasePlayback implements BaseSound {
 
   protected override setEffectChainEndpoints(input: AudioNode, output: AudioNode): void {
     this._occlusion?.setOutput(output);
-    super.setEffectChainEndpoints(input, this._occlusion?.input ?? output);
+    super.setEffectChainEndpoints(this._mediaPreparationGate ?? input, this._occlusion?.input ?? output);
   }
 
   /**
@@ -399,6 +401,7 @@ export class Playback extends BasePlayback implements BaseSound {
   }
 
   protected override emitPlayStarted(isResume: boolean): void {
+    this._mediaPreparationGate?.gain.setValueAtTime(1, this.context.currentTime);
     // A stopped voice may have been reaped by Sound.preplay() or natural end.
     // Restore ownership only after its source has successfully started.
     if (this._state === "stopped" && !this.origin.playbacks.includes(this)) {
@@ -417,6 +420,7 @@ export class Playback extends BasePlayback implements BaseSound {
     this._mediaPlayPromise = undefined;
 
     if ("mediaElement" in this.source && this.source.mediaElement) {
+      this._mediaPreparationGate?.gain.setValueAtTime(0, this.context.currentTime);
       this.source.mediaElement.pause();
       // The context keeps advancing through network stalls and native loops.
       // Resume from the element's real position, never an elapsed-time guess.
@@ -438,6 +442,7 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Cannot stop a sound that has been cleaned up");
     }
     this._cancelPrepareSeek?.();
+    this._mediaPreparationGate?.gain.setValueAtTime(0, this.context.currentTime);
     const pendingMediaPlay = this._mediaPlayPromise !== undefined;
     this._mediaPlayPromise = undefined;
     if (!pendingMediaPlay && (this._state === "stopped" || this._state === "unplayed")) {
@@ -539,6 +544,14 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     const media = source.mediaElement;
     if (!media.paused) throw new Error("Pause playback before preparing a seek");
+    if (!this._mediaPreparationGate) {
+      const gate = this.context.createGain();
+      gate.gain.value = 0;
+      this._mediaPreparationGate = gate;
+      this.setEffectChainEndpoints(source, this.panner!);
+      source.connect(gate);
+    }
+    this._mediaPreparationGate.gain.setValueAtTime(0, this.context.currentTime);
     await new Promise<void>((resolve, reject) => {
       let finished = false;
       let requested = false;
@@ -733,6 +746,7 @@ export class Playback extends BasePlayback implements BaseSound {
 
   cleanup(): void {
     this._cancelPrepareSeek?.();
+    this._mediaPreparationGate?.gain.setValueAtTime(0, this.context.currentTime);
     this._mediaPlayPromise = undefined;
     if (!this.source) {
       return; // Already cleaned up
@@ -764,6 +778,8 @@ export class Playback extends BasePlayback implements BaseSound {
     this.source.disconnect();
     this.source = undefined;
     super.cleanup();
+    this._mediaPreparationGate?.disconnect();
+    this._mediaPreparationGate = undefined;
     this._occlusion?.destroy();
     this._occlusion = undefined;
   }
