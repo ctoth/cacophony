@@ -17,6 +17,9 @@ someone upgrading, not as a commit message. `npm version` stamps the release; se
 
 ## [Unreleased]
 
+### Fixed
+- Playing HTML media now reports its actual source position through `Playback.currentTime`, including network buffering stalls and native loop wraps, so synchronization can detect real drift.
+
 ## [0.36.0] - 2026-10-18
 
 ### Added

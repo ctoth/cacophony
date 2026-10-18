@@ -675,8 +675,14 @@ export class Playback extends BasePlayback implements BaseSound {
     this.emit("seek", time);
   }
 
+  /**
+   * Current source position in seconds. Playing HTML media reports its observed
+   * cursor, including buffering stalls and native loop wraps. Buffer playback
+   * follows the render clock; idle and paused voices retain their committed offset.
+   */
   get currentTime(): number {
     if (this._state === "playing") {
+      if (this.source && "mediaElement" in this.source) return this.source.mediaElement.currentTime;
       const elapsed = Math.max(0, (this.context.currentTime - this._startTime) * this._playbackRate);
       const time = this._offset + elapsed;
       return this.regionRelativeOffset(time);
