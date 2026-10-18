@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="UTF-8" /><title>Silent media seek preparation</title></head>
+  <body>
+    <script type="module">
+      import { Cacophony } from "/src/cacophony.ts";
+
+      function toneUrl() {
+        const rate = 24000;
+        const frames = rate * 4;
+        const bytes = new ArrayBuffer(44 + frames * 2);
+        const view = new DataView(bytes);
+        const text = (offset, value) => [...value].forEach((char, i) => view.setUint8(offset + i, char.charCodeAt(0)));
+        text(0, "RIFF"); view.setUint32(4, bytes.byteLength - 8, true); text(8, "WAVE");
+        text(12, "fmt "); view.setUint32(16, 16, true); view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true); view.setUint32(24, rate, true); view.setUint32(28, rate * 2, true);
+        view.setUint16(32, 2, true); view.setUint16(34, 16, true); text(36, "data");
+        view.setUint32(40, frames * 2, true);
+        for (let i = 0; i < frames; i++) view.setInt16(44 + i * 2, i < rate / 2 ? 0 : Math.sin(i * 2 * Math.PI * 440 / rate) * 12000, true);
+        return URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
+      }
+      const frame = () => new Promise(requestAnimationFrame);
+      window.prepareSeekCheck = async (cancelMode) => {
+        const context = new AudioContext();
+        const engine = new Cacophony(context, undefined, { autoUnlock: false, autoRecover: false, quiet: true });
+        const url = toneUrl();
+        let sound;
+        try {
+          await context.resume();
+          sound = await engine.createSound(url, "html", "stereo");
+          const [voice] = sound.preplay();
+          const media = voice.source.mediaElement;
+          let playEvents = 0;
+          media.addEventListener("play", () => playEvents++);
+          if (cancelMode) {
+            const controller = new AbortController();
+            const preparing = voice.prepareSeek(2, { signal: controller.signal });
+            if (cancelMode === "abort") controller.abort();
+            else voice.cleanup();
+            const error = await preparing.then(() => "resolved", (error) => error.name);
+            for (let i = 0; i < 5; i++) await frame();
+            return { error, playEvents, paused: media.paused, state: voice.state, offset: voice.currentTime };
+          }
+          const analyser = context.createAnalyser();
+          voice.connect(analyser);
+          const samples = new Float32Array(analyser.fftSize);
+          await voice.prepareSeek(1.5);
+          const offset = voice.currentTime;
+          let silentPeak = 0;
+          for (let i = 0; i < 5; i++) {
+            await frame();
+            analyser.getFloatTimeDomainData(samples);
+            silentPeak = Math.max(silentPeak, ...samples.map(Math.abs));
+          }
+          const prepared = { offset, mediaOffset: media.currentTime, paused: media.paused, state: voice.state, playEvents, silentPeak };
+          const playing = new Promise((resolve) => voice.on("play", resolve));
+          voice.play();
+          await playing;
+          let playingPeak = 0;
+          const start = performance.now();
+          while (playingPeak < 0.01 && performance.now() - start < 3000) {
+            await frame();
+            analyser.getFloatTimeDomainData(samples);
+            playingPeak = Math.max(playingPeak, ...samples.map(Math.abs));
+          }
+          return { ...prepared, playingPeak, playOffset: media.currentTime, afterPlayEvents: playEvents };
+        } finally {
+          sound?.cleanup();
+          engine.dispose();
+          await context.close();
+          URL.revokeObjectURL(url);
+        }
+      };
+    </script>
+  </body>
+</html>

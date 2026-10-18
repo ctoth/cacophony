@@ -1511,6 +1511,34 @@ different positions, and a collective seek can fail after some voices have moved
 For media elements, the event reports acceptance of the `currentTime` write;
 it does not wait for the browser's asynchronous `seeked` event or playback resumption.
 
+To seek silently before playback, prepare an individual voice:
+
+```typescript
+const [voice] = sound.preplay();
+await voice.prepareSeek(30, { signal: controller.signal, timeoutMs: 10_000 });
+// Still unplayed and silent. Start explicitly when ready.
+voice.play();
+```
+
+`prepareSeek()` accepts idle or paused buffer and media-element voices and retains
+their state. Buffers resolve immediately. Media preparation waits for finite
+duration metadata, a seekable range containing the requested offset, and completed
+seeking with current audio data. It never calls `play()` or resumes/unlocks the
+audio context. Offset `0` is valid; negative, non-finite, and beyond-duration
+offsets reject. Live or unknown-duration media rejects with `NotSupportedError`.
+Readiness is bounded by `timeoutMs` (positive finite milliseconds up to
+2,147,483,647, default 10,000),
+rejecting with `TimeoutError` if the target never becomes seekable or ready.
+
+An abort, a new preparation, or `play()`, `seek()`, `stop()`, or `cleanup()` cancels
+pending work with `AbortError` and removes its listeners and timeout. Already
+requested browser seeks are not rolled back; only successful preparation commits
+the voice's offset and emits `seek`. Await the promise before playing to use that
+offset. Cancellation cannot later start playback or overwrite a newer position.
+HTML media remains subject to browser buffering and autoplay policy and does not
+offer sample-accurate starts. This API does not apply to live microphone or push
+PCM streams.
+
 #### Synth Events
 
 | Event | Payload | Description |
