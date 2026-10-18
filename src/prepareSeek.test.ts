@@ -62,6 +62,7 @@ function makeVoice(media?: Media) {
 }
 afterEach(() => {
   for (const voice of voices.splice(0)) voice.cleanup();
+  vi.restoreAllMocks();
   vi.useRealTimers();
 });
 
@@ -154,6 +155,70 @@ describe("Playback.prepareSeek", () => {
     await Promise.resolve();
     expect(voice.state).toBe("playing");
     expect(media.currentTime).toBe(3);
+  });
+
+  it.each([
+    { label: "ordinary pause", contextTime: 3, mediaTime: 2.997, loop: false },
+    { label: "network stall", contextTime: 100, mediaTime: 1.2, loop: false },
+    { label: "native infinite loop", contextTime: 35, mediaTime: 2, loop: true },
+  ])("resumes at actual media position after $label", async ({ contextTime, mediaTime, loop }) => {
+    const media = new Media();
+    media.ready();
+    let clock = 0;
+    vi.spyOn(audioContextMock, "currentTime", "get").mockImplementation(() => clock);
+    const voice = makeVoice(media);
+    if (loop) voice.loop("infinite");
+    voice.play();
+    await Promise.resolve();
+    clock = contextTime;
+    media.currentTime = mediaTime;
+    voice.pause();
+    expect(voice.currentTime).toBe(mediaTime);
+    let actual = mediaTime;
+    const write = vi.fn((value: number) => {
+      actual = value;
+    });
+    Object.defineProperty(media, "currentTime", { configurable: true, get: () => actual, set: write });
+    voice.play();
+    await Promise.resolve();
+    expect(media.currentTime).toBe(mediaTime);
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    false,
+    true,
+  ])("restores the committed offset after cancelling an already requested seek (paused=%s)", async (paused) => {
+    const media = new Media();
+    media.ready();
+    const voice = makeVoice(media);
+    if (paused) {
+      voice.play();
+      await Promise.resolve();
+      media.currentTime = 1;
+      voice.pause();
+    }
+    const controller = new AbortController();
+    const pending = voice.prepareSeek(4, { signal: controller.signal });
+    expect(media.currentTime).toBe(4);
+    controller.abort();
+    await expect(pending).rejects.toHaveProperty("name", "AbortError");
+    voice.play();
+    await Promise.resolve();
+    media.dispatchEvent(new Event("seeked"));
+    expect(media.currentTime).toBe(paused ? 1 : 0);
+    expect(voice.currentTime).not.toBe(4);
+  });
+
+  it("propagates seek observer errors after successful media preparation", async () => {
+    const media = new Media();
+    media.ready();
+    const voice = makeVoice(media);
+    voice.on("seek", () => {
+      throw new Error("Observer failure");
+    });
+    await expect(voice.prepareSeek(0)).rejects.toThrow("Observer failure");
+    expect(media.play).not.toHaveBeenCalled();
   });
 
   it("propagates media failure without committing offset", async () => {

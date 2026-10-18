@@ -416,15 +416,18 @@ export class Playback extends BasePlayback implements BaseSound {
     // finally runs. That bookkeeping must not block preparing this paused voice.
     this._mediaPlayPromise = undefined;
 
-    const elapsed = Math.max(0, (this.context.currentTime - this._startTime) * this._playbackRate);
-    this._offset = this.regionRelativeOffset(this._offset + elapsed);
-
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this.source.mediaElement.pause();
-    } else if ("stop" in this.source) {
-      // For AudioBufferSourceNode and OscillatorNode, stop the source.
-      // It cannot be restarted; a new one will be created on play().
-      this.source.stop();
+      // The context keeps advancing through network stalls and native loops.
+      // Resume from the element's real position, never an elapsed-time guess.
+      this._offset = this.source.mediaElement.currentTime;
+    } else {
+      const elapsed = Math.max(0, (this.context.currentTime - this._startTime) * this._playbackRate);
+      this._offset = this.regionRelativeOffset(this._offset + elapsed);
+      if ("stop" in this.source) {
+        // Buffer sources cannot be restarted; play() creates a new one.
+        this.source.stop();
+      }
     }
 
     this.emitPaused();
@@ -562,7 +565,6 @@ export class Playback extends BasePlayback implements BaseSound {
         else {
           this._offset = time;
           resolve();
-          this.emit("seek", time);
         }
       };
       const cancel = () => settle(new DOMException("Seek preparation aborted", "AbortError"));
@@ -616,6 +618,9 @@ export class Playback extends BasePlayback implements BaseSound {
       options.signal?.addEventListener("abort", cancel, { once: true });
       inspect();
     });
+    // Notify outside the readiness listener's error boundary: observer errors
+    // reject this async call instead of being swallowed after it has settled.
+    this.emit("seek", time);
   }
 
   seek(time: number): void {

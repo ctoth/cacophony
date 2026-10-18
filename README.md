@@ -1538,6 +1538,8 @@ offset. Cancellation cannot later start playback or overwrite a newer position.
 HTML media remains subject to browser buffering and autoplay policy and does not
 offer sample-accurate starts. This API does not apply to live microphone or push
 PCM streams.
+An offset equal to the duration represents end-of-media; subsequently playing an
+HTML element at its end can restart it from zero under the browser's media rules.
 
 #### Synth Events
 
