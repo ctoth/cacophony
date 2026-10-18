@@ -45,10 +45,19 @@
           voice.pause();
           voice.loop("infinite");
           await voice.prepareSeek(3.8);
+          let previous = media.currentTime;
           await playing();
           const deadline = performance.now() + 4000;
-          while (media.currentTime > 1 && performance.now() < deadline) await frame();
-          return { stalled, wrapped: { cursor: voice.currentTime, media: media.currentTime } };
+          let didWrap = false;
+          // Native media/render callbacks need not arrive within the first
+          // second of a wrapped pass. Observe the cursor discontinuity itself.
+          do {
+            const current = media.currentTime;
+            if (current < previous - 0.5) { didWrap = true; break; }
+            previous = current;
+            await frame();
+          } while (performance.now() < deadline);
+          return { stalled, wrapped: { cursor: voice.currentTime, media: media.currentTime, didWrap } };
         } finally {
           sound?.cleanup(); engine.dispose(); await context.close(); URL.revokeObjectURL(url);
         }

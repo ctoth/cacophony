@@ -4,7 +4,7 @@ declare global {
   interface Window {
     mediaCursorCheck(): Promise<{
       stalled: { cursor: number; media: number; frozen: number; state: string };
-      wrapped: { cursor: number; media: number };
+      wrapped: { cursor: number; media: number; didWrap: boolean };
     }>;
     prepareSeekCheck(cancelMode?: "abort" | "cleanup"): Promise<{
       offset: number;
@@ -33,7 +33,7 @@ test("playing HTML currentTime observes a stalled media clock and native loop wr
   expect(result.stalled.state).toBe("playing");
   expect(result.stalled.cursor).toBeCloseTo(result.stalled.media, 3);
   expect(result.stalled.media).toBeCloseTo(result.stalled.frozen, 3);
-  expect(result.wrapped.media).toBeLessThan(1);
+  expect(result.wrapped.didWrap).toBe(true);
   expect(result.wrapped.cursor).toBeCloseTo(result.wrapped.media, 2);
 });
 
