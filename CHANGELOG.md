@@ -17,12 +17,6 @@ someone upgrading, not as a commit message. `npm version` stamps the release; se
 
 ## [Unreleased]
 
-### Added
-- `Playback.prepareSeek(time, { signal, timeoutMs })` silently prepares an idle or paused voice at a finite offset. Media voices wait for metadata and completed seeking before resolving; cancellation and timeout release readiness listeners without starting audio.
-
-### Fixed
-- Paused media voices resume from the media element's actual position, including after buffering stalls and native infinite loops.
-
 ## [0.35.0] - 2026-10-18
 
 ### ⚠ Breaking
