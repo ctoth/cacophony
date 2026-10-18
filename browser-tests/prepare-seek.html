@@ -20,48 +20,6 @@
         return URL.createObjectURL(new Blob([bytes], { type: "audio/wav" }));
       }
       const frame = () => new Promise(requestAnimationFrame);
-      window.mediaCursorCheck = async () => {
-        const context = new AudioContext();
-        const engine = new Cacophony(context, undefined, { autoUnlock: false, autoRecover: false, quiet: true });
-        const url = toneUrl();
-        let sound;
-        try {
-          await context.resume();
-          sound = await engine.createSound(url, "html", "stereo");
-          const [voice] = sound.preplay();
-          const media = voice.source.mediaElement;
-          const playing = () => new Promise(resolve => {
-            const remove = voice.on("play", () => { remove(); resolve(); });
-            voice.play();
-          });
-          await playing();
-          await frame();
-          // A native element pause freezes the actual media clock while the
-          // Playback and render clock remain playing, as during buffering.
-          media.pause();
-          const frozen = media.currentTime, until = context.currentTime + 0.2;
-          while (context.currentTime < until) await frame();
-          const stalled = { cursor: voice.currentTime, media: media.currentTime, frozen, state: voice.state };
-          voice.pause();
-          voice.loop("infinite");
-          await voice.prepareSeek(3.8);
-          let previous = media.currentTime;
-          await playing();
-          const deadline = performance.now() + 4000;
-          let didWrap = false;
-          // Native media/render callbacks need not arrive within the first
-          // second of a wrapped pass. Observe the cursor discontinuity itself.
-          do {
-            const current = media.currentTime;
-            if (current < previous - 0.5) { didWrap = true; break; }
-            previous = current;
-            await frame();
-          } while (performance.now() < deadline);
-          return { stalled, wrapped: { cursor: voice.currentTime, media: media.currentTime, didWrap } };
-        } finally {
-          sound?.cleanup(); engine.dispose(); await context.close(); URL.revokeObjectURL(url);
-        }
-      };
       window.prepareSeekCheck = async (cancelMode) => {
         const context = new AudioContext();
         const engine = new Cacophony(context, undefined, { autoUnlock: false, autoRecover: false, quiet: true });
