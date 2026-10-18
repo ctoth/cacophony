@@ -105,6 +105,11 @@ export class Sound extends RoutableSource implements BaseSound {
     return this._cacophony;
   }
 
+  /** Whether this asset retains a decoded buffer suitable for native clip loops. */
+  get supportsClipLoop(): boolean {
+    return this.buffer !== undefined;
+  }
+
   get volume(): number {
     return super.volume;
   }
@@ -543,6 +548,7 @@ export class Sound extends RoutableSource implements BaseSound {
     if (loopCount === undefined) {
       return this.loopCount;
     }
+    for (const playback of this.playbacks) playback._validateLoopCount(loopCount);
     this.loopCount = loopCount;
     this.playbacks.forEach((p) => p.loop(loopCount));
     return this.loopCount;

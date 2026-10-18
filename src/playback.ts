@@ -58,6 +58,8 @@ export class Playback extends BasePlayback implements BaseSound {
   private _offset: number = 0;
   private _startTime: number = 0;
   private _playbackRate: number = 1;
+  private _clipRegion?: Readonly<{ start: number; end: number }>;
+  private _scheduledStop?: { source: SourceNode; at: number };
   /**
    * Promise that tracks an in-flight media-element `.play()` settlement.
    * Set when the media element's `play()` returns a pending promise; cleared
@@ -107,7 +109,9 @@ export class Playback extends BasePlayback implements BaseSound {
     if ("mediaElement" in source && source.mediaElement) {
       source.mediaElement.onended = this.loopEnded;
     } else if ("onended" in source) {
-      source.onended = this.loopEnded;
+      source.onended = () => {
+        if (this.source === source) this.loopEnded();
+      };
     } else {
       throw new Error("Unsupported source type");
     }
@@ -180,6 +184,73 @@ export class Playback extends BasePlayback implements BaseSound {
     return this._playbackRate;
   }
 
+  /** Whether this live voice can enforce native buffer clip boundaries. HTML media cannot. */
+  get supportsClipLoop(): boolean {
+    return !!this.source && "buffer" in this.source && !!this.buffer;
+  }
+
+  /**
+   * Configure a hard clip end and native loop points, in Sound-relative seconds.
+   * Configure while idle or paused. loop(0) ends at R; loop("infinite") wraps R to L.
+   * Numeric repeats and per-loop fades are unsupported with explicit bounds.
+   */
+  setLoopRegion(startSeconds: number, endSeconds: number): void {
+    this.assertNotCleanedUp();
+    if (!this.supportsClipLoop) throw new DOMException("Clip bounds require a decoded buffer", "NotSupportedError");
+    if (this._state === "playing") throw new Error("Pause playback before configuring clip bounds");
+    if (
+      !this.buffer ||
+      !Number.isFinite(startSeconds) ||
+      !Number.isFinite(endSeconds) ||
+      startSeconds < 0 ||
+      endSeconds > this.duration ||
+      (endSeconds - startSeconds) * this.buffer.sampleRate +
+        Number.EPSILON *
+          Math.max(1, Math.abs(startSeconds * this.buffer.sampleRate), Math.abs(endSeconds * this.buffer.sampleRate)) *
+          4 <
+        1 ||
+      Math.round(endSeconds * this.buffer.sampleRate) <= Math.round(startSeconds * this.buffer.sampleRate)
+    ) {
+      throw new RangeError("Clip bounds must span at least one sample within the Sound duration");
+    }
+    if (this._offset >= endSeconds) throw new RangeError("The current offset must precede the clip end");
+    if (this.loopCount !== 0 && this.loopCount !== "infinite")
+      throw new Error("Clip bounds support only zero or infinite loop count");
+    if (this._fadeInConfig?.perLoop) throw new Error("Per-loop fades are not supported with clip bounds");
+    this._clipRegion = { start: startSeconds, end: endSeconds };
+    this.configureBufferLoopSource();
+  }
+
+  /**
+   * End this started buffer activation at an absolute AudioContext time.
+   * A deadline before a future onset prevents all onset audio. Past deadlines stop now.
+   * Rate changes do not move this render-clock deadline. A later call replaces it;
+   * pause, seek, source recreation, stop and cleanup revoke it. Downstream effect tails remain.
+   * Legacy numeric repeats and ended-time fade-outs cannot share this per-source deadline.
+   */
+  scheduleStop(atAudioSeconds: number): void {
+    this.assertNotCleanedUp();
+    if (!this.supportsClipLoop || !this.source || !("stop" in this.source))
+      throw new DOMException("Scheduled ends require a decoded buffer", "NotSupportedError");
+    if (!Number.isFinite(atAudioSeconds) || atAudioSeconds < 0)
+      throw new RangeError("End time must be finite and non-negative");
+    if (this._state !== "playing") throw new Error("Start the buffer before scheduling its end");
+    if (this.loopCount !== 0 && this.loopCount !== "infinite")
+      throw new Error("Scheduled ends do not support legacy numeric repeats");
+    if (this._fadeOutConfig) throw new Error("An absolute end cannot use an ended-time fade-out");
+    const at = Math.max(this.context.currentTime, atAudioSeconds);
+    this.source.stop(at);
+    this._scheduledStop = { source: this.source, at };
+  }
+
+  /** @internal Preflight Sound broadcasts and play options before any mutation. */
+  _validateLoopCount(loopCount: LoopCount): void {
+    if (this._clipRegion && loopCount !== 0 && loopCount !== "infinite")
+      throw new Error("Clip bounds support only zero or infinite loop count");
+    if (this._scheduledStop && loopCount !== 0 && loopCount !== "infinite")
+      throw new Error("Scheduled ends do not support legacy numeric repeats");
+  }
+
   get volume(): number {
     return super.volume;
   }
@@ -226,6 +297,18 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source || this._state !== "playing") {
       return;
     }
+    if (this._scheduledStop?.source === this.source) {
+      const source = this.source;
+      this._scheduledStop = undefined;
+      if ("onended" in source) source.onended = null;
+      try {
+        this.emit("ended", undefined);
+      } finally {
+        if (this.source === source && this._state === "playing") this.stop();
+        if (this.source === source && this.state === "stopped") this.removeFromOrigin();
+      }
+      return;
+    }
 
     // For media-element sources, a previous play() may still have a pending
     // settlement promise -- the deferred state transition races with the
@@ -244,11 +327,13 @@ export class Playback extends BasePlayback implements BaseSound {
       return;
     }
 
+    const source = this.source;
     this.currentLoop++;
 
     if (this.loopCount !== "infinite" && this.currentLoop > this.loopCount) {
       // Final iteration -- emit ended, then either fade out or stop immediately
       this.emit("ended", undefined);
+      if (this.source !== source || this._state !== "playing") return;
       if (this._fadeOutConfig) {
         // Guard the chained stop: an external stop()/cleanup() between the
         // fade resolving and this .then would otherwise run stop()/source
@@ -256,17 +341,18 @@ export class Playback extends BasePlayback implements BaseSound {
         // resolves the fade promise synchronously, which is what makes this
         // .then fire at all after a teardown.
         void this.fadeOut(this._fadeOutConfig.duration, this._fadeOutConfig.type).then(() => {
-          if (this._state !== "stopped" && this.source) {
+          if (this._state !== "stopped" && this.source === source) {
             this.stop();
-            this.removeFromOrigin();
+            if (this.source === source && this.state === "stopped") this.removeFromOrigin();
           }
         });
       } else {
         this.stop();
-        this.removeFromOrigin();
+        if (this.source === source && this.state === "stopped") this.removeFromOrigin();
       }
     } else {
       this._loopEndCallback?.();
+      if (this.source !== source || this._state !== "playing") return;
       this.seek(0); // Resets offset and handles play/pause state internally.
       // seek() calls pause() then play() when wasPlaying is true,
       // so play() handles both media-element and buffer sources correctly.
@@ -296,12 +382,18 @@ export class Playback extends BasePlayback implements BaseSound {
     }
 
     validatePlayOptions(options, this.panType, "mediaElement" in this.source ? "media" : "buffer");
+    if (options?.loopCount !== undefined) this._validateLoopCount(options.loopCount);
+    if (this._clipRegion && options?.fadeInPerLoop)
+      throw new Error("Per-loop fades are not supported with clip bounds");
+    if (this._scheduledStop && options?.fadeOut !== undefined)
+      throw new Error("An absolute end cannot use an ended-time fade-out");
 
     if (this._state === "playing") {
       return [this];
     }
 
     this._cancelPrepareSeek?.();
+    this._scheduledStop = undefined;
 
     applyPlayOptions(this, this.context, options);
     if (options?.playbackRate !== undefined) this.playbackRate = options.playbackRate;
@@ -418,6 +510,7 @@ export class Playback extends BasePlayback implements BaseSound {
     // A play listener can pause synchronously before the settled play promise's
     // finally runs. That bookkeeping must not block preparing this paused voice.
     this._mediaPlayPromise = undefined;
+    this._scheduledStop = undefined;
 
     if ("mediaElement" in this.source && this.source.mediaElement) {
       this._mediaPreparationGate?.gain.setValueAtTime(0, this.context.currentTime);
@@ -442,6 +535,7 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Cannot stop a sound that has been cleaned up");
     }
     this._cancelPrepareSeek?.();
+    this._scheduledStop = undefined;
     this._mediaPreparationGate?.gain.setValueAtTime(0, this.context.currentTime);
     const pendingMediaPlay = this._mediaPlayPromise !== undefined;
     this._mediaPlayPromise = undefined;
@@ -473,6 +567,7 @@ export class Playback extends BasePlayback implements BaseSound {
    * @returns {Promise<void>} Resolves when the fade completes.
    */
   fadeIn(duration: number, type?: FadeType, options?: { perLoop?: boolean; startTime?: number }): Promise<void> {
+    if (options?.perLoop && this._clipRegion) throw new Error("Per-loop fades are not supported with clip bounds");
     if (options?.perLoop) {
       this._fadeInConfig = {
         duration,
@@ -490,6 +585,7 @@ export class Playback extends BasePlayback implements BaseSound {
    * @param {FadeType} type - The fade curve type. Defaults to "linear".
    */
   configureFadeOut(duration: number, type?: FadeType): void {
+    if (this._scheduledStop) throw new Error("An absolute end cannot use an ended-time fade-out");
     this._fadeOutConfig = { duration, type: type ?? "linear" };
   }
 
@@ -537,6 +633,7 @@ export class Playback extends BasePlayback implements BaseSound {
     this._cancelPrepareSeek?.();
     const source = this.source!;
     if (!("mediaElement" in source)) {
+      if (this._clipRegion && time >= this._clipRegion.end) throw new RangeError("Seek time must precede the clip end");
       if (!Number.isFinite(this.duration) || time > this.duration) throw new RangeError("Seek time exceeds duration");
       this._offset = time;
       this.emit("seek", time);
@@ -643,6 +740,7 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!Number.isFinite(time) || time < 0 || (this.origin.region !== undefined && time > this.duration)) {
       throw new Error("Invalid time value for seek");
     }
+    if (this._clipRegion && time >= this._clipRegion.end) throw new RangeError("Seek time must precede the clip end");
 
     this._cancelPrepareSeek?.();
 
@@ -675,8 +773,14 @@ export class Playback extends BasePlayback implements BaseSound {
     this.emit("seek", time);
   }
 
+  /**
+   * Current source position in seconds. Playing HTML media reports its observed
+   * cursor, including buffering stalls and native loop wraps. Buffer playback
+   * follows the render clock; idle and paused voices retain their committed offset.
+   */
   get currentTime(): number {
     if (this._state === "playing") {
+      if (this.source && "mediaElement" in this.source) return this.source.mediaElement.currentTime;
       const elapsed = Math.max(0, (this.context.currentTime - this._startTime) * this._playbackRate);
       const time = this._offset + elapsed;
       return this.regionRelativeOffset(time);
@@ -707,9 +811,10 @@ export class Playback extends BasePlayback implements BaseSound {
         this.source.disconnect();
       }
       this.source = this.context.createBufferSource();
+      this._scheduledStop = undefined;
       this.source.buffer = this.buffer;
       this.setEffectChainEndpoints(this.source, this.panner);
-      this.source.onended = this.loopEnded;
+      this.setupSourceNode(this.source);
       this.playbackRate = this._playbackRate;
       this.configureBufferLoopSource();
     } catch (error) {
@@ -745,6 +850,7 @@ export class Playback extends BasePlayback implements BaseSound {
    */
 
   cleanup(): void {
+    this._scheduledStop = undefined;
     this._cancelPrepareSeek?.();
     this._mediaPreparationGate?.gain.setValueAtTime(0, this.context.currentTime);
     this._mediaPlayPromise = undefined;
@@ -812,12 +918,13 @@ export class Playback extends BasePlayback implements BaseSound {
       throw new Error("Cannot loop a sound that has been cleaned up");
     }
     if (loopCount !== undefined) {
+      this._validateLoopCount(loopCount);
       const previousLoopCount = this.loopCount;
       const nextLoopCount = loopCount === "infinite" ? "infinite" : Math.max(0, loopCount);
       const changesInfiniteMode = (previousLoopCount === "infinite") !== (nextLoopCount === "infinite");
       if (
         changesInfiniteMode &&
-        this.origin.region &&
+        (this.origin.region || this._clipRegion) &&
         this._state === "playing" &&
         "loop" in this.source &&
         "stop" in this.source
@@ -832,12 +939,20 @@ export class Playback extends BasePlayback implements BaseSound {
           this.source.onended = null;
         }
         this.source.stop();
+        this._scheduledStop = undefined;
         this.loopCount = nextLoopCount;
         this.currentLoop = 0;
         this._startTime = restartAt;
         this.recreateSource();
         this.startBufferSource(restartAt);
         return this.loopCount;
+      }
+      if (changesInfiniteMode && this._state === "playing" && "buffer" in this.source) {
+        // Whole-buffer mode changes keep their native source and its deadline.
+        // Commit the cursor under the old mode before changing how it folds.
+        const elapsed = Math.max(0, (this.context.currentTime - this._startTime) * this._playbackRate);
+        this._offset = this.regionRelativeOffset(this._offset + elapsed, previousLoopCount);
+        this._startTime = Math.max(this._startTime, this.context.currentTime);
       }
       this.loopCount = nextLoopCount;
       this.currentLoop = 0;
@@ -858,17 +973,26 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source || !("loop" in this.source)) return;
     this.source.loop = this.loopCount === "infinite";
     if (this.source.buffer) {
-      this.source.loopEnd = this.origin.region
-        ? this.origin.region.start + this.origin.region.duration
-        : this.source.buffer.duration;
-      this.source.loopStart = this.origin.region?.start ?? 0;
+      this.source.loopEnd = this._clipRegion
+        ? (this.origin.region?.start ?? 0) + this._clipRegion.end
+        : this.origin.region
+          ? this.origin.region.start + this.origin.region.duration
+          : this.source.buffer.duration;
+      this.source.loopStart = (this.origin.region?.start ?? 0) + (this._clipRegion?.start ?? 0);
     }
   }
 
   /** Clamp finite regions and wrap infinite regions while keeping offsets region-relative. */
   private regionRelativeOffset(offset: number, loopCount: LoopCount = this.loopCount): number {
+    if (this._clipRegion) {
+      const { start, end } = this._clipRegion;
+      return loopCount === "infinite" && offset >= end
+        ? start + ((offset - start) % (end - start))
+        : Math.min(end, offset);
+    }
     const region = this.origin.region;
     if (!region) {
+      if (loopCount === "infinite" && this.buffer && this.buffer.duration > 0) return offset % this.buffer.duration;
       return offset;
     }
     return loopCount === "infinite" ? offset % region.duration : Math.min(region.duration, offset);
@@ -880,6 +1004,13 @@ export class Playback extends BasePlayback implements BaseSound {
       return false;
     }
     const region = this.origin.region;
+    if (this._clipRegion) {
+      if (this._offset >= this._clipRegion.end) return false;
+      const absoluteOffset = (region?.start ?? 0) + this._offset;
+      if (this.loopCount === "infinite") this.source.start(when, absoluteOffset);
+      else this.source.start(when, absoluteOffset, this._clipRegion.end - this._offset);
+      return true;
+    }
     if (!region) {
       this.source.start(when, this._offset);
       return true;
@@ -1033,6 +1164,8 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source || !this.gainNode || !this.context) {
       throw new Error("Cannot clone a sound that has been cleaned up");
     }
+    if (this._scheduledStop) throw new Error("Cannot clone a playback with an armed absolute end");
+    this._validateLoopCount(overrides.loopCount ?? this.loopCount);
     validateSpatialSmoothingTau(overrides.spatialSmoothingTau ?? this.spatialSmoothingTau);
     const panType = overrides.panType ?? this.panType;
     validateSpatialOptions(overrides, panType);
@@ -1063,6 +1196,7 @@ export class Playback extends BasePlayback implements BaseSound {
 
     // Copy all relevant properties
     clone.loopCount = loopCount;
+    clone._clipRegion = this._clipRegion && { ...this._clipRegion };
     clone.currentLoop = this.currentLoop;
     clone.setPanType(panType, this.context);
     clone.spatialSmoothingTau = overrides.spatialSmoothingTau ?? this.spatialSmoothingTau;
@@ -1075,7 +1209,7 @@ export class Playback extends BasePlayback implements BaseSound {
     }
     clone.volume = this.volume;
     clone.playbackRate = this._playbackRate;
-    clone._offset = this._offset;
+    clone._offset = this._clipRegion && this._state === "playing" ? this.currentTime : this._offset;
     clone.setOcclusion(this.occlusion, 0);
     if (this._fadeInConfig) {
       clone._fadeInConfig = { ...this._fadeInConfig };

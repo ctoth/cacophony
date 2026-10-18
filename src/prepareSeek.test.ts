@@ -67,6 +67,41 @@ afterEach(() => {
 });
 
 describe("Playback.prepareSeek", () => {
+  it("rejects precise clip loops and absolute ends on HTML before mutating the media", () => {
+    const media = new Media();
+    media.ready();
+    const voice = makeVoice(media);
+    expect(voice.supportsClipLoop).toBe(false);
+    expect(() => voice.setLoopRegion(1, 2)).toThrow(expect.objectContaining({ name: "NotSupportedError" }));
+    expect(() => voice.scheduleStop(2)).toThrow(expect.objectContaining({ name: "NotSupportedError" }));
+    expect(media.currentTime).toBe(0);
+    expect(media.play).not.toHaveBeenCalled();
+    expect(media.loop).toBe(false);
+  });
+  it("observes playing HTML cursor through stalls, rate changes and native loop wraps", async () => {
+    let clock = 0;
+    vi.spyOn(audioContextMock, "currentTime", "get").mockImplementation(() => clock);
+    const media = new Media();
+    media.ready();
+    const voice = makeVoice(media);
+    voice.play();
+    await Promise.resolve();
+    clock = 5;
+    media.currentTime = 2;
+    expect(voice.currentTime).toBe(2);
+    clock = 8;
+    expect(voice.currentTime).toBe(2);
+    voice.playbackRate = 2;
+    clock = 10;
+    expect(voice.currentTime).toBe(2);
+    voice.loop("infinite");
+    media.currentTime = 0.25;
+    expect(voice.currentTime).toBe(0.25);
+    voice.pause();
+    clock = 12;
+    expect(voice.currentTime).toBe(0.25);
+  });
+
   it.each([
     0,
     -1,

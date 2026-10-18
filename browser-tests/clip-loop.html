@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en"><head><meta charset="UTF-8" /><title>Native clip loop boundaries</title></head>
+<body><script type="module">
+import { Cacophony } from "/src/cacophony.ts";
+async function changedRateCheck(mode) {
+  if (typeof AudioContext !== "function") return { supported: false };
+  const context = new AudioContext({ sampleRate: 48000 });
+  const engine = new Cacophony(context, undefined, { autoUnlock: false, autoRecover: false, quiet: true });
+  const rate = context.sampleRate, buffer = context.createBuffer(2, rate, rate);
+  // Isolate forbidden suffix on an otherwise silent left channel. Firefox's
+  // resampling filter can ring below zero at a positive prefix edge, so signed
+  // prefix/suffix detection would misidentify that unrelated interpolation.
+  buffer.getChannelData(0).fill(-0.4, rate / 2);
+  buffer.getChannelData(1).fill(0.3, rate / 4, rate / 2);
+  const sound = await engine.createSound(buffer, "buffer", "stereo"), [voice] = sound.preplay();
+  await context.audioWorklet.addModule("/browser-tests/clip-capture.js");
+  const capture = new AudioWorkletNode(context, "clip-capture", { outputChannelCount: [2] }), left = [], right = [];
+  let captureFrame;
+  capture.port.onmessage = event => { captureFrame ??= event.data.frame; left.push(...event.data.left); right.push(...event.data.right); };
+  capture.connect(context.destination); voice.disconnect(); voice.connect(capture);
+  voice.setLoopRegion(0.25, 0.5); if (mode === "absolute-rate") voice.loop("infinite");
+  let ended = 0, playEvents = 0; voice.on("ended", () => ended++); voice.on("play", () => playEvents++);
+  try {
+    await context.resume(); const start = context.currentTime + 0.125; voice.play({ at: start });
+    if (mode === "absolute-rate") voice.scheduleStop(start + 1);
+    while (context.currentTime < start + 0.125) await new Promise(resolve => setTimeout(resolve, 5));
+    voice.playbackRate = 2;
+    const until = context.currentTime + 1.5;
+    while (context.currentTime < until) await new Promise(resolve => setTimeout(resolve, 20));
+    const first = right.findIndex(value => value > 0.1), last = right.findLastIndex(value => value > 0.1);
+    const actualEnd = (captureFrame + last + 1) / rate;
+    return { supported: true, interruptedSupported: true, ended, state: voice.state, playEvents,
+      beforeSilent: left.slice(0, 256).every(value => Math.abs(value) < 1e-6) && right.slice(0, 256).every(value => Math.abs(value) < 1e-6),
+      noSuffix: left.every(value => value >= -1e-6), prefix: Math.max(...left) > 0.1, loopAudible: first >= 0,
+      afterSilent: left.slice(-256).every(value => Math.abs(value) < 1e-6) && right.slice(-256).every(value => Math.abs(value) < 1e-6),
+      continuous: first >= 0 && right.slice(first + 128, last - 128).every(value => value > 0.1),
+      // Main-thread currentTime can lag the render thread when a public rate
+      // setter is applied. Measure clip0's known content interval directly;
+      // the separate absolute end is measured against native render frames.
+      endErrorSeconds: mode === "absolute-rate" ? Math.abs(actualEnd - (start + 1)) : Math.abs((last - first + 1) / rate - 0.125),
+      minimumLeft: Math.min(...left), firstLoopFrame: first, lastLoopFrame: last,
+    };
+  } finally { sound.cleanup(); capture.port.postMessage("stop"); capture.disconnect(); engine.dispose(); await context.close(); }
+}
+window.clipLoopCheck = async (mode) => {
+  if (mode === "single-rate" || mode === "absolute-rate") return changedRateCheck(mode);
+  if (typeof OfflineAudioContext !== "function") return { supported: false };
+  const rate = 48000, length = rate * 2;
+  const context = new OfflineAudioContext(2, length, rate);
+  const engine = Cacophony.createOffline({ context, length, numberOfChannels: 2, sampleRate: rate }, undefined, { autoUnlock: false, quiet: true });
+  const buffer = context.createBuffer(2, rate, rate);
+  // Prefix and suffix are only in the left channel; the loop is only right.
+  // Their signs distinguish wanted prefix from forbidden decoded suffix.
+  buffer.getChannelData(0).fill(0.4, 0, rate / 4);
+  buffer.getChannelData(0).fill(-0.4, rate / 2);
+  buffer.getChannelData(1).fill(0.3, rate / 4, rate / 2);
+  let sound, sprite;
+  if (mode === "sprite") {
+    const atlas = context.createBuffer(2, rate * 2, rate);
+    for (let channel = 0; channel < 2; channel++) atlas.copyToChannel(buffer.getChannelData(channel), channel, rate / 2);
+    sprite = await engine.createSprite(atlas, { clip: { start: 0.5, duration: 1 } }, { panType: "stereo" });
+    sound = sprite.sounds.clip;
+  } else sound = await engine.createSound(buffer, "buffer", "stereo");
+  const [voice] = sound.preplay();
+  voice.setLoopRegion(0.25, 0.5);
+  const single = mode === "single" || mode === "single-rate";
+  if (!single) voice.loop("infinite");
+  const offset = mode === "late" ? 0.375 : 0;
+  voice.seek(offset);
+  let ended = 0, playEvents = 0;
+  voice.on("ended", () => ended++); voice.on("play", () => playEvents++);
+  voice.play({ at: 0.125 });
+  let boundary;
+  if (mode === "cancel") { boundary = 0.0625; voice.scheduleStop(boundary); }
+  else if (mode === "finite" || mode === "sprite") { boundary = 1.125; voice.scheduleStop(boundary); }
+  else if (mode === "late") { boundary = 0.75; voice.scheduleStop(boundary); }
+  else if (mode === "single") boundary = 0.625;
+  const interrupted = mode === "mode-switch";
+  if (interrupted && typeof context.suspend !== "function") {
+    sound.cleanup(); sprite?.cleanup(); engine.dispose();
+    return { supported: true, interruptedSupported: false };
+  }
+  let pause;
+  if (interrupted) {
+    boundary = 0.625;
+    pause = context.suspend(0.25).then(() => {
+      voice.loop(0);
+      return context.resume();
+    });
+  }
+  const audio = await context.startRendering();
+  if (pause) await pause;
+  // Native end dispatch follows completed offline rendering on some engines.
+  await new Promise(resolve => setTimeout(resolve, 0));
+  const left = audio.getChannelData(0), right = audio.getChannelData(1);
+  const startFrame = Math.round(0.125 * rate), endFrame = boundary === undefined ? undefined : Math.round(boundary * rate);
+  const result = {
+    supported: true, interruptedSupported: true, ended, state: voice.state, playEvents,
+    firstLoopFrame: right.findIndex(value => value > 0.1), lastLoopFrame: right.findLastIndex(value => value > 0.1), boundary,
+    beforeSilent: left.slice(0, mode === "cancel" ? length : startFrame).every(value => Math.abs(value) < 1e-6) && right.slice(0, mode === "cancel" ? length : startFrame).every(value => Math.abs(value) < 1e-6),
+    noSuffix: left.every(value => value >= -1e-6),
+    prefix: Math.max(...left) > 0.1,
+    loopAudible: Math.max(...right) > 0.1,
+    afterSilent: endFrame === undefined || left.slice(endFrame + 1).every(value => Math.abs(value) < 1e-6) && right.slice(endFrame + 1).every(value => Math.abs(value) < 1e-6),
+    continuous: mode === "cancel" || right.slice(Math.round((mode === "late" ? 0.125 : 0.375) * rate) + 2, endFrame === undefined ? length - 2 : endFrame - 2).every(value => value > 0.1),
+  };
+  sound.cleanup(); sprite?.cleanup(); engine.dispose(); return result;
+};
+</script></body></html>

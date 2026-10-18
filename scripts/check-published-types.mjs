@@ -54,8 +54,12 @@ declare const playback: Playback;
 const baseSound: BaseSound = playback;
 const position = playback.position;
 const isPlaying: boolean = playback.isPlaying;
+const playbackClipSupport: boolean = playback.supportsClipLoop;
+playback.setLoopRegion(1, 2);
+playback.scheduleStop(10);
 const stretched: Float32Array = timeStretch(new Float32Array(8), 1);
 declare const sound: Sound;
+const soundClipSupport: boolean = sound.supportsClipLoop;
 declare const group: Group;
 declare const synth: Synth;
 const options: PlayOptions = { volume: 0, playbackRate: 2, loopCount: 0, panType: "HRTF", position: [10, 0, 5], threeDOptions: { rolloffFactor: 0.1 } };
@@ -94,7 +98,7 @@ const smoothedVoice: Playback = playback.clone({ spatialSmoothingTau: 0.02, posi
 sound.clone({ spatialSmoothingTau: 0 });
 synth.clone({ spatialSmoothingTau: 0.03 });
 
-void [baseSound, position, isPlaying, stretched, voice, selected, defaultTau, smoothedVoice, selection, currentSink];
+void [baseSound, position, isPlaying, playbackClipSupport, soundClipSupport, stretched, voice, selected, defaultTau, smoothedVoice, selection, currentSink];
 `,
   );
   writeFileSync(
