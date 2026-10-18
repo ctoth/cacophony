@@ -42,6 +42,13 @@ type PlaybackCloneOverrides = PanCloneOverrides & {
   panType: PanType;
 };
 
+export interface PrepareSeekOptions {
+  /** Cancel preparation without starting playback. */
+  signal?: AbortSignal;
+  /** Maximum readiness wait in milliseconds, default 10,000. Range: (0, 2^31 - 1]. */
+  timeoutMs?: number;
+}
+
 export class Playback extends BasePlayback implements BaseSound {
   private context: BaseContext;
   public declare source?: SourceNode;
@@ -59,6 +66,9 @@ export class Playback extends BasePlayback implements BaseSound {
    * this promise.
    */
   private _mediaPlayPromise?: Promise<void>;
+  private _cancelPrepareSeek?: () => void;
+  /** Isolates paused media decoding (notably WebKit seek output) from the graph. */
+  private _mediaPreparationGate?: GainNode;
   _fadeInConfig?: { duration: number; type: FadeType; perLoop: boolean; targetVolume: number };
   _fadeOutConfig?: { duration: number; type: FadeType };
   _loopEndCallback?: () => void;
@@ -137,7 +147,7 @@ export class Playback extends BasePlayback implements BaseSound {
 
   protected override setEffectChainEndpoints(input: AudioNode, output: AudioNode): void {
     this._occlusion?.setOutput(output);
-    super.setEffectChainEndpoints(input, this._occlusion?.input ?? output);
+    super.setEffectChainEndpoints(this._mediaPreparationGate ?? input, this._occlusion?.input ?? output);
   }
 
   /**
@@ -291,6 +301,8 @@ export class Playback extends BasePlayback implements BaseSound {
       return [this];
     }
 
+    this._cancelPrepareSeek?.();
+
     applyPlayOptions(this, this.context, options);
     if (options?.playbackRate !== undefined) this.playbackRate = options.playbackRate;
     if (options?.loopCount !== undefined) this.loop(options.loopCount);
@@ -309,6 +321,9 @@ export class Playback extends BasePlayback implements BaseSound {
       if (this._state === "paused") {
         // If we're resuming from a paused state
         if ("mediaElement" in this.source && this.source.mediaElement) {
+          if (this.source.mediaElement.currentTime !== this._offset) {
+            this.source.mediaElement.currentTime = this._offset;
+          }
           mediaPlayPromise = this.source.mediaElement.play();
         } else {
           // For non-mediaElement sources, we need to recreate and start the source
@@ -323,7 +338,9 @@ export class Playback extends BasePlayback implements BaseSound {
         // If we're starting from the beginning or a stopped state
 
         if ("mediaElement" in this.source && this.source.mediaElement) {
-          this.source.mediaElement.currentTime = this._offset;
+          if (this.source.mediaElement.currentTime !== this._offset) {
+            this.source.mediaElement.currentTime = this._offset;
+          }
           mediaPlayPromise = this.source.mediaElement.play();
         } else if ("start" in this.source) {
           this.recreateSource();
@@ -384,6 +401,7 @@ export class Playback extends BasePlayback implements BaseSound {
   }
 
   protected override emitPlayStarted(isResume: boolean): void {
+    this._mediaPreparationGate?.gain.setValueAtTime(1, this.context.currentTime);
     // A stopped voice may have been reaped by Sound.preplay() or natural end.
     // Restore ownership only after its source has successfully started.
     if (this._state === "stopped" && !this.origin.playbacks.includes(this)) {
@@ -397,15 +415,23 @@ export class Playback extends BasePlayback implements BaseSound {
       return;
     }
 
-    const elapsed = Math.max(0, (this.context.currentTime - this._startTime) * this._playbackRate);
-    this._offset = this.regionRelativeOffset(this._offset + elapsed);
+    // A play listener can pause synchronously before the settled play promise's
+    // finally runs. That bookkeeping must not block preparing this paused voice.
+    this._mediaPlayPromise = undefined;
 
     if ("mediaElement" in this.source && this.source.mediaElement) {
+      this._mediaPreparationGate?.gain.setValueAtTime(0, this.context.currentTime);
       this.source.mediaElement.pause();
-    } else if ("stop" in this.source) {
-      // For AudioBufferSourceNode and OscillatorNode, stop the source.
-      // It cannot be restarted; a new one will be created on play().
-      this.source.stop();
+      // The context keeps advancing through network stalls and native loops.
+      // Resume from the element's real position, never an elapsed-time guess.
+      this._offset = this.source.mediaElement.currentTime;
+    } else {
+      const elapsed = Math.max(0, (this.context.currentTime - this._startTime) * this._playbackRate);
+      this._offset = this.regionRelativeOffset(this._offset + elapsed);
+      if ("stop" in this.source) {
+        // Buffer sources cannot be restarted; play() creates a new one.
+        this.source.stop();
+      }
     }
 
     this.emitPaused();
@@ -415,6 +441,8 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!this.source) {
       throw new Error("Cannot stop a sound that has been cleaned up");
     }
+    this._cancelPrepareSeek?.();
+    this._mediaPreparationGate?.gain.setValueAtTime(0, this.context.currentTime);
     const pendingMediaPlay = this._mediaPlayPromise !== undefined;
     this._mediaPlayPromise = undefined;
     if (!pendingMediaPlay && (this._state === "stopped" || this._state === "unplayed")) {
@@ -485,6 +513,129 @@ export class Playback extends BasePlayback implements BaseSound {
     });
   }
 
+  /**
+   * Silently prepares an idle or paused voice at a finite offset in seconds.
+   * Buffers resolve immediately. Media elements wait for metadata, a seekable
+   * range containing the target, and completed seeking with current audio data.
+   * No play(), context resume, or autoplay primer is performed. State is retained.
+   * A later preparation, play, seek, stop, or cleanup rejects pending work with
+   * AbortError. Cancellation does not roll back a browser seek already requested.
+   * Live/unknown-duration media rejects with NotSupportedError; readiness timeout
+   * rejects with TimeoutError. Browser media seeking is not sample accurate.
+   */
+  async prepareSeek(time: number, options: PrepareSeekOptions = {}): Promise<void> {
+    this.assertNotCleanedUp();
+    if (!Number.isFinite(time) || time < 0) throw new RangeError("Seek time must be finite and non-negative");
+    const timeoutMs = options.timeoutMs ?? 10_000;
+    if (!Number.isFinite(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2_147_483_647) {
+      throw new RangeError("Seek timeout must be positive and at most 2147483647 milliseconds");
+    }
+    if (options.signal?.aborted) throw new DOMException("Seek preparation aborted", "AbortError");
+    if (this._state === "playing" || this._mediaPlayPromise) {
+      throw new Error("Pause playback before preparing a seek");
+    }
+    this._cancelPrepareSeek?.();
+    const source = this.source!;
+    if (!("mediaElement" in source)) {
+      if (!Number.isFinite(this.duration) || time > this.duration) throw new RangeError("Seek time exceeds duration");
+      this._offset = time;
+      this.emit("seek", time);
+      return;
+    }
+    const media = source.mediaElement;
+    if (!media.paused) throw new Error("Pause playback before preparing a seek");
+    if (!this._mediaPreparationGate) {
+      const gate = this.context.createGain();
+      gate.gain.value = 0;
+      this._mediaPreparationGate = gate;
+      this.setEffectChainEndpoints(source, this.panner!);
+      source.connect(gate);
+    }
+    this._mediaPreparationGate.gain.setValueAtTime(0, this.context.currentTime);
+    await new Promise<void>((resolve, reject) => {
+      let finished = false;
+      let requested = false;
+      let awaitingSeeked = false;
+      const events = [
+        "loadedmetadata",
+        "durationchange",
+        "progress",
+        "loadeddata",
+        "canplay",
+        "seeked",
+        "error",
+        "emptied",
+        "play",
+      ];
+      const settle = (error?: unknown) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        for (const event of events) media.removeEventListener(event, inspect);
+        options.signal?.removeEventListener("abort", cancel);
+        if (this._cancelPrepareSeek === cancel) this._cancelPrepareSeek = undefined;
+        if (error !== undefined) reject(error);
+        else {
+          this._offset = time;
+          resolve();
+        }
+      };
+      const cancel = () => settle(new DOMException("Seek preparation aborted", "AbortError"));
+      const inspect = (event?: Event) => {
+        if (finished) return;
+        try {
+          if (media.error || event?.type === "error") {
+            settle(new Error(media.error?.message || "Media failed during seek preparation"));
+            return;
+          }
+          // preplay() can queue emptied while assigning the initial resource.
+          // Once a seek is requested, a resource reset invalidates that request.
+          if ((event?.type === "emptied" && requested) || event?.type === "play") {
+            cancel();
+            return;
+          }
+          if (media.readyState < 1) return;
+          if (!Number.isFinite(media.duration)) {
+            settle(new DOMException("Seek preparation requires finite-duration media", "NotSupportedError"));
+            return;
+          }
+          if (time > media.duration) {
+            settle(new RangeError("Seek time exceeds duration"));
+            return;
+          }
+          if (!requested) {
+            let inRange = false;
+            for (let i = 0; i < media.seekable.length; i++) {
+              if (time >= media.seekable.start(i) && time <= media.seekable.end(i)) inRange = true;
+            }
+            if (!inRange) return;
+            requested = true;
+            awaitingSeeked = media.seeking || media.currentTime !== time;
+            if (media.currentTime !== time) media.currentTime = time;
+          } else if (event?.type === "seeked") awaitingSeeked = false;
+          if (
+            !awaitingSeeked &&
+            !media.seeking &&
+            media.readyState >= 2 &&
+            Math.abs(media.currentTime - time) < 0.001
+          ) {
+            settle();
+          }
+        } catch (error) {
+          settle(error);
+        }
+      };
+      const timer = setTimeout(() => settle(new DOMException("Seek preparation timed out", "TimeoutError")), timeoutMs);
+      this._cancelPrepareSeek = cancel;
+      for (const event of events) media.addEventListener(event, inspect);
+      options.signal?.addEventListener("abort", cancel, { once: true });
+      inspect();
+    });
+    // Notify outside the readiness listener's error boundary: observer errors
+    // reject this async call instead of being swallowed after it has settled.
+    this.emit("seek", time);
+  }
+
   seek(time: number): void {
     if (!this.source || !this.gainNode || !this.panner) {
       throw new Error("Cannot seek a sound that has been cleaned up");
@@ -492,6 +643,8 @@ export class Playback extends BasePlayback implements BaseSound {
     if (!Number.isFinite(time) || time < 0 || (this.origin.region !== undefined && time > this.duration)) {
       throw new Error("Invalid time value for seek");
     }
+
+    this._cancelPrepareSeek?.();
 
     if (
       this.origin.soundType === "streaming" &&
@@ -592,6 +745,8 @@ export class Playback extends BasePlayback implements BaseSound {
    */
 
   cleanup(): void {
+    this._cancelPrepareSeek?.();
+    this._mediaPreparationGate?.gain.setValueAtTime(0, this.context.currentTime);
     this._mediaPlayPromise = undefined;
     if (!this.source) {
       return; // Already cleaned up
@@ -623,6 +778,8 @@ export class Playback extends BasePlayback implements BaseSound {
     this.source.disconnect();
     this.source = undefined;
     super.cleanup();
+    this._mediaPreparationGate?.disconnect();
+    this._mediaPreparationGate = undefined;
     this._occlusion?.destroy();
     this._occlusion = undefined;
   }

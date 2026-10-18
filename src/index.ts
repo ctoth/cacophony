@@ -139,6 +139,7 @@ export type {
   PcmStreamState,
 } from "./pcmStream";
 export { PcmStreamPlayback, PcmStreamSound } from "./pcmStream";
+export type { PrepareSeekOptions } from "./playback";
 export { Playback } from "./playback";
 export type { TimeStretchOptions } from "./processors/timestretch-core";
 export { timeStretch, timeStretchChannels } from "./processors/timestretch-core";
